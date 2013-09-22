@@ -1,0 +1,4 @@
+.env
+*.pyc
+*.tar.gz
+pillar/study_repos.sls
