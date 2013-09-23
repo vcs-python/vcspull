@@ -198,6 +198,24 @@ class ConfigExpandTestCase(unittest.TestCase):
         self.assertDictEqual(config, self.after_config)
 
 
+class TestFabric(object):
+    """ we may want to skip testing in travis, and offer conditions to pass
+    if there is no SSH server on the local machine.
+
+    see: https://github.com/fabric/fabric/blob/master/.travis.yml
+    """
+    pass
+
+
+class TestVCS(object):
+
+    def test_can_get_repository(self):
+        raise NotImplementedError
+
+
+class TestGit(TestVCS):
+    pass
+
 if __name__ == '__main__':
     unittest.main()
 
