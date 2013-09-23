@@ -11,10 +11,10 @@ Use a YAML/JSON/INI file in this format
 
 .. code-block:: yaml
 
-    - /home/user/study/
+    /home/user/study/:
       - linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
       - freebsd: https://github.com/freebsd/freebsd.git
-    - /home/user/github_projects/
+    /home/user/github_projects/:
       - kaptan:
         - repo: git@github.com:tony/kaptan.git
         - remotes:
