@@ -4,8 +4,22 @@ compilation and development.
 .. image:: https://travis-ci.org/tony/analects.png?branch=master
    :target: https://travis-ci.org/tony/analects
 
-use YAML, JSON, INI or python dict + pip compatible repository URL's to
-checkout + grab the latest source to projects.
+use YAML, JSON, INI or python dict + `pip vcs url format`_ checkout + grab
+the latest source to projects.
+
+Use a YAML/JSON/INI file in this format .. code:: yaml
+
+    - /home/user/study/
+      - linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+      - freebsd: https://github.com/freebsd/freebsd.git
+    - /home/user/github_projects/
+      - kaptan:
+        - repo: git@github.com:tony/kaptan.git
+        - remotes:
+          - upstream: https://github.com/emre/kaptan
+          - marksteve: https://github.com/marksteve/kaptan.git
+
+.. _pip vcs url format: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 
 Not ready for public use.
 
