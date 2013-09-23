@@ -28,7 +28,7 @@ setup(
     author='Tony Narlock',
     author_email='tony@git-pull.com',
     description='Pull, update the latest source code projects for study and development.',
-    packages=['analects', 'analects.testsuite'],
+    #packages=['analects', 'analects.testsuite'],
     include_package_data=True,
     install_requires=requirements('requirements.pip'),
     classifiers=[
