@@ -2,3 +2,4 @@ virtualenv
 pip
 fabric
 fabtools
+kaptan
