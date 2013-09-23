@@ -7,7 +7,9 @@ compilation and development.
 use YAML, JSON, INI or python dict + `pip vcs url format`_ checkout + grab
 the latest source to projects.
 
-Use a YAML/JSON/INI file in this format:: yaml
+Use a YAML/JSON/INI file in this format
+
+.. code-block:: yaml
 
     - /home/user/study/
       - linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
