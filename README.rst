@@ -10,14 +10,15 @@ the latest source to projects.
 .. code-block:: yaml
 
     /home/user/study/:
-      linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-      freebsd: https://github.com/freebsd/freebsd.git
+        linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+        freebsd: https://github.com/freebsd/freebsd.git
     /home/user/github_projects/:
-      kaptan:
-        repo: git@github.com:tony/kaptan.git
-        remotes:
-          upstream: https://github.com/emre/kaptan
-          marksteve: https://github.com/marksteve/kaptan.git
+        kaptan:
+            repo: git@github.com:tony/kaptan.git
+            remotes:
+                upstream: https://github.com/emre/kaptan
+                marksteve: https://github.com/marksteve/kaptan.git
+
 
 .. _pip vcs url format: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 
