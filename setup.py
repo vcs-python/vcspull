@@ -2,7 +2,7 @@
 analects
 -----
 
-A Pythonic ORM Toolkit for managing tmux(1) workspaces.
+Pull, update the latest source code projects for study and development.
 
 
 """
@@ -27,8 +27,7 @@ setup(
     license='BSD',
     author='Tony Narlock',
     author_email='tony@git-pull.com',
-    description='Pull, update the latest source code projects for study and development.',
-    #packages=['analects', 'analects.testsuite'],
+    description='',
     include_package_data=True,
     install_requires=requirements('requirements.pip'),
     classifiers=[
