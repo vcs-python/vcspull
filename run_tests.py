@@ -125,6 +125,7 @@ class ConfigImportExportTestCase(unittest.TestCase):
         if os.path.isdir(TMP_DIR):
             shutil.rmtree(TMP_DIR)
 
+
 class ConfigExpandTestCase(unittest.TestCase):
 
     '''
@@ -160,33 +161,24 @@ class ConfigExpandTestCase(unittest.TestCase):
             }]
     }
 
+    before_config = {
+        '/home/uesr/study': {
+            'linux': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
+            'freebsd': 'https://github.com/freebsd/freebsd.git'
+        },
+        '/home/user/github_projects': {
+            'kaptan': {
+                'repo': 'git@github.com/emre/kaptan',
+                'remotes': {
+                    'upstream': 'https://github.com/emre/kaptan',
+                    'marksteve': 'https://github.com/marksteve/kaptan.git'
+                }
+            }
+        }
+    }
+
     after_config = {
-        'session_name': 'sampleconfig',
-        'start_directory': '~',
-        'windows': [{
-            'shell_command': ['top'],
-            'window_name': 'editor',
-            'panes': [
-                {
-                    'start_directory': '~', 'shell_command': ['vim'],
-                    },  {
-                    'shell_command': ['cowsay "hey"']
-                },
-            ],
-            'layout': 'main-verticle'},
-            {
-                'window_name': 'logging',
-                'panes': [
-                    {'shell_command': ['tail -F /var/log/syslog'],
-                     'start_directory':'/var/log'}
-                ]
-            },
-            {
-                'automatic_rename': True,
-                'panes': [
-                    {'shell_command': ['htop']}
-                ]
-            }]
+
     }
 
     @unittest.skip("not implemented yet")
