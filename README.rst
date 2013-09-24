@@ -23,7 +23,7 @@ the latest source to projects.
             repo: git@github.com:tony/vim-config.git
             after_shell_command: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
         .tmux: 
-            repo: git@github.com:tony/vim-config.git
+            repo: git@github.com:tony/tmux-config.git
             shell_command_after: ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
             
 
