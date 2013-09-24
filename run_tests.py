@@ -331,6 +331,17 @@ class TestFabric(object):
     pass
 
 
+class TestIterateThroughEachObject(object):
+    """todo:
+    iterate through each object and return a list of them.
+
+    look into being able to use variation of https://github.com/serkanyersen/underscore.py/blob/master/src/underscore.py
+
+    .find / .findWhere to easily look up results in collection lf repos.
+
+    """
+    pass
+
 class TestVCS(object):
 
     def test_can_get_repository(self):
