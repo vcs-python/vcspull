@@ -18,7 +18,7 @@ the latest source to projects.
             remotes:
                 upstream: https://github.com/emre/kaptan
                 marksteve: https://github.com/marksteve/kaptan.git
-    ~:
+    /home/tony/:
         .vim:
             repo: git@github.com:tony/vim-config.git
             after_shell_command: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc

@@ -167,7 +167,7 @@ class TestTravis(unittest.TestCase):
 
 TMP_DIR = tempfile.mkdtemp('analects')
 
-sampleyamlconfig = """
+sampleconfig_yaml = """
 /home/user/study/:
     linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
     freebsd: https://github.com/freebsd/freebsd.git
@@ -177,10 +177,10 @@ sampleyamlconfig = """
         remotes:
             upstream: https://github.com/emre/kaptan
             marksteve: https://github.com/marksteve/kaptan.git
-~:
+/home/tony/:
     .vim:
         repo: git@github.com:tony/vim-config.git
-        after_shell_command: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
+        shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
     .tmux:
         repo: git@github.com:tony/tmux-config.git
         shell_command_after: ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
@@ -201,14 +201,14 @@ sampleconfig_dict = {
             }
         }
     },
-    '~': {
+    '/home/tony/': {
         '.vim': {
             'repo': 'git@github.com:tony/vim-config.git',
-            'after_shell_command': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
+            'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
         },
         '.tmux': {
             'repo': 'git@github.com:tony/tmux-config.git',
-            'after_shell_command': 'ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf'
+            'shell_command_after': 'ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf'
         }
     }
 }
@@ -218,7 +218,7 @@ class ConfigFormatTestCase(unittest.TestCase):
 
     def test_dict_equals_yaml(self):
         config = kaptan.Kaptan(handler='yaml')
-        config.import_config(sampleyamlconfig)
+        config.import_config(sampleconfig_yaml)
 
         self.maxDiff = None
 
