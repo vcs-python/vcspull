@@ -3,8 +3,25 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to analects's documentation!
-====================================
+========
+analects
+========
+
+source code management.
+
+
+internal workflow
+-----------------
+
+1. accept YAML, JSON, INI configs with kaptan
+2. expand user config info full dict object (todo: specify full dict form
+   in tests
+3. determine VCS scheme and create a new object of  metaclass Repo +
+   (VCS Class). object will be initialized with the full dict form object.
+   example coming soon. candidates for inheriting vcs backend are:
+   a. readthedocs https://github.com/rtfd/readthedocs.org/tree/master/readthedocs/vcs_support
+   b. saltstack - salt/modules/git.py salt/states/git.py
+   c. pip's
 
 Contents:
 
