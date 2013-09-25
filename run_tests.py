@@ -11,6 +11,9 @@ import tempfile
 import shutil
 
 
+TMP_DIR = tempfile.mkdtemp('analects')
+
+
 class ConfigExpand(object):
 
     '''Expand configuration into full form. Enables shorthand forms for
@@ -26,163 +29,159 @@ class ConfigExpand(object):
         self.config = config
 
     def expand(self):
-        return self.expand_shell_command().expand_shell_command_before()
+        return self.expand_repo_string_to_dict().expand_shell_command_after()
 
-    def expand_shell_command(self):
-        '''
-        iterate through session, windows, and panes for ``shell_command``, if
-        it is a string, turn to list.
-        '''
-        config = self.config
-
-        def _expand(c):
-            '''any config section, session, window, pane that can
-            contain the 'shell_command' value
-            '''
-            if ('shell_command' in c and
-                    isinstance(c['shell_command'], basestring)):
-                    c['shell_command'] = [c['shell_command']]
-
-            return c
-
-        config = _expand(config)
-        for window in config['windows']:
-            window = _expand(window)
-            window['panes'] = [_expand(pane) for pane in window['panes']]
-
-        self.config = config
-
-        return self
-
-    def expand_shell_command_before(self):
+    def expand_shell_command_after(self):
         '''
         iterate through session, windows, and panes for
-        ``shell_command_before``, if it is a string, turn to list.
+        ``shell_command_after``, if it is a string, turn to list.
         '''
-        config = self.config
 
         def _expand(c):
-            '''any config section, session, window, pane that can
-            contain the 'shell_command' value
-            '''
-            if ('shell_command_before' in c and
-                    isinstance(c['shell_command_before'], basestring)):
-                    c['shell_command_before'] = [c['shell_command_before']]
+            if ('shell_command_after' in c and
+                    isinstance(c['shell_command_after'], basestring)):
+                    c['shell_command_after'] = [c['shell_command_after']]
 
             return c
 
-        config = _expand(config)
-        for window in config['windows']:
-            window = _expand(window)
-            window['panes'] = [_expand(pane) for pane in window['panes']]
+        for directory, repos in self.config.iteritems():
+            for repo, repo_data in repos.iteritems():
+                repo_data = _expand(repo_data)
 
-        self.config = config
+        return self
+
+    def expand_repo_string_to_dict(self):
+        '''
+        repo_name: http://myrepo.com/repo.git
+
+        to
+
+        repo_name: { repo: 'http://myrepo.com/repo.git' }
+
+        also assures the repo is a :py:class:`dict`.
+        '''
+
+        def _expand(repo_data):
+            if isinstance(repo_data, basestring):
+                repo_data = {'repo': repo_data}
+
+            return repo_data
+
+        for directory, repos in self.config.iteritems():
+            for repo, repo_data in repos.iteritems():
+                self.config[directory][repo] = _expand(repo_data)
 
         return self
 
 
-class TestTravis(unittest.TestCase):
+class ConfigTestCaseBase(unittest.TestCase):
 
-    def test_travis(self):
-        self.assertEqual(2, 2)
+    """ contains the fresh config dict/yaml's to test against.
+
+    this is because running ConfigExpand on SAMPLECONFIG_DICT would alter
+    it in later test cases. these configs are used throughout the tests.
+    """
+
+    def setUp(self):
+
+        SAMPLECONFIG_YAML = """
+        /home/user/study/:
+            linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+            freebsd: https://github.com/freebsd/freebsd.git
+        /home/user/github_projects/:
+            kaptan:
+                repo: git@github.com:tony/kaptan.git
+                remotes:
+                    upstream: https://github.com/emre/kaptan
+                    marksteve: https://github.com/marksteve/kaptan.git
+        /home/tony/:
+            .vim:
+                repo: git@github.com:tony/vim-config.git
+                shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
+            .tmux:
+                repo: git@github.com:tony/tmux-config.git
+                shell_command_after:
+                    - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
+        """
 
 
-TMP_DIR = tempfile.mkdtemp('analects')
-
-sampleconfig_yaml = """
-/home/user/study/:
-    linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-    freebsd: https://github.com/freebsd/freebsd.git
-/home/user/github_projects/:
-    kaptan:
-        repo: git@github.com:tony/kaptan.git
-        remotes:
-            upstream: https://github.com/emre/kaptan
-            marksteve: https://github.com/marksteve/kaptan.git
-/home/tony/:
-    .vim:
-        repo: git@github.com:tony/vim-config.git
-        shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
-    .tmux:
-        repo: git@github.com:tony/tmux-config.git
-        shell_command_after:
-            - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
-"""
-
-
-sampleconfig_dict = {
-    '/home/user/study/': {
-        'linux': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
-        'freebsd': 'https://github.com/freebsd/freebsd.git'
-    },
-    '/home/user/github_projects/': {
-        'kaptan': {
-            'repo': 'git@github.com:tony/kaptan.git',
-            'remotes': {
-                'upstream': 'https://github.com/emre/kaptan',
-                'marksteve': 'https://github.com/marksteve/kaptan.git'
+        SAMPLECONFIG_DICT = {
+            '/home/user/study/': {
+                'linux': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
+                'freebsd': 'https://github.com/freebsd/freebsd.git'
+            },
+            '/home/user/github_projects/': {
+                'kaptan': {
+                    'repo': 'git@github.com:tony/kaptan.git',
+                    'remotes': {
+                        'upstream': 'https://github.com/emre/kaptan',
+                        'marksteve': 'https://github.com/marksteve/kaptan.git'
+                    }
+                }
+            },
+            '/home/tony/': {
+                '.vim': {
+                    'repo': 'git@github.com:tony/vim-config.git',
+                    'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
+                },
+                '.tmux': {
+                    'repo': 'git@github.com:tony/tmux-config.git',
+                    'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
+                }
             }
         }
-    },
-    '/home/tony/': {
-        '.vim': {
-            'repo': 'git@github.com:tony/vim-config.git',
-            'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
-        },
-        '.tmux': {
-            'repo': 'git@github.com:tony/tmux-config.git',
-            'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
-        }
-    }
-}
 
-sampleconfig_finaldict = {
-    '/home/user/study/': {
-        'linux': {'repo': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
-        'freebsd': {'repo': 'https://github.com/freebsd/freebsd.git', }
-    },
-    '/home/user/github_projects/': {
-        'kaptan': {
-            'repo': 'git@github.com:tony/kaptan.git',
-            'remotes': {
-                'upstream': 'https://github.com/emre/kaptan',
-                'marksteve': 'https://github.com/marksteve/kaptan.git'
+        SAMPLECONFIG_FINAL_DICT = {
+            '/home/user/study/': {
+                'linux': {'repo': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
+                'freebsd': {'repo': 'https://github.com/freebsd/freebsd.git', }
+            },
+            '/home/user/github_projects/': {
+                'kaptan': {
+                    'repo': 'git@github.com:tony/kaptan.git',
+                    'remotes': {
+                        'upstream': 'https://github.com/emre/kaptan',
+                        'marksteve': 'https://github.com/marksteve/kaptan.git'
+                    }
+                }
+            },
+            '/home/tony/': {
+                '.vim': {
+                    'repo': 'git@github.com:tony/vim-config.git',
+                    'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
+                },
+                '.tmux': {
+                    'repo': 'git@github.com:tony/tmux-config.git',
+                    'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
+                }
             }
         }
-    },
-    '/home/tony/': {
-        '.vim': {
-            'repo': 'git@github.com:tony/vim-config.git',
-            'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
-        },
-        '.tmux': {
-            'repo': 'git@github.com:tony/tmux-config.git',
-            'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
-        }
-    }
-}
+
+        self.config_dict = SAMPLECONFIG_DICT
+        self.config_dict_expanded = SAMPLECONFIG_FINAL_DICT
+        self.config_yaml = SAMPLECONFIG_YAML
 
 
-class ConfigFormatTestCase(unittest.TestCase):
+class ConfigFormatTestCase(ConfigTestCaseBase):
 
     """ verify that example YAML is returning expected dict format """
 
     def test_dict_equals_yaml(self):
         config = kaptan.Kaptan(handler='yaml')
-        config.import_config(sampleconfig_yaml)
+        config.import_config(self.config_yaml)
 
         self.maxDiff = None
 
-        self.assertDictEqual(sampleconfig_dict, config.export('dict'))
+        self.assertDictEqual(self.config_dict, config.export('dict'))
 
 
-class ConfigImportExportTestCase(unittest.TestCase):
+class ConfigImportExportTestCase(ConfigTestCaseBase):
 
     def test_export_json(self):
         json_config_file = os.path.join(TMP_DIR, '.analects.json')
 
         config = kaptan.Kaptan()
-        config.import_config(sampleconfig_dict)
+        config.import_config(self.config_dict)
 
         json_config_data = config.export('json', indent=2)
 
@@ -192,13 +191,13 @@ class ConfigImportExportTestCase(unittest.TestCase):
 
         new_config = kaptan.Kaptan()
         new_config_data = new_config.import_config(json_config_file).get()
-        self.assertDictEqual(sampleconfig_dict, new_config_data)
+        self.assertDictEqual(self.config_dict, new_config_data)
 
     def test_export_yaml(self):
         yaml_config_file = os.path.join(TMP_DIR, '.analects.yaml')
 
         config = kaptan.Kaptan()
-        config.import_config(sampleconfig_dict)
+        config.import_config(self.config_dict)
 
         yaml_config_data = config.export('yaml', indent=2)
 
@@ -208,7 +207,7 @@ class ConfigImportExportTestCase(unittest.TestCase):
 
         new_config = kaptan.Kaptan()
         new_config_data = new_config.import_config(yaml_config_file).get()
-        self.assertDictEqual(sampleconfig_dict, new_config_data)
+        self.assertDictEqual(self.config_dict, new_config_data)
 
     def test_scan_config(self):
         configs = []
@@ -247,50 +246,22 @@ class ConfigImportExportTestCase(unittest.TestCase):
             shutil.rmtree(TMP_DIR)
 
 
-class ConfigExpandTestCase(unittest.TestCase):
+class ConfigExpandTestCase(ConfigTestCaseBase):
 
     '''
     assumes the configuration has been imported into a python dict correctly.
     '''
 
-    before_config = {
-        '/home/uesr/study/': {
-            'linux': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
-            'freebsd': 'https://github.com/freebsd/freebsd.git'
-        },
-        '/home/user/github_projects/': {
-            'kaptan': {
-                'repo': 'git@github.com/emre/kaptan',
-                'remotes': {
-                    'upstream': 'https://github.com/emre/kaptan',
-                    'marksteve': 'https://github.com/marksteve/kaptan.git'
-                }
-            }
-        },
-        '~': {
-            '.vim': {
-                'repo': 'git@github.com:tony/vim-config.git',
-                'after_shell_command': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
-            },
-            '.tmux': {
-                'repo': 'git@github.com:tony/tmux-config.git',
-                'after_shell_command': 'ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf'
-            }
-        }
-
-    }
-
-    after_config = {
-
-    }
-
-    @unittest.skip("not implemented yet")
-    def test_expand_shell_commands(self):
+    def test_expand_shell_command_after(self):
         '''
         expands shell commands from string to list
         '''
-        config = analects_expand(self.before_config).expand().config
-        self.assertDictEqual(config, self.after_config)
+
+        self.maxDiff = None
+
+        config = ConfigExpand(self.config_dict).expand().config
+
+        self.assertDictEqual(config, self.config_dict_expanded)
 
 
 class TestFabric(object):
@@ -304,6 +275,7 @@ class TestFabric(object):
 
 
 class TestIterateThroughEachObject(object):
+
     """todo:
     iterate through each object and return a list of them.
 
@@ -314,6 +286,7 @@ class TestIterateThroughEachObject(object):
     """
     pass
 
+
 class TestVCS(object):
 
     def test_can_get_repository(self):
@@ -322,9 +295,6 @@ class TestVCS(object):
 
 class TestGit(TestVCS):
     pass
-
-if __name__ == '__main__':
-    unittest.main()
 
 if __name__ == '__main__':
     unittest.main()
