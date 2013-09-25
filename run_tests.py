@@ -105,7 +105,8 @@ sampleconfig_yaml = """
         shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
     .tmux:
         repo: git@github.com:tony/tmux-config.git
-        shell_command_after: ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
+        shell_command_after:
+            - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
 """
 
 
@@ -130,7 +131,7 @@ sampleconfig_dict = {
         },
         '.tmux': {
             'repo': 'git@github.com:tony/tmux-config.git',
-            'shell_command_after': 'ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf'
+            'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
         }
     }
 }
@@ -152,11 +153,11 @@ sampleconfig_finaldict = {
     '/home/tony/': {
         '.vim': {
             'repo': 'git@github.com:tony/vim-config.git',
-            'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
+            'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
         },
         '.tmux': {
             'repo': 'git@github.com:tony/tmux-config.git',
-            'shell_command_after': 'ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf'
+            'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
         }
     }
 }
@@ -251,35 +252,6 @@ class ConfigExpandTestCase(unittest.TestCase):
     '''
     assumes the configuration has been imported into a python dict correctly.
     '''
-
-    before_config = {
-        'session_name': 'sampleconfig',
-        'start_directory': '~',
-        'windows': [{
-            'shell_command': 'top',
-            'window_name': 'editor',
-            'panes': [
-                {
-                    'start_directory': '~', 'shell_command': ['vim'],
-                    },  {
-                    'shell_command': 'cowsay "hey"'
-                },
-            ],
-            'layout': 'main-verticle'},
-            {
-                'window_name': 'logging',
-                'panes': [
-                    {'shell_command': ['tail -F /var/log/syslog'],
-                     'start_directory':'/var/log'}
-                ]
-            },
-            {
-                'automatic_rename': True,
-                'panes': [
-                    {'shell_command': 'htop'}
-                ]
-            }]
-    }
 
     before_config = {
         '/home/uesr/study/': {
