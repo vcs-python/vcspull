@@ -104,7 +104,6 @@ class ConfigTestCaseBase(unittest.TestCase):
                     - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
         """
 
-
         SAMPLECONFIG_DICT = {
             '/home/user/study/': {
                 'linux': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
@@ -263,6 +262,21 @@ class ConfigExpandTestCase(ConfigTestCaseBase):
 
         self.assertDictEqual(config, self.config_dict_expanded)
 
+
+class ConfigToObjectsTestCase(ConfigTestCaseBase):
+
+    def setUp(self):
+        SAMPLECONFIG_LIST = [
+        {
+            'name': None,
+            'repo_parent_dir': None,
+            'repo_dir': None,
+            'repo_vcs_uri': None,
+            'rev': None
+        }
+        ]
+
+        super(ConfigToObjectTestCase, self).setup()
 
 class TestFabric(object):
 
