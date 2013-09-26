@@ -9,7 +9,8 @@ import kaptan
 import glob
 import tempfile
 import shutil
-
+import collections
+from pprint import pprint
 
 TMP_DIR = tempfile.mkdtemp('analects')
 
@@ -224,6 +225,72 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
             shutil.rmtree(TMP_DIR)
 
 
+class BackboneCollection(collections.MutableSequence):
+    '''emulate backbone collection
+    '''
+    def __init__(self, models=None):
+        self.attributes = list(models) if models is None else []
+
+    def __getitem__(self, index):
+        return self.attributes[index]
+
+    def __setitem__(self, index, value):
+        self.attributes[index] = value
+
+    def __delitem__(self, index):
+        del self.attributes[index]
+
+    def insert(self, index, value):
+        self.attributes.insert(index, value)
+
+    def __len__(self):
+        return len(self.attributes)
+
+
+class BackboneModel(collections.MutableMapping):
+
+    '''emulate backbone model
+    '''
+    def __init__(self, attributes=None):
+        self.attributes = dict(attributes) if attributes is not None else {}
+
+    def __getitem__(self, key):
+        return self.attributes[key]
+
+    def __setitem__(self, key, value):
+        self.attributes[key] = value
+        self.dirty = True
+
+    def __delitem__(self, key):
+        del self.attributes[key]
+        self.dirty = True
+
+    def keys(self):
+        return self.attributes.keys()
+
+    def __iter__(self):
+        return self.attributes.__iter__()
+
+    def __len__(self):
+        return len(self.attributes.keys())
+
+
+class Repos(BackboneCollection):
+
+    """
+    .find, .findWhere returns a ReposProxy class of filtered repos, these then
+    may be .update()'d.  make repos underscore.py compatible?
+
+    """
+    pass
+
+
+class Repo(BackboneModel):
+
+    def __init__(self, attributes=None):
+        self.attributes = dict(attributes) if attributes is not None else {}
+
+
 class ConfigExpandTestCase(ConfigTestCaseBase):
 
     '''
@@ -279,11 +346,10 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
                 repo_list.append(repo_dict)
         return repo_list
 
-    def test_to_objects(self):
+    def test_to_dictlist(self):
         config = self.config_dict_expanded
 
         repo_list = self.get_objects(self.config_dict_expanded)
-        from pprint import pprint
 
         for r in repo_list:
             self.assertIsInstance(r, dict)
@@ -297,10 +363,23 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
                     self.assertIsInstance(remote, dict)
                     self.assertIn('remote_name', remote)
                     self.assertIn('remote_location', remote)
-
-
         pprint(repo_list)
 
+    def test_to_repo_objects(self):
+        repo_list = self.get_objects(self.config_dict_expanded)
+        for repo_dict in repo_list:
+            r = Repo(repo_dict)
+            self.assertIsInstance(r, Repo)
+            self.assertIn('name', r)
+            self.assertIn('parent_path', r)
+            self.assertIn('remote_location', r)
+
+            if 'remotes' in r:
+                self.assertIsInstance(r['remotes'], list)
+                for remote in r['remotes']:
+                    self.assertIsInstance(remote, dict)
+                    self.assertIn('remote_name', remote)
+                    self.assertIn('remote_location', remote)
 
 class TestFabric(object):
 
