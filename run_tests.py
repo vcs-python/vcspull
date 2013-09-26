@@ -19,17 +19,18 @@ def expand_config(config):
     analects config.
     :param config: the configuration for the session
     :type config: dict
-
-    repo_name: http://myrepo.com/repo.git
-
-    to
-
-    repo_name: { repo: 'http://myrepo.com/repo.git' }
-
-    also assures the repo is a :py:class:`dict`.
     '''
 
     def _expand(repo_data):
+        '''
+        repo_name: http://myrepo.com/repo.git
+
+        to
+
+        repo_name: { repo: 'http://myrepo.com/repo.git' }
+
+        also assures the repo is a :py:class:`dict`.
+        '''
         if isinstance(repo_data, basestring):
             repo_data = {'repo': repo_data}
 
@@ -256,8 +257,49 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         super(ConfigToObjectTestCase, self).setUp()
 
+    @staticmethod
+    def get_objects(config):
+        repo_list = []
+        for directory, repos in config.iteritems():
+            for repo, repo_data in repos.iteritems():
+                repo_dict = {
+                    'name': repo,
+                    'parent_path': directory,
+                    'remote_location': repo_data['repo'],
+                }
+
+                if 'remotes' in repo_data:
+                    repo_dict['remotes'] = []
+                    for remote_name, remote_location in repo_data['remotes'].iteritems():
+                        remote_dict = {
+                            'remote_name': remote_name,
+                            'remote_location': remote_location
+                        }
+                        repo_dict['remotes'].append(remote_dict)
+                repo_list.append(repo_dict)
+        return repo_list
+
     def test_to_objects(self):
-        pass
+        config = self.config_dict_expanded
+
+        repo_list = self.get_objects(self.config_dict_expanded)
+        from pprint import pprint
+
+        for r in repo_list:
+            self.assertIsInstance(r, dict)
+            self.assertIn('name', r)
+            self.assertIn('parent_path', r)
+            self.assertIn('remote_location', r)
+
+            if 'remotes' in r:
+                self.assertIsInstance(r['remotes'], list)
+                for remote in r['remotes']:
+                    self.assertIsInstance(remote, dict)
+                    self.assertIn('remote_name', remote)
+                    self.assertIn('remote_location', remote)
+
+
+        pprint(repo_list)
 
 
 class TestFabric(object):
