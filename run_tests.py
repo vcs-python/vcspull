@@ -14,64 +14,42 @@ import shutil
 TMP_DIR = tempfile.mkdtemp('analects')
 
 
-class ConfigExpand(object):
-
+def expand_config(config):
     '''Expand configuration into full form. Enables shorthand forms for
     analects config.
+    :param config: the configuration for the session
+    :type config: dict
+
+    repo_name: http://myrepo.com/repo.git
+
+    to
+
+    repo_name: { repo: 'http://myrepo.com/repo.git' }
+
+    also assures the repo is a :py:class:`dict`.
     '''
 
-    def __init__(self, config):
-        '''
-        :param config: the configuration for the session
-        :type config: dict
-        '''
+    def _expand(repo_data):
+        if isinstance(repo_data, basestring):
+            repo_data = {'repo': repo_data}
 
-        self.config = config
+        return repo_data
 
-    def expand(self):
-        return self.expand_repo_string_to_dict().expand_shell_command_after()
-
-    def expand_shell_command_after(self):
+    def _expand_shell_command_after(c):
         '''
         iterate through session, windows, and panes for
         ``shell_command_after``, if it is a string, turn to list.
         '''
+        if ('shell_command_after' in c and
+                isinstance(c['shell_command_after'], basestring)):
+                c['shell_command_after'] = [c['shell_command_after']]
 
-        def _expand(c):
-            if ('shell_command_after' in c and
-                    isinstance(c['shell_command_after'], basestring)):
-                    c['shell_command_after'] = [c['shell_command_after']]
+    for directory, repos in config.iteritems():
+        for repo, repo_data in repos.iteritems():
+            config[directory][repo] = _expand(repo_data)
+            repo_data = _expand_shell_command_after(repo_data)
 
-            return c
-
-        for directory, repos in self.config.iteritems():
-            for repo, repo_data in repos.iteritems():
-                repo_data = _expand(repo_data)
-
-        return self
-
-    def expand_repo_string_to_dict(self):
-        '''
-        repo_name: http://myrepo.com/repo.git
-
-        to
-
-        repo_name: { repo: 'http://myrepo.com/repo.git' }
-
-        also assures the repo is a :py:class:`dict`.
-        '''
-
-        def _expand(repo_data):
-            if isinstance(repo_data, basestring):
-                repo_data = {'repo': repo_data}
-
-            return repo_data
-
-        for directory, repos in self.config.iteritems():
-            for repo, repo_data in repos.iteritems():
-                self.config[directory][repo] = _expand(repo_data)
-
-        return self
+    return config
 
 
 class ConfigTestCaseBase(unittest.TestCase):
@@ -258,22 +236,21 @@ class ConfigExpandTestCase(ConfigTestCaseBase):
 
         self.maxDiff = None
 
-        config = ConfigExpand(self.config_dict).expand().config
+        config = expand_config(self.config_dict)
 
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
 class ConfigToObjectTestCase(ConfigTestCaseBase):
+    '''create an individual dictionary for each repository'''
 
     def setUp(self):
         SAMPLECONFIG_LIST = [
         {
             'name': None,
-            'repo_parent_dir': None,
-            'repo_dir': None,
-            'repo_vcs_uri': None,
-            'rev': None,
-            'remotes': [],
+            'parent_path': None,
+            'remote_location': None,
+            'remotes': []
         }
         ]
 
