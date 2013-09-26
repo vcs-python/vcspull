@@ -277,8 +277,7 @@ class BackboneModel(collections.MutableMapping):
 
 class Repos(BackboneCollection):
 
-    """
-    .find, .findWhere returns a ReposProxy class of filtered repos, these then
+    """.find, .findWhere returns a ReposProxy class of filtered repos, these
     may be .update()'d.  make repos underscore.py compatible?
 
     """
@@ -288,7 +287,8 @@ class Repos(BackboneCollection):
 class Repo(BackboneModel):
 
     def __init__(self, attributes=None):
-        self.attributes = dict(attributes) if attributes is not None else {}
+        ''' insert detection of the vcs here '''
+        super(Repo, self).__init__(attributes)
 
 
 class ConfigExpandTestCase(ConfigTestCaseBase):
