@@ -284,10 +284,34 @@ class Repos(BackboneCollection):
     pass
 
 
-class Repo(BackboneModel):
+class RepoModel(type, BackboneModel):
+
+    def __new__(cls, name, bases, attrs):
+        #pprint(locals())
+        #return type.__new__(cls, name, (bases, BackboneModel), d)
+        print 292, attrs
+        return type.__new__(cls, name, bases, attrs)
+
+    def __call__(cls, *args, **kwargs):
+        pprint("296 args: %s kwargs: %s" %(args, kwargs))
+        if not hasattr(cls, 'attributes'):
+            pass
+            #return type(cls.__name__, (RepoFactory, cls, BackboneModel), *args)
+
+        return type.__call__(cls, *args, **kwargs)
+
+
+class Repo(type):
+    #__metaclass__ = RepoBackboneModel
+    def __new__(cls, *args, **kwargs):
+        print('\n%s %s %s %s' % (306, cls, args, kwargs))
+
+        #return super(Repo, cls).__new__(cls)
+        return type.__new__(cls, cls.__name__, (cls, BackboneModel), kwargs)
 
     def __init__(self, attributes=None):
         ''' insert detection of the vcs here '''
+        print('\n%s %s' % (311, attributes))
         super(Repo, self).__init__(attributes)
 
 
