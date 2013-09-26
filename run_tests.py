@@ -263,7 +263,7 @@ class ConfigExpandTestCase(ConfigTestCaseBase):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
-class ConfigToObjectsTestCase(ConfigTestCaseBase):
+class ConfigToObjectTestCase(ConfigTestCaseBase):
 
     def setUp(self):
         SAMPLECONFIG_LIST = [
@@ -272,11 +272,16 @@ class ConfigToObjectsTestCase(ConfigTestCaseBase):
             'repo_parent_dir': None,
             'repo_dir': None,
             'repo_vcs_uri': None,
-            'rev': None
+            'rev': None,
+            'remotes': [],
         }
         ]
 
-        super(ConfigToObjectTestCase, self).setup()
+        super(ConfigToObjectTestCase, self).setUp()
+
+    def test_to_objects(self):
+        pass
+
 
 class TestFabric(object):
 
