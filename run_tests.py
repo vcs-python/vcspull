@@ -284,35 +284,75 @@ class Repos(BackboneCollection):
     pass
 
 
-class RepoModel(type, BackboneModel):
+class GitRepo(object): pass
+class MercurialRepo(object): pass
 
-    def __new__(cls, name, bases, attrs):
-        #pprint(locals())
-        #return type.__new__(cls, name, (bases, BackboneModel), d)
-        print 292, attrs
-        return type.__new__(cls, name, bases, attrs)
+class RepoBase(BackboneModel):
+    def __init__(self, attributes=None):
+        print("Repo __init__  %s" % (locals()))
+        self.attributes = dict(attributes) if attributes is not None else {}
 
-    def __call__(cls, *args, **kwargs):
-        pprint("296 args: %s kwargs: %s" %(args, kwargs))
-        if not hasattr(cls, 'attributes'):
-            pass
-            #return type(cls.__name__, (RepoFactory, cls, BackboneModel), *args)
+    def __getitem__(self, key):
+        return self.attributes[key]
 
-        return type.__call__(cls, *args, **kwargs)
+    def __setitem__(self, key, value):
+        self.attributes[key] = value
+        self.dirty = True
 
+    def __delitem__(self, key):
+        del self.attributes[key]
+        self.dirty = True
 
-class Repo(type):
-    #__metaclass__ = RepoBackboneModel
-    def __new__(cls, *args, **kwargs):
-        print('\n%s %s %s %s' % (306, cls, args, kwargs))
+    def keys(self):
+        return self.attributes.keys()
 
-        #return super(Repo, cls).__new__(cls)
-        return type.__new__(cls, cls.__name__, (cls, BackboneModel), kwargs)
+    def __iter__(self):
+        return self.attributes.__iter__()
+
+    def __len__(self):
+        return len(self.attributes.keys())
+
+    def wat(self, moo):
+        print "wat %s" % moo
+
+class RepoMapping(BackboneModel.__metaclass__, type):
+#class RepoMapping(collections.MutableMapping, RepoMeta):
+
+    def __new__(cls, name, bases, dct):
+        print('RepoMapping __new__ %s' % (locals()))
+        #return type.__new__(cls, name, bases, dct)
+        return type.__new__(cls, name, (RepoBase, GitRepo), dct)
+
+    def __init__(cls, name, bases, dct):
+        ''' insert detection of the vcs here '''
+
+        print('RepoMapping __init__ %s' % locals())
+    pass
+
+    def __call__(self, *args, **kwds):
+        print '__call__ of ', str(self)
+        print '__call__ *args=', str(args)
+        print '__call__ *kwds=', str(kwds)
+        if hasattr(self, 'attributes'):  # this was first attempt at checking if already initialized
+        #if hasattr(self, '__call__'):
+            # if no attributes, this is initialized
+
+            #obj = self.__new__(self, *args, **kwds)
+            obj = RepoMapping.__new__(RepoMapping, 'RepoMapping', (self), {})
+            #obj = type(self, (GitRepo, Repo), {})
+            obj.attributes = dict(kwds)
+            obj.__init__(*args, **kwds)
+
+            return obj
+        else:
+            return type.__call__(self, *args, **kwds)
+
+class Repo(RepoBase):
+    __metaclass__ = RepoMapping
 
     def __init__(self, attributes=None):
-        ''' insert detection of the vcs here '''
-        print('\n%s %s' % (311, attributes))
-        super(Repo, self).__init__(attributes)
+        print("Repo __init__  %s" % (locals()))
+        self.attributes = dict(attributes) if attributes is not None else {}
 
 
 class ConfigExpandTestCase(ConfigTestCaseBase):
@@ -393,6 +433,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         repo_list = self.get_objects(self.config_dict_expanded)
         for repo_dict in repo_list:
             r = Repo(repo_dict)
+            r.wat('heya')
             self.assertIsInstance(r, Repo)
             self.assertIn('name', r)
             self.assertIn('parent_path', r)
