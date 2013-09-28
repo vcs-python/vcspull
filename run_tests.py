@@ -68,6 +68,7 @@ class ConfigTestCaseBase(unittest.TestCase):
         /home/user/study/:
             linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
             freebsd: https://github.com/freebsd/freebsd.git
+            sqlalchemy: https://bitbucket.org/zzzeek/sqlalchemy.git
         /home/user/github_projects/:
             kaptan:
                 repo: git@github.com:tony/kaptan.git
@@ -87,7 +88,8 @@ class ConfigTestCaseBase(unittest.TestCase):
         SAMPLECONFIG_DICT = {
             '/home/user/study/': {
                 'linux': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
-                'freebsd': 'https://github.com/freebsd/freebsd.git'
+                'freebsd': 'https://github.com/freebsd/freebsd.git',
+                'sqlalchemy': 'https://bitbucket.org/zzzeek/sqlalchemy.git'
             },
             '/home/user/github_projects/': {
                 'kaptan': {
@@ -113,7 +115,8 @@ class ConfigTestCaseBase(unittest.TestCase):
         SAMPLECONFIG_FINAL_DICT = {
             '/home/user/study/': {
                 'linux': {'repo': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
-                'freebsd': {'repo': 'https://github.com/freebsd/freebsd.git', }
+                'freebsd': {'repo': 'https://github.com/freebsd/freebsd.git', },
+                'sqlalchemy': {'repo': 'https://bitbucket.org/zzzeek/sqlalchemy.git', },
             },
             '/home/user/github_projects/': {
                 'kaptan': {
@@ -283,77 +286,24 @@ class Repos(BackboneCollection):
     """
     pass
 
+class Repo(BackboneModel):
 
-class GitRepo(object): pass
-class MercurialRepo(object): pass
-
-class RepoBase(BackboneModel):
-    def __init__(self, attributes=None):
-        print("Repo __init__  %s" % (locals()))
-        self.attributes = dict(attributes) if attributes is not None else {}
-
-    def __getitem__(self, key):
-        return self.attributes[key]
-
-    def __setitem__(self, key, value):
-        self.attributes[key] = value
-        self.dirty = True
-
-    def __delitem__(self, key):
-        del self.attributes[key]
-        self.dirty = True
-
-    def keys(self):
-        return self.attributes.keys()
-
-    def __iter__(self):
-        return self.attributes.__iter__()
-
-    def __len__(self):
-        return len(self.attributes.keys())
-
-    def wat(self, moo):
-        print "wat %s" % moo
-
-class RepoMapping(BackboneModel.__metaclass__, type):
-#class RepoMapping(collections.MutableMapping, RepoMeta):
-
-    def __new__(cls, name, bases, dct):
-        print('RepoMapping __new__ %s' % (locals()))
-        #return type.__new__(cls, name, bases, dct)
-        return type.__new__(cls, name, (RepoBase, GitRepo), dct)
-
-    def __init__(cls, name, bases, dct):
-        ''' insert detection of the vcs here '''
-
-        print('RepoMapping __init__ %s' % locals())
-    pass
-
-    def __call__(self, *args, **kwds):
-        print '__call__ of ', str(self)
-        print '__call__ *args=', str(args)
-        print '__call__ *kwds=', str(kwds)
-        if hasattr(self, 'attributes'):  # this was first attempt at checking if already initialized
-        #if hasattr(self, '__call__'):
-            # if no attributes, this is initialized
-
-            #obj = self.__new__(self, *args, **kwds)
-            obj = RepoMapping.__new__(RepoMapping, 'RepoMapping', (self), {})
-            #obj = type(self, (GitRepo, Repo), {})
-            obj.attributes = dict(kwds)
-            obj.__init__(*args, **kwds)
-
-            return obj
+    def __new__(cls, attributes, *args, **kwargs):
+        print("Repo __new__  %s" % (locals()))
+        if 'git' in attributes['remote_location']:
+            return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
         else:
-            return type.__call__(self, *args, **kwds)
-
-class Repo(RepoBase):
-    __metaclass__ = RepoMapping
+            return super(Repo, cls).__new__(cls, attributes, *args, **kwargs)
 
     def __init__(self, attributes=None):
         print("Repo __init__  %s" % (locals()))
         self.attributes = dict(attributes) if attributes is not None else {}
 
+class GitRepo(Repo):
+    vcs = 'git'
+
+class MercurialRepo(Repo):
+    vcs = 'hg'
 
 class ConfigExpandTestCase(ConfigTestCaseBase):
 
@@ -433,7 +383,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         repo_list = self.get_objects(self.config_dict_expanded)
         for repo_dict in repo_list:
             r = Repo(repo_dict)
-            r.wat('heya')
+            print type(r)
             self.assertIsInstance(r, Repo)
             self.assertIn('name', r)
             self.assertIn('parent_path', r)
@@ -454,6 +404,7 @@ class TestFabric(object):
     see: https://github.com/fabric/fabric/blob/master/.travis.yml
     """
     pass
+
 
 
 class TestIterateThroughEachObject(object):
