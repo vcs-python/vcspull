@@ -287,7 +287,6 @@ class Repos(BackboneCollection):
 class Repo(BackboneModel):
 
     def __new__(cls, attributes, *args, **kwargs):
-        # print("Repo __new__  %s" % (locals()))
         vcs_url = attributes['remote_location']
         if vcs_url.startswith('git+'):
             return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
@@ -389,6 +388,28 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
                     self.assertIn('remote_name', remote)
                     self.assertIn('remote_location', remote)
         pprint(repo_list)
+
+    def test_vcs_url_scheme_to_object(self):
+        git_repo = Repo({
+            'remote_location': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        })
+
+        self.assertIsInstance(git_repo, GitRepo)
+        self.assertIsInstance(git_repo, Repo)
+
+        hg_repo = Repo({
+            'remote_location': 'hg+https://hg.myproject.org/MyProject#egg=MyProject'
+        })
+
+        self.assertIsInstance(hg_repo, MercurialRepo)
+        self.assertIsInstance(hg_repo, Repo)
+
+        svn_repo = Repo({
+            'remote_location': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject'
+        })
+
+        self.assertIsInstance(svn_repo, SVNRepo)
+        self.assertIsInstance(svn_repo, Repo)
 
     def test_to_repo_objects(self):
         repo_list = self.get_objects(self.config_dict_expanded)
