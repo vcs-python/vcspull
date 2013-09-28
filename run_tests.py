@@ -66,47 +66,49 @@ class ConfigTestCaseBase(unittest.TestCase):
 
         SAMPLECONFIG_YAML = """
         /home/user/study/:
-            linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-            freebsd: https://github.com/freebsd/freebsd.git
-            sqlalchemy: https://bitbucket.org/zzzeek/sqlalchemy.git
+            linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+            freebsd: git+https://github.com/freebsd/freebsd.git
+            sqlalchemy: hg+https://bitbucket.org/zzzeek/sqlalchemy.git
+            docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
         /home/user/github_projects/:
             kaptan:
-                repo: git@github.com:tony/kaptan.git
+                repo: git+git@github.com:tony/kaptan.git
                 remotes:
-                    upstream: https://github.com/emre/kaptan
-                    marksteve: https://github.com/marksteve/kaptan.git
+                    upstream: git+https://github.com/emre/kaptan
+                    marksteve: git+https://github.com/marksteve/kaptan.git
         /home/tony/:
             .vim:
-                repo: git@github.com:tony/vim-config.git
+                repo: git+git@github.com:tony/vim-config.git
                 shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
             .tmux:
-                repo: git@github.com:tony/tmux-config.git
+                repo: git+git@github.com:tony/tmux-config.git
                 shell_command_after:
                     - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
         """
 
         SAMPLECONFIG_DICT = {
             '/home/user/study/': {
-                'linux': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
-                'freebsd': 'https://github.com/freebsd/freebsd.git',
-                'sqlalchemy': 'https://bitbucket.org/zzzeek/sqlalchemy.git'
+                'linux': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
+                'freebsd': 'git+https://github.com/freebsd/freebsd.git',
+                'sqlalchemy': 'hg+https://bitbucket.org/zzzeek/sqlalchemy.git',
+                'docutils': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
             },
             '/home/user/github_projects/': {
                 'kaptan': {
-                    'repo': 'git@github.com:tony/kaptan.git',
+                    'repo': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
-                        'upstream': 'https://github.com/emre/kaptan',
-                        'marksteve': 'https://github.com/marksteve/kaptan.git'
+                        'upstream': 'git+https://github.com/emre/kaptan',
+                        'marksteve': 'git+https://github.com/marksteve/kaptan.git'
                     }
                 }
             },
             '/home/tony/': {
                 '.vim': {
-                    'repo': 'git@github.com:tony/vim-config.git',
+                    'repo': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
                 },
                 '.tmux': {
-                    'repo': 'git@github.com:tony/tmux-config.git',
+                    'repo': 'git+git@github.com:tony/tmux-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
                 }
             }
@@ -114,26 +116,27 @@ class ConfigTestCaseBase(unittest.TestCase):
 
         SAMPLECONFIG_FINAL_DICT = {
             '/home/user/study/': {
-                'linux': {'repo': 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
-                'freebsd': {'repo': 'https://github.com/freebsd/freebsd.git', },
-                'sqlalchemy': {'repo': 'https://bitbucket.org/zzzeek/sqlalchemy.git', },
+                'linux': {'repo': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
+                'freebsd': {'repo': 'git+https://github.com/freebsd/freebsd.git', },
+                'sqlalchemy': {'repo': 'hg+https://bitbucket.org/zzzeek/sqlalchemy.git', },
+                'docutils': {'repo': 'svn+http://svn.code.sf.net/p/docutils/code/trunk', },
             },
             '/home/user/github_projects/': {
                 'kaptan': {
-                    'repo': 'git@github.com:tony/kaptan.git',
+                    'repo': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
-                        'upstream': 'https://github.com/emre/kaptan',
-                        'marksteve': 'https://github.com/marksteve/kaptan.git'
+                        'upstream': 'git+https://github.com/emre/kaptan',
+                        'marksteve': 'git+https://github.com/marksteve/kaptan.git'
                     }
                 }
             },
             '/home/tony/': {
                 '.vim': {
-                    'repo': 'git@github.com:tony/vim-config.git',
+                    'repo': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
                 },
                 '.tmux': {
-                    'repo': 'git@github.com:tony/tmux-config.git',
+                    'repo': 'git+git@github.com:tony/tmux-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
                 }
             }
