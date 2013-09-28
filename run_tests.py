@@ -291,10 +291,10 @@ class Repo(BackboneModel):
         vcs_url = attributes['remote_location']
         if vcs_url.startswith('git+'):
             return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
-        if vcs_url.startswith('git+'):
-            return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
-        if vcs_url.startswith('git+'):
-            return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
+        if vcs_url.startswith('hg+'):
+            return super(Repo, cls).__new__(MercurialRepo, attributes, *args, **kwargs)
+        if vcs_url.startswith('svn+'):
+            return super(Repo, cls).__new__(SVNRepo, attributes, *args, **kwargs)
         else:
             return super(Repo, cls).__new__(cls, attributes, *args, **kwargs)
 
