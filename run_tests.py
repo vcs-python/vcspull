@@ -42,7 +42,8 @@ def expand_config(config):
             '''
             if 'shell_command_after' in repo_data:
                 if isinstance(repo_data['shell_command_after'], basestring):
-                    repo_data['shell_command_after'] = [repo_data['shell_command_after']]
+                    repo_data['shell_command_after'] = [
+                        repo_data['shell_command_after']]
 
     return config
 
@@ -195,11 +196,10 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
         buf.write('wat')
         buf.close()
 
-        if os.path.exists(TMP_DIR):
-            for r, d, f in os.walk(TMP_DIR):
-                for filela in (x for x in f if x.endswith(('.json', '.ini', 'yaml')) and x.startswith('.analects')):
-                    configs.append(os.path.join(
-                        TMP_DIR, filela))
+        for r, d, f in os.walk(TMP_DIR):
+            for filela in (x for x in f if x.endswith(('.json', '.ini', 'yaml')) and x.startswith('.analects')):
+                configs.append(os.path.join(
+                    TMP_DIR, filela))
 
         files = 0
         if os.path.exists(os.path.join(TMP_DIR, '.analects.json')):
@@ -225,6 +225,7 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
 
 
 class BackboneCollection(collections.MutableSequence):
+
     '''emulate backbone collection
     '''
     def __init__(self, models=None):
@@ -286,7 +287,7 @@ class Repos(BackboneCollection):
 class Repo(BackboneModel):
 
     def __new__(cls, attributes, *args, **kwargs):
-        #print("Repo __new__  %s" % (locals()))
+        # print("Repo __new__  %s" % (locals()))
         vcs_url = attributes['remote_location']
         if vcs_url.startswith('git+'):
             return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
@@ -333,16 +334,17 @@ class ConfigExpandTestCase(ConfigTestCaseBase):
 
 
 class ConfigToObjectTestCase(ConfigTestCaseBase):
+
     '''create an individual dictionary for each repository'''
 
     def setUp(self):
         SAMPLECONFIG_LIST = [
-        {
-            'name': None,
-            'parent_path': None,
-            'remote_location': None,
-            'remotes': []
-        }
+            {
+                'name': None,
+                'parent_path': None,
+                'remote_location': None,
+                'remotes': []
+            }
         ]
 
         super(ConfigToObjectTestCase, self).setUp()
@@ -405,6 +407,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
                     self.assertIn('remote_name', remote)
                     self.assertIn('remote_location', remote)
 
+
 class TestFabric(object):
 
     """ we may want to skip testing in travis, and offer conditions to pass
@@ -413,7 +416,6 @@ class TestFabric(object):
     see: https://github.com/fabric/fabric/blob/master/.travis.yml
     """
     pass
-
 
 
 class TestIterateThroughEachObject(object):
