@@ -21,35 +21,28 @@ def expand_config(config):
     :param config: the configuration for the session
     :type config: dict
     '''
-
-    def _expand(repo_data):
-        '''
-        repo_name: http://myrepo.com/repo.git
-
-        to
-
-        repo_name: { repo: 'http://myrepo.com/repo.git' }
-
-        also assures the repo is a :py:class:`dict`.
-        '''
-        if isinstance(repo_data, basestring):
-            repo_data = {'repo': repo_data}
-
-        return repo_data
-
-    def _expand_shell_command_after(c):
-        '''
-        iterate through session, windows, and panes for
-        ``shell_command_after``, if it is a string, turn to list.
-        '''
-        if ('shell_command_after' in c and
-                isinstance(c['shell_command_after'], basestring)):
-                c['shell_command_after'] = [c['shell_command_after']]
-
     for directory, repos in config.iteritems():
         for repo, repo_data in repos.iteritems():
-            config[directory][repo] = _expand(repo_data)
-            repo_data = _expand_shell_command_after(repo_data)
+
+            '''
+            repo_name: http://myrepo.com/repo.git
+
+            to
+
+            repo_name: { repo: 'http://myrepo.com/repo.git' }
+
+            also assures the repo is a :py:class:`dict`.
+            '''
+
+            if isinstance(repo_data, basestring):
+                config[directory][repo] = {'repo': repo_data}
+
+            '''
+            ``shell_command_after``: if str, turn to list.
+            '''
+            if 'shell_command_after' in repo_data:
+                if isinstance(repo_data['shell_command_after'], basestring):
+                    repo_data['shell_command_after'] = [repo_data['shell_command_after']]
 
     return config
 
@@ -289,11 +282,17 @@ class Repos(BackboneCollection):
     """
     pass
 
+
 class Repo(BackboneModel):
 
     def __new__(cls, attributes, *args, **kwargs):
-        print("Repo __new__  %s" % (locals()))
-        if 'git' in attributes['remote_location']:
+        #print("Repo __new__  %s" % (locals()))
+        vcs_url = attributes['remote_location']
+        if vcs_url.startswith('git+'):
+            return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
+        if vcs_url.startswith('git+'):
+            return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
+        if vcs_url.startswith('git+'):
             return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
         else:
             return super(Repo, cls).__new__(cls, attributes, *args, **kwargs)
@@ -302,11 +301,18 @@ class Repo(BackboneModel):
         print("Repo __init__  %s" % (locals()))
         self.attributes = dict(attributes) if attributes is not None else {}
 
+
 class GitRepo(Repo):
     vcs = 'git'
 
+
 class MercurialRepo(Repo):
     vcs = 'hg'
+
+
+class SVNRepo(Repo):
+    vcs = 'svn'
+
 
 class ConfigExpandTestCase(ConfigTestCaseBase):
 
