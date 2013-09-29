@@ -10,6 +10,7 @@ import glob
 import tempfile
 import shutil
 import collections
+import subprocess
 from pprint import pprint
 
 
@@ -306,6 +307,10 @@ class Repo(BackboneModel):
         print("Repo __init__  %s" % (locals()))
         self.attributes = dict(attributes) if attributes is not None else {}
 
+    @property
+    def path(self):
+        return os.path.join(self['parent_dir'], self['name'])
+
 
 from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
@@ -435,19 +440,26 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(svn_repo, Repo)
 
     def test_repo_svn(self):
+        svn_test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
+        svn_repo_name = 'my_svn_project'
+
         svn_repo = Repo({
-            'remote_location': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
+            'remote_location': 'svn+file://' + os.path.join(svn_test_repo, svn_repo_name),
             'parent_path': self.TMP_DIR,
-            'name': 'docutils'
+            'name': svn_repo_name
         })
 
         self.assertIsInstance(svn_repo, SubversionRepo)
         self.assertIsInstance(svn_repo, Repo)
 
-        svn_repo_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
-        svn_repo.obtain(svn_repo_dest)
+        os.mkdir(svn_test_repo)
+        subprocess.call(['svnadmin', 'create', svn_repo['name']], cwd=svn_test_repo)
+        self.assertTrue(os.path.exists(svn_test_repo))
 
-        self.assertTrue(os.path.exists(svn_repo_dest))
+        svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
+        svn_repo.obtain(svn_checkout_dest)
+
+        self.assertTrue(os.path.exists(svn_checkout_dest))
 
         print svn_repo.get_url_rev()
 
@@ -476,6 +488,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
     def tearDownClass(cls):
         if os.path.isdir(cls.TMP_DIR):
             shutil.rmtree(cls.TMP_DIR)
+        pass
 
 
 class TestFabric(object):
