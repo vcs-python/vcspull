@@ -293,7 +293,7 @@ class Repo(BackboneModel):
         if vcs_url.startswith('hg+'):
             return super(Repo, cls).__new__(MercurialRepo, attributes, *args, **kwargs)
         if vcs_url.startswith('svn+'):
-            return super(Repo, cls).__new__(SVNRepo, attributes, *args, **kwargs)
+            return super(Repo, cls).__new__(SubversionRepo, attributes, *args, **kwargs)
         else:
             return super(Repo, cls).__new__(cls, attributes, *args, **kwargs)
 
@@ -302,17 +302,31 @@ class Repo(BackboneModel):
         self.attributes = dict(attributes) if attributes is not None else {}
 
 
-class GitRepo(Repo):
+from pip.vcs.bazaar import Bazaar
+from pip.vcs.git import Git
+from pip.vcs.subversion import Subversion
+from pip.vcs.mercurial import Mercurial
+#git, mercurial, subversion
+class GitRepo(Repo, Git):
     vcs = 'git'
 
+    def __init__(self, arguments, *args, **kwargs):
+        super(Repo, self).__init__(arguments, *args, **kwargs)
+        super(Git, self).__init__(arguments.get('remote_location'), *args, **kwargs)
 
-class MercurialRepo(Repo):
+
+class MercurialRepo(Repo, Mercurial):
     vcs = 'hg'
+    def __init__(self, arguments, *args, **kwargs):
+        super(Repo, self).__init__(arguments, *args, **kwargs)
+        super(Mercurial, self).__init__(arguments.get('remote_location'), *args, **kwargs)
 
 
-class SVNRepo(Repo):
+class SubversionRepo(Repo, Subversion):
     vcs = 'svn'
-
+    def __init__(self, arguments, *args, **kwargs):
+        super(Repo, self).__init__(arguments, *args, **kwargs)
+        super(Subversion, self).__init__(arguments.get('remote_location'), *args, **kwargs)
 
 class ConfigExpandTestCase(ConfigTestCaseBase):
 
@@ -408,14 +422,14 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
             'remote_location': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject'
         })
 
-        self.assertIsInstance(svn_repo, SVNRepo)
+        self.assertIsInstance(svn_repo, SubversionRepo)
         self.assertIsInstance(svn_repo, Repo)
 
     def test_to_repo_objects(self):
         repo_list = self.get_objects(self.config_dict_expanded)
         for repo_dict in repo_list:
             r = Repo(repo_dict)
-            print type(r)
+            print r.get_url_rev()
             self.assertIsInstance(r, Repo)
             self.assertIn('name', r)
             self.assertIn('parent_path', r)
