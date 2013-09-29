@@ -444,6 +444,11 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(svn_repo, SubversionRepo)
         self.assertIsInstance(svn_repo, Repo)
 
+        svn_repo_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
+        svn_repo.obtain(svn_repo_dest)
+
+        self.assertTrue(os.path.exists(svn_repo_dest))
+
         print svn_repo.get_url_rev()
 
     def test_to_repo_objects(self):
