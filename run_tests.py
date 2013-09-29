@@ -341,6 +341,12 @@ class SubversionRepo(Repo, Subversion):
         super(Repo, self).__init__(arguments, *args, **kwargs)
         super(Subversion, self).__init__(arguments.get('remote_location'), *args, **kwargs)
 
+    def update_repo(self, dest):
+        url, rev = Subversion.get_url_rev(self)
+        from pip.vcs.subversion import get_rev_options
+        rev_options = get_rev_options(url, rev)
+        return Subversion.update(self, dest, rev_options)
+
 
 class ConfigExpandTestCase(ConfigTestCaseBase):
 
@@ -459,6 +465,15 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
         svn_repo.obtain(svn_checkout_dest)
 
+        testfile_filename = 'testfile.test'
+
+        self.assertEqual(svn_repo.get_revision(svn_checkout_dest), 0)
+        subprocess.call(['touch', testfile_filename], cwd=svn_checkout_dest)
+        subprocess.call(['svn', 'add', testfile_filename], cwd=svn_checkout_dest)
+        subprocess.call(['svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']], cwd=svn_checkout_dest)
+        svn_repo.update_repo(svn_checkout_dest)
+        self.assertEqual(svn_repo.get_revision(svn_checkout_dest), 1)
+
         self.assertTrue(os.path.exists(svn_checkout_dest))
 
         print svn_repo.get_url_rev()
@@ -486,8 +501,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
     @classmethod
     def tearDownClass(cls):
-        if os.path.isdir(cls.TMP_DIR):
-            shutil.rmtree(cls.TMP_DIR)
+        #if os.path.isdir(cls.TMP_DIR):
+        #    shutil.rmtree(cls.TMP_DIR)
         pass
 
 
