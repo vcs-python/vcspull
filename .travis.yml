@@ -5,6 +5,8 @@ python:
 before_install:
  - sudo apt-get update -qq
  - sudo apt-get install -qq mercurial git-core subversion cvs
+ - git config user.name 'travis-ci'
+ - git config user.email 'travis@nowhere.edu'
 install:
   - "pip install -e ."
 script: python run_tests.py
