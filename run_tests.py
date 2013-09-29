@@ -337,6 +337,10 @@ class MercurialRepo(Repo, Mercurial):
         super(Repo, self).__init__(arguments, *args, **kwargs)
         super(Mercurial, self).__init__(arguments.get('remote_location'), *args, **kwargs)
 
+    def update_repo(self, dest, rev_options=[]):
+        #url, rev = Git.get_url_rev(self)
+        return Mercurial.update(self, dest, rev_options)
+
 
 class SubversionRepo(Repo, Subversion):
     vcs = 'svn'
@@ -517,6 +521,37 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertEqual(git_repo.get_revision(git_checkout_dest), git_repo.get_revision(os.path.join(git_test_repo, git_repo_name)))
 
         self.assertTrue(os.path.exists(git_checkout_dest))
+
+    def test_repo_mercurial(self):
+        mercurial_test_repo = os.path.join(self.TMP_DIR, '.mercurial_test_repo')
+        mercurial_repo_name = 'my_mercurial_project'
+
+        mercurial_repo = Repo({
+            'remote_location': 'hg+file://' + os.path.join(mercurial_test_repo, mercurial_repo_name),
+            'parent_path': self.TMP_DIR,
+            'name': mercurial_repo_name
+        })
+
+        self.assertIsInstance(mercurial_repo, MercurialRepo)
+        self.assertIsInstance(mercurial_repo, Repo)
+
+        os.mkdir(mercurial_test_repo)
+        subprocess.call(['hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo)
+        self.assertTrue(os.path.exists(mercurial_test_repo))
+
+        mercurial_checkout_dest = os.path.join(self.TMP_DIR, mercurial_repo['name'])
+        mercurial_repo.obtain(mercurial_checkout_dest)
+
+        testfile_filename = 'testfile.test'
+
+        subprocess.call(['touch', testfile_filename], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+        subprocess.call(['hg', 'add', testfile_filename], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+        subprocess.call(['hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+        mercurial_repo.update_repo(mercurial_checkout_dest)
+
+        self.assertEqual(mercurial_repo.get_revision(mercurial_checkout_dest), mercurial_repo.get_revision(os.path.join(mercurial_test_repo, mercurial_repo_name)))
+
+        self.assertTrue(os.path.exists(mercurial_checkout_dest))
 
     def test_to_repo_objects(self):
         repo_list = self.get_objects(self.config_dict_expanded)
