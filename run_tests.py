@@ -307,10 +307,8 @@ class Repo(BackboneModel):
         print("Repo __init__  %s" % (locals()))
         self.attributes = dict(attributes) if attributes is not None else {}
 
-    @property
-    def path(self):
-        return os.path.join(self['parent_dir'], self['name'])
-
+        self['path'] = os.path.join(self['parent_path'], self['name'])
+        print self['path']
 
 from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
@@ -322,11 +320,12 @@ class GitRepo(Repo, Git):
     vcs = 'git'
 
     def __init__(self, arguments, *args, **kwargs):
-        super(Repo, self).__init__(arguments, *args, **kwargs)
-        super(Git, self).__init__(arguments.get('remote_location'), *args, **kwargs)
+        Repo.__init__(self, arguments, *args, **kwargs)
+        super(Git, self).__init__(arguments.get(
+            'remote_location'), *args, **kwargs)
 
     def update_repo(self, dest, rev_options=[]):
-        #url, rev = Git.get_url_rev(self)
+        # url, rev = Git.get_url_rev(self)
         return Git.update(self, dest, rev_options)
 
 
@@ -334,11 +333,11 @@ class MercurialRepo(Repo, Mercurial):
     vcs = 'hg'
 
     def __init__(self, arguments, *args, **kwargs):
-        super(Repo, self).__init__(arguments, *args, **kwargs)
-        super(Mercurial, self).__init__(arguments.get('remote_location'), *args, **kwargs)
+        Repo.__init__(self, arguments, *args, **kwargs)
+        super(Mercurial, self).__init__(arguments.get(
+            'remote_location'), *args, **kwargs)
 
     def update_repo(self, dest, rev_options=[]):
-        #url, rev = Git.get_url_rev(self)
         return Mercurial.update(self, dest, rev_options)
 
 
@@ -346,8 +345,9 @@ class SubversionRepo(Repo, Subversion):
     vcs = 'svn'
 
     def __init__(self, arguments, *args, **kwargs):
-        super(Repo, self).__init__(arguments, *args, **kwargs)
-        super(Subversion, self).__init__(arguments.get('remote_location'), *args, **kwargs)
+        Repo.__init__(self, arguments, *args, **kwargs)
+        super(Subversion, self).__init__(arguments.get(
+            'remote_location'), *args, **kwargs)
 
     def update_repo(self, dest):
         from pip.vcs.subversion import get_rev_options
@@ -433,21 +433,29 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
     def test_vcs_url_scheme_to_object(self):
         git_repo = Repo({
-            'remote_location': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709'
+            'remote_location': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709',
+            'parent_path': self.TMP_DIR,
+            'name': 'myproject1'
         })
+
+        # TODO parent_path and name if duplicated should give an error
 
         self.assertIsInstance(git_repo, GitRepo)
         self.assertIsInstance(git_repo, Repo)
 
         hg_repo = Repo({
-            'remote_location': 'hg+https://hg.myproject.org/MyProject#egg=MyProject'
+            'remote_location': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
+            'parent_path': self.TMP_DIR,
+            'name': 'myproject2'
         })
 
         self.assertIsInstance(hg_repo, MercurialRepo)
         self.assertIsInstance(hg_repo, Repo)
 
         svn_repo = Repo({
-            'remote_location': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject'
+            'remote_location': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
+            'parent_path': self.TMP_DIR,
+            'name': 'myproject3'
         })
 
         self.assertIsInstance(svn_repo, SubversionRepo)
@@ -467,7 +475,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(svn_repo, Repo)
 
         os.mkdir(svn_test_repo)
-        subprocess.call(['svnadmin', 'create', svn_repo['name']], cwd=svn_test_repo)
+        subprocess.call(['svnadmin', 'create', svn_repo[
+                        'name']], cwd=svn_test_repo)
         self.assertTrue(os.path.exists(svn_test_repo))
 
         svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
@@ -477,8 +486,10 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         self.assertEqual(svn_repo.get_revision(svn_checkout_dest), 0)
         subprocess.call(['touch', testfile_filename], cwd=svn_checkout_dest)
-        subprocess.call(['svn', 'add', testfile_filename], cwd=svn_checkout_dest)
-        subprocess.call(['svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']], cwd=svn_checkout_dest)
+        subprocess.call(
+            ['svn', 'add', testfile_filename], cwd=svn_checkout_dest)
+        subprocess.call(['svn', 'commit', '-m', 'a test file for %s' %
+                        svn_repo['name']], cwd=svn_checkout_dest)
         svn_repo.update_repo(svn_checkout_dest)
         self.assertEqual(svn_repo.get_revision(svn_checkout_dest), 1)
 
@@ -506,17 +517,21 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         testfile_filename = 'testfile.test'
 
-        subprocess.call(['touch', testfile_filename], cwd=os.path.join(git_test_repo, git_repo_name))
-        subprocess.call(['git', 'add', testfile_filename], cwd=os.path.join(git_test_repo, git_repo_name))
-        subprocess.call(['git', 'commit', '-m', 'a test file for %s' % git_repo['name']], cwd=os.path.join(git_test_repo, git_repo_name))
-        #subprocess.call(['git', 'push'], cwd=os.path.join(git_test_repo, git_repo_name))
+        subprocess.call(['touch', testfile_filename], cwd=os.path.join(
+            git_test_repo, git_repo_name))
+        subprocess.call(['git', 'add', testfile_filename], cwd=os.path.join(
+            git_test_repo, git_repo_name))
+        subprocess.call(['git', 'commit', '-m', 'a test file for %s' %
+                        git_repo['name']], cwd=os.path.join(git_test_repo, git_repo_name))
         git_repo.update_repo(git_checkout_dest, ['origin/master'])
 
-        self.assertEqual(git_repo.get_revision(git_checkout_dest), git_repo.get_revision(os.path.join(git_test_repo, git_repo_name)))
+        self.assertEqual(git_repo.get_revision(git_checkout_dest), git_repo.get_revision(
+            os.path.join(git_test_repo, git_repo_name)))
         self.assertTrue(os.path.exists(git_checkout_dest))
 
     def test_repo_mercurial(self):
-        mercurial_test_repo = os.path.join(self.TMP_DIR, '.mercurial_test_repo')
+        mercurial_test_repo = os.path.join(
+            self.TMP_DIR, '.mercurial_test_repo')
         mercurial_repo_name = 'my_mercurial_project'
 
         mercurial_repo = Repo({
@@ -529,20 +544,26 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(mercurial_repo, Repo)
 
         os.mkdir(mercurial_test_repo)
-        subprocess.call(['hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo)
+        subprocess.call(['hg', 'init', mercurial_repo[
+                        'name']], cwd=mercurial_test_repo)
         self.assertTrue(os.path.exists(mercurial_test_repo))
 
-        mercurial_checkout_dest = os.path.join(self.TMP_DIR, mercurial_repo['name'])
+        mercurial_checkout_dest = os.path.join(
+            self.TMP_DIR, mercurial_repo['name'])
         mercurial_repo.obtain(mercurial_checkout_dest)
 
         testfile_filename = 'testfile.test'
 
-        subprocess.call(['touch', testfile_filename], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
-        subprocess.call(['hg', 'add', testfile_filename], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
-        subprocess.call(['hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+        subprocess.call(['touch', testfile_filename], cwd=os.path.join(
+            mercurial_test_repo, mercurial_repo_name))
+        subprocess.call(['hg', 'add', testfile_filename], cwd=os.path.join(
+            mercurial_test_repo, mercurial_repo_name))
+        subprocess.call(['hg', 'commit', '-m', 'a test file for %s' % mercurial_repo[
+                        'name']], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
         mercurial_repo.update_repo(mercurial_checkout_dest)
 
-        self.assertEqual(mercurial_repo.get_revision(mercurial_checkout_dest), mercurial_repo.get_revision(os.path.join(mercurial_test_repo, mercurial_repo_name)))
+        self.assertEqual(mercurial_repo.get_revision(mercurial_checkout_dest), mercurial_repo.get_revision(
+            os.path.join(mercurial_test_repo, mercurial_repo_name)))
 
         self.assertTrue(os.path.exists(mercurial_checkout_dest))
 
@@ -553,8 +574,13 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
             self.assertIsInstance(r, Repo)
             self.assertIn('name', r)
+            self.assertEqual(r['name'], repo_dict['name'])
             self.assertIn('parent_path', r)
+            self.assertEqual(r['parent_path'], repo_dict['parent_path'])
             self.assertIn('remote_location', r)
+            self.assertEqual(r['remote_location'], repo_dict['remote_location'])
+
+            self.assertEqual(r['path'], os.path.join(r['parent_path'], r['name']))
 
             if 'remotes' in r:
                 self.assertIsInstance(r['remotes'], list)
@@ -571,7 +597,6 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
     def tearDownClass(cls):
         if os.path.isdir(cls.TMP_DIR):
             shutil.rmtree(cls.TMP_DIR)
-        pass
 
 
 class TestFabric(object):
