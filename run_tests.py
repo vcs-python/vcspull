@@ -12,8 +12,6 @@ import shutil
 import collections
 from pprint import pprint
 
-TMP_DIR = tempfile.mkdtemp('analects')
-
 
 def expand_config(config):
     '''Expand configuration into full form. Enables shorthand forms for
@@ -157,6 +155,7 @@ class ConfigFormatTestCase(ConfigTestCaseBase):
 class ConfigImportExportTestCase(ConfigTestCaseBase):
 
     def test_export_json(self):
+        TMP_DIR = self.TMP_DIR
         json_config_file = os.path.join(TMP_DIR, '.analects.json')
 
         config = kaptan.Kaptan()
@@ -173,6 +172,7 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
         self.assertDictEqual(self.config_dict, new_config_data)
 
     def test_export_yaml(self):
+        TMP_DIR = self.TMP_DIR
         yaml_config_file = os.path.join(TMP_DIR, '.analects.yaml')
 
         config = kaptan.Kaptan()
@@ -189,6 +189,7 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
         self.assertDictEqual(self.config_dict, new_config_data)
 
     def test_scan_config(self):
+        TMP_DIR = self.TMP_DIR
         configs = []
 
         garbage_file = os.path.join(TMP_DIR, '.analects.psd')
@@ -219,9 +220,13 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
         self.assertEqual(len(configs), files)
 
     @classmethod
+    def setUpClass(cls):
+        cls.TMP_DIR = tempfile.mkdtemp('analects')
+
+    @classmethod
     def tearDownClass(cls):
-        if os.path.isdir(TMP_DIR):
-            shutil.rmtree(TMP_DIR)
+        if os.path.isdir(cls.TMP_DIR):
+            shutil.rmtree(cls.TMP_DIR)
 
 
 class BackboneCollection(collections.MutableSequence):
@@ -306,7 +311,8 @@ from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
 from pip.vcs.subversion import Subversion
 from pip.vcs.mercurial import Mercurial
-#git, mercurial, subversion
+
+
 class GitRepo(Repo, Git):
     vcs = 'git'
 
@@ -317,6 +323,7 @@ class GitRepo(Repo, Git):
 
 class MercurialRepo(Repo, Mercurial):
     vcs = 'hg'
+
     def __init__(self, arguments, *args, **kwargs):
         super(Repo, self).__init__(arguments, *args, **kwargs)
         super(Mercurial, self).__init__(arguments.get('remote_location'), *args, **kwargs)
@@ -324,9 +331,11 @@ class MercurialRepo(Repo, Mercurial):
 
 class SubversionRepo(Repo, Subversion):
     vcs = 'svn'
+
     def __init__(self, arguments, *args, **kwargs):
         super(Repo, self).__init__(arguments, *args, **kwargs)
         super(Subversion, self).__init__(arguments.get('remote_location'), *args, **kwargs)
+
 
 class ConfigExpandTestCase(ConfigTestCaseBase):
 
@@ -425,11 +434,23 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(svn_repo, SubversionRepo)
         self.assertIsInstance(svn_repo, Repo)
 
+    def test_repo_svn(self):
+        svn_repo = Repo({
+            'remote_location': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
+            'parent_path': self.TMP_DIR,
+            'name': 'docutils'
+        })
+
+        self.assertIsInstance(svn_repo, SubversionRepo)
+        self.assertIsInstance(svn_repo, Repo)
+
+        print svn_repo.get_url_rev()
+
     def test_to_repo_objects(self):
         repo_list = self.get_objects(self.config_dict_expanded)
         for repo_dict in repo_list:
             r = Repo(repo_dict)
-            print r.get_url_rev()
+
             self.assertIsInstance(r, Repo)
             self.assertIn('name', r)
             self.assertIn('parent_path', r)
@@ -441,6 +462,15 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
                     self.assertIsInstance(remote, dict)
                     self.assertIn('remote_name', remote)
                     self.assertIn('remote_location', remote)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.TMP_DIR = tempfile.mkdtemp('analects')
+
+    @classmethod
+    def tearDownClass(cls):
+        if os.path.isdir(cls.TMP_DIR):
+            shutil.rmtree(cls.TMP_DIR)
 
 
 class TestFabric(object):
