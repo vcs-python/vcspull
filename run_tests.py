@@ -325,6 +325,10 @@ class GitRepo(Repo, Git):
         super(Repo, self).__init__(arguments, *args, **kwargs)
         super(Git, self).__init__(arguments.get('remote_location'), *args, **kwargs)
 
+    def update_repo(self, dest, rev_options=[]):
+        #url, rev = Git.get_url_rev(self)
+        return Git.update(self, dest, rev_options)
+
 
 class MercurialRepo(Repo, Mercurial):
     vcs = 'hg'
@@ -342,8 +346,8 @@ class SubversionRepo(Repo, Subversion):
         super(Subversion, self).__init__(arguments.get('remote_location'), *args, **kwargs)
 
     def update_repo(self, dest):
-        url, rev = Subversion.get_url_rev(self)
         from pip.vcs.subversion import get_rev_options
+        url, rev = Subversion.get_url_rev(self)
         rev_options = get_rev_options(url, rev)
         return Subversion.update(self, dest, rev_options)
 
@@ -476,7 +480,43 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         self.assertTrue(os.path.exists(svn_checkout_dest))
 
-        print svn_repo.get_url_rev()
+    def test_repo_git(self):
+        git_test_repo = os.path.join(self.TMP_DIR, '.git_test_repo')
+        git_repo_name = 'my_git_project'
+
+        git_repo = Repo({
+            'remote_location': 'git+file://' + os.path.join(git_test_repo, git_repo_name),
+            'parent_path': self.TMP_DIR,
+            'name': git_repo_name
+        })
+
+        self.assertIsInstance(git_repo, GitRepo)
+        self.assertIsInstance(git_repo, Repo)
+
+        os.mkdir(git_test_repo)
+        subprocess.call(['git', 'init', git_repo['name']], cwd=git_test_repo)
+        self.assertTrue(os.path.exists(git_test_repo))
+
+        git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
+        git_repo.obtain(git_checkout_dest)
+
+        testfile_filename = 'testfile.test'
+
+        subprocess.call(['touch', testfile_filename], cwd=os.path.join(git_test_repo, git_repo_name))
+        subprocess.call(['git', 'add', testfile_filename], cwd=os.path.join(git_test_repo, git_repo_name))
+        subprocess.call(['git', 'commit', '-m', 'a test file for %s' % git_repo['name']], cwd=os.path.join(git_test_repo, git_repo_name))
+        #subprocess.call(['git', 'push'], cwd=os.path.join(git_test_repo, git_repo_name))
+        git_repo.update_repo(git_checkout_dest, ['origin/master'])
+
+
+        # since the workflow if git is a bit different, let's add a file
+        # in the test_repo insode of .git_test_repo, then git pull it with
+        # update
+
+
+        self.assertEqual(git_repo.get_revision(git_checkout_dest), git_repo.get_revision(os.path.join(git_test_repo, git_repo_name)))
+
+        self.assertTrue(os.path.exists(git_checkout_dest))
 
     def test_to_repo_objects(self):
         repo_list = self.get_objects(self.config_dict_expanded)
