@@ -512,14 +512,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         #subprocess.call(['git', 'push'], cwd=os.path.join(git_test_repo, git_repo_name))
         git_repo.update_repo(git_checkout_dest, ['origin/master'])
 
-
-        # since the workflow if git is a bit different, let's add a file
-        # in the test_repo insode of .git_test_repo, then git pull it with
-        # update
-
-
         self.assertEqual(git_repo.get_revision(git_checkout_dest), git_repo.get_revision(os.path.join(git_test_repo, git_repo_name)))
-
         self.assertTrue(os.path.exists(git_checkout_dest))
 
     def test_repo_mercurial(self):
@@ -576,8 +569,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
     @classmethod
     def tearDownClass(cls):
-        #if os.path.isdir(cls.TMP_DIR):
-        #    shutil.rmtree(cls.TMP_DIR)
+        if os.path.isdir(cls.TMP_DIR):
+            shutil.rmtree(cls.TMP_DIR)
         pass
 
 
