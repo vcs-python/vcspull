@@ -15,8 +15,7 @@ simultaneously.
 .. image:: https://travis-ci.org/tony/pullv.png?branch=master
     :target: https://travis-ci.org/tony/pullv
 
-use YAML, JSON, INI or python dict + `pip vcs url format`_ checkout + grab
-the latest source to projects.
+YAML config at ``~/.pullv.yaml``:
 
 .. code-block:: yaml
 
