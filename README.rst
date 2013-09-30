@@ -1,11 +1,17 @@
-`pullv`
+========
+pullv(1)
+========
+
+Not ready for public use.
 
 Obtain and update multiple git, mercurial and subversions repositories
 simultaneously.
 
+- svn, git, hg support
+- support for using pip
 
 .. image:: https://travis-ci.org/tony/pullv.png?branch=master
-   :target: https://travis-ci.org/tony/pullv
+    :target: https://travis-ci.org/tony/pullv
 
 use YAML, JSON, INI or python dict + `pip vcs url format`_ checkout + grab
 the latest source to projects.
@@ -32,16 +38,15 @@ the latest source to projects.
 
 .. _pip vcs url format: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 
-
-Not ready for public use.
-
-===========     ==========================================================
+==============  ==========================================================
 Travis          http://travis-ci.org/tony/pullv
 Docs            http://pullv.rtfd.org
 API             http://pullv.readthedocs.org/en/latest/api.html
 Issues          https://github.com/tony/pullv/issues
 Source          https://github.com/tony/pullv
 License         `BSD`_.
+VCS supported   git(1), svn(1), hg(1)
+Config formats  YAML, JSON, INI, python dict
 git repo        .. code-block:: bash
 
                     $ git clone https://github.com/tony/pullv.git
@@ -58,6 +63,6 @@ tests           .. code-block:: bash
 run             .. code-block:: bash
 
                     $ pullv
-===========     ==========================================================
+==============  ==========================================================
 
 .. _BSD: http://opensource.org/licenses/BSD-3-Clause
