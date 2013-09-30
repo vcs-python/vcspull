@@ -9,8 +9,8 @@ import glob
 import tempfile
 import shutil
 import subprocess
-from pullv import expand_config, Repo, GitRepo, MercurialRepo, \
-    SubversionRepo, get_repos
+from pullv import Repo, GitRepo, MercurialRepo, SubversionRepo
+from pullv.util import expand_config, get_repos
 
 
 class ConfigTestCaseBase(unittest.TestCase):
