@@ -12,6 +12,7 @@ __version__ = '0.1-dev'
 
 import collections
 import os
+import kaptan
 from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
 from pip.vcs.subversion import Subversion
@@ -156,7 +157,6 @@ class Repos(BackboneCollection):
     pass
 
 import subprocess
-
 import fnmatch
 import os
 
@@ -167,9 +167,13 @@ def scan(dir):
             matches.append(os.path.join(root, filename))
 
 def main():
-    if not os.path.exists(os.path.expanduser('~/.pullv.yaml')) and \
-        not os.path.exists(os.path.expanduser('~/.pullv.json')) and \
-        not os.path.exists(os.path.expanduser('~/.pullv.ini')):
+    yaml_config = os.path.expanduser('~/.pullv.yaml')
+    has_yaml_config = os.path.exists(yaml_config)
+    json_config = os.path.expanduser('~/.pullv.json')
+    has_json_config = os.path.exists(json_config)
+    ini_config = os.path.expanduser('~/.pullv.ini')
+    has_ini_config = os.path.exists(ini_config)
+    if not has_yaml_config and not has_json_config and not has_ini_config:
         print 'oh hi'
 
         # hi = subprocess.call([
@@ -190,3 +194,19 @@ def main():
 
     else:
         print 'config file found'
+        import sys
+
+        if sum(filter(None, [has_ini_config, has_json_config, has_yaml_config])) > int(1):
+            sys.exit(
+                'multiple configs found in home directory use only one.'
+                ' .yaml, .json, .ini.'
+            )
+
+        config = kaptan.Kaptan()
+        config.import_config(yaml_config)
+        from pprint import pprint
+
+        pprint(config.get())
+        pprint(util.expand_config(config.get()))
+        pprint(util.get_repos(util.expand_config(config.get())))
+
