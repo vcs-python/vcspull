@@ -210,3 +210,6 @@ def main():
         pprint(util.expand_config(config.get()))
         pprint(util.get_repos(util.expand_config(config.get())))
 
+        for repo_dict in util.get_repos(util.expand_config(config.get())):
+            print Repo(repo_dict)
+
