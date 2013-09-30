@@ -639,37 +639,5 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         if os.path.isdir(cls.TMP_DIR):
             shutil.rmtree(cls.TMP_DIR)
 
-class TestFabric(object):
-
-    """ we may want to skip testing in travis, and offer conditions to pass
-    if there is no SSH server on the local machine.
-
-    see: https://github.com/fabric/fabric/blob/master/.travis.yml
-    """
-    pass
-
-
-class TestIterateThroughEachObject(object):
-
-    """todo:
-    iterate through each object and return a list of them.
-
-    look into being able to use variation of https://github.com/serkanyersen/underscore.py/blob/master/src/underscore.py
-
-    .find / .findWhere to easily look up results in collection lf repos.
-
-    """
-    pass
-
-
-class TestVCS(object):
-
-    def test_can_get_repository(self):
-        raise NotImplementedError
-
-
-class TestGit(TestVCS):
-    pass
-
 if __name__ == '__main__':
     unittest.main(verbosity=2)
