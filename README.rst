@@ -7,10 +7,11 @@ Not ready for public use.
 Obtain and update multiple git, mercurial and subversions repositories
 simultaneously.
 
-- supports svn, git, hg version control systems
-- support for using `pip vcs url` format and system, including:
-  - download branches, revisions
-- support for adding and fetching git remotes
+* supports svn, git, hg version control systems
+* support for using `pip vcs url`_ format and system, including:
+
+  * download branches, revisions
+* support for adding and fetching git remotes
 
 .. image:: https://travis-ci.org/tony/pullv.png?branch=master
     :target: https://travis-ci.org/tony/pullv
@@ -20,22 +21,24 @@ YAML config at ``~/.pullv.yaml``:
 .. code-block:: yaml
 
     /home/user/study/:
-        linux: git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-        freebsd: https://github.com/freebsd/freebsd.git
+        linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+        freebsd: git+https://github.com/freebsd/freebsd.git
+        sqlalchemy: hg+https://bitbucket.org/zzzeek/sqlalchemy.git
+        docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
     /home/user/github_projects/:
         kaptan:
-            repo: git@github.com:tony/kaptan.git
+            repo: git+git@github.com:tony/kaptan.git
             remotes:
-                upstream: https://github.com/emre/kaptan
-                marksteve: https://github.com/marksteve/kaptan.git
-    /home/tony/:
+                upstream: git+https://github.com/emre/kaptan
+                marksteve: git+https://github.com/marksteve/kaptan.git
+    /home/user/:
         .vim:
-            repo: git@github.com:tony/vim-config.git
-            after_shell_command: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
-        .tmux: 
-            repo: git@github.com:tony/tmux-config.git
-            shell_command_after: ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
-            
+            repo: git+git@github.com:tony/vim-config.git
+            shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
+        .tmux:
+            repo: git+git@github.com:tony/tmux-config.git
+            shell_command_after:
+                - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
 
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 
