@@ -13,6 +13,12 @@ __version__ = '0.1-dev'
 
 import collections
 import os
+from pip.vcs.bazaar import Bazaar
+from pip.vcs.git import Git
+from pip.vcs.subversion import Subversion
+from pip.vcs.mercurial import Mercurial
+
+import util
 
 
 class BackboneCollection(collections.MutableSequence):
@@ -66,38 +72,6 @@ class BackboneModel(collections.MutableMapping):
         return len(self.attributes.keys())
 
 
-def expand_config(config):
-    '''Expand configuration into full form. Enables shorthand forms for pullv config.
-
-    :param config: the repo config in :py:class:`dict` format.
-    :type config: dict
-    '''
-    for directory, repos in config.iteritems():
-        for repo, repo_data in repos.iteritems():
-
-            '''
-            repo_name: http://myrepo.com/repo.git
-
-            to
-
-            repo_name: { repo: 'http://myrepo.com/repo.git' }
-
-            also assures the repo is a :py:class:`dict`.
-            '''
-
-            if isinstance(repo_data, basestring):
-                config[directory][repo] = {'repo': repo_data}
-
-            '''
-            ``shell_command_after``: if str, turn to list.
-            '''
-            if 'shell_command_after' in repo_data:
-                if isinstance(repo_data['shell_command_after'], basestring):
-                    repo_data['shell_command_after'] = [
-                        repo_data['shell_command_after']]
-
-    return config
-
 class Repo(BackboneModel):
 
     def __new__(cls, attributes, *args, **kwargs):
@@ -115,11 +89,6 @@ class Repo(BackboneModel):
         self.attributes = dict(attributes) if attributes is not None else {}
 
         self['path'] = os.path.join(self['parent_path'], self['name'])
-
-from pip.vcs.bazaar import Bazaar
-from pip.vcs.git import Git
-from pip.vcs.subversion import Subversion
-from pip.vcs.mercurial import Mercurial
 
 
 class GitRepo(Repo, Git):
@@ -178,6 +147,7 @@ class SubversionRepo(Repo, Subversion):
         rev_options = get_rev_options(url, rev)
         return Subversion.update(self, dest, rev_options)
 
+
 class Repos(BackboneCollection):
 
     """.find, .findWhere returns a ReposProxy class of filtered repos, these
@@ -186,26 +156,6 @@ class Repos(BackboneCollection):
     """
     pass
 
-def get_repos(config):
-    repo_list = []
-    for directory, repos in config.iteritems():
-        for repo, repo_data in repos.iteritems():
-            repo_dict = {
-                'name': repo,
-                'parent_path': directory,
-                'remote_location': repo_data['repo'],
-            }
-
-            if 'remotes' in repo_data:
-                repo_dict['remotes'] = []
-                for remote_name, remote_location in repo_data['remotes'].iteritems():
-                    remote_dict = {
-                        'remote_name': remote_name,
-                        'remote_location': remote_location
-                    }
-                    repo_dict['remotes'].append(remote_dict)
-            repo_list.append(repo_dict)
-    return repo_list
 
 def main():
     print 'oh hi'
