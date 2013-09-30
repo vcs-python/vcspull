@@ -1,8 +1,11 @@
-`analects` checkout, update many open source applications for study,
-compilation and development.
+`pullv`
 
-.. image:: https://travis-ci.org/tony/analects.png?branch=master
-   :target: https://travis-ci.org/tony/analects
+Obtain and update multiple git, mercurial and subversions repositories
+simultaneously.
+
+
+.. image:: https://travis-ci.org/tony/pullv.png?branch=master
+   :target: https://travis-ci.org/tony/pullv
 
 use YAML, JSON, INI or python dict + `pip vcs url format`_ checkout + grab
 the latest source to projects.
@@ -33,25 +36,28 @@ the latest source to projects.
 Not ready for public use.
 
 ===========     ==========================================================
-Travis          http://travis-ci.org/tony/analects
-Docs            http://analects.rtfd.org
-API             http://analects.readthedocs.org/en/latest/api.html
-Issues          https://github.com/tony/analects/issues
-Source          https://github.com/tony/analects
+Travis          http://travis-ci.org/tony/pullv
+Docs            http://pullv.rtfd.org
+API             http://pullv.readthedocs.org/en/latest/api.html
+Issues          https://github.com/tony/pullv/issues
+Source          https://github.com/tony/pullv
 License         `BSD`_.
 git repo        .. code-block:: bash
 
-                    $ git clone https://github.com/tony/analects.git
+                    $ git clone https://github.com/tony/pullv.git
 install dev     .. code-block:: bash
 
-                    $ git clone https://github.com/tony/analects.git analects
-                    $ cd ./analects
+                    $ git clone https://github.com/tony/pullv.git pullv
+                    $ cd ./pullv
                     $ virtualenv .env
                     $ source .env/bin/activate
                     $ pip install -e .
 tests           .. code-block:: bash
 
                     $ python ./run_tests.py
+run             .. code-block:: bash
+
+                    $ pullv
 ===========     ==========================================================
 
 .. _BSD: http://opensource.org/licenses/BSD-3-Clause

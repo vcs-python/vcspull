@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# analects documentation build configuration file, created by
+# pullv documentation build configuration file, created by
 # sphinx-quickstart on Mon Sep 23 12:38:49 2013.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -43,7 +43,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'analects'
+project = u'pullv'
 copyright = u'2013, Tony Narlock'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -171,7 +171,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'analectsdoc'
+htmlhelp_basename = 'pullvdoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -190,7 +190,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'analects.tex', u'analects Documentation',
+  ('index', 'pullv.tex', u'pullv Documentation',
    u'Tony Narlock', 'manual'),
 ]
 
@@ -220,7 +220,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'analects', u'analects Documentation',
+    ('index', 'pullv', u'pullv Documentation',
      [u'Tony Narlock'], 1)
 ]
 
@@ -234,8 +234,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'analects', u'analects Documentation',
-   u'Tony Narlock', 'analects', 'One line description of project.',
+  ('index', 'pullv', u'pullv Documentation',
+   u'Tony Narlock', 'pullv', 'One line description of project.',
    'Miscellaneous'),
 ]
 
