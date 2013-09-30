@@ -28,7 +28,31 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+.. _api:
 
+===
+API
+===
+
+.. module:: pullv
+
+
+.. autoclass:: Repo
+   :members:
+   :inherited-members:
+   :show-inheritance:
+
+.. autoclass:: GitRepo
+   :members:
+   :inherited-members:
+   :show-inheritance:
+
+.. autoclass:: MercurialRepo
+   :members:
+   :inherited-members:
+   :show-inheritance:
+
+.. automethod:: expand_config
 
 Indices and tables
 ==================

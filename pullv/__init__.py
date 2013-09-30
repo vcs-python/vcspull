@@ -14,6 +14,7 @@ __version__ = '0.1-dev'
 import collections
 import os
 
+
 class BackboneCollection(collections.MutableSequence):
 
     '''emulate backbone collection
@@ -68,7 +69,7 @@ class BackboneModel(collections.MutableMapping):
 def expand_config(config):
     '''Expand configuration into full form. Enables shorthand forms for pullv config.
 
-    :param config: the configuration for the session
+    :param config: the repo config in :py:class:`dict` format.
     :type config: dict
     '''
     for directory, repos in config.iteritems():
