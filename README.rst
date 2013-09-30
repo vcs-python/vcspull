@@ -7,8 +7,10 @@ Not ready for public use.
 Obtain and update multiple git, mercurial and subversions repositories
 simultaneously.
 
-- svn, git, hg support
-- support for using pip
+- supports svn, git, hg version control systems
+- support for using `pip vcs url` format and system, including:
+  - download branches, revisions
+- support for adding and fetching git remotes
 
 .. image:: https://travis-ci.org/tony/pullv.png?branch=master
     :target: https://travis-ci.org/tony/pullv
@@ -36,7 +38,7 @@ the latest source to projects.
             shell_command_after: ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
             
 
-.. _pip vcs url format: http://www.pip-installer.org/en/latest/logic.html#vcs-support
+.. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 
 ==============  ==========================================================
 Travis          http://travis-ci.org/tony/pullv

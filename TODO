@@ -2,11 +2,8 @@
 TODO
 ====
 
-Add variables
-
-========================
-``{{repo_dir}}``
-``{{home}}``
-========================
-
+- pullvf: or a fabric version to target deploying to an ssh via CLI
+  and python API
+- add and fetch remotes
+- Add variables ``{{repo_dir}}`` / ``{{home}}``
 - Expand ~
