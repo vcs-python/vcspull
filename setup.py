@@ -30,6 +30,8 @@ setup(
     description='',
     include_package_data=True,
     install_requires=requirements('requirements.pip'),
+    packages=['analects'],
+    entry_points=dict(console_scripts=['analects=analects:main']),
     classifiers=[
         'Development Status :: 3 - Alpha',
         "License :: OSI Approved :: BSD License",

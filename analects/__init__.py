@@ -205,3 +205,6 @@ def get_repos(config):
                     repo_dict['remotes'].append(remote_dict)
             repo_list.append(repo_dict)
     return repo_list
+
+def main():
+    print 'oh hi'
