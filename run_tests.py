@@ -9,7 +9,7 @@ import glob
 import tempfile
 import shutil
 import subprocess
-from analects import expand_config, Repo, GitRepo, MercurialRepo, \
+from pullv import expand_config, Repo, GitRepo, MercurialRepo, \
     SubversionRepo, get_repos
 
 
@@ -123,7 +123,7 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
 
     def test_export_json(self):
         TMP_DIR = self.TMP_DIR
-        json_config_file = os.path.join(TMP_DIR, '.analects.json')
+        json_config_file = os.path.join(TMP_DIR, '.pullv.json')
 
         config = kaptan.Kaptan()
         config.import_config(self.config_dict)
@@ -140,7 +140,7 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
 
     def test_export_yaml(self):
         TMP_DIR = self.TMP_DIR
-        yaml_config_file = os.path.join(TMP_DIR, '.analects.yaml')
+        yaml_config_file = os.path.join(TMP_DIR, '.pullv.yaml')
 
         config = kaptan.Kaptan()
         config.import_config(self.config_dict)
@@ -159,36 +159,36 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
         TMP_DIR = self.TMP_DIR
         configs = []
 
-        garbage_file = os.path.join(TMP_DIR, '.analects.psd')
+        garbage_file = os.path.join(TMP_DIR, '.pullv.psd')
         buf = open(garbage_file, 'w')
         buf.write('wat')
         buf.close()
 
         for r, d, f in os.walk(TMP_DIR):
-            for filela in (x for x in f if x.endswith(('.json', '.ini', 'yaml')) and x.startswith('.analects')):
+            for filela in (x for x in f if x.endswith(('.json', '.ini', 'yaml')) and x.startswith('.pullv')):
                 configs.append(os.path.join(
                     TMP_DIR, filela))
 
         files = 0
-        if os.path.exists(os.path.join(TMP_DIR, '.analects.json')):
+        if os.path.exists(os.path.join(TMP_DIR, '.pullv.json')):
             files += 1
             self.assertIn(os.path.join(
-                TMP_DIR, '.analects.json'), configs)
+                TMP_DIR, '.pullv.json'), configs)
 
-        if os.path.exists(os.path.join(TMP_DIR, '.analects.yaml')):
+        if os.path.exists(os.path.join(TMP_DIR, '.pullv.yaml')):
             files += 1
             self.assertIn(os.path.join(
-                TMP_DIR, '.analects.yaml'), configs)
+                TMP_DIR, '.pullv.yaml'), configs)
 
-        if os.path.exists(os.path.join(TMP_DIR, '.analects.ini')):
+        if os.path.exists(os.path.join(TMP_DIR, '.pullv.ini')):
             files += 1
-            self.assertIn(os.path.join(TMP_DIR, '.analects.ini'), configs)
+            self.assertIn(os.path.join(TMP_DIR, '.pullv.ini'), configs)
 
         self.assertEqual(len(configs), files)
 
     @classmethod
     def setUpClass(cls):
-        cls.TMP_DIR = tempfile.mkdtemp('analects')
+        cls.TMP_DIR = tempfile.mkdtemp('pullv')
 
     @classmethod
     def tearDownClass(cls):
@@ -435,7 +435,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
     @classmethod
     def setUpClass(cls):
-        cls.TMP_DIR = tempfile.mkdtemp('analects')
+        cls.TMP_DIR = tempfile.mkdtemp('pullv')
 
     @classmethod
     def tearDownClass(cls):

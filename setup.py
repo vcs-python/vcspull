@@ -1,9 +1,9 @@
 """
-analects
+pullv
 -----
 
-Pull, update the latest source code projects for study and development.
-
+Obtain and update multiple git, mercurial and subversions repositories
+simultaneously.
 
 """
 from setuptools import setup
@@ -21,17 +21,18 @@ else:
         return reqs
 
 setup(
-    name='analects',
+    name='pullv',
     version='0.1-dev',
-    url='http://github.com/tony/analects/',
+    url='http://github.com/tony/pullv/',
     license='BSD',
     author='Tony Narlock',
     author_email='tony@git-pull.com',
-    description='',
+    description='Obtain and update multiple git, mercurial and subversions '
+        'repositories simultaneously.',
     include_package_data=True,
     install_requires=requirements('requirements.pip'),
-    packages=['analects'],
-    entry_points=dict(console_scripts=['analects=analects:main']),
+    packages=['pullv'],
+    entry_points=dict(console_scripts=['pullv=pullv:main']),
     classifiers=[
         'Development Status :: 3 - Alpha',
         "License :: OSI Approved :: BSD License",
