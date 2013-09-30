@@ -69,7 +69,7 @@ class ConfigTestCaseBase(unittest.TestCase):
                 remotes:
                     upstream: git+https://github.com/emre/kaptan
                     marksteve: git+https://github.com/marksteve/kaptan.git
-        /home/tony/:
+        /home/user/:
             .vim:
                 repo: git+git@github.com:tony/vim-config.git
                 shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
@@ -95,7 +95,7 @@ class ConfigTestCaseBase(unittest.TestCase):
                     }
                 }
             },
-            '/home/tony/': {
+            '/home/user/': {
                 '.vim': {
                     'repo': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
@@ -123,7 +123,7 @@ class ConfigTestCaseBase(unittest.TestCase):
                     }
                 }
             },
-            '/home/tony/': {
+            '/home/user/': {
                 '.vim': {
                     'repo': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
