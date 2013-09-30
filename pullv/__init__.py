@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pullv
-    ~~~~~
+    pullv ~~~~~
 
     :copyright: Copyright 2013 Tony Narlock.
     :license: BSD, see LICENSE for details
@@ -156,6 +155,38 @@ class Repos(BackboneCollection):
     """
     pass
 
+import subprocess
+
+import fnmatch
+import os
+
+def scan(dir):
+    matches = []
+    for root, dirnames, filenames in os.walk(dir):
+        for filename in fnmatch.filter(filenames, '.git'):
+            matches.append(os.path.join(root, filename))
 
 def main():
-    print 'oh hi'
+    if not os.path.exists(os.path.expanduser('~/.pullv.yaml')) and \
+        not os.path.exists(os.path.expanduser('~/.pullv.json')) and \
+        not os.path.exists(os.path.expanduser('~/.pullv.ini')):
+        print 'oh hi'
+
+        # hi = subprocess.call([
+            # 'find', '/', '-name', '".git"'
+        # ])
+
+        print 'No config found. I can help you.\n\n'
+
+        print 'pullv scan -g'
+        print '\tscan computer system for vcs repos'
+
+        print 'pullv scan .'
+        print '\t scan you current working directory recurisvely for repos'
+
+        print 'by default, pullv scan will not seek sub-repos.'
+
+        print 'pullv u [up, update]'
+
+    else:
+        print 'config file found'
