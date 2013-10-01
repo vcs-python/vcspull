@@ -12,6 +12,8 @@ __version__ = '0.1-dev'
 
 import collections
 import os
+import subprocess
+import fnmatch
 import kaptan
 from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
@@ -156,15 +158,13 @@ class Repos(BackboneCollection):
     """
     pass
 
-import subprocess
-import fnmatch
-import os
 
 def scan(dir):
     matches = []
     for root, dirnames, filenames in os.walk(dir):
         for filename in fnmatch.filter(filenames, '.git'):
             matches.append(os.path.join(root, filename))
+
 
 def main():
     yaml_config = os.path.expanduser('~/.pullv.yaml')
@@ -212,4 +212,3 @@ def main():
 
         for repo_dict in util.get_repos(util.expand_config(config.get())):
             print Repo(repo_dict)
-
