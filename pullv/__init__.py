@@ -255,3 +255,4 @@ def main():
         for repo_dict in util.get_repos(util.expand_config(config.get())):
             r = Repo(repo_dict)
             logger.info('%s' % r)
+            r.update_repo()
