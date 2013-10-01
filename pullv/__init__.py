@@ -98,15 +98,13 @@ class Repo(BackboneModel):
 
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
-            raise IOError('Parent directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['parent_dir']))
+            raise IOError('Parent directory for %s (%s) does not exist @ %s.' % (self['name'], self.vcs, self['parent_path']))
         else:
             if not os.path.exists(self['path']):
                 print '\nRepo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path'])
                 os.mkdir(self['path'])
 
         return True
-
-
 
 
 class GitRepo(Repo, Git):
@@ -118,18 +116,22 @@ class GitRepo(Repo, Git):
             arguments.get('remote_location'), *args, **kwargs
         )
 
-    def obtain(self, dest=None):
-        dest = self['path'] if not dest else dest
-        return Git.obtain(self, dest)
+    def obtain(self):
+        self.check_destination()
+        return Git.obtain(self, self['path'])
 
-    def update_repo(self, dest=None, rev_options=[]):
-        dest = self['path'] if not dest else dest
-        subprocess.call([
-            'git', 'fetch'
-        ], cwd=dest)
-        subprocess.call([
-            'git', 'pull'
-        ], cwd=dest)
+    def update_repo(self):
+        self.check_destination()
+        if os.path.isdir(os.path.join(self['path'], '.git')):
+            subprocess.call([
+                'git', 'fetch'
+            ], cwd=self['path'])
+            subprocess.call([
+                'git', 'pull'
+            ], cwd=self['path'])
+        else:
+            self.obtain()
+            self.update_repo()
 
         #return Git.update(self, dest, rev_options)
 
@@ -146,19 +148,18 @@ class MercurialRepo(Repo, Mercurial):
             arguments.get('remote_location'), *args, **kwargs
         )
 
-    def obtain(self, dest=None):
-        dest = self['path'] if not dest else dest
-        return Mercurial.obtain(self, dest)
+    def obtain(self):
+        self.check_destination()
+        return Mercurial.obtain(self, self['path'])
 
-    def update_repo(self, dest=None, rev_options=[]):
-        dest = self['path'] if not dest else dest
-        dest = self['path'] if not dest else dest
+    def update_repo(self):
+        self.check_destination()
         subprocess.call([
-            'hg', 'fetch'
-        ], cwd=dest)
+            'hg', 'update'
+        ], cwd=self['path'])
         subprocess.call([
             'hg', 'pull', '-u'
-        ], cwd=dest)
+        ], cwd=self['path'])
         #return Mercurial.update(self, dest, rev_options)
 
     def latest(self):
@@ -174,9 +175,9 @@ class SubversionRepo(Repo, Subversion):
             arguments.get('remote_location'), *args, **kwargs
         )
 
-    def obtain(self, dest=None):
-        dest = self['path'] if not dest else dest
-        return Subversion.obtain(self, dest)
+    def obtain(self):
+        self.check_destination()
+        return Subversion.obtain(self, self['path'])
 
     def update_repo(self, dest=None):
         dest = self['path'] if not dest else dest
@@ -251,4 +252,4 @@ def main():
 
         for repo_dict in util.get_repos(util.expand_config(config.get())):
             r = Repo(repo_dict)
-            print r, r.latest()
+            print r, r.update_repo()

@@ -359,7 +359,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         subprocess.call([
             'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
         ], cwd=os.path.join(git_test_repo, git_repo_name))
-        git_repo.update_repo(rev_options=['origin/master'])
+        #git_repo.update_repo(rev_options=['origin/master'])
+        git_repo.update_repo()
 
         self.assertEqual(
             git_repo.get_revision(git_checkout_dest),
@@ -439,8 +440,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
     @classmethod
     def tearDownClass(cls):
-        #if os.path.isdir(cls.TMP_DIR):
-        #    shutil.rmtree(cls.TMP_DIR)
+        if os.path.isdir(cls.TMP_DIR):
+            shutil.rmtree(cls.TMP_DIR)
         pass
 
 if __name__ == '__main__':
