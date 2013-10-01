@@ -27,7 +27,7 @@ class ConfigTestCaseBase(unittest.TestCase):
         /home/user/study/:
             linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
             freebsd: git+https://github.com/freebsd/freebsd.git
-            sqlalchemy: hg+https://bitbucket.org/zzzeek/sqlalchemy.git
+            sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
             docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
         /home/user/github_projects/:
             kaptan:
@@ -49,7 +49,7 @@ class ConfigTestCaseBase(unittest.TestCase):
             '/home/user/study/': {
                 'linux': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
                 'freebsd': 'git+https://github.com/freebsd/freebsd.git',
-                'sqlalchemy': 'hg+https://bitbucket.org/zzzeek/sqlalchemy.git',
+                'sphinx': 'hg+https://bitbucket.org/birkenfeld/sphinx',
                 'docutils': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
             },
             '/home/user/github_projects/': {
@@ -77,7 +77,7 @@ class ConfigTestCaseBase(unittest.TestCase):
             '/home/user/study/': {
                 'linux': {'repo': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
                 'freebsd': {'repo': 'git+https://github.com/freebsd/freebsd.git', },
-                'sqlalchemy': {'repo': 'hg+https://bitbucket.org/zzzeek/sqlalchemy.git', },
+                'sphinx': {'repo': 'hg+https://bitbucket.org/birkenfeld/sphinx', },
                 'docutils': {'repo': 'svn+http://svn.code.sf.net/p/docutils/code/trunk', },
             },
             '/home/user/github_projects/': {

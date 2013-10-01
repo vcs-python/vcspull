@@ -98,7 +98,8 @@ class Repo(BackboneModel):
 
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
-            raise IOError('Parent directory for %s (%s) does not exist @ %s.' % (self['name'], self.vcs, self['parent_path']))
+            os.mkdir(self['parent_path'])
+            #raise IOError('Parent directory for %s (%s) does not exist @ %s.' % (self['name'], self.vcs, self['parent_path']))
         else:
             if not os.path.exists(self['path']):
                 print '\nRepo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path'])
@@ -195,7 +196,6 @@ class SubversionRepo(Repo, Subversion):
         else:
             self.obtain()
             self.update_repo()
-
 
     def latest(self):
         Repo.latest(self)
