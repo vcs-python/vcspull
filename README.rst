@@ -8,10 +8,8 @@ Obtain and update multiple git, mercurial and subversions repositories
 simultaneously.
 
 * supports svn, git, hg version control systems
-* support for using `pip vcs url`_ format and system, including:
-
-  * download branches, revisions
-* support for adding and fetching git remotes
+* automatically checkout fresh repositories
+* update to the latest repos with `` $ pullv ``
 
 .. image:: https://travis-ci.org/tony/pullv.png?branch=master
     :target: https://travis-ci.org/tony/pullv
@@ -23,7 +21,7 @@ YAML config at ``~/.pullv.yaml``:
     /home/user/study/:
         linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
         freebsd: git+https://github.com/freebsd/freebsd.git
-        sqlalchemy: hg+https://bitbucket.org/zzzeek/sqlalchemy.git
+        sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
         docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
     /home/user/github_projects/:
         kaptan:
@@ -39,6 +37,8 @@ YAML config at ``~/.pullv.yaml``:
             repo: git+git@github.com:tony/tmux-config.git
             shell_command_after:
                 - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
+
+Repo type and address is specified in `pip vcs url`_ format.
 
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 
