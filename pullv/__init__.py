@@ -154,13 +154,17 @@ class MercurialRepo(Repo, Mercurial):
 
     def update_repo(self):
         self.check_destination()
-        subprocess.call([
-            'hg', 'update'
-        ], cwd=self['path'])
-        subprocess.call([
-            'hg', 'pull', '-u'
-        ], cwd=self['path'])
-        #return Mercurial.update(self, dest, rev_options)
+        if os.path.isdir(os.path.join(self['path'], '.hg')):
+            subprocess.call([
+                'hg', 'update'
+            ], cwd=self['path'])
+            subprocess.call([
+                'hg', 'pull', '-u'
+            ], cwd=self['path'])
+            #return Mercurial.update(self, dest, rev_options)
+        else:
+            self.obtain()
+            self.update_repo()
 
     def latest(self):
         Repo.latest(self)
@@ -180,11 +184,18 @@ class SubversionRepo(Repo, Subversion):
         return Subversion.obtain(self, self['path'])
 
     def update_repo(self, dest=None):
-        dest = self['path'] if not dest else dest
-        from pip.vcs.subversion import get_rev_options
-        url, rev = Subversion.get_url_rev(self)
-        rev_options = get_rev_options(url, rev)
-        return Subversion.update(self, dest, rev_options)
+        self.check_destination()
+        if os.path.isdir(os.path.join(self['path'], '.svn')):
+            dest = self['path'] if not dest else dest
+            from pip.vcs.subversion import get_rev_options
+            url, rev = Subversion.get_url_rev(self)
+            rev_options = get_rev_options(url, rev)
+            return Subversion.update(self, dest, rev_options)
+
+        else:
+            self.obtain()
+            self.update_repo()
+
 
     def latest(self):
         Repo.latest(self)
