@@ -11,10 +11,10 @@
 from __future__ import absolute_import, division, print_function, with_statement
 import collections
 import os
+import sys
 import subprocess
 import fnmatch
 import kaptan
-import tornado.log
 import logging
 from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
@@ -22,10 +22,12 @@ from pip.vcs.subversion import Subversion
 import pip.vcs.subversion
 from pip.vcs.mercurial import Mercurial
 from . import util
+from . import log
 
 logger = logging.getLogger()
 
 __version__ = '0.1-dev'
+
 
 class BackboneCollection(collections.MutableSequence):
 
@@ -103,7 +105,6 @@ class Repo(BackboneModel):
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
             os.mkdir(self['parent_path'])
-            #raise IOError('Parent directory for %s (%s) does not exist @ %s.' % (self['name'], self.vcs, self['parent_path']))
         else:
             if not os.path.exists(self['path']):
                 logger.info('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
@@ -245,17 +246,12 @@ def main():
         config = kaptan.Kaptan()
         config.import_config(yaml_config)
 
+        log.enable_pretty_logging()
 
-        tornado.log.enable_pretty_logging()
-
-        print(config.get())
-        print(util.expand_config(config.get()))
-        print(util.get_repos(util.expand_config(config.get())))
+        logging.info('%r' % config.get())
+        logging.info('%r' % util.expand_config(config.get()))
+        logging.info('%r' % util.get_repos(util.expand_config(config.get())))
 
         for repo_dict in util.get_repos(util.expand_config(config.get())):
             r = Repo(repo_dict)
-            logger.setLevel('DEBUG')
             logger.info('%s' % r)
-            logger.debug('wat rad debug')
-            logger.warning('wat ra warning')
-            logger.error('wat rad error')

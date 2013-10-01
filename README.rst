@@ -9,7 +9,7 @@ simultaneously.
 
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories
-* update to the latest repos with `` $ pullv ``
+* update to the latest repos with ``$ pullv``
 
 .. image:: https://travis-ci.org/tony/pullv.png?branch=master
     :target: https://travis-ci.org/tony/pullv
