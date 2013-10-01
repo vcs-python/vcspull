@@ -439,8 +439,9 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
     @classmethod
     def tearDownClass(cls):
-        if os.path.isdir(cls.TMP_DIR):
-            shutil.rmtree(cls.TMP_DIR)
+        #if os.path.isdir(cls.TMP_DIR):
+        #    shutil.rmtree(cls.TMP_DIR)
+        pass
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

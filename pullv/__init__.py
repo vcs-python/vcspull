@@ -92,6 +92,22 @@ class Repo(BackboneModel):
 
         self['path'] = os.path.join(self['parent_path'], self['name'])
 
+    def latest(self):
+        if not os.path.exists(self['path']):
+            print '\nRepo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path'])
+
+    def check_destination(self, *args, **kwargs):
+        if not os.path.exists(self['parent_path']):
+            raise IOError('Parent directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['parent_dir']))
+        else:
+            if not os.path.exists(self['path']):
+                print '\nRepo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path'])
+                os.mkdir(self['path'])
+
+        return True
+
+
+
 
 class GitRepo(Repo, Git):
     vcs = 'git'
@@ -108,7 +124,17 @@ class GitRepo(Repo, Git):
 
     def update_repo(self, dest=None, rev_options=[]):
         dest = self['path'] if not dest else dest
-        return Git.update(self, dest, rev_options)
+        subprocess.call([
+            'git', 'fetch'
+        ], cwd=dest)
+        subprocess.call([
+            'git', 'pull'
+        ], cwd=dest)
+
+        #return Git.update(self, dest, rev_options)
+
+    def latest(self):
+        Repo.latest(self)
 
 
 class MercurialRepo(Repo, Mercurial):
@@ -126,7 +152,17 @@ class MercurialRepo(Repo, Mercurial):
 
     def update_repo(self, dest=None, rev_options=[]):
         dest = self['path'] if not dest else dest
-        return Mercurial.update(self, dest, rev_options)
+        dest = self['path'] if not dest else dest
+        subprocess.call([
+            'hg', 'fetch'
+        ], cwd=dest)
+        subprocess.call([
+            'hg', 'pull', '-u'
+        ], cwd=dest)
+        #return Mercurial.update(self, dest, rev_options)
+
+    def latest(self):
+        Repo.latest(self)
 
 
 class SubversionRepo(Repo, Subversion):
@@ -148,6 +184,9 @@ class SubversionRepo(Repo, Subversion):
         url, rev = Subversion.get_url_rev(self)
         rev_options = get_rev_options(url, rev)
         return Subversion.update(self, dest, rev_options)
+
+    def latest(self):
+        Repo.latest(self)
 
 
 class Repos(BackboneCollection):
@@ -211,4 +250,5 @@ def main():
         pprint(util.get_repos(util.expand_config(config.get())))
 
         for repo_dict in util.get_repos(util.expand_config(config.get())):
-            print Repo(repo_dict)
+            r = Repo(repo_dict)
+            print r, r.latest()
