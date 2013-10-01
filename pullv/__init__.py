@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pullv ~~~~~
+    pullv
+    ~~~~~
 
     :copyright: Copyright 2013 Tony Narlock.
     :license: BSD, see LICENSE for details
@@ -15,6 +16,7 @@ import os
 import subprocess
 import fnmatch
 import kaptan
+from pip.log import logger
 from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
 from pip.vcs.subversion import Subversion
@@ -94,7 +96,7 @@ class Repo(BackboneModel):
 
     def latest(self):
         if not os.path.exists(self['path']):
-            print '\nRepo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path'])
+            logger.notify('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
 
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
@@ -102,10 +104,13 @@ class Repo(BackboneModel):
             #raise IOError('Parent directory for %s (%s) does not exist @ %s.' % (self['name'], self.vcs, self['parent_path']))
         else:
             if not os.path.exists(self['path']):
-                print '\nRepo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path'])
+                logger.notify('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
                 os.mkdir(self['path'])
 
         return True
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__, self.__dict__)
 
 
 class GitRepo(Repo, Git):
@@ -124,7 +129,7 @@ class GitRepo(Repo, Git):
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
-            subprocess.call([
+            subprocess.Popen([
                 'git', 'fetch'
             ], cwd=self['path'])
             subprocess.call([
@@ -244,7 +249,6 @@ def main():
         print 'pullv u [up, update]'
 
     else:
-        print 'config file found'
         import sys
 
         if sum(filter(None, [has_ini_config, has_json_config, has_yaml_config])) > int(1):
@@ -255,12 +259,19 @@ def main():
 
         config = kaptan.Kaptan()
         config.import_config(yaml_config)
-        from pprint import pprint
 
-        pprint(config.get())
-        pprint(util.expand_config(config.get()))
-        pprint(util.get_repos(util.expand_config(config.get())))
+        level = 1
+        level = logger.level_for_integer(4 - level)
+        complete_log = []
+        logger.add_consumers(
+            (level, sys.stdout),
+            (logger.DEBUG, complete_log.append)
+        )
+
+        print(config.get())
+        print(util.expand_config(config.get()))
+        print(util.get_repos(util.expand_config(config.get())))
 
         for repo_dict in util.get_repos(util.expand_config(config.get())):
             r = Repo(repo_dict)
-            print r, r.update_repo()
+            logger.notify('%s' % r)
