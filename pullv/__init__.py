@@ -8,22 +8,24 @@
     :license: BSD, see LICENSE for details
 """
 
-__version__ = '0.1-dev'
-
-
+from __future__ import absolute_import, division, print_function, with_statement
 import collections
 import os
 import subprocess
 import fnmatch
 import kaptan
-from pip.log import logger
+import tornado.log
+import logging
 from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
 from pip.vcs.subversion import Subversion
+import pip.vcs.subversion
 from pip.vcs.mercurial import Mercurial
+from . import util
 
-import util
+logger = logging.getLogger()
 
+__version__ = '0.1-dev'
 
 class BackboneCollection(collections.MutableSequence):
 
@@ -96,7 +98,7 @@ class Repo(BackboneModel):
 
     def latest(self):
         if not os.path.exists(self['path']):
-            logger.notify('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
+            logger.info('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
 
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
@@ -104,7 +106,7 @@ class Repo(BackboneModel):
             #raise IOError('Parent directory for %s (%s) does not exist @ %s.' % (self['name'], self.vcs, self['parent_path']))
         else:
             if not os.path.exists(self['path']):
-                logger.notify('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
+                logger.info('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
                 os.mkdir(self['path'])
 
         return True
@@ -193,9 +195,9 @@ class SubversionRepo(Repo, Subversion):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.svn')):
             dest = self['path'] if not dest else dest
-            from pip.vcs.subversion import get_rev_options
+
             url, rev = Subversion.get_url_rev(self)
-            rev_options = get_rev_options(url, rev)
+            rev_options = pip.subversion.get_rev_options(url, rev)
             return Subversion.update(self, dest, rev_options)
 
         else:
@@ -230,27 +232,10 @@ def main():
     ini_config = os.path.expanduser('~/.pullv.ini')
     has_ini_config = os.path.exists(ini_config)
     if not has_yaml_config and not has_json_config and not has_ini_config:
-        print 'oh hi'
-
-        # hi = subprocess.call([
-            # 'find', '/', '-name', '".git"'
-        # ])
-
-        print 'No config found. I can help you.\n\n'
-
-        print 'pullv scan -g'
-        print '\tscan computer system for vcs repos'
-
-        print 'pullv scan .'
-        print '\t scan you current working directory recurisvely for repos'
-
-        print 'by default, pullv scan will not seek sub-repos.'
-
-        print 'pullv u [up, update]'
-
+        logger.fatal('No config file found. Create a .pullv.{yaml,ini,conf}'
+                     ' in your $HOME directory. http://pullv.rtfd.org for a'
+                     ' quickstart.')
     else:
-        import sys
-
         if sum(filter(None, [has_ini_config, has_json_config, has_yaml_config])) > int(1):
             sys.exit(
                 'multiple configs found in home directory use only one.'
@@ -260,13 +245,8 @@ def main():
         config = kaptan.Kaptan()
         config.import_config(yaml_config)
 
-        level = 1
-        level = logger.level_for_integer(4 - level)
-        complete_log = []
-        logger.add_consumers(
-            (level, sys.stdout),
-            (logger.DEBUG, complete_log.append)
-        )
+
+        tornado.log.enable_pretty_logging()
 
         print(config.get())
         print(util.expand_config(config.get()))
@@ -274,4 +254,8 @@ def main():
 
         for repo_dict in util.get_repos(util.expand_config(config.get())):
             r = Repo(repo_dict)
-            logger.notify('%s' % r)
+            logger.setLevel('DEBUG')
+            logger.info('%s' % r)
+            logger.debug('wat rad debug')
+            logger.warning('wat ra warning')
+            logger.error('wat rad error')
