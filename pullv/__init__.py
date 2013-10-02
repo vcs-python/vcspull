@@ -226,7 +226,6 @@ class MercurialRepo(Repo):
             subprocess.call([
                 'hg', 'pull', '-u'
             ], cwd=self['path'])
-            # return Mercurial.update(self, dest, rev_options)
         else:
             self.obtain()
             self.update_repo()
@@ -247,9 +246,11 @@ class SubversionRepo(Repo):
         self.check_destination()
 
         url, rev = self.get_url_rev()
+        rev_options = self.get_rev_options(url, rev)
 
         subprocess.call([
-            'svn', 'checkout', '-q', url, self['path']])
+            'svn', 'checkout', '-q', url, self['path'],
+        ])
 
     def get_revision(self, location=None):
 
@@ -257,6 +258,7 @@ class SubversionRepo(Repo):
             cwd = location
         else:
             cwd = self['path']
+
         current_rev = subprocess.Popen(
             ['svn', 'info', cwd],
             stdout=subprocess.PIPE
@@ -271,6 +273,34 @@ class SubversionRepo(Repo):
 
         return int([dict(tmp) for tmp in info_list][0]['Revision'])
 
+    def get_rev_options(self, url, rev):
+        ''' from pip pip.vcs.subversion '''
+        if rev:
+            rev_options = ['-r', rev]
+        else:
+            rev_options = []
+
+        r = urlparse.urlsplit(url)
+        if hasattr(r, 'username'):
+            # >= Python-2.5
+            username, password = r.username, r.password
+        else:
+            netloc = r[1]
+            if '@' in netloc:
+                auth = netloc.split('@')[0]
+                if ':' in auth:
+                    username, password = auth.split(':', 1)
+                else:
+                    username, password = auth, None
+            else:
+                username, password = None, None
+
+        if username:
+            rev_options += ['--username', username]
+        if password:
+            rev_options += ['--password', password]
+        return rev_options
+
     def update_repo(self, dest=None):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.svn')):
@@ -282,22 +312,12 @@ class SubversionRepo(Repo):
                 cwd=self['path'],
                 stdout=subprocess.PIPE
             )
-
         else:
             self.obtain()
             self.update_repo()
 
     def latest(self):
         Repo.latest(self)
-
-
-class Repos(BackboneCollection):
-
-    """.find, .findWhere returns a ReposProxy class of filtered repos, these
-    may be .update()'d.  make repos underscore.py compatible?
-
-    """
-    pass
 
 
 def scan(dir):
