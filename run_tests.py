@@ -309,7 +309,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         testfile_filename = 'testfile.test'
 
-        self.assertEqual(svn_repo.get_revision(svn_checkout_dest), 0)
+        self.assertEqual(svn_repo.get_revision(), 0)
         subprocess.call([
             'touch', testfile_filename
         ], cwd=svn_checkout_dest)
@@ -322,7 +322,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         svn_repo.update_repo()
 
-        self.assertEqual(svn_repo.get_revision(svn_checkout_dest), 1)
+        self.assertEqual(svn_repo.get_revision(os.path.join(svn_checkout_dest, 'testfile.test')), 1)
 
         self.assertTrue(os.path.exists(svn_checkout_dest))
 
@@ -413,9 +413,16 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         mercurial_repo.update_repo()
 
+        test_repo_revision = subprocess.Popen(
+            ['hg', 'parents', '--template={rev}'],
+            cwd=os.path.join(mercurial_test_repo, mercurial_repo_name),
+            stdout=subprocess.PIPE
+        ).stdout.readline()
+
+
         self.assertEqual(
-            mercurial_repo.get_revision(mercurial_checkout_dest),
-            mercurial_repo.get_revision(os.path.join(mercurial_test_repo, mercurial_repo_name))
+            mercurial_repo.get_revision(),
+            test_repo_revision
         )
 
         self.assertTrue(os.path.exists(mercurial_checkout_dest))

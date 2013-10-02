@@ -17,11 +17,6 @@ import fnmatch
 import logging
 import urlparse
 import kaptan
-from pip.vcs.bazaar import Bazaar
-from pip.vcs.git import Git
-from pip.vcs.subversion import Subversion
-import pip.vcs.subversion
-from pip.vcs.mercurial import Mercurial
 from . import util
 from . import log
 
@@ -85,6 +80,7 @@ class Repo(BackboneModel):
 
     def __new__(cls, attributes, *args, **kwargs):
         vcs_url = attributes['url']
+
         if vcs_url.startswith('git+'):
             return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
         if vcs_url.startswith('hg+'):
@@ -98,6 +94,12 @@ class Repo(BackboneModel):
         self.attributes = dict(attributes) if attributes is not None else {}
 
         self['path'] = os.path.join(self['parent_path'], self['name'])
+
+        # Register more schemes with urlparse for various version control systems
+        urlparse.uses_netloc.extend(self.schemes)
+        # Python >= 2.7.4, 3.3 doesn't have uses_fragment
+        if getattr(urlparse, 'uses_fragment', None):
+            urlparse.uses_fragment.extend(self.schemes)
 
     def latest(self):
         if not os.path.exists(self['path']):
@@ -143,11 +145,7 @@ class GitRepo(Repo):
     schemes = ('git')
 
     def __init__(self, arguments, *args, **kwargs):
-        # Register more schemes with urlparse for various version control systems
-        urlparse.uses_netloc.extend(self.schemes)
-        # Python >= 2.7.4, 3.3 doesn't have uses_fragment
-        if getattr(urlparse, 'uses_fragment', None):
-            urlparse.uses_fragment.extend(self.schemes)
+
 
         Repo.__init__(self, arguments, *args, **kwargs)
 
@@ -188,21 +186,33 @@ class GitRepo(Repo):
         Repo.latest(self)
 
 
-class MercurialRepo(Repo, Mercurial):
+class MercurialRepo(Repo):
     vcs = 'hg'
+
+    schemes = ('hg', 'hg+http', 'hg+https', 'hg+file')
 
     def __init__(self, arguments, *args, **kwargs):
         Repo.__init__(self, arguments, *args, **kwargs)
-        super(Mercurial, self).__init__(
-            arguments.get('url'), *args, **kwargs
-        )
 
     def obtain(self):
         self.check_destination()
 
-        #subprocess.call([
-        #    'hg', 'clone', '--noupdate', '-q',]
-        return Mercurial.obtain(self, self['path'])
+        url, rev = self.get_url_rev()
+
+        subprocess.call([
+            'hg', 'clone', '--noupdate', '-q', url, self['path']])
+
+        subprocess.call([
+            'hg', 'update', '-q', ], cwd=self['path'])
+
+    def get_revision(self):
+        current_rev = subprocess.Popen(
+            ['hg', 'parents', '--template={rev}'],
+            cwd=self['path'],
+            stdout=subprocess.PIPE
+        )
+
+        return current_rev.stdout.readline()
 
     def update_repo(self):
         self.check_destination()
@@ -222,27 +232,54 @@ class MercurialRepo(Repo, Mercurial):
         Repo.latest(self)
 
 
-class SubversionRepo(Repo, Subversion):
+class SubversionRepo(Repo):
     vcs = 'svn'
+
+    schemes = ('svn')
 
     def __init__(self, arguments, *args, **kwargs):
         Repo.__init__(self, arguments, *args, **kwargs)
-        super(Subversion, self).__init__(
-            arguments.get('url'), *args, **kwargs
-        )
 
     def obtain(self):
         self.check_destination()
-        return Subversion.obtain(self, self['path'])
+
+        url, rev = self.get_url_rev()
+
+        subprocess.call([
+            'svn', 'checkout', '-q', url, self['path']])
+
+    def get_revision(self, location=None):
+
+        if location:
+            cwd  = location
+        else:
+            cwd = self['path']
+        current_rev = subprocess.Popen(
+            ['svn', 'info', cwd],
+            stdout=subprocess.PIPE
+        )
+        infos = current_rev.stdout.read()
+        print(263, infos)
+        import re
+        _INI_RE = re.compile(r"^([^:]+):\s+(\S.*)$", re.M)
+
+        info_list =  []
+        for infosplit in infos.split('\n\n'):
+            info_list.append(_INI_RE.findall(infosplit))
+
+        return int([dict(tmp) for tmp in info_list][0]['Revision'])
 
     def update_repo(self, dest=None):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.svn')):
             dest = self['path'] if not dest else dest
 
-            url, rev = Subversion.get_url_rev(self)
-            rev_options = pip.subversion.get_rev_options(url, rev)
-            return Subversion.update(self, dest, rev_options)
+            url, rev = self.get_url_rev()
+            subprocess.Popen(
+                ['svn', 'update'],
+                cwd=self['path'],
+                stdout=subprocess.PIPE
+            )
 
         else:
             self.obtain()
