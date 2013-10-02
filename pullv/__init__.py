@@ -14,8 +14,9 @@ import os
 import sys
 import subprocess
 import fnmatch
-import kaptan
 import logging
+import urlparse
+import kaptan
 from pip.vcs.bazaar import Bazaar
 from pip.vcs.git import Git
 from pip.vcs.subversion import Subversion
@@ -83,7 +84,7 @@ class BackboneModel(collections.MutableMapping):
 class Repo(BackboneModel):
 
     def __new__(cls, attributes, *args, **kwargs):
-        vcs_url = attributes['remote_location']
+        vcs_url = attributes['url']
         if vcs_url.startswith('git+'):
             return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
         if vcs_url.startswith('hg+'):
@@ -115,19 +116,58 @@ class Repo(BackboneModel):
     def __repr__(self):
         return "%s(%r)" % (self.__class__, self.__dict__)
 
+    def get_url_rev(self):
+        """
+        Returns the correct repository URL and revision by parsing the given
+        repository URL
 
-class GitRepo(Repo, Git):
+        From pip
+        """
+        error_message = (
+            "Sorry, '%s' is a malformed VCS url. "
+            "The format is <vcs>+<protocol>://<url>, "
+            "e.g. svn+http://myrepo/svn/MyApp#egg=MyApp")
+        assert '+' in self['url'], error_message % self['url']
+        url = self['url'].split('+', 1)[1]
+        scheme, netloc, path, query, frag = urlparse.urlsplit(url)
+        rev = None
+        if '@' in path:
+            path, rev = path.rsplit('@', 1)
+        url = urlparse.urlunsplit((scheme, netloc, path, query, ''))
+        return url, rev
+
+
+class GitRepo(Repo):
     vcs = 'git'
 
+    schemes = ('git')
+
     def __init__(self, arguments, *args, **kwargs):
+        # Register more schemes with urlparse for various version control systems
+        urlparse.uses_netloc.extend(self.schemes)
+        # Python >= 2.7.4, 3.3 doesn't have uses_fragment
+        if getattr(urlparse, 'uses_fragment', None):
+            urlparse.uses_fragment.extend(self.schemes)
+
         Repo.__init__(self, arguments, *args, **kwargs)
-        super(Git, self).__init__(
-            arguments.get('remote_location'), *args, **kwargs
+
+    def get_revision(self):
+        current_rev = subprocess.Popen(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=self['path'],
+            stdout=subprocess.PIPE
         )
+
+        return current_rev.stdout.readline()
 
     def obtain(self):
         self.check_destination()
-        return Git.obtain(self, self['path'])
+
+        url, rev = self.get_url_rev()
+        proc = subprocess.Popen(
+            ['git', 'clone', '-q', url, self['path']],
+            env=os.environ.copy(), cwd=self['path']
+        )
 
     def update_repo(self):
         self.check_destination()
@@ -154,11 +194,14 @@ class MercurialRepo(Repo, Mercurial):
     def __init__(self, arguments, *args, **kwargs):
         Repo.__init__(self, arguments, *args, **kwargs)
         super(Mercurial, self).__init__(
-            arguments.get('remote_location'), *args, **kwargs
+            arguments.get('url'), *args, **kwargs
         )
 
     def obtain(self):
         self.check_destination()
+
+        #subprocess.call([
+        #    'hg', 'clone', '--noupdate', '-q',]
         return Mercurial.obtain(self, self['path'])
 
     def update_repo(self):
@@ -185,7 +228,7 @@ class SubversionRepo(Repo, Subversion):
     def __init__(self, arguments, *args, **kwargs):
         Repo.__init__(self, arguments, *args, **kwargs)
         super(Subversion, self).__init__(
-            arguments.get('remote_location'), *args, **kwargs
+            arguments.get('url'), *args, **kwargs
         )
 
     def obtain(self):

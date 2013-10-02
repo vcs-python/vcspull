@@ -47,15 +47,15 @@ def get_repos(config):
             repo_dict = {
                 'name': repo,
                 'parent_path': directory,
-                'remote_location': repo_data['repo'],
+                'url': repo_data['repo'],
             }
 
             if 'remotes' in repo_data:
                 repo_dict['remotes'] = []
-                for remote_name, remote_location in repo_data['remotes'].iteritems():
+                for remote_name, url in repo_data['remotes'].iteritems():
                     remote_dict = {
                         'remote_name': remote_name,
-                        'remote_location': remote_location
+                        'url': url
                     }
                     repo_dict['remotes'].append(remote_dict)
             repo_list.append(repo_dict)

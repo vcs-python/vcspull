@@ -223,7 +223,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
             {
                 'name': None,
                 'parent_path': None,
-                'remote_location': None,
+                'url': None,
                 'remotes': []
             }
         ]
@@ -240,24 +240,24 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
             self.assertIsInstance(r, dict)
             self.assertIn('name', r)
             self.assertIn('parent_path', r)
-            self.assertIn('remote_location', r)
+            self.assertIn('url', r)
 
             if 'remotes' in r:
                 self.assertIsInstance(r['remotes'], list)
                 for remote in r['remotes']:
                     self.assertIsInstance(remote, dict)
                     self.assertIn('remote_name', remote)
-                    self.assertIn('remote_location', remote)
+                    self.assertIn('url', remote)
 
     def test_vcs_url_scheme_to_object(self):
-        """remote_location url returns a GitRepo/MercurialRepo/SubversionRepo
+        """url url returns a GitRepo/MercurialRepo/SubversionRepo
 
         :class:`GitRepo`, :class:`MercurialRepo` or :class:`SubversionRepo`
         object based on the pip-style URL scheme.
         """
 
         git_repo = Repo({
-            'remote_location': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709',
+            'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709',
             'parent_path': self.TMP_DIR,
             'name': 'myproject1'
         })
@@ -268,7 +268,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(git_repo, Repo)
 
         hg_repo = Repo({
-            'remote_location': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
+            'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
             'parent_path': self.TMP_DIR,
             'name': 'myproject2'
         })
@@ -277,7 +277,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(hg_repo, Repo)
 
         svn_repo = Repo({
-            'remote_location': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
+            'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
             'parent_path': self.TMP_DIR,
             'name': 'myproject3'
         })
@@ -290,7 +290,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         svn_repo_name = 'my_svn_project'
 
         svn_repo = Repo({
-            'remote_location': 'svn+file://' + os.path.join(svn_test_repo, svn_repo_name),
+            'url': 'svn+file://' + os.path.join(svn_test_repo, svn_repo_name),
             'parent_path': self.TMP_DIR,
             'name': svn_repo_name
         })
@@ -331,7 +331,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         git_repo_name = 'my_git_project'
 
         git_repo = Repo({
-            'remote_location': 'git+file://' + os.path.join(git_test_repo, git_repo_name),
+            'url': 'git+file://' + os.path.join(git_test_repo, git_repo_name),
             'parent_path': self.TMP_DIR,
             'name': git_repo_name
         })
@@ -362,9 +362,18 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         #git_repo.update_repo(rev_options=['origin/master'])
         git_repo.update_repo()
 
+        test_repo_revision = subprocess.Popen(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=os.path.join(git_test_repo, git_repo_name),
+            stdout=subprocess.PIPE
+        ).stdout.readline()
+
+        print('repo revvv: ', test_repo_revision)
+
+
         self.assertEqual(
-            git_repo.get_revision(git_checkout_dest),
-            git_repo.get_revision(os.path.join(git_test_repo, git_repo_name))
+            git_repo.get_revision(),
+            test_repo_revision
         )
         self.assertTrue(os.path.exists(git_checkout_dest))
 
@@ -373,7 +382,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         mercurial_repo_name = 'my_mercurial_project'
 
         mercurial_repo = Repo({
-            'remote_location': 'hg+file://' + os.path.join(mercurial_test_repo, mercurial_repo_name),
+            'url': 'hg+file://' + os.path.join(mercurial_test_repo, mercurial_repo_name),
             'parent_path': self.TMP_DIR,
             'name': mercurial_repo_name
         })
@@ -422,8 +431,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
             self.assertEqual(r['name'], repo_dict['name'])
             self.assertIn('parent_path', r)
             self.assertEqual(r['parent_path'], repo_dict['parent_path'])
-            self.assertIn('remote_location', r)
-            self.assertEqual(r['remote_location'], repo_dict['remote_location'])
+            self.assertIn('url', r)
+            self.assertEqual(r['url'], repo_dict['url'])
 
             self.assertEqual(r['path'], os.path.join(r['parent_path'], r['name']))
 
@@ -432,7 +441,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
                 for remote in r['remotes']:
                     self.assertIsInstance(remote, dict)
                     self.assertIn('remote_name', remote)
-                    self.assertIn('remote_location', remote)
+                    self.assertIn('url', remote)
 
     @classmethod
     def setUpClass(cls):
