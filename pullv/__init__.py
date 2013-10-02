@@ -16,6 +16,7 @@ import subprocess
 import fnmatch
 import logging
 import urlparse
+import re
 import kaptan
 from . import util
 from . import log
@@ -95,7 +96,8 @@ class Repo(BackboneModel):
 
         self['path'] = os.path.join(self['parent_path'], self['name'])
 
-        # Register more schemes with urlparse for various version control systems
+        # Register more schemes with urlparse for various version control
+        # systems
         urlparse.uses_netloc.extend(self.schemes)
         # Python >= 2.7.4, 3.3 doesn't have uses_fragment
         if getattr(urlparse, 'uses_fragment', None):
@@ -103,14 +105,16 @@ class Repo(BackboneModel):
 
     def latest(self):
         if not os.path.exists(self['path']):
-            logger.info('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
+            logger.info('Repo directory for %s (%s) does not exist @ %s' % (
+                self['name'], self.vcs, self['path']))
 
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
             os.mkdir(self['parent_path'])
         else:
             if not os.path.exists(self['path']):
-                logger.info('Repo directory for %s (%s) does not exist @ %s' % (self['name'], self.vcs, self['path']))
+                logger.info('Repo directory for %s (%s) does not exist @ %s' % (
+                    self['name'], self.vcs, self['path']))
                 os.mkdir(self['path'])
 
         return True
@@ -146,7 +150,6 @@ class GitRepo(Repo):
 
     def __init__(self, arguments, *args, **kwargs):
 
-
         Repo.__init__(self, arguments, *args, **kwargs)
 
     def get_revision(self):
@@ -180,7 +183,7 @@ class GitRepo(Repo):
             self.obtain()
             self.update_repo()
 
-        #return Git.update(self, dest, rev_options)
+        # return Git.update(self, dest, rev_options)
 
     def latest(self):
         Repo.latest(self)
@@ -223,7 +226,7 @@ class MercurialRepo(Repo):
             subprocess.call([
                 'hg', 'pull', '-u'
             ], cwd=self['path'])
-            #return Mercurial.update(self, dest, rev_options)
+            # return Mercurial.update(self, dest, rev_options)
         else:
             self.obtain()
             self.update_repo()
@@ -251,7 +254,7 @@ class SubversionRepo(Repo):
     def get_revision(self, location=None):
 
         if location:
-            cwd  = location
+            cwd = location
         else:
             cwd = self['path']
         current_rev = subprocess.Popen(
@@ -259,11 +262,10 @@ class SubversionRepo(Repo):
             stdout=subprocess.PIPE
         )
         infos = current_rev.stdout.read()
-        print(263, infos)
-        import re
+
         _INI_RE = re.compile(r"^([^:]+):\s+(\S.*)$", re.M)
 
-        info_list =  []
+        info_list = []
         for infosplit in infos.split('\n\n'):
             info_list.append(_INI_RE.findall(infosplit))
 

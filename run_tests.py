@@ -322,7 +322,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         svn_repo.update_repo()
 
-        self.assertEqual(svn_repo.get_revision(os.path.join(svn_checkout_dest, 'testfile.test')), 1)
+        self.assertEqual(svn_repo.get_revision(os.path.join(
+            svn_checkout_dest, 'testfile.test')), 1)
 
         self.assertTrue(os.path.exists(svn_checkout_dest))
 
@@ -359,7 +360,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         subprocess.call([
             'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
         ], cwd=os.path.join(git_test_repo, git_repo_name))
-        #git_repo.update_repo(rev_options=['origin/master'])
+        # git_repo.update_repo(rev_options=['origin/master'])
         git_repo.update_repo()
 
         test_repo_revision = subprocess.Popen(
@@ -370,7 +371,6 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         print('repo revvv: ', test_repo_revision)
 
-
         self.assertEqual(
             git_repo.get_revision(),
             test_repo_revision
@@ -378,7 +378,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertTrue(os.path.exists(git_checkout_dest))
 
     def test_repo_mercurial(self):
-        mercurial_test_repo = os.path.join(self.TMP_DIR, '.mercurial_test_repo')
+        mercurial_test_repo = os.path.join(
+            self.TMP_DIR, '.mercurial_test_repo')
         mercurial_repo_name = 'my_mercurial_project'
 
         mercurial_repo = Repo({
@@ -396,7 +397,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         )
         self.assertTrue(os.path.exists(mercurial_test_repo))
 
-        mercurial_checkout_dest = os.path.join(self.TMP_DIR, mercurial_repo['name'])
+        mercurial_checkout_dest = os.path.join(
+            self.TMP_DIR, mercurial_repo['name'])
         mercurial_repo.obtain()
 
         testfile_filename = 'testfile.test'
@@ -419,7 +421,6 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
             stdout=subprocess.PIPE
         ).stdout.readline()
 
-
         self.assertEqual(
             mercurial_repo.get_revision(),
             test_repo_revision
@@ -441,7 +442,8 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
             self.assertIn('url', r)
             self.assertEqual(r['url'], repo_dict['url'])
 
-            self.assertEqual(r['path'], os.path.join(r['parent_path'], r['name']))
+            self.assertEqual(r['path'], os.path.join(
+                r['parent_path'], r['name']))
 
             if 'remotes' in r:
                 self.assertIsInstance(r['remotes'], list)
