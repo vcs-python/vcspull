@@ -168,12 +168,18 @@ class GitRepo(Repo):
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
-            _run([
+
+            logging.info('[{0}] ({1}) fetch'.format(self['name'], self.vcs))
+            proc = _run([
                 'git', 'fetch'
             ], cwd=self['path'])
-            _run([
+            logging.info('[{0}] ({1}) fetch done: {2}'.format(self['name'], self.vcs, proc))
+
+            logging.info('[{0}] ({1}) pull'.format(self['name'], self.vcs))
+            proc = _run([
                 'git', 'pull'
             ], cwd=self['path'])
+            logging.info('[{0}] ({1}) pull done: {2}'.format(self['name'], self.vcs, proc['stdout']))
         else:
             self.obtain()
             self.update_repo()
@@ -192,11 +198,18 @@ class MercurialRepo(Repo):
 
         url, rev = self.get_url_rev()
 
-        _run([
+        logging.info('Cloning {0} ({1})'.format(self['name'], self.vcs))
+        clone = _run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
-        _run([
-            'hg', 'update', '-q', ], cwd=self['path'])
+        logging.info('Clone of {0} ({1}) done: {2}'.format(self['name'], self.vcs, clone['stdout']))
+        logging.info('+ Updating {0} ({1})'.format(self['name'], self.vcs))
+        update = _run([
+            'hg', 'update', '-q'
+        ], cwd=self['path'])
+        logging.info('Update of {0} ({1}) done: {2}'.format(self['name'], self.vcs, update['stdout']))
+
+
 
     def get_revision(self):
         current_rev = _run(
