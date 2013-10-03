@@ -104,11 +104,6 @@ class Repo(BackboneModel):
         if getattr(urlparse, 'uses_fragment', None):
             urlparse.uses_fragment.extend(self.schemes)
 
-    def latest(self):
-        if not os.path.exists(self['path']):
-            logger.info('Repo directory for %s (%s) does not exist @ %s' % (
-                self['name'], self.vcs, self['path']))
-
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
             os.mkdir(self['parent_path'])
@@ -183,11 +178,6 @@ class GitRepo(Repo):
             self.obtain()
             self.update_repo()
 
-        # return Git.update(self, dest, rev_options)
-
-    def latest(self):
-        Repo.latest(self)
-
 
 class MercurialRepo(Repo):
     vcs = 'hg'
@@ -228,9 +218,6 @@ class MercurialRepo(Repo):
         else:
             self.obtain()
             self.update_repo()
-
-    def latest(self):
-        Repo.latest(self)
 
 
 class SubversionRepo(Repo):
@@ -312,9 +299,6 @@ class SubversionRepo(Repo):
         else:
             self.obtain()
             self.update_repo()
-
-    def latest(self):
-        Repo.latest(self)
 
 
 def scan(dir):
