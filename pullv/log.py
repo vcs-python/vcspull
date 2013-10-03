@@ -172,6 +172,11 @@ class LogFormatter(logging.Formatter):
             "%y%m%d %H:%M:%S", self.converter(record.created))
         prefix = '[%(levelname)1.1s %(asctime)s %(module)s:%(lineno)d]' % \
             record.__dict__
+
+        # temporary, look up howto logging channels
+        if 'repo_vcs' in record.__dict__:
+            prefix = '[{0}]({1})'.format(record.repo_name, record.repo_vcs)
+
         if self._color:
             prefix = (self._colors.get(record.levelno, self._normal) +
                       prefix + self._normal)

@@ -84,13 +84,17 @@ class Repo(BackboneModel):
         vcs_url = attributes['url']
 
         if vcs_url.startswith('git+'):
+            attributes['vcs'] = 'git'
             return super(Repo, cls).__new__(GitRepo, attributes, *args, **kwargs)
         if vcs_url.startswith('hg+'):
+            attributes['vcs'] = 'hg'
             return super(Repo, cls).__new__(MercurialRepo, attributes, *args, **kwargs)
         if vcs_url.startswith('svn+'):
+            attributes['vcs'] = 'svn'
             return super(Repo, cls).__new__(SubversionRepo, attributes, *args, **kwargs)
         else:
-            return super(Repo, cls).__new__(cls, attributes, *args, **kwargs)
+            raise Exception('no scheme in repo URL found (hg+, git+, svn+. Prepend this'
+                            ' to the repo\'s URL')
 
     def __init__(self, attributes=None):
         self.attributes = dict(attributes) if attributes is not None else {}
@@ -110,7 +114,7 @@ class Repo(BackboneModel):
         else:
             if not os.path.exists(self['path']):
                 logger.info('Repo directory for %s (%s) does not exist @ %s' % (
-                    self['name'], self.vcs, self['path']))
+                    self['name'], self['vcs'], self['path']))
                 os.mkdir(self['path'])
 
         return True
@@ -138,10 +142,16 @@ class Repo(BackboneModel):
         url = urlparse.urlunsplit((scheme, netloc, path, query, ''))
         return url, rev
 
+    @property
+    def prefixed_dict(self):
+        prefixed_dict = {}
+        for key, v in self.attributes.iteritems():
+            prefixed_dict['repo_' + key] = v
+
+        return prefixed_dict
+
 
 class GitRepo(Repo):
-    vcs = 'git'
-
     schemes = ('git')
 
     def __init__(self, arguments, *args, **kwargs):
@@ -169,24 +179,24 @@ class GitRepo(Repo):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
 
-            logging.info('[{0}] ({1}) fetch'.format(self['name'], self.vcs))
+            logging.info('fetching...', extra=self.prefixed_dict)
             proc = _run([
                 'git', 'fetch'
             ], cwd=self['path'])
-            logging.info('[{0}] ({1}) fetch done: {2}'.format(self['name'], self.vcs, proc))
+            logging.info('fetched: {0}'.format(proc['stdout']), extra=self.prefixed_dict
+                         )
 
-            logging.info('[{0}] ({1}) pull'.format(self['name'], self.vcs))
+            logging.info('pulling...', extra=self.prefixed_dict)
             proc = _run([
                 'git', 'pull'
             ], cwd=self['path'])
-            logging.info('[{0}] ({1}) pull done: {2}'.format(self['name'], self.vcs, proc['stdout']))
+            logging.info('pulled: {0}'.format(proc['stdout']), extra=self.prefixed_dict)
         else:
             self.obtain()
             self.update_repo()
 
 
 class MercurialRepo(Repo):
-    vcs = 'hg'
 
     schemes = ('hg', 'hg+http', 'hg+https', 'hg+file')
 
@@ -198,18 +208,16 @@ class MercurialRepo(Repo):
 
         url, rev = self.get_url_rev()
 
-        logging.info('Cloning {0} ({1})'.format(self['name'], self.vcs))
+        logging.info('cloning...', extra=self.prefixed_dict)
         clone = _run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
-        logging.info('Clone of {0} ({1}) done: {2}'.format(self['name'], self.vcs, clone['stdout']))
-        logging.info('+ Updating {0} ({1})'.format(self['name'], self.vcs))
+        logging.info('cloned: {0}'.format(clone['stdout']), extra=self.prefixed_dict)
+        logging.info('updating...', extra=self.prefixed_dict)
         update = _run([
             'hg', 'update', '-q'
         ], cwd=self['path'])
-        logging.info('Update of {0} ({1}) done: {2}'.format(self['name'], self.vcs, update['stdout']))
-
-
+        logging.info('updated: {0}'.format(update['stdout']), extra=self.prefixed_dict)
 
     def get_revision(self):
         current_rev = _run(
@@ -391,11 +399,11 @@ def main():
 
         log.enable_pretty_logging()
 
-        logging.info('%r' % config.get())
-        logging.info('%r' % util.expand_config(config.get()))
-        logging.info('%r' % util.get_repos(util.expand_config(config.get())))
+        #logging.info('%r' % config.get())
+        #logging.info('%r' % util.expand_config(config.get()))
+        #logging.info('%r' % util.get_repos(util.expand_config(config.get())))
 
         for repo_dict in util.get_repos(util.expand_config(config.get())):
             r = Repo(repo_dict)
-            logger.info('%s' % r)
+            #logger.info('%s' % r)
             r.update_repo()
