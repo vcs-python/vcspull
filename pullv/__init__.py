@@ -20,6 +20,7 @@ import re
 import kaptan
 from . import util
 from . import log
+from . import timed_subprocess
 
 logger = logging.getLogger()
 
@@ -153,19 +154,18 @@ class GitRepo(Repo):
         Repo.__init__(self, arguments, *args, **kwargs)
 
     def get_revision(self):
-        current_rev = subprocess.Popen(
+        current_rev = _run(
             ['git', 'rev-parse', 'HEAD'],
-            cwd=self['path'],
-            stdout=subprocess.PIPE
+            cwd=self['path']
         )
 
-        return current_rev.stdout.readline()
+        return current_rev['stdout']
 
     def obtain(self):
         self.check_destination()
 
         url, rev = self.get_url_rev()
-        proc = subprocess.Popen(
+        proc = _run(
             ['git', 'clone', '-q', url, self['path']],
             env=os.environ.copy(), cwd=self['path']
         )
@@ -173,10 +173,10 @@ class GitRepo(Repo):
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
-            subprocess.Popen([
+            _run([
                 'git', 'fetch'
             ], cwd=self['path'])
-            subprocess.call([
+            _run([
                 'git', 'pull'
             ], cwd=self['path'])
         else:
@@ -202,28 +202,27 @@ class MercurialRepo(Repo):
 
         url, rev = self.get_url_rev()
 
-        subprocess.call([
+        _run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
-        subprocess.call([
+        _run([
             'hg', 'update', '-q', ], cwd=self['path'])
 
     def get_revision(self):
-        current_rev = subprocess.Popen(
+        current_rev = _run(
             ['hg', 'parents', '--template={rev}'],
             cwd=self['path'],
-            stdout=subprocess.PIPE
         )
 
-        return current_rev.stdout.readline()
+        return current_rev['stdout']
 
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.hg')):
-            subprocess.call([
+            _run([
                 'hg', 'update'
             ], cwd=self['path'])
-            subprocess.call([
+            _run([
                 'hg', 'pull', '-u'
             ], cwd=self['path'])
         else:
@@ -248,7 +247,7 @@ class SubversionRepo(Repo):
         url, rev = self.get_url_rev()
         rev_options = self.get_rev_options(url, rev)
 
-        subprocess.call([
+        _run([
             'svn', 'checkout', '-q', url, self['path'],
         ])
 
@@ -259,11 +258,10 @@ class SubversionRepo(Repo):
         else:
             cwd = self['path']
 
-        current_rev = subprocess.Popen(
+        current_rev = _run(
             ['svn', 'info', cwd],
-            stdout=subprocess.PIPE
         )
-        infos = current_rev.stdout.read()
+        infos = current_rev['stdout']
 
         _INI_RE = re.compile(r"^([^:]+):\s+(\S.*)$", re.M)
 
@@ -307,10 +305,9 @@ class SubversionRepo(Repo):
             dest = self['path'] if not dest else dest
 
             url, rev = self.get_url_rev()
-            subprocess.Popen(
+            _run(
                 ['svn', 'update'],
-                cwd=self['path'],
-                stdout=subprocess.PIPE
+                cwd=self['path']
             )
         else:
             self.obtain()
@@ -325,6 +322,53 @@ def scan(dir):
     for root, dirnames, filenames in os.walk(dir):
         for filename in fnmatch.filter(filenames, '.git'):
             matches.append(os.path.join(root, filename))
+
+
+def _run(cmd,
+         cwd=None,
+         stdin=None,
+         stdout=subprocess.PIPE,
+         stderr=subprocess.PIPE,
+         shell=False,
+         env=(),
+         timeout=None):
+    ''' based off salt's _run '''
+    ret = {}
+
+    # kwargs['stdin'] = subprocess.PIPE if 'stdin' not in kwargs else
+    # kwargs['stdin']
+
+    kwargs = {
+        'cwd': cwd,
+        'stdin': stdin,
+        'stdout': stdout,
+        'stderr': stderr,
+        'shell': shell,
+        'env': os.environ.copy(),
+    }
+
+    try:
+        proc = timed_subprocess.TimedProc(cmd, **kwargs)
+    except (OSError, IOError) as exc:
+        raise Error('Unable to urn command: {0}'.format(exc))
+
+    try:
+        proc.wait(timeout)
+    except timed_subprocess.TimedProcTimeoutError as exc:
+        ret['stdout'] = str(exc)
+        ret['stderr'] = ''
+        ret['pid'] = proc.process.pid
+        ret['retcode'] = 1
+        return ret
+
+    out, err = proc.stdout, proc.stderr
+
+    ret['stdout'] = out
+    ret['stderr'] = err
+    ret['pid'] = proc.process.pid
+    ret['retcode'] = proc.process.returncode
+
+    return ret
 
 
 def main():

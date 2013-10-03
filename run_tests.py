@@ -9,7 +9,7 @@ import glob
 import tempfile
 import shutil
 import subprocess
-from pullv import Repo, GitRepo, MercurialRepo, SubversionRepo
+from pullv import Repo, GitRepo, MercurialRepo, SubversionRepo, _run
 from pullv.util import expand_config, get_repos
 
 
@@ -363,13 +363,10 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         # git_repo.update_repo(rev_options=['origin/master'])
         git_repo.update_repo()
 
-        test_repo_revision = subprocess.Popen(
+        test_repo_revision = _run(
             ['git', 'rev-parse', 'HEAD'],
             cwd=os.path.join(git_test_repo, git_repo_name),
-            stdout=subprocess.PIPE
-        ).stdout.readline()
-
-        print('repo revvv: ', test_repo_revision)
+        )['stdout']
 
         self.assertEqual(
             git_repo.get_revision(),
@@ -415,11 +412,10 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         mercurial_repo.update_repo()
 
-        test_repo_revision = subprocess.Popen(
+        test_repo_revision = _run(
             ['hg', 'parents', '--template={rev}'],
             cwd=os.path.join(mercurial_test_repo, mercurial_repo_name),
-            stdout=subprocess.PIPE
-        ).stdout.readline()
+        )['stdout']
 
         self.assertEqual(
             mercurial_repo.get_revision(),
