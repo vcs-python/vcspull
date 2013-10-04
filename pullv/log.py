@@ -237,7 +237,7 @@ class RepoLogFormatter(LogFormatter):
             if (3, 0) < sys.version_info < (3, 2, 3):
                 fg_color = unicode_type(fg_color, "ascii")
 
-            formatted = '%s[%s] %s(%s) %s %s %s' % (
+            formatted = '%s|%s| %s(%s) %s %s %s' % (
                 Fore.GREEN + Style.DIM,
                 record.repo_name,
                 unicode_type(curses.tparm(fg_color, 3)),

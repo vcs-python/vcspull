@@ -43,19 +43,18 @@ class GitRepo(BaseRepo):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
 
-            logger.info('fetching...', extra=self.prefixed_dict)
             proc = _run([
                 'git', 'fetch'
             ], cwd=self['path'])
-            logger.info('fetched: {0}'.format(proc['stdout']), extra=self.prefixed_dict
-                         )
 
-            logger.info('pulling...', extra=self.prefixed_dict)
             proc = _run([
                 'git', 'pull'
             ], cwd=self['path'])
-            logger.info('pulled: {0}'.format(proc[
-                         'stdout']), extra=self.prefixed_dict)
+
+            if 'Already up-to-date' in proc['stdout'].strip():
+                logger.info('Already up-to-date.', extra=self.prefixed_dict)
+            else:
+                logger.info('Updated\n\t%s' % (proc['stdout']), extra=self.prefixed_dict)
         else:
             self.obtain()
             self.update_repo()

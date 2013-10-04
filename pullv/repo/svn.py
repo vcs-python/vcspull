@@ -32,11 +32,10 @@ class SubversionRepo(BaseRepo):
         url, rev = self.get_url_rev()
         rev_options = self.get_rev_options(url, rev)
 
-        logger.info('checking out...', extra=self.prefixed_dict)
         checkout = _run([
             'svn', 'checkout', '-q', url, self['path'],
         ])
-        logger.info('checked out: %s', checkout['stdout'], extra=self.prefixed_dict)
+        logger.info('Checked out\n\t%s', checkout['stdout'], extra=self.prefixed_dict)
 
     def get_revision(self, location=None):
 
@@ -92,10 +91,12 @@ class SubversionRepo(BaseRepo):
             dest = self['path'] if not dest else dest
 
             url, rev = self.get_url_rev()
-            _run(
+            proc = _run(
                 ['svn', 'update'],
                 cwd=self['path']
             )
+
+            logger.info('Updated\n\t%s' % (proc['stdout']), extra=self.prefixed_dict)
         else:
             self.obtain()
             self.update_repo()

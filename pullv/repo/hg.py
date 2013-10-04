@@ -32,13 +32,11 @@ class MercurialRepo(BaseRepo):
         clone = _run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
-        logger.info('cloned: {0}'.format(clone[
-                     'stdout']), extra=self.prefixed_dict)
-        logger.info('updating...', extra=self.prefixed_dict)
+        logger.info('Cloned\n\t%s' % clone['stdout'], extra=self.prefixed_dict)
         update = _run([
             'hg', 'update', '-q'
         ], cwd=self['path'])
-        logger.info('updated: %s' % update['stdout'], extra=self.prefixed_dict)
+        logger.info('Updated\n\t%s' % update['stdout'], extra=self.prefixed_dict)
 
     def get_revision(self):
         current_rev = _run(
