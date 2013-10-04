@@ -17,11 +17,6 @@ API
    :inherited-members:
    :show-inheritance:
 
-.. autoclass:: pullv.repo.base.BackboneModel
-   :members:
-   :inherited-members:
-   :show-inheritance:
-
 .. autoclass:: pullv.repo.GitRepo
    :members:
    :inherited-members:

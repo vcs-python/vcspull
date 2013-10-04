@@ -20,58 +20,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class BackboneCollection(collections.MutableSequence):
-
-    '''emulate backbone collection
-    '''
-    def __init__(self, models=None):
-        self.attributes = list(models) if models is None else []
-
-    def __getitem__(self, index):
-        return self.attributes[index]
-
-    def __setitem__(self, index, value):
-        self.attributes[index] = value
-
-    def __delitem__(self, index):
-        del self.attributes[index]
-
-    def insert(self, index, value):
-        self.attributes.insert(index, value)
-
-    def __len__(self):
-        return len(self.attributes)
-
-
-class BackboneModel(collections.MutableMapping):
-
-    '''emulate backbone model
-    '''
-    def __init__(self, attributes=None):
-        self.attributes = dict(attributes) if attributes is not None else {}
-
-    def __getitem__(self, key):
-        return self.attributes[key]
-
-    def __setitem__(self, key, value):
-        self.attributes[key] = value
-        self.dirty = True
-
-    def __delitem__(self, key):
-        del self.attributes[key]
-        self.dirty = True
-
-    def keys(self):
-        return self.attributes.keys()
-
-    def __iter__(self):
-        return self.attributes.__iter__()
-
-    def __len__(self):
-        return len(self.attributes.keys())
-
-
-class BaseRepo(BackboneModel):
+class BaseRepo(collections.MutableMapping):
 
     def __init__(self, attributes=None):
         self.attributes = dict(attributes) if attributes is not None else {}
@@ -126,3 +75,23 @@ class BaseRepo(BackboneModel):
             prefixed_dict['repo_' + key] = v
 
         return prefixed_dict
+
+    def __getitem__(self, key):
+        return self.attributes[key]
+
+    def __setitem__(self, key, value):
+        self.attributes[key] = value
+        self.dirty = True
+
+    def __delitem__(self, key):
+        del self.attributes[key]
+        self.dirty = True
+
+    def keys(self):
+        return self.attributes.keys()
+
+    def __iter__(self):
+        return self.attributes.__iter__()
+
+    def __len__(self):
+        return len(self.attributes.keys())
