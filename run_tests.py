@@ -9,8 +9,8 @@ import glob
 import tempfile
 import shutil
 import subprocess
-from pullv import Repo, GitRepo, MercurialRepo, SubversionRepo, _run
-from pullv.util import expand_config, get_repos
+from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
+from pullv.util import expand_config, get_repos, _run
 
 
 class ConfigTestCaseBase(unittest.TestCase):
@@ -265,7 +265,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         # TODO parent_path and name if duplicated should give an error
 
         self.assertIsInstance(git_repo, GitRepo)
-        self.assertIsInstance(git_repo, Repo)
+        self.assertIsInstance(git_repo, BaseRepo)
 
         hg_repo = Repo({
             'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
@@ -274,7 +274,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         })
 
         self.assertIsInstance(hg_repo, MercurialRepo)
-        self.assertIsInstance(hg_repo, Repo)
+        self.assertIsInstance(hg_repo, BaseRepo)
 
         svn_repo = Repo({
             'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
@@ -283,7 +283,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         })
 
         self.assertIsInstance(svn_repo, SubversionRepo)
-        self.assertIsInstance(svn_repo, Repo)
+        self.assertIsInstance(svn_repo, BaseRepo)
 
     def test_repo_svn(self):
         svn_test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
@@ -296,7 +296,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         })
 
         self.assertIsInstance(svn_repo, SubversionRepo)
-        self.assertIsInstance(svn_repo, Repo)
+        self.assertIsInstance(svn_repo, BaseRepo)
 
         os.mkdir(svn_test_repo)
         subprocess.call([
@@ -338,7 +338,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         })
 
         self.assertIsInstance(git_repo, GitRepo)
-        self.assertIsInstance(git_repo, Repo)
+        self.assertIsInstance(git_repo, BaseRepo)
 
         os.mkdir(git_test_repo)
         subprocess.call([
@@ -386,7 +386,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         })
 
         self.assertIsInstance(mercurial_repo, MercurialRepo)
-        self.assertIsInstance(mercurial_repo, Repo)
+        self.assertIsInstance(mercurial_repo, BaseRepo)
 
         os.mkdir(mercurial_test_repo)
         subprocess.call([
@@ -430,7 +430,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         for repo_dict in repo_list:
             r = Repo(repo_dict)
 
-            self.assertIsInstance(r, Repo)
+            self.assertIsInstance(r, BaseRepo)
             self.assertIn('name', r)
             self.assertEqual(r['name'], repo_dict['name'])
             self.assertIn('parent_path', r)

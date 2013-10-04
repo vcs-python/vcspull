@@ -1,3 +1,6 @@
+import subprocess
+import os
+from . import timed_subprocess
 
 def expand_config(config):
     '''Expand configuration into full form.
@@ -60,3 +63,57 @@ def get_repos(config):
                     repo_dict['remotes'].append(remote_dict)
             repo_list.append(repo_dict)
     return repo_list
+
+def scan(dir):
+    matches = []
+    for root, dirnames, filenames in os.walk(dir):
+        for filename in fnmatch.filter(filenames, '.git'):
+            matches.append(os.path.join(root, filename))
+
+
+def _run(cmd,
+         cwd=None,
+         stdin=None,
+         stdout=subprocess.PIPE,
+         stderr=subprocess.PIPE,
+         shell=False,
+         env=(),
+         timeout=None):
+    ''' based off salt's _run '''
+    ret = {}
+
+    # kwargs['stdin'] = subprocess.PIPE if 'stdin' not in kwargs else
+    # kwargs['stdin']
+
+    kwargs = {
+        'cwd': cwd,
+        'stdin': stdin,
+        'stdout': stdout,
+        'stderr': stderr,
+        'shell': shell,
+        'env': os.environ.copy(),
+    }
+
+    try:
+        proc = timed_subprocess.TimedProc(cmd, **kwargs)
+    except (OSError, IOError) as exc:
+        raise Error('Unable to urn command: {0}'.format(exc))
+
+    try:
+        proc.wait(timeout)
+    except timed_subprocess.TimedProcTimeoutError as exc:
+        ret['stdout'] = str(exc)
+        ret['stderr'] = ''
+        ret['pid'] = proc.process.pid
+        ret['retcode'] = 1
+        return ret
+
+    out, err = proc.stdout, proc.stderr
+
+    ret['stdout'] = out
+    ret['stderr'] = err
+    ret['pid'] = proc.process.pid
+    ret['retcode'] = proc.process.returncode
+
+    return ret
+

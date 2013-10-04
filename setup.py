@@ -31,7 +31,7 @@ setup(
         'repositories simultaneously.',
     include_package_data=True,
     install_requires=requirements('requirements.pip'),
-    packages=['pullv'],
+    packages=['pullv', 'pullv.repo'],
     entry_points=dict(console_scripts=['pullv=pullv:main']),
     classifiers=[
         'Development Status :: 3 - Alpha',
