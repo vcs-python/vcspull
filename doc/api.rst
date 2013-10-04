@@ -6,7 +6,6 @@ API
 
 .. module:: pullv
 
-
 .. autoclass:: pullv.repo.Repo
    :members:
    :inherited-members:

@@ -11,9 +11,12 @@
 from .base import BaseRepo
 import logging
 from ..util import _run
+from ..log import RepoLogFormatter
 import os
 logger = logging.getLogger(__name__)
-
+channel = logging.StreamHandler()
+channel.setFormatter(RepoLogFormatter())
+logger.addHandler(channel)
 
 class GitRepo(BaseRepo):
     schemes = ('git')
@@ -43,18 +46,18 @@ class GitRepo(BaseRepo):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
 
-            logging.info('fetching...', extra=self.prefixed_dict)
+            logger.info('fetching...', extra=self.prefixed_dict)
             proc = _run([
                 'git', 'fetch'
             ], cwd=self['path'])
-            logging.info('fetched: {0}'.format(proc['stdout']), extra=self.prefixed_dict
+            logger.info('fetched: {0}'.format(proc['stdout']), extra=self.prefixed_dict
                          )
 
-            logging.info('pulling...', extra=self.prefixed_dict)
+            logger.info('pulling...', extra=self.prefixed_dict)
             proc = _run([
                 'git', 'pull'
             ], cwd=self['path'])
-            logging.info('pulled: {0}'.format(proc[
+            logger.info('pulled: {0}'.format(proc[
                          'stdout']), extra=self.prefixed_dict)
         else:
             self.obtain()

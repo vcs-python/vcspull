@@ -35,8 +35,8 @@ import logging.handlers
 import sys
 import time
 
-#from tornado.escape import _unicode
-#from tornado.util import unicode_type, basestring_type
+# from tornado.escape import _unicode
+# from tornado.util import unicode_type, basestring_type
 
 try:
     import curses
@@ -50,7 +50,7 @@ except ImportError:
 # unicode_literals" have other problems (see PEP 414).  u() can be applied
 # to ascii strings that include \u escapes (but they must not contain
 # literal non-ascii characters).
-if type('') is not type(b''):
+if not isinstance('', type(b'')):
     def u(s):
         return s
     bytes_type = bytes
@@ -123,6 +123,7 @@ def _stderr_supports_color():
 
 
 class LogFormatter(logging.Formatter):
+
     """Log formatter used in Tornado.
 
     Key features of this formatter are:
@@ -167,15 +168,12 @@ class LogFormatter(logging.Formatter):
             record.message = record.getMessage()
         except Exception as e:
             record.message = "Bad message (%r): %r" % (e, record.__dict__)
-        assert isinstance(record.message, basestring_type)  # guaranteed by logging
+        assert isinstance(
+            record.message, basestring_type)  # guaranteed by logging
         record.asctime = time.strftime(
             "%y%m%d %H:%M:%S", self.converter(record.created))
         prefix = '[%(levelname)1.1s %(asctime)s %(module)s:%(lineno)d]' % \
             record.__dict__
-
-        # temporary, look up howto logging channels
-        if 'repo_vcs' in record.__dict__:
-            prefix = '[{0}]({1})'.format(record.repo_name, record.repo_vcs)
 
         if self._color:
             prefix = (self._colors.get(record.levelno, self._normal) +
@@ -212,9 +210,39 @@ class LogFormatter(logging.Formatter):
             # each line separately so that non-utf8 bytes don't cause
             # all the newlines to turn into '\n'.
             lines = [formatted.rstrip()]
-            lines.extend(safe_unicode(ln) for ln in record.exc_text.split('\n'))
+            lines.extend(safe_unicode(ln)
+                         for ln in record.exc_text.split('\n'))
             formatted = '\n'.join(lines)
         return formatted.replace("\n", "\n    ")
+
+
+class RepoLogFormatter(LogFormatter):
+
+    def format(self, record):
+
+        formatted = super(LogFormatter, self).format(record)
+        # temporary, look up howto logging channels
+        if 'repo_vcs' in record.__dict__:
+            prefix = '[{0}]({1})'.format(record.repo_name, record.repo_vcs)
+
+        if self._color:
+            prefix = (self._colors.get(record.levelno, self._normal) +
+                      prefix + self._normal)
+
+        fg_color = (curses.tigetstr("setaf") or
+                    curses.tigetstr("setf") or "")
+        if (3, 0) < sys.version_info < (3, 2, 3):
+            fg_color = unicode_type(fg_color, "ascii")
+
+        formatted = '%s[%s] %s(%s) %s %s %s' % (
+            (self._colors.get(record.levelno, self._normal)),
+            record.repo_name,
+            unicode_type(curses.tparm(fg_color, 3)),
+            record.repo_vcs,
+            unicode_type(curses.tparm(fg_color, 5)),
+            formatted, self._normal)
+
+        return formatted
 
 
 def enable_pretty_logging(options=None, logger=None):
