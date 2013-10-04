@@ -1,16 +1,22 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+    pullv.repo.base
+    ~~~~~~~~~~~~~~~
+
+    :copyright: Copyright 2013 Tony Narlock.
+    :license: BSD, see LICENSE for details
+"""
+
 from __future__ import absolute_import, division, print_function, with_statement
 import collections
 import os
 import sys
-import subprocess
-import fnmatch
-import logging
 import urlparse
-import re
-import kaptan
 from .. import util
 from .. import log
 
+import logging
 logger = logging.getLogger(__name__)
 
 

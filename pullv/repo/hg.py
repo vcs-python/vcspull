@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+    pullv.repo.hg
+    ~~~~~~~~~~~~~
+
+    :copyright: Copyright 2013 Tony Narlock.
+    :license: BSD, see LICENSE for details
+"""
+
+
 from .base import BaseRepo
 import logging
 from ..util import _run

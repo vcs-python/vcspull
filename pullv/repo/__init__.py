@@ -9,15 +9,9 @@
 """
 
 from __future__ import absolute_import, division, print_function, with_statement
-import collections
 import os
-import sys
-import subprocess
-import fnmatch
 import logging
-import urlparse
-import re
-import kaptan
+
 from .. import util
 from .. import log
 from .. import timed_subprocess
@@ -30,6 +24,12 @@ logger = logging.getLogger(__name__)
 
 
 class Repo(object):
+
+    """ Returns an instance of :class:`SubversionRepo`, :class:`GitRepo` or
+    :class:`MercurialRepo`. The object returned is a child of :class:`BaseRepo`.
+
+    For external API purposes.
+    """
 
     def __new__(cls, attributes, *args, **kwargs):
         vcs_url = attributes['url']

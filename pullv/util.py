@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pullv
-    ~~~~~
+    pullv.util
+    ~~~~~~~~~~
 
     :copyright: Copyright 2013 Tony Narlock.
     :license: BSD, see LICENSE for details
