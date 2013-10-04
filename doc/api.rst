@@ -6,26 +6,36 @@ API
 
 .. module:: pullv
 
-.. autoclass:: BackboneModel
+
+.. autoclass:: pullv.repo.Repo
    :members:
    :inherited-members:
    :show-inheritance:
 
-.. autoclass:: Repo
+.. autoclass:: pullv.repo.BaseRepo
    :members:
    :inherited-members:
    :show-inheritance:
 
-.. autoclass:: GitRepo
+.. autoclass:: pullv.repo.base.BackboneModel
    :members:
    :inherited-members:
    :show-inheritance:
 
-.. autoclass:: MercurialRepo
+.. autoclass:: pullv.repo.GitRepo
    :members:
    :inherited-members:
    :show-inheritance:
 
+.. autoclass:: pullv.repo.MercurialRepo
+   :members:
+   :inherited-members:
+   :show-inheritance:
+
+.. autoclass:: pullv.repo.SubversionRepo
+   :members:
+   :inherited-members:
+   :show-inheritance:
 
 .. automodule:: pullv.util
    :members:
