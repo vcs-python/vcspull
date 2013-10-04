@@ -232,19 +232,19 @@ class RepoLogFormatter(LogFormatter):
                 prefix = (self._colors.get(record.levelno, self._normal) +
                         prefix + self._normal)
 
-        fg_color = (curses.tigetstr("setaf") or
-                    curses.tigetstr("setf") or "")
-        if (3, 0) < sys.version_info < (3, 2, 3):
-            fg_color = unicode_type(fg_color, "ascii")
+            fg_color = (curses.tigetstr("setaf") or
+                        curses.tigetstr("setf") or "")
+            if (3, 0) < sys.version_info < (3, 2, 3):
+                fg_color = unicode_type(fg_color, "ascii")
 
-        formatted = '%s[%s] %s(%s) %s %s %s' % (
-            Fore.GREEN + Style.DIM,
-            record.repo_name,
-            unicode_type(curses.tparm(fg_color, 3)),
-            record.repo_vcs,
-            unicode_type(curses.tparm(fg_color, 5)),
-            formatted,
-            self._normal)
+            formatted = '%s[%s] %s(%s) %s %s %s' % (
+                Fore.GREEN + Style.DIM,
+                record.repo_name,
+                unicode_type(curses.tparm(fg_color, 3)),
+                record.repo_vcs,
+                unicode_type(curses.tparm(fg_color, 5)),
+                formatted,
+                self._normal)
 
         return formatted
 

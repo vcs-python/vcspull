@@ -32,9 +32,11 @@ class SubversionRepo(BaseRepo):
         url, rev = self.get_url_rev()
         rev_options = self.get_rev_options(url, rev)
 
-        _run([
+        logger.info('checking out...', extra=self.prefixed_dict)
+        checkout = _run([
             'svn', 'checkout', '-q', url, self['path'],
         ])
+        logger.info('checked out: %s', checkout['stdout'], extra=self.prefixed_dict)
 
     def get_revision(self, location=None):
 

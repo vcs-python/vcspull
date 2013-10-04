@@ -38,8 +38,7 @@ class MercurialRepo(BaseRepo):
         update = _run([
             'hg', 'update', '-q'
         ], cwd=self['path'])
-        logger.info('updated: {0}'.format(update[
-                     'stdout']), extra=self.prefixed_dict)
+        logger.info('updated: %s' % update['stdout'], extra=self.prefixed_dict)
 
     def get_revision(self):
         current_rev = _run(
