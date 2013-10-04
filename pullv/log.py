@@ -34,6 +34,9 @@ import logging
 import logging.handlers
 import sys
 import time
+from colorama import init
+init()
+from colorama import Fore, Back, Style
 
 # from tornado.escape import _unicode
 # from tornado.util import unicode_type, basestring_type
@@ -225,9 +228,9 @@ class RepoLogFormatter(LogFormatter):
         if 'repo_vcs' in record.__dict__:
             prefix = '[{0}]({1})'.format(record.repo_name, record.repo_vcs)
 
-        if self._color:
-            prefix = (self._colors.get(record.levelno, self._normal) +
-                      prefix + self._normal)
+            if self._color:
+                prefix = (self._colors.get(record.levelno, self._normal) +
+                        prefix + self._normal)
 
         fg_color = (curses.tigetstr("setaf") or
                     curses.tigetstr("setf") or "")
@@ -235,12 +238,13 @@ class RepoLogFormatter(LogFormatter):
             fg_color = unicode_type(fg_color, "ascii")
 
         formatted = '%s[%s] %s(%s) %s %s %s' % (
-            (self._colors.get(record.levelno, self._normal)),
+            Fore.GREEN + Style.DIM,
             record.repo_name,
             unicode_type(curses.tparm(fg_color, 3)),
             record.repo_vcs,
             unicode_type(curses.tparm(fg_color, 5)),
-            formatted, self._normal)
+            formatted,
+            self._normal)
 
         return formatted
 

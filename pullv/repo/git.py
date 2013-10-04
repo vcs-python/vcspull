@@ -11,12 +11,9 @@
 from .base import BaseRepo
 import logging
 from ..util import _run
-from ..log import RepoLogFormatter
 import os
 logger = logging.getLogger(__name__)
-channel = logging.StreamHandler()
-channel.setFormatter(RepoLogFormatter())
-logger.addHandler(channel)
+
 
 class GitRepo(BaseRepo):
     schemes = ('git')

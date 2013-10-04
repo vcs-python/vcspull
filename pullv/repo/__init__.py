@@ -20,7 +20,16 @@ from .git import GitRepo
 from .hg import MercurialRepo
 from .svn import SubversionRepo
 from .base import BaseRepo
-logger = logging.getLogger(__name__)
+
+logger = logging.getLogger()
+from ..log import RepoLogFormatter
+
+logger.propagate = False
+channel = logging.StreamHandler()
+channel.setFormatter(RepoLogFormatter())
+logger.setLevel('INFO')
+logger.addHandler(channel)
+
 
 
 class Repo(object):

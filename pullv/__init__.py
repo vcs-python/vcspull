@@ -23,12 +23,19 @@ from . import log
 from . import timed_subprocess
 from .repo import Repo
 
-logger = logging.getLogger(__name__)
-
 __version__ = '0.1-dev'
+
+logger = logging.getLogger('main')
+
 
 
 def main():
+    #logger.setLevel('INFO')
+    #channel = logging.StreamHandler()
+    #channel.setFormatter(log.LogFormatter())
+    #logger.addHandler(channel)
+
+
     yaml_config = os.path.expanduser('~/.pullv.yaml')
     has_yaml_config = os.path.exists(yaml_config)
     json_config = os.path.expanduser('~/.pullv.json')
@@ -49,7 +56,8 @@ def main():
         config = kaptan.Kaptan()
         config.import_config(yaml_config)
 
-        log.enable_pretty_logging()
+
+
 
         #logging.info('%r' % config.get())
         #logging.info('%r' % util.expand_config(config.get()))
