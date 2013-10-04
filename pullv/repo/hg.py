@@ -4,6 +4,7 @@ from ..util import _run
 import os
 logger = logging.getLogger(__name__)
 
+
 class MercurialRepo(BaseRepo):
 
     schemes = ('hg', 'hg+http', 'hg+https', 'hg+file')
@@ -20,12 +21,14 @@ class MercurialRepo(BaseRepo):
         clone = _run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
-        logging.info('cloned: {0}'.format(clone['stdout']), extra=self.prefixed_dict)
+        logging.info('cloned: {0}'.format(clone[
+                     'stdout']), extra=self.prefixed_dict)
         logging.info('updating...', extra=self.prefixed_dict)
         update = _run([
             'hg', 'update', '-q'
         ], cwd=self['path'])
-        logging.info('updated: {0}'.format(update['stdout']), extra=self.prefixed_dict)
+        logging.info('updated: {0}'.format(update[
+                     'stdout']), extra=self.prefixed_dict)
 
     def get_revision(self):
         current_rev = _run(
@@ -47,4 +50,3 @@ class MercurialRepo(BaseRepo):
         else:
             self.obtain()
             self.update_repo()
-

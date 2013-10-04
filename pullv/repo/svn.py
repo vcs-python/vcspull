@@ -7,6 +7,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
+
 class SubversionRepo(BaseRepo):
     vcs = 'svn'
 
@@ -86,4 +87,3 @@ class SubversionRepo(BaseRepo):
         else:
             self.obtain()
             self.update_repo()
-

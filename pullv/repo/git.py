@@ -4,6 +4,7 @@ from ..util import _run
 import os
 logger = logging.getLogger(__name__)
 
+
 class GitRepo(BaseRepo):
     schemes = ('git')
 
@@ -43,8 +44,8 @@ class GitRepo(BaseRepo):
             proc = _run([
                 'git', 'pull'
             ], cwd=self['path'])
-            logging.info('pulled: {0}'.format(proc['stdout']), extra=self.prefixed_dict)
+            logging.info('pulled: {0}'.format(proc[
+                         'stdout']), extra=self.prefixed_dict)
         else:
             self.obtain()
             self.update_repo()
-

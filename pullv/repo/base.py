@@ -10,7 +10,6 @@ import re
 import kaptan
 from .. import util
 from .. import log
-from .. import timed_subprocess
 
 logger = logging.getLogger(__name__)
 

@@ -46,4 +46,3 @@ class Repo(object):
         else:
             raise Exception('no scheme in repo URL found (hg+, git+, svn+. Prepend this'
                             ' to the repo\'s URL')
-

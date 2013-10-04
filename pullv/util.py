@@ -1,6 +1,21 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+    pullv
+    ~~~~~
+
+    :copyright: Copyright 2013 Tony Narlock.
+    :license: BSD, see LICENSE for details
+"""
+
+from __future__ import absolute_import, division, print_function, with_statement
 import subprocess
 import os
+import logging
+logger = logging.getLogger(__name__)
+
 from . import timed_subprocess
+
 
 def expand_config(config):
     '''Expand configuration into full form.
@@ -64,6 +79,7 @@ def get_repos(config):
             repo_list.append(repo_dict)
     return repo_list
 
+
 def scan(dir):
     matches = []
     for root, dirnames, filenames in os.walk(dir):
@@ -116,4 +132,3 @@ def _run(cmd,
     ret['retcode'] = proc.process.returncode
 
     return ret
-
