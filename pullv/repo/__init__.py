@@ -31,7 +31,6 @@ logger.setLevel('INFO')
 logger.addHandler(channel)
 
 
-
 class Repo(object):
 
     """ Returns an instance of :class:`SubversionRepo`, :class:`GitRepo` or
