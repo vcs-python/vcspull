@@ -2,7 +2,7 @@
 pullv(1)
 ========
 
-.. figure:: http://github.com/tony/tmuxp/doc/_static/pullv-screenshot.png
+.. figure:: http://github.com/tony/pullv/doc/_static/pullv-screenshot.png
     :scale: 100%
     :width: 65%
     :align: center
