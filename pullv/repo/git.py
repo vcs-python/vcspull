@@ -41,7 +41,7 @@ class GitRepo(BaseRepo):
             ['git', 'clone', '--progress', url, self['path']],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env=os.environ.copy(), cwd=self['path']
+            env=os.environ.copy(), cwd=self['path'],
         )
         while True:
             err = process.stderr.read(1)
