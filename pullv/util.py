@@ -15,6 +15,7 @@ import logging
 import fnmatch
 logger = logging.getLogger(__name__)
 
+
 def expand_config(config):
     '''Expand configuration into full form.
 
