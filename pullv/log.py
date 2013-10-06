@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Pieces of this code are from Tornado, they are being phased out.
 #
 # Copyright 2012 Facebook
 #
@@ -13,21 +14,6 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-"""Logging support for Tornado.
-
-Tornado uses three logger streams:
-
-* ``tornado.access``: Per-request logging for Tornado's HTTP servers (and
-  potentially other servers in the future)
-* ``tornado.application``: Logging of errors from application code (i.e.
-  uncaught exceptions from callbacks)
-* ``tornado.general``: General-purpose logging, including any errors
-  or warnings from Tornado itself.
-
-These streams may be configured independently using the standard library's
-`logging` module.  For example, you may wish to send ``tornado.access`` logs
-to a separate file for analysis.
-"""
 from __future__ import absolute_import, division, print_function, with_statement
 
 import logging
