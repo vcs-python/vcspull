@@ -20,7 +20,6 @@ import re
 import kaptan
 from . import util
 from . import log
-from . import timed_subprocess
 from .repo import Repo
 
 __version__ = '0.1-dev'

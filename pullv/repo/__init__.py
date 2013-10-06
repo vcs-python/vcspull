@@ -14,7 +14,6 @@ import logging
 
 from .. import util
 from .. import log
-from .. import timed_subprocess
 
 from .git import GitRepo
 from .hg import MercurialRepo
