@@ -107,6 +107,7 @@ if str is unicode_type:
 else:
     native_str = utf8
 
+
 def _stderr_supports_color():
     color = False
     if curses and sys.stderr.isatty():
@@ -149,14 +150,10 @@ class LogFormatter(logging.Formatter):
             if (3, 0) < sys.version_info < (3, 2, 3):
                 fg_color = unicode_type(fg_color, "ascii")
             self._colors = {
-                logging.DEBUG: unicode_type(curses.tparm(fg_color, 4),  # Blue
-                                            "ascii"),
-                logging.INFO: unicode_type(curses.tparm(fg_color, 2),  # Green
-                                           "ascii"),
-                logging.WARNING: unicode_type(curses.tparm(fg_color, 3),  # Yellow
-                                              "ascii"),
-                logging.ERROR: unicode_type(curses.tparm(fg_color, 1),  # Red
-                                            "ascii"),
+                logging.DEBUG: Fore.BLUE,  # Blue
+                logging.INFO: Fore.GREEN,  # Green
+                logging.WARNING: Fore.YELLOW,
+                logging.ERROR: Fore.RED,
             }
             self._normal = unicode_type(curses.tigetstr("sgr0"), "ascii")
 
@@ -216,28 +213,14 @@ class LogFormatter(logging.Formatter):
 class RepoLogFormatter(LogFormatter):
 
     def format(self, record):
-
-        formatted = super(LogFormatter, self).format(record)
-        # temporary, look up howto logging channels
-        if 'repo_vcs' in record.__dict__:
-            prefix = '[{0}]({1})'.format(record.repo_name, record.repo_vcs)
-
-            if self._color:
-                prefix = (self._colors.get(record.levelno, self._normal) +
-                        prefix + self._normal)
-
-            fg_color = (curses.tigetstr("setaf") or
-                        curses.tigetstr("setf") or "")
-            if (3, 0) < sys.version_info < (3, 2, 3):
-                fg_color = unicode_type(fg_color, "ascii")
-
-            formatted = '%s|%s| %s(%s) %s %s %s' % (
-                Fore.GREEN + Style.DIM,
-                record.repo_name,
-                unicode_type(curses.tparm(fg_color, 3)),
-                record.repo_vcs,
-                unicode_type(curses.tparm(fg_color, 5)),
-                formatted,
-                self._normal)
+        formatted = '%s|%s| %s(%s) %s %s%s' % (
+            Fore.GREEN + Style.DIM,
+            record.repo_name,
+            Fore.YELLOW,
+            record.repo_vcs,
+            Fore.MAGENTA,
+            record.getMessage(),
+            Fore.RESET
+        )
 
         return formatted
