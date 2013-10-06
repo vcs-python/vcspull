@@ -2,7 +2,12 @@
 pullv(1)
 ========
 
-Not ready for public use.
+.. figure:: http://github.com/tony/tmuxp/doc/_static/pullv-screenshot.png
+    :scale: 100%
+    :width: 65%
+    :align: center
+
+    Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
 
 Obtain and update multiple git, mercurial and subversions repositories
 simultaneously.
