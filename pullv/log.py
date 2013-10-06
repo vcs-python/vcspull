@@ -107,12 +107,6 @@ if str is unicode_type:
 else:
     native_str = utf8
 
-# Logger objects for internal tornado use
-access_log = logging.getLogger("tornado.access")
-app_log = logging.getLogger("tornado.application")
-gen_log = logging.getLogger("tornado.general")
-
-
 def _stderr_supports_color():
     color = False
     if curses and sys.stderr.isatty():
@@ -247,40 +241,3 @@ class RepoLogFormatter(LogFormatter):
                 self._normal)
 
         return formatted
-
-
-def enable_pretty_logging(options=None, logger=None):
-    """Turns on formatted logging output as configured.
-
-    This is called automaticaly by `tornado.options.parse_command_line`
-    and `tornado.options.parse_config_file`.
-    """
-    if logger is None:
-        logger = logging.getLogger()
-    logger.setLevel('INFO')
-
-    channel = logging.StreamHandler()
-    channel.setFormatter(LogFormatter())
-    logger.addHandler(channel)
-
-
-def define_logging_options(options=None):
-    options.define("logging", default="info",
-                   help=("Set the Python log level. If 'none', tornado won't touch the "
-                         "logging configuration."),
-                   metavar="debug|info|warning|error|none")
-    options.define("log_to_stderr", type=bool, default=None,
-                   help=("Send log output to stderr (colorized if possible). "
-                         "By default use stderr if --log_file_prefix is not set and "
-                         "no other logging is configured."))
-    options.define("log_file_prefix", type=str, default=None, metavar="PATH",
-                   help=("Path prefix for log files. "
-                         "Note that if you are running multiple tornado processes, "
-                         "log_file_prefix must be different for each of them (e.g. "
-                         "include the port number)"))
-    options.define("log_file_max_size", type=int, default=100 * 1000 * 1000,
-                   help="max size of log files before rollover")
-    options.define("log_file_num_backups", type=int, default=10,
-                   help="number of log files to keep")
-
-    options.add_parse_callback(enable_pretty_logging)

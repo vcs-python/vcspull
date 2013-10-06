@@ -17,6 +17,7 @@ class TimedProcTimeoutError(Exception):
 
 
 class TimedProc(object):
+
     '''
     Create a TimedProc object, calls subprocess.Popen with passed args and **kwargs
     '''
@@ -40,7 +41,8 @@ class TimedProc(object):
         '''
         def receive():
             if self.with_communicate:
-                (self.stdout, self.stderr) = self.process.communicate(input=self.stdin)
+                (self.stdout, self.stderr) = self.process.communicate(
+                    input=self.stdin)
             else:
                 self.process.wait()
                 (self.stdout, self.stderr) = (None, None)
