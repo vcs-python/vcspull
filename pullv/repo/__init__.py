@@ -21,12 +21,22 @@ from .hg import MercurialRepo
 from .svn import SubversionRepo
 from .base import BaseRepo
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 from ..log import RepoLogFormatter
+
+
+class FilterRepo(logging.Filter):
+
+    """only include repo logs for this type of record"""
+
+    def filter(self, record):
+        return True if 'repo_vcs' in record.__dict__ else False
+
 
 logger.propagate = False
 channel = logging.StreamHandler()
 channel.setFormatter(RepoLogFormatter())
+channel.addFilter(FilterRepo())
 logger.setLevel('INFO')
 logger.addHandler(channel)
 

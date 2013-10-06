@@ -28,13 +28,11 @@ __version__ = '0.1-dev'
 logger = logging.getLogger('main')
 
 
-
 def main():
-    #logger.setLevel('INFO')
-    #channel = logging.StreamHandler()
-    #channel.setFormatter(log.LogFormatter())
-    #logger.addHandler(channel)
-
+    logger.setLevel('INFO')
+    channel = logging.StreamHandler()
+    channel.setFormatter(log.LogFormatter())
+    logger.addHandler(channel)
 
     yaml_config = os.path.expanduser('~/.pullv.yaml')
     has_yaml_config = os.path.exists(yaml_config)
@@ -56,14 +54,11 @@ def main():
         config = kaptan.Kaptan()
         config.import_config(yaml_config)
 
-
-
-
-        #logging.info('%r' % config.get())
-        #logging.info('%r' % util.expand_config(config.get()))
-        #logging.info('%r' % util.get_repos(util.expand_config(config.get())))
+        logging.debug('%r' % config.get())
+        logging.debug('%r' % util.expand_config(config.get()))
+        logging.debug('%r' % util.get_repos(util.expand_config(config.get())))
 
         for repo_dict in util.get_repos(util.expand_config(config.get())):
             r = Repo(repo_dict)
-            #logger.info('%s' % r)
+            logger.debug('%s' % r)
             r.update_repo()
