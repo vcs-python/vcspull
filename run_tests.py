@@ -12,6 +12,8 @@ import subprocess
 from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, get_repos, run
 
+import logging
+logging.disable(logging.CRITICAL)
 
 class ConfigTestCaseBase(unittest.TestCase):
 
@@ -299,7 +301,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(svn_repo, BaseRepo)
 
         os.mkdir(svn_test_repo)
-        subprocess.call([
+        run([
             'svnadmin', 'create', svn_repo['name']
         ], cwd=svn_test_repo)
         self.assertTrue(os.path.exists(svn_test_repo))
@@ -310,13 +312,13 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         testfile_filename = 'testfile.test'
 
         self.assertEqual(svn_repo.get_revision(), 0)
-        subprocess.call([
+        run([
             'touch', testfile_filename
         ], cwd=svn_checkout_dest)
-        subprocess.call([
+        run([
             'svn', 'add', testfile_filename
         ], cwd=svn_checkout_dest)
-        subprocess.call([
+        run([
             'svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']
         ], cwd=svn_checkout_dest)
 
@@ -341,7 +343,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(git_repo, BaseRepo)
 
         os.mkdir(git_test_repo)
-        subprocess.call([
+        run([
             'git', 'init', git_repo['name']
         ], cwd=git_test_repo)
         self.assertTrue(os.path.exists(git_test_repo))
@@ -351,13 +353,13 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         testfile_filename = 'testfile.test'
 
-        subprocess.call([
+        run([
             'touch', testfile_filename
         ], cwd=os.path.join(git_test_repo, git_repo_name))
-        subprocess.call([
+        run([
             'git', 'add', testfile_filename
         ], cwd=os.path.join(git_test_repo, git_repo_name))
-        subprocess.call([
+        run([
             'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
         ], cwd=os.path.join(git_test_repo, git_repo_name))
         # git_repo.update_repo(rev_options=['origin/master'])
@@ -389,7 +391,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertIsInstance(mercurial_repo, BaseRepo)
 
         os.mkdir(mercurial_test_repo)
-        subprocess.call([
+        run([
             'hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo
         )
         self.assertTrue(os.path.exists(mercurial_test_repo))
@@ -400,13 +402,13 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         testfile_filename = 'testfile.test'
 
-        subprocess.call([
+        run([
             'touch', testfile_filename
         ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
-        subprocess.call([
+        run([
             'hg', 'add', testfile_filename
         ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
-        subprocess.call([
+        run([
             'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
         ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
 
