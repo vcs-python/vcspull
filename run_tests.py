@@ -10,7 +10,7 @@ import tempfile
 import shutil
 import subprocess
 from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
-from pullv.util import expand_config, get_repos, _run
+from pullv.util import expand_config, get_repos, run
 
 
 class ConfigTestCaseBase(unittest.TestCase):
@@ -363,7 +363,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         # git_repo.update_repo(rev_options=['origin/master'])
         git_repo.update_repo()
 
-        test_repo_revision = _run(
+        test_repo_revision = run(
             ['git', 'rev-parse', 'HEAD'],
             cwd=os.path.join(git_test_repo, git_repo_name),
         )['stdout']
@@ -412,7 +412,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         mercurial_repo.update_repo()
 
-        test_repo_revision = _run(
+        test_repo_revision = run(
             ['hg', 'parents', '--template={rev}'],
             cwd=os.path.join(mercurial_test_repo, mercurial_repo_name),
         )['stdout']
