@@ -1,24 +1,19 @@
+=====
+pullv
+=====
+
+.. sidebar:: Contents
+
+    .. toctree::
+        :maxdepth: 2
+
+        quickstart
+        api
+        changes
+        todo..
+
 .. include:: ../README.rst
-
-.. toctree::
-   :maxdepth: 2
-
-   api
-   changes
-   todo
-
-Quickstart
-==========
-
-Create a ``~/.pullv.json`` file:
-
-.. code-block:: json
-
-    {
-      "/home/tony/new/": {
-        "amarok": "git+git://anongit.kde.org/amarok.git"
-      }
-    }
+    :start-line: 4
 
 Indices and tables
 ==================
