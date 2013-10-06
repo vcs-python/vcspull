@@ -15,6 +15,7 @@ from pullv.util import expand_config, get_repos, run
 import logging
 logging.disable(logging.CRITICAL)
 
+
 class ConfigTestCaseBase(unittest.TestCase):
 
     """ contains the fresh config dict/yaml's to test against.
@@ -303,29 +304,26 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         os.mkdir(svn_test_repo)
         run([
             'svnadmin', 'create', svn_repo['name']
-        ], cwd=svn_test_repo)
+            ], cwd=svn_test_repo)
         self.assertTrue(os.path.exists(svn_test_repo))
 
         svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
         svn_repo.obtain()
 
-        testfile_filename = 'testfile.test'
+        tempFile = tempfile.NamedTemporaryFile(dir=svn_checkout_dest)
 
         self.assertEqual(svn_repo.get_revision(), 0)
         run([
-            'touch', testfile_filename
-        ], cwd=svn_checkout_dest)
-        run([
-            'svn', 'add', testfile_filename
-        ], cwd=svn_checkout_dest)
+            'svn', 'add', tempFile.name
+            ], cwd=svn_checkout_dest)
         run([
             'svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']
-        ], cwd=svn_checkout_dest)
+            ], cwd=svn_checkout_dest)
 
         svn_repo.update_repo()
-
-        self.assertEqual(svn_repo.get_revision(os.path.join(
-            svn_checkout_dest, 'testfile.test')), 1)
+        self.assertEqual(os.path.join(
+            svn_checkout_dest, tempFile.name), tempFile.name)
+        self.assertEqual(svn_repo.get_revision(tempFile.name), 1)
 
         self.assertTrue(os.path.exists(svn_checkout_dest))
 
@@ -345,7 +343,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         os.mkdir(git_test_repo)
         run([
             'git', 'init', git_repo['name']
-        ], cwd=git_test_repo)
+            ], cwd=git_test_repo)
         self.assertTrue(os.path.exists(git_test_repo))
 
         git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
@@ -355,14 +353,13 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         run([
             'touch', testfile_filename
-        ], cwd=os.path.join(git_test_repo, git_repo_name))
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
         run([
             'git', 'add', testfile_filename
-        ], cwd=os.path.join(git_test_repo, git_repo_name))
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
         run([
             'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
-        ], cwd=os.path.join(git_test_repo, git_repo_name))
-        # git_repo.update_repo(rev_options=['origin/master'])
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
         git_repo.update_repo()
 
         test_repo_revision = run(
@@ -393,7 +390,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         os.mkdir(mercurial_test_repo)
         run([
             'hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo
-        )
+            )
         self.assertTrue(os.path.exists(mercurial_test_repo))
 
         mercurial_checkout_dest = os.path.join(
@@ -404,13 +401,13 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
 
         run([
             'touch', testfile_filename
-        ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
         run([
             'hg', 'add', testfile_filename
-        ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
         run([
             'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
-        ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
 
         mercurial_repo.update_repo()
 
