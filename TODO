@@ -2,11 +2,7 @@
 TODO
 ====
 
-- remove virtualenv dep
-- remove pip dep
-- logging for repo obtain/update/makedir/rev
 - concurrent repo updates, gevent
-- logging.notify with alternative format
 - handle hg/git/svn not existing on computer
 - create a list of repos with success, new refs, perhaps launch a ``less``
   the creates a changelog of changes?

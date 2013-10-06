@@ -1,0 +1,3 @@
+.. _todo:
+
+.. include:: ../TODO

@@ -4,6 +4,8 @@
    :maxdepth: 2
 
    api
+   changes
+   todo
 
 Indices and tables
 ==================
