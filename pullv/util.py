@@ -86,7 +86,7 @@ def scan(dir):
             matches.append(os.path.join(root, filename))
 
 
-def _run(cmd,
+def run(cmd,
          cwd=None,
          stdin=None,
          stdout=subprocess.PIPE,

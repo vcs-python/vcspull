@@ -11,7 +11,7 @@
 from .base import BaseRepo
 import logging
 import urlparse
-from ..util import _run
+from ..util import run
 import re
 import os
 
@@ -32,7 +32,7 @@ class SubversionRepo(BaseRepo):
         url, rev = self.get_url_rev()
         rev_options = self.get_rev_options(url, rev)
 
-        checkout = _run([
+        checkout = run([
             'svn', 'checkout', '-q', url, self['path'],
         ])
         self.info('Checked out\n\t%s', checkout['stdout'])
@@ -44,7 +44,7 @@ class SubversionRepo(BaseRepo):
         else:
             cwd = self['path']
 
-        current_rev = _run(
+        current_rev = run(
             ['svn', 'info', cwd],
         )
         infos = current_rev['stdout']
@@ -91,7 +91,7 @@ class SubversionRepo(BaseRepo):
             dest = self['path'] if not dest else dest
 
             url, rev = self.get_url_rev()
-            proc = _run(
+            proc = run(
                 ['svn', 'update'],
                 cwd=self['path']
             )

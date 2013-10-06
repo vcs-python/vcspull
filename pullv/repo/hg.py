@@ -11,7 +11,7 @@
 
 from .base import BaseRepo
 import logging
-from ..util import _run
+from ..util import run
 import os
 logger = logging.getLogger(__name__)
 
@@ -28,17 +28,17 @@ class MercurialRepo(BaseRepo):
 
         url, rev = self.get_url_rev()
 
-        clone = _run([
+        clone = run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
         self.info('Cloned\n\t%s' % clone['stdout'])
-        update = _run([
+        update = run([
             'hg', 'update', '-q'
         ], cwd=self['path'])
         self.info('Updated\n\t%s' % update['stdout'])
 
     def get_revision(self):
-        current_rev = _run(
+        current_rev = run(
             ['hg', 'parents', '--template={rev}'],
             cwd=self['path'],
         )
@@ -48,10 +48,10 @@ class MercurialRepo(BaseRepo):
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.hg')):
-            _run([
+            run([
                 'hg', 'update'
             ], cwd=self['path'])
-            _run([
+            run([
                 'hg', 'pull', '-u'
             ], cwd=self['path'])
         else:

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    pullv
-    ~~~~~
+    pullv.repo
+    ~~~~~~~~~~
 
     :copyright: Copyright 2013 Tony Narlock.
     :license: BSD, see LICENSE for details
@@ -18,10 +18,13 @@ from .. import log
 from .git import GitRepo
 from .hg import MercurialRepo
 from .svn import SubversionRepo
-from .base import BaseRepo
+from .base import BaseRepo, RepoLoggingAdapter
 
 logger = logging.getLogger(__name__)
 from ..log import RepoLogFormatter
+
+__all__ = ['GitRepo', 'MercurialRepo', 'SubversionRepo', 'BaseRepo', 'Repo',
+           'RepoLoggingAdapter']
 
 
 class FilterRepo(logging.Filter):

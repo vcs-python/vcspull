@@ -10,7 +10,7 @@
 
 from .base import BaseRepo
 import logging
-from ..util import _run
+from ..util import run
 import os
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class GitRepo(BaseRepo):
         BaseRepo.__init__(self, arguments, *args, **kwargs)
 
     def get_revision(self):
-        current_rev = _run(
+        current_rev = run(
             ['git', 'rev-parse', 'HEAD'],
             cwd=self['path']
         )
@@ -34,7 +34,7 @@ class GitRepo(BaseRepo):
         self.check_destination()
 
         url, rev = self.get_url_rev()
-        proc = _run(
+        proc = run(
             ['git', 'clone', '-q', url, self['path']],
             env=os.environ.copy(), cwd=self['path']
         )
@@ -43,11 +43,11 @@ class GitRepo(BaseRepo):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
 
-            proc = _run([
+            proc = run([
                 'git', 'fetch'
             ], cwd=self['path'])
 
-            proc = _run([
+            proc = run([
                 'git', 'pull'
             ], cwd=self['path'])
 
