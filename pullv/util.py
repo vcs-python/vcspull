@@ -12,10 +12,8 @@ from __future__ import absolute_import, division, print_function, with_statement
 import subprocess
 import os
 import logging
+import fnmatch
 logger = logging.getLogger(__name__)
-
-from . import timed_subprocess
-
 
 def expand_config(config):
     '''Expand configuration into full form.
@@ -111,24 +109,17 @@ def _run(cmd,
     }
 
     try:
-        proc = timed_subprocess.TimedProc(cmd, **kwargs)
+        proc = subprocess.Popen(cmd, **kwargs)
     except (OSError, IOError) as exc:
-        raise Error('Unable to urn command: {0}'.format(exc))
+        raise Error('Unable to run command: {0}'.format(exc))
 
-    try:
-        proc.wait(timeout)
-    except timed_subprocess.TimedProcTimeoutError as exc:
-        ret['stdout'] = str(exc)
-        ret['stderr'] = ''
-        ret['pid'] = proc.process.pid
-        ret['retcode'] = 1
-        return ret
+    proc.wait()
 
-    out, err = proc.stdout, proc.stderr
+    out, err = proc.stdout.read(), proc.stderr.read()
 
     ret['stdout'] = out
     ret['stderr'] = err
-    ret['pid'] = proc.process.pid
-    ret['retcode'] = proc.process.returncode
+    ret['pid'] = proc.pid
+    ret['retcode'] = proc.returncode
 
     return ret
