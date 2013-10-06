@@ -21,13 +21,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class BaseRepo(collections.MutableMapping, logging.LoggerAdapter):
+class RepoLoggingAdapter(logging.LoggerAdapter):
 
     def process(self, msg, kwargs):
+        ''' prefix the :class:`Repo` object dict items with ``repo_``. Because
+        both :class:`Repo` and :py:class:`logging.LogRecord` use ``name``.
+        '''
 
-        kwargs["extra"] = self.prefixed_dict
+        prefixed_dict = {}
+        for key, v in self.attributes.iteritems():
+            prefixed_dict['repo_' + key] = v
+
+        kwargs["extra"] = prefixed_dict
 
         return msg, kwargs
+
+
+class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def __init__(self, attributes=None):
         self.attributes = dict(attributes) if attributes is not None else {}
@@ -41,7 +51,7 @@ class BaseRepo(collections.MutableMapping, logging.LoggerAdapter):
         if getattr(urlparse, 'uses_fragment', None):
             urlparse.uses_fragment.extend(self.schemes)
 
-        logging.LoggerAdapter.__init__(self, logger, self.attributes)
+        RepoLoggingAdapter.__init__(self, logger, self.attributes)
 
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
@@ -76,14 +86,6 @@ class BaseRepo(collections.MutableMapping, logging.LoggerAdapter):
             path, rev = path.rsplit('@', 1)
         url = urlparse.urlunsplit((scheme, netloc, path, query, ''))
         return url, rev
-
-    @property
-    def prefixed_dict(self):
-        prefixed_dict = {}
-        for key, v in self.attributes.iteritems():
-            prefixed_dict['repo_' + key] = v
-
-        return prefixed_dict
 
     def __getitem__(self, key):
         return self.attributes[key]
