@@ -24,14 +24,10 @@ from colorama import init
 init()
 from colorama import Fore, Back, Style
 
-# from tornado.escape import _unicode
-# from tornado.util import unicode_type, basestring_type
-
 try:
     import curses
 except ImportError:
     curses = None
-
 
 # From tornado/util.py:
 # Fake unicode literal support:  Python 3.2 doesn't have the u'' marker for
@@ -121,11 +117,14 @@ def _stderr_supports_color():
 # it's worth it since the encoding errors that would otherwise
 # result are so useless (and tornado is fond of using utf8-encoded
 # byte strings whereever possible).
+
+
 def safe_unicode(s):
     try:
         return _unicode(s)
     except UnicodeDecodeError:
         return repr(s)
+
 
 class LogFormatter(logging.Formatter):
 
@@ -145,24 +144,13 @@ class LogFormatter(logging.Formatter):
         logging.Formatter.__init__(self, *args, **kwargs)
         self._color = color and _stderr_supports_color()
         if self._color:
-            # The curses module has some str/bytes confusion in
-            # python3.  Until version 3.2.3, most methods return
-            # bytes, but only accept strings.  In addition, we want to
-            # output these strings with the logging module, which
-            # works with unicode strings.  The explicit calls to
-            # unicode() below are harmless in python2 but will do the
-            # right conversion in python 3.
-            fg_color = (curses.tigetstr("setaf") or
-                        curses.tigetstr("setf") or "")
-            if (3, 0) < sys.version_info < (3, 2, 3):
-                fg_color = unicode_type(fg_color, "ascii")
             self._colors = {
                 logging.DEBUG: Fore.BLUE,  # Blue
                 logging.INFO: Fore.GREEN,  # Green
                 logging.WARNING: Fore.YELLOW,
                 logging.ERROR: Fore.RED,
             }
-            self._normal = unicode_type(curses.tigetstr("sgr0"), "ascii")
+            self._normal = Fore.RESET
 
     def format(self, record):
         try:
