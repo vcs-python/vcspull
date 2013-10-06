@@ -145,10 +145,11 @@ class LogFormatter(logging.Formatter):
         self._color = color and _stderr_supports_color()
         if self._color:
             self._colors = {
-                logging.DEBUG: Fore.BLUE,  # Blue
-                logging.INFO: Fore.GREEN,  # Green
-                logging.WARNING: Fore.YELLOW,
-                logging.ERROR: Fore.RED,
+                'DEBUG': Fore.BLUE,  # Blue
+                'INFO': Fore.GREEN,  # Green
+                'WARNING': Fore.YELLOW,
+                'ERROR': Fore.RED,
+                'CRITICAL': Fore.RED
             }
             self._normal = Fore.RESET
 
@@ -165,7 +166,7 @@ class LogFormatter(logging.Formatter):
             record.__dict__
 
         if self._color:
-            prefix = (self._colors.get(record.levelno, self._normal) +
+            prefix = (self._colors.get(record.levelname, self._normal) +
                       prefix + self._normal)
 
         formatted = prefix + " " + safe_unicode(record.message)

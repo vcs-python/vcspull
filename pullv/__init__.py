@@ -49,9 +49,15 @@ def main():
                 'multiple configs found in home directory use only one.'
                 ' .yaml, .json, .ini.'
             )
+        elif has_yaml_config:
+            config_file = yaml_config
+        elif has_json_config:
+            config_file = json_config
+        elif has_ini_config:
+            config_file = ini_config
 
         config = kaptan.Kaptan()
-        config.import_config(yaml_config)
+        config.import_config(config_file)
 
         logging.debug('%r' % config.get())
         logging.debug('%r' % util.expand_config(config.get()))

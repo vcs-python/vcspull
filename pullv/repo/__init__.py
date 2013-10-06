@@ -64,5 +64,13 @@ class Repo(object):
             attributes['vcs'] = 'svn'
             return SubversionRepo(attributes, *args, **kwargs)
         else:
-            raise Exception('no scheme in repo URL found (hg+, git+, svn+. Prepend this'
-                            ' to the repo\'s URL')
+            raise Exception('repo URL %s requires a vcs scheme. Prepend hg+,'
+                            ' git+, svn+ to the repo URL. Examples:\n'
+                            '\t %s\n'
+                            '\t %s\n'
+                            '\t %s\n' %
+                            (attributes['url'],
+                             'git+https://github.com/freebsd/freebsd.git',
+                             'hg+https://bitbucket.org/birkenfeld/sphinx',
+                             'svn+http://svn.code.sf.net/p/docutils/code/trunk')
+                            )
