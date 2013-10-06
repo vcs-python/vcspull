@@ -52,9 +52,9 @@ class GitRepo(BaseRepo):
             ], cwd=self['path'])
 
             if 'Already up-to-date' in proc['stdout'].strip():
-                logger.info('Already up-to-date.', extra=self.prefixed_dict)
+                self.info('Already up-to-date.')
             else:
-                logger.info('Updated\n\t%s' % (proc['stdout']), extra=self.prefixed_dict)
+                self.info('Updated\n\t%s' % (proc['stdout']))
         else:
             self.obtain()
             self.update_repo()

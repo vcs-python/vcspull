@@ -28,15 +28,14 @@ class MercurialRepo(BaseRepo):
 
         url, rev = self.get_url_rev()
 
-        logger.info('cloning...', extra=self.prefixed_dict)
         clone = _run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
-        logger.info('Cloned\n\t%s' % clone['stdout'], extra=self.prefixed_dict)
+        self.info('Cloned\n\t%s' % clone['stdout'])
         update = _run([
             'hg', 'update', '-q'
         ], cwd=self['path'])
-        logger.info('Updated\n\t%s' % update['stdout'], extra=self.prefixed_dict)
+        self.info('Updated\n\t%s' % update['stdout'])
 
     def get_revision(self):
         current_rev = _run(

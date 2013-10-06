@@ -13,6 +13,7 @@ import collections
 import os
 import sys
 import urlparse
+import logging
 from .. import util
 from .. import log
 
@@ -20,7 +21,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class BaseRepo(collections.MutableMapping):
+class BaseRepo(collections.MutableMapping, logging.LoggerAdapter):
+
+    def process(self, msg, kwargs):
+
+        kwargs["extra"] = self.prefixed_dict
+
+        return msg, kwargs
 
     def __init__(self, attributes=None):
         self.attributes = dict(attributes) if attributes is not None else {}
@@ -34,12 +41,14 @@ class BaseRepo(collections.MutableMapping):
         if getattr(urlparse, 'uses_fragment', None):
             urlparse.uses_fragment.extend(self.schemes)
 
+        logging.LoggerAdapter.__init__(self, logger, self.attributes)
+
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
             os.mkdir(self['parent_path'])
         else:
             if not os.path.exists(self['path']):
-                logger.info('Repo directory for %s (%s) does not exist @ %s' % (
+                self.info('Repo directory for %s (%s) does not exist @ %s' % (
                     self['name'], self['vcs'], self['path']))
                 os.mkdir(self['path'])
 

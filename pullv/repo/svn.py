@@ -35,7 +35,7 @@ class SubversionRepo(BaseRepo):
         checkout = _run([
             'svn', 'checkout', '-q', url, self['path'],
         ])
-        logger.info('Checked out\n\t%s', checkout['stdout'], extra=self.prefixed_dict)
+        self.info('Checked out\n\t%s', checkout['stdout'])
 
     def get_revision(self, location=None):
 
@@ -96,7 +96,7 @@ class SubversionRepo(BaseRepo):
                 cwd=self['path']
             )
 
-            logger.info('Updated\n\t%s' % (proc['stdout']), extra=self.prefixed_dict)
+            self.info('Updated\n\t%s' % (proc['stdout']))
         else:
             self.obtain()
             self.update_repo()
