@@ -9,6 +9,9 @@ pullv(1)
 
     Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
 
+Tested on Ubuntu. Currently testing, please file an issue with your OS,
+python version, vcs version and pip version if you encounter any problems.
+
 Obtain and update multiple git, mercurial and subversions repositories
 simultaneously.
 
