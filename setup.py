@@ -22,7 +22,7 @@ else:
 
 setup(
     name='pullv',
-    version='0.1-dev',
+    version='0.1.0-dev',
     url='http://github.com/tony/pullv/',
     license='BSD',
     author='Tony Narlock',

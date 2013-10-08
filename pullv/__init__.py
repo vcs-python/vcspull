@@ -22,7 +22,7 @@ from . import util
 from . import log
 from .repo import Repo
 
-__version__ = '0.1-dev'
+__version__ = '0.1.0-dev'
 
 logger = logging.getLogger('main')
 
