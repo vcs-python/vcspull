@@ -24,11 +24,13 @@ setup(
     name='pullv',
     version='0.1.0-dev',
     url='http://github.com/tony/pullv/',
+    download_url='https://pypi.python.org/pypi/pullv',
     license='BSD',
     author='Tony Narlock',
     author_email='tony@git-pull.com',
     description='Obtain and update multiple git, mercurial and subversions '
         'repositories simultaneously.',
+    long_description=open('README.rst').read(),
     include_package_data=True,
     install_requires=requirements('requirements.pip'),
     packages=['pullv', 'pullv.repo'],
