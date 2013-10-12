@@ -2,6 +2,7 @@
 TODO
 ====
 
+- auto-detect hg/git/svn recursively ++ dump to config file
 - concurrent repo updates, gevent
 - handle hg/git/svn not existing on computer
 - create a list of repos with success, new refs, perhaps launch a ``less``
