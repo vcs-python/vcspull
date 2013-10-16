@@ -2,6 +2,12 @@
 CHANGES
 =======
 
+10/17/2013
+----------
+
+- fix packaging issue, add MANIFEST.in
+- bump to 0.1.1
+
 10/08/2013
 ----------
 
