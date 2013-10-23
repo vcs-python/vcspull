@@ -29,7 +29,7 @@ setup(
     author='Tony Narlock',
     author_email='tony@git-pull.com',
     description='Obtain and update multiple git, mercurial and subversions '
-        'repositories simultaneously.',
+                'repositories simultaneously from a YAML / JSON file.',
     long_description=open('README.rst').read(),
     include_package_data=True,
     install_requires=requirements('requirements.pip'),
