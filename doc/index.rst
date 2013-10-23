@@ -8,6 +8,7 @@ pullv
         :maxdepth: 2
 
         quickstart
+        examples
         api
         changes
         todo..
