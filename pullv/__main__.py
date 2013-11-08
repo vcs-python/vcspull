@@ -1,3 +1,14 @@
+# -*- coding: utf8 - *-
+"""For accessing pullv as a package.
+
+pullv
+~~~~~
+
+:copyright: Copyright 2013 Tony Narlock.
+:license: BSD, see LICENSE for details
+
+"""
+
 import sys
 import os
 

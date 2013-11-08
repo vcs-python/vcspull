@@ -1,0 +1,52 @@
+from __future__ import absolute_import, division, print_function, with_statement
+
+import logging
+import os
+import sys
+import kaptan
+from . import log
+from . import util
+from .repo import Repo
+logger = logging.getLogger(__name__)
+
+
+def main():
+    logger.setLevel('INFO')
+    channel = logging.StreamHandler()
+    channel.setFormatter(log.LogFormatter())
+    logger.addHandler(channel)
+
+    yaml_config = os.path.expanduser('~/.pullv.yaml')
+    has_yaml_config = os.path.exists(yaml_config)
+    json_config = os.path.expanduser('~/.pullv.json')
+    has_json_config = os.path.exists(json_config)
+    ini_config = os.path.expanduser('~/.pullv.ini')
+    has_ini_config = os.path.exists(ini_config)
+    if not has_yaml_config and not has_json_config and not has_ini_config:
+        logger.fatal('No config file found. Create a .pullv.{yaml,ini,conf}'
+                     ' in your $HOME directory. http://pullv.rtfd.org for a'
+                     ' quickstart.')
+    else:
+        if sum(filter(None, [has_ini_config, has_json_config, has_yaml_config])) > int(1):
+            sys.exit(
+                'multiple configs found in home directory use only one.'
+                ' .yaml, .json, .ini.'
+            )
+        elif has_yaml_config:
+            config_file = yaml_config
+        elif has_json_config:
+            config_file = json_config
+        elif has_ini_config:
+            config_file = ini_config
+
+        config = kaptan.Kaptan()
+        config.import_config(config_file)
+
+        logging.debug('%r' % config.get())
+        logging.debug('%r' % util.expand_config(config.get()))
+        logging.debug('%r' % util.get_repos(util.expand_config(config.get())))
+
+        for repo_dict in util.get_repos(util.expand_config(config.get())):
+            r = Repo(repo_dict)
+            logger.debug('%s' % r)
+            r.update_repo()
