@@ -1,30 +1,38 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-    pullv.util
-    ~~~~~~~~~~
+"""Utility functions for pullv.
 
-    :copyright: Copyright 2013 Tony Narlock.
-    :license: BSD, see LICENSE for details
+pullv.util
+~~~~~~~~~~
+
+:copyright: Copyright 2013 Tony Narlock.
+:license: BSD, see LICENSE for details
+
 """
 
 from __future__ import absolute_import, division, print_function, with_statement
 import subprocess
 import os
+import sys
 import logging
 import fnmatch
+from . import exc
+
+PY2 = sys.version_info[0] == 2
+
 logger = logging.getLogger(__name__)
 
 
 def expand_config(config):
-    '''Expand configuration into full form.
+    """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
     identical format for parsing.
 
     :param config: the repo config in :py:class:`dict` format.
     :type config: dict
-    '''
+    :rtype: dict
+
+    """
     for directory, repos in config.iteritems():
         for repo, repo_data in repos.iteritems():
 
@@ -53,10 +61,12 @@ def expand_config(config):
 
 
 def get_repos(config):
-    """ return a :py:obj:`list` list of repos from (expanded) config file.
+    """Return a :py:obj:`list` list of repos from (expanded) config file.
 
     :param config: the expanded repo config in :py:class:`dict` format.
     :type config: dict
+    :rtype: list
+
     """
     repo_list = []
     for directory, repos in config.iteritems():
@@ -80,21 +90,23 @@ def get_repos(config):
 
 
 def scan(dir):
+    """Return a list of repositories."""
     matches = []
     for root, dirnames, filenames in os.walk(dir):
         for filename in fnmatch.filter(filenames, '.git'):
             matches.append(os.path.join(root, filename))
 
 
-def run(cmd,
-         cwd=None,
-         stdin=None,
-         stdout=subprocess.PIPE,
-         stderr=subprocess.PIPE,
-         shell=False,
-         env=(),
-         timeout=None):
-    ''' based off salt's _run '''
+def run(
+    cmd,
+    cwd=None,
+    stdin=None,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    shell=False,
+    env=(),
+    timeout=None):
+    """Return output of command. Based off salt's _run."""
     ret = {}
 
     # kwargs['stdin'] = subprocess.PIPE if 'stdin' not in kwargs else
@@ -124,3 +136,60 @@ def run(cmd,
     ret['retcode'] = proc.returncode
 
     return ret
+
+
+def which(exe=None):
+    """Return path of bin. Python clone of /usr/bin/which.
+
+    from salt.util - https://www.github.com/saltstack/salt - license apache
+
+    :param exe: Application to search PATHs for.
+    :type exe: string
+    :rtype: string
+
+    """
+    if exe:
+        if os.access(exe, os.X_OK):
+            return exe
+
+        # default path based on busybox's default
+        default_path = '/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin'
+        search_path = os.environ.get('PATH', default_path)
+
+        for path in search_path.split(os.pathsep):
+            full_path = os.path.join(path, exe)
+            if os.access(full_path, os.X_OK):
+                return full_path
+        raise exc.PullvException(
+            '{0!r} could not be found in the following search '
+            'path: {1!r}'.format(
+                exe, search_path
+            )
+        )
+    logger.error('No executable was passed to be searched by which')
+    return None
+
+
+# http://www.rfk.id.au/blog/entry/preparing-pyenchant-for-python-3/
+try:
+    unicode = unicode
+except NameError:
+    # 'unicode' is undefined, must be Python 3
+    str = str
+    unicode = str
+    bytes = bytes
+    basestring = (str, bytes)
+else:
+    # 'unicode' exists, must be Python 2
+    str = str
+    unicode = unicode
+    bytes = str
+    basestring = basestring
+
+
+if not PY2:
+    input = input
+    from string import ascii_lowercase
+else:
+    input = raw_input
+    from string import lower as ascii_lowercase

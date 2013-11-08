@@ -1,0 +1,2 @@
+class PullvException(Exception):
+    pass
