@@ -45,7 +45,7 @@ setup(
     tests_require=tests_reqs,
     test_suite='pullv.testsuite',
     zip_safe=False,
-    packages=['pullv', 'pullv.repo', 'pullv._vendor', 'pullv._vendor.colorama'],
+    packages=['pullv', 'pullv.testsuite', 'pullv.repo', 'pullv._vendor', 'pullv._vendor.colorama'],
     entry_points=dict(console_scripts=['pullv=pullv:cli.main']),
     classifiers=[
         'Development Status :: 3 - Alpha',
