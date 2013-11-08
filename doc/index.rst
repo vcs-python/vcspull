@@ -15,7 +15,7 @@ pullv
 
 .. figure:: _static/pullv-screenshot.png
     :scale: 100%
-    :width: 65%
+    :width: 50%
     :align: center
 
     Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse.
