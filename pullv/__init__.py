@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-    pullv
-    ~~~~~
+"""Manage multiple git, mercurial, svn repositories from a YAML / JSON file.
 
-    :copyright: Copyright 2013 Tony Narlock.
-    :license: BSD, see LICENSE for details
+pullv
+~~~~~
+
+:copyright: Copyright 2013 Tony Narlock.
+:license: BSD, see LICENSE for details
+
 """
 
 from __future__ import absolute_import, division, print_function, with_statement

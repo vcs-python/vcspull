@@ -28,7 +28,6 @@ if mo:
 else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
-
 setup(
     name='pullv',
     version=__version__,
