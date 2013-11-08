@@ -34,6 +34,3 @@ def suite():
         import unittest
 
     return unittest.TestLoader().discover('.', pattern="test_*.py")
-
-
-

@@ -10,13 +10,13 @@ import argparse
 logging.disable(logging.CRITICAL)
 
 
-tmux_path = sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-if tmux_path not in sys.path:
-    sys.path.insert(0, tmux_path)
+pullv_path = sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+if pullv_path not in sys.path:
+    sys.path.insert(0, pullv_path)
 
 
 def main(verbosity=2, failfast=False):
-    """Run TestSuite in new tmux session. Exit with code 0 if success."""
+    """Run TestSuite for pullv. Exit with code 0 if success."""
 
     suites = unittest.TestLoader().discover('pullv.testsuite', pattern="test_*.py")
     result = unittest.TextTestRunner(
