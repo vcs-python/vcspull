@@ -21,4 +21,4 @@ pullv
     Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse.
 
 .. include:: ../README.rst
-    :start-line: 10
+    :start-line: 14

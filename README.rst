@@ -2,6 +2,9 @@
 pullv(1)
 ========
 
+.. image:: https://travis-ci.org/tony/pullv.png?branch=master
+    :target: https://travis-ci.org/tony/pullv
+
 .. figure:: https://raw.github.com/tony/pullv/master/doc/_static/pullv-screenshot.png
     :scale: 100%
     :width: 65%
@@ -9,18 +12,12 @@ pullv(1)
 
     Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
 
-Tested on Ubuntu. Currently testing, please file an issue with your OS,
-python version, vcs version and pip version if you encounter any problems.
-
-Obtain and update multiple git, mercurial and subversions repositories
-simultaneously from a YAML / JSON file.
+Sync multiple git, mercurial and subversions repositories via a YAML /
+JSON file.
 
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories
 * update to the latest repos with ``$ pullv``
-
-.. image:: https://travis-ci.org/tony/pullv.png?branch=master
-    :target: https://travis-ci.org/tony/pullv
 
 YAML config at ``~/.pullv.yaml``:
 
@@ -53,7 +50,7 @@ Repo type and address is specified in `pip vcs url`_ format.
 ==============  ==========================================================
 Python support  Python 2.7 (2.6 and 3.3 in development)
 VCS supported   git(1), svn(1), hg(1)
-Config formats  YAML, JSON, INI, python dict
+Config formats  YAML, JSON, python dict
 Travis          http://travis-ci.org/tony/pullv
 Crate.io        https://crate.io/packages/pullv/
 Source          https://github.com/tony/pullv
