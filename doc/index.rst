@@ -10,8 +10,8 @@ pullv
         quickstart
         examples
         api
-        changes
-        todo..
+        history
+        roadmap
 
 .. figure:: _static/pullv-screenshot.png
     :scale: 100%

@@ -12,3 +12,5 @@ TODO
 - add and fetch remotes
 - Add variables ``{{repo_dir}}`` / ``{{home}}``
 - Expand ~
+
+.. todo:: vim: set filetype=rst:
