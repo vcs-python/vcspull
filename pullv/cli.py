@@ -4,17 +4,47 @@ import logging
 import os
 import sys
 import kaptan
+import argparse
+import argcomplete
 from . import log
 from . import util
 from .repo import Repo
 logger = logging.getLogger(__name__)
 
 
+def setup_logger(logger=None, level='INFO'):
+    """Setup logging for CLI use.
+
+    :param logger: instance of logger
+    :type logger: :py:class:`Logger`
+
+    """
+    if not logger:
+        logger = logging.getLogger()
+    if not logger.handlers:
+        channel = logging.StreamHandler()
+        channel.setFormatter(log.DebugLogFormatter())
+
+        # channel.setFormatter(log.LogFormatter())
+        logger.setLevel(level)
+        logger.addHandler(channel)
+
+
+def get_parser():
+    """Return :py:class:`argparse.ArgumentParser` instance for CLI."""
+
+    server_parser = argparse.ArgumentParser(add_help=False)
+
+    return server_parser
+
 def main():
-    logger.setLevel('INFO')
-    channel = logging.StreamHandler()
-    channel.setFormatter(log.LogFormatter())
-    logger.addHandler(channel)
+    parser = get_parser()
+
+    argcomplete.autocomplete(parser, always_complete_options=False)
+
+    args = parser.parse_args()
+
+    setup_logger(level=args.log_level.upper() if 'log_level' in args else 'INFO')
 
     yaml_config = os.path.expanduser('~/.pullv.yaml')
     has_yaml_config = os.path.exists(yaml_config)
