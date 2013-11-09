@@ -18,7 +18,7 @@ from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, get_repos, run
 
 
-class ConfigTestCaseBase(unittest.TestCase):
+class ConfigTest(unittest.TestCase):
 
     """Contains the fresh config dict/yaml's to test against.
 
@@ -112,7 +112,7 @@ class ConfigTestCaseBase(unittest.TestCase):
         self.config_yaml = SAMPLECONFIG_YAML
 
 
-class ConfigFormatTestCase(ConfigTestCaseBase):
+class ConfigFormatTestCase(ConfigTest):
 
     """ verify that example YAML is returning expected dict format """
 
@@ -125,7 +125,7 @@ class ConfigFormatTestCase(ConfigTestCaseBase):
         self.assertDictEqual(self.config_dict, config.export('dict'))
 
 
-class ConfigImportExportTestCase(ConfigTestCaseBase):
+class ConfigImportExportTestCase(ConfigTest):
 
     def test_export_json(self):
         TMP_DIR = self.TMP_DIR
@@ -202,16 +202,12 @@ class ConfigImportExportTestCase(ConfigTestCaseBase):
             shutil.rmtree(cls.TMP_DIR)
 
 
-class ConfigExpandTestCase(ConfigTestCaseBase):
+class ConfigExpandTestCase(ConfigTest):
 
-    '''
-    assumes the configuration has been imported into a python dict correctly.
-    '''
+    """Expand configuration into full form."""
 
     def test_expand_shell_command_after(self):
-        '''
-        expands shell commands from string to list
-        '''
+        """Expand shell commands from string to list."""
 
         self.maxDiff = None
 
@@ -220,9 +216,9 @@ class ConfigExpandTestCase(ConfigTestCaseBase):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
-class ConfigToObjectTestCase(ConfigTestCaseBase):
+class ConfigToObjectTest(ConfigTest):
 
-    '''create an individual dictionary for each repository'''
+    """TestCase for converting config (dict) into Repo object."""
 
     def setUp(self):
         SAMPLECONFIG_LIST = [
@@ -234,10 +230,10 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
             }
         ]
 
-        super(ConfigToObjectTestCase, self).setUp()
+        super(ConfigToObjectTest, self).setUp()
 
     def test_to_dictlist(self):
-        """get_repos pulls the repos in dict format from the config"""
+        """``get_repos`` pulls the repos in dict format from the config."""
         config = self.config_dict_expanded
 
         repo_list = get_repos(self.config_dict_expanded)
@@ -256,10 +252,11 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
                     self.assertIn('url', remote)
 
     def test_vcs_url_scheme_to_object(self):
-        """url url returns a GitRepo/MercurialRepo/SubversionRepo
+        """Test that ``url`` return a GitRepo/MercurialRepo/SubversionRepo.
 
         :class:`GitRepo`, :class:`MercurialRepo` or :class:`SubversionRepo`
         object based on the pip-style URL scheme.
+
         """
 
         git_repo = Repo({
@@ -427,7 +424,7 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         self.assertTrue(os.path.exists(mercurial_checkout_dest))
 
     def test_to_repo_objects(self):
-        """dict objects into Repo objects"""
+        """:py:obj:`dict` objects into Repo objects."""
         repo_list = get_repos(self.config_dict_expanded)
         for repo_dict in repo_list:
             r = Repo(repo_dict)
@@ -459,4 +456,3 @@ class ConfigToObjectTestCase(ConfigTestCaseBase):
         if os.path.isdir(cls.TMP_DIR):
             shutil.rmtree(cls.TMP_DIR)
         pass
-
