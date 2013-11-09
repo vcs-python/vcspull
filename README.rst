@@ -51,15 +51,18 @@ Repo type and address is specified in `pip vcs url`_ format.
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 
 ==============  ==========================================================
+Python support  Python 2.7 (2.6 and 3.3 in development)
+VCS supported   git(1), svn(1), hg(1)
+Config formats  YAML, JSON, INI, python dict
 Travis          http://travis-ci.org/tony/pullv
+Crate.io        https://crate.io/packages/pullv/
+Source          https://github.com/tony/pullv
 Docs            http://pullv.rtfd.org
 API             http://pullv.readthedocs.org/en/latest/api.html
 Issues          https://github.com/tony/pullv/issues
 Source          https://github.com/tony/pullv
 pypi            https://pypi.python.org/pypi/pullv
 License         `BSD`_.
-VCS supported   git(1), svn(1), hg(1)
-Config formats  YAML, JSON, INI, python dict
 git repo        .. code-block:: bash
 
                     $ git clone https://github.com/tony/pullv.git
