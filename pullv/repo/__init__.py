@@ -30,9 +30,10 @@ __all__ = ['GitRepo', 'MercurialRepo', 'SubversionRepo', 'BaseRepo', 'Repo',
 
 class FilterRepo(logging.Filter):
 
-    """only include repo logs for this type of record"""
+    """Only include repo logs for this type of record."""
 
     def filter(self, record):
+        """Only return a record if a repo_vcs object."""
         return True if 'repo_vcs' in record.__dict__ else False
 
 
@@ -46,10 +47,13 @@ logger.addHandler(channel)
 
 class Repo(object):
 
-    """ Returns an instance of :class:`SubversionRepo`, :class:`GitRepo` or
+    """Return an object with a base class of :class:`Repo` depending on url.
+
+    Return instance of :class:`SubversionRepo`, :class:`GitRepo` or
     :class:`MercurialRepo`. The object returned is a child of :class:`BaseRepo`.
 
     For external API purposes.
+
     """
 
     def __new__(cls, attributes, *args, **kwargs):
@@ -65,13 +69,14 @@ class Repo(object):
             attributes['vcs'] = 'svn'
             return SubversionRepo(attributes, *args, **kwargs)
         else:
-            raise Exception('repo URL %s requires a vcs scheme. Prepend hg+,'
-                            ' git+, svn+ to the repo URL. Examples:\n'
-                            '\t %s\n'
-                            '\t %s\n'
-                            '\t %s\n' %
-                            (attributes['url'],
-                             'git+https://github.com/freebsd/freebsd.git',
-                             'hg+https://bitbucket.org/birkenfeld/sphinx',
-                             'svn+http://svn.code.sf.net/p/docutils/code/trunk')
-                            )
+            raise Exception(
+                'repo URL %s requires a vcs scheme. Prepend hg+,'
+                ' git+, svn+ to the repo URL. Examples:\n'
+                '\t %s\n'
+                '\t %s\n'
+                '\t %s\n' %
+                (attributes['url'],
+                 'git+https://github.com/freebsd/freebsd.git',
+                 'hg+https://bitbucket.org/birkenfeld/sphinx',
+                 'svn+http://svn.code.sf.net/p/docutils/code/trunk')
+                )

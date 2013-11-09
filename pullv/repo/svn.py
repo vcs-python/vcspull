@@ -60,7 +60,11 @@ class SubversionRepo(BaseRepo):
         return int([dict(tmp) for tmp in info_list][0]['Revision'])
 
     def get_rev_options(self, url, rev):
-        ''' from pip pip.vcs.subversion '''
+        """Return revision options.
+
+        from pip pip.vcs.subversion.
+
+        """
         if rev:
             rev_options = ['-r', rev]
         else:
