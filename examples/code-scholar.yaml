@@ -11,6 +11,7 @@
   sandy: 'git+http://git.suckless.org/sandy'
   understate: 'git+https://github.com/L3V3L9/understate.git'
   util-cursor: 'git+git://anongit.freedesktop.org/xcb/util-cursor'
+  zsh: 'git+git://git.code.sf.net/p/zsh/code'
   cpython: 'hg+http://hg.python.org/cpython/'
   vim: 'hg+https://vim.googlecode.com/hg/'
   nginx: 'hg+http://hg.nginx.org/nginx'
@@ -126,13 +127,17 @@
   codemirror: 'git+https://github.com/marijnh/CodeMirror.git'
   doctorjs: 'git+https://github.com/mozilla/doctorjs.git'
 /home/tony/study/python:
+  jmespath: 'git+https://github.com/boto/jmespath.git'
+
   pip: 'git+git://github.com/pypa/pip.git'
   ipdb: 'git+http://github.com/gotcha/ipdb.git'
   virtualenv: 'git+https://github.com/pypa/virtualenv.git'
   jinja2: 'git+https://github.com/mitsuhiko/jinja2.git'
   flask: 'git+https://github.com/mitsuhiko/flask.git'
+  flask-script: 'git+https://github.com/techniq/flask-script.git'
   frozen-flask: 'git+https://github.com/SimonSapin/Frozen-Flask.git'
   werkzeug: 'git+https://github.com/mitsuhiko/werkzeug.git'
+  logbook: 'git+https://github.com/mitsuhiko/logbook.git'
   cjklib: 'git+https://github.com/cburgmer/cjklib.git'
   pudb: 'git+http://git.tiker.net/trees/pudb.git'
   ipython: 'git+https://github.com/ipython/ipython.git'
@@ -148,6 +153,8 @@
   wtforms: 'git+https://github.com/Khan/wtforms.git'
   botocore: 'git+https://github.com/boto/botocore.git'
   libcloud: 'git+https://github.com/apache/libcloud.git'
+
+  argcomplete: 'git+https://github.com/kislyuk/argcomplete.git'
 
   lxml: 'git+https://github.com/lxml/lxml.git'
 
@@ -229,4 +236,4 @@
   sphinx-contrib: 'hg+https://bitbucket.org/birkenfeld/sphinx-contrib'
   pexpect-u: 'hg+https://bitbucket.org/takluyver/pexpect'
   pygments: 'hg+http://bitbucket.org/birkenfeld/pygments-main'
-
+  docutils: 'svn+http://svn.code.sf.net/p/docutils/code/trunk'
