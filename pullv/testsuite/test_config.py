@@ -1,4 +1,13 @@
-"""pullv tests."""
+# -*- coding: utf-8 -*-
+"""Tests for pullv.
+
+pullv.tests.test_config
+~~~~~~~~~~~~~~~~~~~~~~~
+
+:copyright: Copyright 2013 Tony Narlock.
+:license: BSD, see LICENSE for details
+
+"""
 
 import unittest
 import os

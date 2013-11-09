@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf8 - *-
 """Log utilities for pullv.
 

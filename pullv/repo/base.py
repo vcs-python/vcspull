@@ -1,11 +1,12 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-    pullv.repo.base
-    ~~~~~~~~~~~~~~~
+"""Base class for Repository objects.
 
-    :copyright: Copyright 2013 Tony Narlock.
-    :license: BSD, see LICENSE for details
+pullv.repo.base
+~~~~~~~~~~~~~~~
+
+:copyright: Copyright 2013 Tony Narlock.
+:license: BSD, see LICENSE for details
+
 """
 
 from __future__ import absolute_import, division, print_function, with_statement

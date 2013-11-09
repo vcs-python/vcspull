@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf8 - *-
 """pullv lives at <https://github.com/tony/pullv>.
 
 pullv

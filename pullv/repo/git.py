@@ -1,11 +1,12 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-    pullv.repo.git
-    ~~~~~~~~~~~~~~
+"""Git Repo object for pullv.
 
-    :copyright: Copyright 2013 Tony Narlock.
-    :license: BSD, see LICENSE for details
+pullv.repo.git
+~~~~~~~~~~~~~~
+
+:copyright: Copyright 2013 Tony Narlock.
+:license: BSD, see LICENSE for details
+
 """
 
 from .base import BaseRepo

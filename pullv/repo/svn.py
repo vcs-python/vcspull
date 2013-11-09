@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-    pullv.repo.svn
-    ~~~~~~~~~~~~~~
+"""Mercurial Subversion object for pullv.
 
-    :copyright: Copyright 2013 Tony Narlock.
-    :license: BSD, see LICENSE for details
+pullv.repo.svn
+~~~~~~~~~~~~~~
+
+:copyright: Copyright 2013 Tony Narlock.
+:license: BSD, see LICENSE for details
+
 """
 
 from .base import BaseRepo
