@@ -1,37 +1,46 @@
-=======
-CHANGES
-=======
+=========
+Changelog
+=========
+
+Here you can find the recent changes to tmuxp.
+
+0.2-dev
+-------
+
 
 11/09/2013
-----------
+''''''''''
 
 - `pep257`_ to all modules.
 - Add `argcomplete`_.
 
 11/09/2013
-----------
+''''''''''
 
 - Move in code patterns from `tmuxp`_. New logger, setup.py, testsuite
   structure, etc.
 
+0.1
+---
+
 10/23/2013
-----------
+''''''''''
 
 - add example
 
 10/17/2013
-----------
+''''''''''
 
 - fix packaging issue, add MANIFEST.in
 - bump to 0.1.1
 
 10/08/2013
-----------
+''''''''''
 
 - move to semver
 
 10/06/2013
-----------
+''''''''''
 
 https://github.com/tony/pullv/compare/a96e723269...a5be723de5
 
