@@ -10,7 +10,7 @@ Here you can find the recent changes to tmuxp.
 11/14/2013
 ''''''''''
 
-- [tests] :py:class:`tempfile`.
+- [tests] :py:mod:`tempfile`.
 - [cli] [config] remove .ini support
 
 11/09/2013
