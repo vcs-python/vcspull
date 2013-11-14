@@ -11,47 +11,15 @@ pullv.tests.test_config
 
 import unittest
 import os
+import logging
 import tempfile
 import shutil
 import kaptan
 from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, get_repos, run
 
-
-import logging
-
 logger = logging.getLogger(__name__)
 
-
-class RageRage(unittest.TestCase):
-    def lol(self):
-        # create a temporary folder and change dir into it
-        tmp_dir = tempfile.mkdtemp(suffix='tmuxp')
-        os.chdir(tmp_dir)
-
-        try:
-            config1 = open('.tmuxp.json', 'w+b')
-            config1.close()
-
-            configs_found = config.in_cwd()
-        finally:
-            os.remove(config1.name)
-
-        self.assertEqual(len(configs_found), 1)
-        self.assertIn('.tmuxp.json', configs_found)
-
-        # clean up
-        os.chdir(current_dir)
-        if os.path.isdir(tmp_dir):
-            shutil.rmtree(tmp_dir)
-
-    @classmethod
-    def tearDownClass(cls):
-        if os.path.isdir(TMUXP_DIR):
-            shutil.rmtree(TMUXP_DIR)
-        logger.debug('wiped %s' % TMUXP_DIR)
-
-import tempfile
 
 class ConfigTest(unittest.TestCase):
 
@@ -93,7 +61,7 @@ class ConfigTest(unittest.TestCase):
                     - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
         """
 
-        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(tmp_dir= self.tmp_dir)
+        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(tmp_dir=self.tmp_dir)
 
         SAMPLECONFIG_DICT = {
             '{tmp_dir}/study/'.format(tmp_dir=self.tmp_dir): {
@@ -123,8 +91,7 @@ class ConfigTest(unittest.TestCase):
             }
         }
 
-        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(tmp_dir= self.tmp_dir)
-
+        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(tmp_dir=self.tmp_dir)
 
         SAMPLECONFIG_FINAL_DICT = {
             '{tmp_dir}/study/'.format(tmp_dir=self.tmp_dir): {
@@ -161,7 +128,7 @@ class ConfigTest(unittest.TestCase):
 
 class ConfigFormatTestCase(ConfigTest):
 
-    """ verify that example YAML is returning expected dict format """
+    """Verify that example YAML is returning expected dict format."""
 
     def test_dict_equals_yaml(self):
         config = kaptan.Kaptan(handler='yaml')
@@ -218,7 +185,7 @@ class ConfigImportExportTestCase(ConfigTest):
         buf.close()
 
         for r, d, f in os.walk(TMP_DIR):
-            for filela in (x for x in f if x.endswith(('.json', '.ini', 'yaml')) and x.startswith('.pullv')):
+            for filela in (x for x in f if x.endswith(('.json', 'yaml')) and x.startswith('.pullv')):
                 configs.append(os.path.join(
                     TMP_DIR, filela))
 
@@ -232,10 +199,6 @@ class ConfigImportExportTestCase(ConfigTest):
             files += 1
             self.assertIn(os.path.join(
                 TMP_DIR, '.pullv.yaml'), configs)
-
-        if os.path.exists(os.path.join(TMP_DIR, '.pullv.ini')):
-            files += 1
-            self.assertIn(os.path.join(TMP_DIR, '.pullv.ini'), configs)
 
         self.assertEqual(len(configs), files)
 
