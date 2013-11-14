@@ -18,6 +18,41 @@ from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, get_repos, run
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class RageRage(unittest.TestCase):
+    def lol(self):
+        # create a temporary folder and change dir into it
+        tmp_dir = tempfile.mkdtemp(suffix='tmuxp')
+        os.chdir(tmp_dir)
+
+        try:
+            config1 = open('.tmuxp.json', 'w+b')
+            config1.close()
+
+            configs_found = config.in_cwd()
+        finally:
+            os.remove(config1.name)
+
+        self.assertEqual(len(configs_found), 1)
+        self.assertIn('.tmuxp.json', configs_found)
+
+        # clean up
+        os.chdir(current_dir)
+        if os.path.isdir(tmp_dir):
+            shutil.rmtree(tmp_dir)
+
+    @classmethod
+    def tearDownClass(cls):
+        if os.path.isdir(TMUXP_DIR):
+            shutil.rmtree(TMUXP_DIR)
+        logger.debug('wiped %s' % TMUXP_DIR)
+
+import tempfile
+
 class ConfigTest(unittest.TestCase):
 
     """Contains the fresh config dict/yaml's to test against.
@@ -27,21 +62,28 @@ class ConfigTest(unittest.TestCase):
 
     """
 
+    def tearDown(self):
+        if os.path.isdir(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
+        logger.debug('wiped %s' % self.tmp_dir)
+
     def setUp(self):
 
+        self.tmp_dir = tempfile.mkdtemp(suffix='tmuxp')
+
         SAMPLECONFIG_YAML = """
-        /home/user/study/:
+        {tmp_dir}/study/:
             linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
             freebsd: git+https://github.com/freebsd/freebsd.git
             sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
             docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
-        /home/user/github_projects/:
+        {tmp_dir}/github_projects/:
             kaptan:
                 repo: git+git@github.com:tony/kaptan.git
                 remotes:
                     upstream: git+https://github.com/emre/kaptan
                     marksteve: git+https://github.com/marksteve/kaptan.git
-        /home/user/:
+        {tmp_dir}:
             .vim:
                 repo: git+git@github.com:tony/vim-config.git
                 shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
@@ -51,14 +93,16 @@ class ConfigTest(unittest.TestCase):
                     - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
         """
 
+        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(tmp_dir= self.tmp_dir)
+
         SAMPLECONFIG_DICT = {
-            '/home/user/study/': {
+            '{tmp_dir}/study/'.format(tmp_dir=self.tmp_dir): {
                 'linux': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
                 'freebsd': 'git+https://github.com/freebsd/freebsd.git',
                 'sphinx': 'hg+https://bitbucket.org/birkenfeld/sphinx',
                 'docutils': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
             },
-            '/home/user/github_projects/': {
+            '{tmp_dir}/github_projects/'.format(tmp_dir=self.tmp_dir): {
                 'kaptan': {
                     'repo': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
@@ -67,7 +111,7 @@ class ConfigTest(unittest.TestCase):
                     }
                 }
             },
-            '/home/user/': {
+            '{tmp_dir}'.format(tmp_dir=self.tmp_dir): {
                 '.vim': {
                     'repo': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
@@ -79,14 +123,17 @@ class ConfigTest(unittest.TestCase):
             }
         }
 
+        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(tmp_dir= self.tmp_dir)
+
+
         SAMPLECONFIG_FINAL_DICT = {
-            '/home/user/study/': {
+            '{tmp_dir}/study/'.format(tmp_dir=self.tmp_dir): {
                 'linux': {'repo': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
                 'freebsd': {'repo': 'git+https://github.com/freebsd/freebsd.git', },
                 'sphinx': {'repo': 'hg+https://bitbucket.org/birkenfeld/sphinx', },
                 'docutils': {'repo': 'svn+http://svn.code.sf.net/p/docutils/code/trunk', },
             },
-            '/home/user/github_projects/': {
+            '{tmp_dir}/github_projects/'.format(tmp_dir=self.tmp_dir): {
                 'kaptan': {
                     'repo': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
@@ -95,7 +142,7 @@ class ConfigTest(unittest.TestCase):
                     }
                 }
             },
-            '/home/user/': {
+            '{tmp_dir}'.format(tmp_dir=self.tmp_dir): {
                 '.vim': {
                     'repo': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
