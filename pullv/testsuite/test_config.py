@@ -369,31 +369,28 @@ class RepoSVN(RepoTest):
             'name': repo_name
         })
 
-        self.assertIsInstance(svn_repo, SubversionRepo)
-        self.assertIsInstance(svn_repo, BaseRepo)
+        svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
 
         os.mkdir(repo_dir)
-        run([
-            'svnadmin', 'create', svn_repo['name']
-            ], cwd=repo_dir)
-        self.assertTrue(os.path.exists(repo_dir))
 
-        svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
+        run(['svnadmin', 'create', svn_repo['name']], cwd=repo_dir)
+
         svn_repo.obtain()
 
         tempFile = tempfile.NamedTemporaryFile(dir=svn_checkout_dest)
 
+        run(['svn', 'add', tempFile.name], cwd=svn_checkout_dest)
+        run(
+            ['svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']],
+            cwd=svn_checkout_dest
+        )
         self.assertEqual(svn_repo.get_revision(), 0)
-        run([
-            'svn', 'add', tempFile.name
-            ], cwd=svn_checkout_dest)
-        run([
-            'svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']
-            ], cwd=svn_checkout_dest)
-
         svn_repo.update_repo()
-        self.assertEqual(os.path.join(
-            svn_checkout_dest, tempFile.name), tempFile.name)
+
+        self.assertEqual(
+            os.path.join(svn_checkout_dest, tempFile.name),
+            tempFile.name
+        )
         self.assertEqual(svn_repo.get_revision(tempFile.name), 1)
 
         self.assertTrue(os.path.exists(svn_checkout_dest))
@@ -455,26 +452,22 @@ class RepoMercurial(ConfigTest):
             'name': repo_name
         })
 
-        self.assertIsInstance(mercurial_repo, MercurialRepo)
-        self.assertIsInstance(mercurial_repo, BaseRepo)
+        mercurial_checkout_dest = os.path.join(
+            self.TMP_DIR, mercurial_repo['name']
+        )
 
         os.mkdir(repo_dir)
-        run([
-            'hg', 'init', mercurial_repo['name']], cwd=repo_dir
-            )
-        self.assertTrue(os.path.exists(repo_dir))
+        run(['hg', 'init', mercurial_repo['name']], cwd=repo_dir)
 
-        mercurial_checkout_dest = os.path.join(
-            self.TMP_DIR, mercurial_repo['name'])
         mercurial_repo.obtain()
 
-        testfile_filename = 'testfile.test'
+        testfile = 'testfile.test'
 
         run([
-            'touch', testfile_filename
+            'touch', testfile
             ], cwd=os.path.join(repo_dir, repo_name))
         run([
-            'hg', 'add', testfile_filename
+            'hg', 'add', testfile
             ], cwd=os.path.join(repo_dir, repo_name))
         run([
             'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
