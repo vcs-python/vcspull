@@ -31,27 +31,34 @@ class ConfigTest(unittest.TestCase):
     """
 
     def tearDown(self):
-        if os.path.isdir(self.tmp_dir):
-            shutil.rmtree(self.tmp_dir)
-        logger.debug('wiped %s' % self.tmp_dir)
+        if os.path.isdir(self.TMP_DIR):
+            shutil.rmtree(self.TMP_DIR)
+        logger.debug('wiped %s' % self.TMP_DIR)
+
+    def setUp(self):
+        self.TMP_DIR = tempfile.mkdtemp(suffix='pullv')
+
+
+class ConfigExamples(ConfigTest):
+
 
     def setUp(self):
 
-        self.tmp_dir = tempfile.mkdtemp(suffix='tmuxp')
+        super(ConfigExamples, self).setUp()
 
         SAMPLECONFIG_YAML = """
-        {tmp_dir}/study/:
+        {TMP_DIR}/study/:
             linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
             freebsd: git+https://github.com/freebsd/freebsd.git
             sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
             docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
-        {tmp_dir}/github_projects/:
+        {TMP_DIR}/github_projects/:
             kaptan:
                 repo: git+git@github.com:tony/kaptan.git
                 remotes:
                     upstream: git+https://github.com/emre/kaptan
                     marksteve: git+https://github.com/marksteve/kaptan.git
-        {tmp_dir}:
+        {TMP_DIR}:
             .vim:
                 repo: git+git@github.com:tony/vim-config.git
                 shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
@@ -61,16 +68,14 @@ class ConfigTest(unittest.TestCase):
                     - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
         """
 
-        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(tmp_dir=self.tmp_dir)
-
         SAMPLECONFIG_DICT = {
-            '{tmp_dir}/study/'.format(tmp_dir=self.tmp_dir): {
+            '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR): {
                 'linux': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
                 'freebsd': 'git+https://github.com/freebsd/freebsd.git',
                 'sphinx': 'hg+https://bitbucket.org/birkenfeld/sphinx',
                 'docutils': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
             },
-            '{tmp_dir}/github_projects/'.format(tmp_dir=self.tmp_dir): {
+            '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR): {
                 'kaptan': {
                     'repo': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
@@ -79,7 +84,7 @@ class ConfigTest(unittest.TestCase):
                     }
                 }
             },
-            '{tmp_dir}'.format(tmp_dir=self.tmp_dir): {
+            '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR): {
                 '.vim': {
                     'repo': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
@@ -91,16 +96,16 @@ class ConfigTest(unittest.TestCase):
             }
         }
 
-        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(tmp_dir=self.tmp_dir)
+        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(TMP_DIR=self.TMP_DIR)
 
         SAMPLECONFIG_FINAL_DICT = {
-            '{tmp_dir}/study/'.format(tmp_dir=self.tmp_dir): {
+            '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR): {
                 'linux': {'repo': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
                 'freebsd': {'repo': 'git+https://github.com/freebsd/freebsd.git', },
                 'sphinx': {'repo': 'hg+https://bitbucket.org/birkenfeld/sphinx', },
                 'docutils': {'repo': 'svn+http://svn.code.sf.net/p/docutils/code/trunk', },
             },
-            '{tmp_dir}/github_projects/'.format(tmp_dir=self.tmp_dir): {
+            '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR): {
                 'kaptan': {
                     'repo': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
@@ -109,7 +114,7 @@ class ConfigTest(unittest.TestCase):
                     }
                 }
             },
-            '{tmp_dir}'.format(tmp_dir=self.tmp_dir): {
+            '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR): {
                 '.vim': {
                     'repo': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
@@ -125,8 +130,142 @@ class ConfigTest(unittest.TestCase):
         self.config_dict_expanded = SAMPLECONFIG_FINAL_DICT
         self.config_yaml = SAMPLECONFIG_YAML
 
+        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(TMP_DIR=self.TMP_DIR)
 
-class ConfigFormatTestCase(ConfigTest):
+
+class RepoTest(ConfigTest):
+
+    def create_svn_repo(self):
+        """Create an svn repository for tests. Return SVN repo directory.
+
+        :returns: directory of svn repository
+        :rtype: string
+
+        """
+
+        svn_test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
+        svn_repo_name = 'my_svn_project'
+
+        svn_repo = Repo({
+            'url': 'svn+file://' + os.path.join(svn_test_repo, svn_repo_name),
+            'parent_path': self.TMP_DIR,
+            'name': svn_repo_name
+        })
+
+        self.assertIsInstance(svn_repo, SubversionRepo)
+        self.assertIsInstance(svn_repo, BaseRepo)
+
+        os.mkdir(svn_test_repo)
+        run([
+            'svnadmin', 'create', svn_repo['name']
+            ], cwd=svn_test_repo)
+        self.assertTrue(os.path.exists(svn_test_repo))
+
+        svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
+        svn_repo.obtain()
+
+        return os.path.join(svn_test_repo, svn_repo_name)
+
+    def create_git_repo(self):
+        """Create an git repository for tests. Return directory.
+
+        :returns: directory of svn repository
+        :rtype: string
+
+        """
+
+        git_test_repo = os.path.join(self.TMP_DIR, '.git_test_repo')
+        git_repo_name = 'my_git_project'
+
+        git_repo = Repo({
+            'url': 'git+file://' + os.path.join(git_test_repo, git_repo_name),
+            'parent_path': self.TMP_DIR,
+            'name': git_repo_name
+        })
+
+        self.assertIsInstance(git_repo, GitRepo)
+        self.assertIsInstance(git_repo, BaseRepo)
+
+        os.mkdir(git_test_repo)
+        run([
+            'git', 'init', git_repo['name']
+            ], cwd=git_test_repo)
+        self.assertTrue(os.path.exists(git_test_repo))
+
+        git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
+        git_repo.obtain()
+
+        testfile_filename = 'testfile.test'
+
+        run([
+            'touch', testfile_filename
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
+        run([
+            'git', 'add', testfile_filename
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
+        run([
+            'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
+        git_repo.update_repo()
+
+        return os.path.join(git_test_repo, git_repo_name)
+
+    def test_repo_mercurial(self):
+        mercurial_test_repo = os.path.join(
+            self.TMP_DIR, '.mercurial_test_repo')
+        mercurial_repo_name = 'my_mercurial_project'
+
+        mercurial_repo = Repo({
+            'url': 'hg+file://' + os.path.join(mercurial_test_repo, mercurial_repo_name),
+            'parent_path': self.TMP_DIR,
+            'name': mercurial_repo_name
+        })
+
+        self.assertIsInstance(mercurial_repo, MercurialRepo)
+        self.assertIsInstance(mercurial_repo, BaseRepo)
+
+        os.mkdir(mercurial_test_repo)
+        run([
+            'hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo
+            )
+        self.assertTrue(os.path.exists(mercurial_test_repo))
+
+        mercurial_checkout_dest = os.path.join(
+            self.TMP_DIR, mercurial_repo['name'])
+        mercurial_repo.obtain()
+
+        testfile_filename = 'testfile.test'
+
+        run([
+            'touch', testfile_filename
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+        run([
+            'hg', 'add', testfile_filename
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+        run([
+            'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+
+        return os.path.join(mercurial_test_repo, mercurial_repo_name)
+
+
+class EnsureMakeDirsRecursively(ConfigTest):
+
+    """Ensure that directories in pull are made recursively."""
+
+    YAML_CONFIG = """
+    {TMP_DIR}/study/python:
+        docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
+    """
+
+    def test_makes_recursive(self):
+        YAML_CONFIG = self.YAML_CONFIG.format(TMP_DIR=self.TMP_DIR)
+        conf = kaptan.Kaptan(handler='yaml')
+        conf.import_config(YAML_CONFIG)
+        conf = conf.export('dict')
+
+
+class ConfigFormatTest(ConfigExamples):
 
     """Verify that example YAML is returning expected dict format."""
 
@@ -139,7 +278,7 @@ class ConfigFormatTestCase(ConfigTest):
         self.assertDictEqual(self.config_dict, config.export('dict'))
 
 
-class ConfigImportExportTestCase(ConfigTest):
+class ConfigImportExportTest(ConfigExamples):
 
     def test_export_json(self):
         TMP_DIR = self.TMP_DIR
@@ -202,17 +341,8 @@ class ConfigImportExportTestCase(ConfigTest):
 
         self.assertEqual(len(configs), files)
 
-    @classmethod
-    def setUpClass(cls):
-        cls.TMP_DIR = tempfile.mkdtemp('pullv')
 
-    @classmethod
-    def tearDownClass(cls):
-        if os.path.isdir(cls.TMP_DIR):
-            shutil.rmtree(cls.TMP_DIR)
-
-
-class ConfigExpandTestCase(ConfigTest):
+class ConfigExpandTest(ConfigExamples):
 
     """Expand configuration into full form."""
 
@@ -226,11 +356,158 @@ class ConfigExpandTestCase(ConfigTest):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
-class ConfigToObjectTest(ConfigTest):
+class RepoSVN(ConfigTest):
+
+    def test_repo_svn(self):
+        svn_test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
+        svn_repo_name = 'my_svn_project'
+
+        svn_repo = Repo({
+            'url': 'svn+file://' + os.path.join(svn_test_repo, svn_repo_name),
+            'parent_path': self.TMP_DIR,
+            'name': svn_repo_name
+        })
+
+        self.assertIsInstance(svn_repo, SubversionRepo)
+        self.assertIsInstance(svn_repo, BaseRepo)
+
+        os.mkdir(svn_test_repo)
+        run([
+            'svnadmin', 'create', svn_repo['name']
+            ], cwd=svn_test_repo)
+        self.assertTrue(os.path.exists(svn_test_repo))
+
+        svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
+        svn_repo.obtain()
+
+        tempFile = tempfile.NamedTemporaryFile(dir=svn_checkout_dest)
+
+        self.assertEqual(svn_repo.get_revision(), 0)
+        run([
+            'svn', 'add', tempFile.name
+            ], cwd=svn_checkout_dest)
+        run([
+            'svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']
+            ], cwd=svn_checkout_dest)
+
+        svn_repo.update_repo()
+        self.assertEqual(os.path.join(
+            svn_checkout_dest, tempFile.name), tempFile.name)
+        self.assertEqual(svn_repo.get_revision(tempFile.name), 1)
+
+        self.assertTrue(os.path.exists(svn_checkout_dest))
+
+
+class RepoGit(ConfigTest):
+
+    def test_repo_git(self):
+        git_test_repo = os.path.join(self.TMP_DIR, '.git_test_repo')
+        git_repo_name = 'my_git_project'
+
+        git_repo = Repo({
+            'url': 'git+file://' + os.path.join(git_test_repo, git_repo_name),
+            'parent_path': self.TMP_DIR,
+            'name': git_repo_name
+        })
+
+        self.assertIsInstance(git_repo, GitRepo)
+        self.assertIsInstance(git_repo, BaseRepo)
+
+        os.mkdir(git_test_repo)
+        run([
+            'git', 'init', git_repo['name']
+            ], cwd=git_test_repo)
+        self.assertTrue(os.path.exists(git_test_repo))
+
+        git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
+        git_repo.obtain()
+
+        testfile_filename = 'testfile.test'
+
+        run([
+            'touch', testfile_filename
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
+        run([
+            'git', 'add', testfile_filename
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
+        run([
+            'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
+            ], cwd=os.path.join(git_test_repo, git_repo_name))
+        git_repo.update_repo()
+
+        test_repo_revision = run(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=os.path.join(git_test_repo, git_repo_name),
+        )['stdout']
+
+        self.assertEqual(
+            git_repo.get_revision(),
+            test_repo_revision
+        )
+        self.assertTrue(os.path.exists(git_checkout_dest))
+
+
+class RepoMercurial(ConfigTest):
+
+    def test_repo_mercurial(self):
+        mercurial_test_repo = os.path.join(
+            self.TMP_DIR, '.mercurial_test_repo')
+        mercurial_repo_name = 'my_mercurial_project'
+
+        mercurial_repo = Repo({
+            'url': 'hg+file://' + os.path.join(mercurial_test_repo, mercurial_repo_name),
+            'parent_path': self.TMP_DIR,
+            'name': mercurial_repo_name
+        })
+
+        self.assertIsInstance(mercurial_repo, MercurialRepo)
+        self.assertIsInstance(mercurial_repo, BaseRepo)
+
+        os.mkdir(mercurial_test_repo)
+        run([
+            'hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo
+            )
+        self.assertTrue(os.path.exists(mercurial_test_repo))
+
+        mercurial_checkout_dest = os.path.join(
+            self.TMP_DIR, mercurial_repo['name'])
+        mercurial_repo.obtain()
+
+        testfile_filename = 'testfile.test'
+
+        run([
+            'touch', testfile_filename
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+        run([
+            'hg', 'add', testfile_filename
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+        run([
+            'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
+            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+
+        mercurial_repo.update_repo()
+
+        test_repo_revision = run(
+            ['hg', 'parents', '--template={rev}'],
+            cwd=os.path.join(mercurial_test_repo, mercurial_repo_name),
+        )['stdout']
+
+        self.assertEqual(
+            mercurial_repo.get_revision(),
+            test_repo_revision
+        )
+
+        self.assertTrue(os.path.exists(mercurial_checkout_dest))
+
+
+class ConfigToObjectTest(ConfigExamples):
 
     """TestCase for converting config (dict) into Repo object."""
 
     def setUp(self):
+
+        super(ConfigToObjectTest, self).setUp()
+
         SAMPLECONFIG_LIST = [
             {
                 'name': None,
@@ -240,7 +517,6 @@ class ConfigToObjectTest(ConfigTest):
             }
         ]
 
-        super(ConfigToObjectTest, self).setUp()
 
     def test_to_dictlist(self):
         """``get_repos`` pulls the repos in dict format from the config."""
@@ -298,141 +574,6 @@ class ConfigToObjectTest(ConfigTest):
         self.assertIsInstance(svn_repo, SubversionRepo)
         self.assertIsInstance(svn_repo, BaseRepo)
 
-    def test_repo_svn(self):
-        svn_test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
-        svn_repo_name = 'my_svn_project'
-
-        svn_repo = Repo({
-            'url': 'svn+file://' + os.path.join(svn_test_repo, svn_repo_name),
-            'parent_path': self.TMP_DIR,
-            'name': svn_repo_name
-        })
-
-        self.assertIsInstance(svn_repo, SubversionRepo)
-        self.assertIsInstance(svn_repo, BaseRepo)
-
-        os.mkdir(svn_test_repo)
-        run([
-            'svnadmin', 'create', svn_repo['name']
-            ], cwd=svn_test_repo)
-        self.assertTrue(os.path.exists(svn_test_repo))
-
-        svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
-        svn_repo.obtain()
-
-        tempFile = tempfile.NamedTemporaryFile(dir=svn_checkout_dest)
-
-        self.assertEqual(svn_repo.get_revision(), 0)
-        run([
-            'svn', 'add', tempFile.name
-            ], cwd=svn_checkout_dest)
-        run([
-            'svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']
-            ], cwd=svn_checkout_dest)
-
-        svn_repo.update_repo()
-        self.assertEqual(os.path.join(
-            svn_checkout_dest, tempFile.name), tempFile.name)
-        self.assertEqual(svn_repo.get_revision(tempFile.name), 1)
-
-        self.assertTrue(os.path.exists(svn_checkout_dest))
-
-    def test_repo_git(self):
-        git_test_repo = os.path.join(self.TMP_DIR, '.git_test_repo')
-        git_repo_name = 'my_git_project'
-
-        git_repo = Repo({
-            'url': 'git+file://' + os.path.join(git_test_repo, git_repo_name),
-            'parent_path': self.TMP_DIR,
-            'name': git_repo_name
-        })
-
-        self.assertIsInstance(git_repo, GitRepo)
-        self.assertIsInstance(git_repo, BaseRepo)
-
-        os.mkdir(git_test_repo)
-        run([
-            'git', 'init', git_repo['name']
-            ], cwd=git_test_repo)
-        self.assertTrue(os.path.exists(git_test_repo))
-
-        git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
-        git_repo.obtain()
-
-        testfile_filename = 'testfile.test'
-
-        run([
-            'touch', testfile_filename
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
-        run([
-            'git', 'add', testfile_filename
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
-        run([
-            'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
-        git_repo.update_repo()
-
-        test_repo_revision = run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=os.path.join(git_test_repo, git_repo_name),
-        )['stdout']
-
-        self.assertEqual(
-            git_repo.get_revision(),
-            test_repo_revision
-        )
-        self.assertTrue(os.path.exists(git_checkout_dest))
-
-    def test_repo_mercurial(self):
-        mercurial_test_repo = os.path.join(
-            self.TMP_DIR, '.mercurial_test_repo')
-        mercurial_repo_name = 'my_mercurial_project'
-
-        mercurial_repo = Repo({
-            'url': 'hg+file://' + os.path.join(mercurial_test_repo, mercurial_repo_name),
-            'parent_path': self.TMP_DIR,
-            'name': mercurial_repo_name
-        })
-
-        self.assertIsInstance(mercurial_repo, MercurialRepo)
-        self.assertIsInstance(mercurial_repo, BaseRepo)
-
-        os.mkdir(mercurial_test_repo)
-        run([
-            'hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo
-            )
-        self.assertTrue(os.path.exists(mercurial_test_repo))
-
-        mercurial_checkout_dest = os.path.join(
-            self.TMP_DIR, mercurial_repo['name'])
-        mercurial_repo.obtain()
-
-        testfile_filename = 'testfile.test'
-
-        run([
-            'touch', testfile_filename
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
-        run([
-            'hg', 'add', testfile_filename
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
-        run([
-            'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
-
-        mercurial_repo.update_repo()
-
-        test_repo_revision = run(
-            ['hg', 'parents', '--template={rev}'],
-            cwd=os.path.join(mercurial_test_repo, mercurial_repo_name),
-        )['stdout']
-
-        self.assertEqual(
-            mercurial_repo.get_revision(),
-            test_repo_revision
-        )
-
-        self.assertTrue(os.path.exists(mercurial_checkout_dest))
-
     def test_to_repo_objects(self):
         """:py:obj:`dict` objects into Repo objects."""
         repo_list = get_repos(self.config_dict_expanded)
@@ -456,13 +597,3 @@ class ConfigToObjectTest(ConfigTest):
                     self.assertIsInstance(remote, dict)
                     self.assertIn('remote_name', remote)
                     self.assertIn('url', remote)
-
-    @classmethod
-    def setUpClass(cls):
-        cls.TMP_DIR = tempfile.mkdtemp('pullv')
-
-    @classmethod
-    def tearDownClass(cls):
-        if os.path.isdir(cls.TMP_DIR):
-            shutil.rmtree(cls.TMP_DIR)
-        pass
