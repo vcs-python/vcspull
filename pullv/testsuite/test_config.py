@@ -41,6 +41,7 @@ class ConfigTest(unittest.TestCase):
 
 class ConfigExamples(ConfigTest):
 
+    """ConfigExamples mixin that creates test directory + sample configs."""
 
     def setUp(self):
 
@@ -164,7 +165,7 @@ class RepoTest(ConfigTest):
         svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
         svn_repo.obtain()
 
-        return os.path.join(svn_test_repo, svn_repo_name)
+        return os.path.join(svn_test_repo, svn_repo_name), svn_repo
 
     def create_git_repo(self):
         """Create an git repository for tests. Return directory.
@@ -356,7 +357,7 @@ class ConfigExpandTest(ConfigExamples):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
-class RepoSVN(ConfigTest):
+class RepoSVN(RepoTest):
 
     def test_repo_svn(self):
         svn_test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
@@ -516,7 +517,6 @@ class ConfigToObjectTest(ConfigExamples):
                 'remotes': []
             }
         ]
-
 
     def test_to_dictlist(self):
         """``get_repos`` pulls the repos in dict format from the config."""
