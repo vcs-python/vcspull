@@ -60,24 +60,20 @@ def main():
     has_yaml_config = os.path.exists(yaml_config)
     json_config = os.path.expanduser('~/.pullv.json')
     has_json_config = os.path.exists(json_config)
-    ini_config = os.path.expanduser('~/.pullv.ini')
-    has_ini_config = os.path.exists(ini_config)
-    if not has_yaml_config and not has_json_config and not has_ini_config:
-        logger.fatal('No config file found. Create a .pullv.{yaml,ini,conf}'
+    if not has_yaml_config and not has_json_config:
+        logger.fatal('No config file found. Create a .pullv.{yaml,conf}'
                      ' in your $HOME directory. http://pullv.rtfd.org for a'
                      ' quickstart.')
     else:
-        if sum(filter(None, [has_ini_config, has_json_config, has_yaml_config])) > int(1):
+        if sum(filter(None, [has_json_config, has_yaml_config])) > int(1):
             sys.exit(
                 'multiple configs found in home directory use only one.'
-                ' .yaml, .json, .ini.'
+                ' .yaml, .json.'
             )
         elif has_yaml_config:
             config_file = yaml_config
         elif has_json_config:
             config_file = json_config
-        elif has_ini_config:
-            config_file = ini_config
 
         config = kaptan.Kaptan()
         config.import_config(config_file)
