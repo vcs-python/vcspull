@@ -60,5 +60,6 @@ https://github.com/tony/pullv/compare/a96e723269...a5be723de5
 .. _pep257: http://www.python.org/dev/peps/pep-0257/
 .. _pep8: http://www.python.org/dev/peps/pep-0008/
 .. _sphinx-argparse: https://github.com/tony/sphinx-argparse
+.. _argcomplete: https://github.com/kislyuk/argcomplete
 
 .. todo:: vim: set filetype=rst:
