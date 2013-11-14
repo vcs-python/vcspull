@@ -105,9 +105,13 @@ def run(
     stderr=subprocess.PIPE,
     shell=False,
     env=(),
-    timeout=None):
+    timeout=None
+):
     """Return output of command. Based off salt's _run."""
     ret = {}
+
+    if isinstance(cmd, list):
+        cmd[0] = which(cmd[0])
 
     # kwargs['stdin'] = subprocess.PIPE if 'stdin' not in kwargs else
     # kwargs['stdin']
