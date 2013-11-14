@@ -360,23 +360,23 @@ class ConfigExpandTest(ConfigExamples):
 class RepoSVN(RepoTest):
 
     def test_repo_svn(self):
-        svn_test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
-        svn_repo_name = 'my_svn_project'
+        repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
+        repo_name = 'my_svn_project'
 
         svn_repo = Repo({
-            'url': 'svn+file://' + os.path.join(svn_test_repo, svn_repo_name),
+            'url': 'svn+file://' + os.path.join(repo_dir, repo_name),
             'parent_path': self.TMP_DIR,
-            'name': svn_repo_name
+            'name': repo_name
         })
 
         self.assertIsInstance(svn_repo, SubversionRepo)
         self.assertIsInstance(svn_repo, BaseRepo)
 
-        os.mkdir(svn_test_repo)
+        os.mkdir(repo_dir)
         run([
             'svnadmin', 'create', svn_repo['name']
-            ], cwd=svn_test_repo)
-        self.assertTrue(os.path.exists(svn_test_repo))
+            ], cwd=repo_dir)
+        self.assertTrue(os.path.exists(repo_dir))
 
         svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
         svn_repo.obtain()
@@ -402,43 +402,36 @@ class RepoSVN(RepoTest):
 class RepoGit(ConfigTest):
 
     def test_repo_git(self):
-        git_test_repo = os.path.join(self.TMP_DIR, '.git_test_repo')
-        git_repo_name = 'my_git_project'
+        repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
+        repo_name = 'my_git_project'
 
         git_repo = Repo({
-            'url': 'git+file://' + os.path.join(git_test_repo, git_repo_name),
+            'url': 'git+file://' + os.path.join(repo_dir, repo_name),
             'parent_path': self.TMP_DIR,
-            'name': git_repo_name
+            'name': repo_name
         })
 
-        self.assertIsInstance(git_repo, GitRepo)
-        self.assertIsInstance(git_repo, BaseRepo)
-
-        os.mkdir(git_test_repo)
+        os.mkdir(repo_dir)
         run([
             'git', 'init', git_repo['name']
-            ], cwd=git_test_repo)
-        self.assertTrue(os.path.exists(git_test_repo))
-
+            ], cwd=repo_dir)
         git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
         git_repo.obtain()
 
-        testfile_filename = 'testfile.test'
+        testfile = 'testfile.test'
 
+        run(['touch', testfile], cwd=os.path.join(repo_dir, repo_name))
         run([
-            'touch', testfile_filename
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
-        run([
-            'git', 'add', testfile_filename
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
+            'git', 'add', testfile
+            ], cwd=os.path.join(repo_dir, repo_name))
         run([
             'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
+            ], cwd=os.path.join(repo_dir, repo_name))
         git_repo.update_repo()
 
         test_repo_revision = run(
             ['git', 'rev-parse', 'HEAD'],
-            cwd=os.path.join(git_test_repo, git_repo_name),
+            cwd=os.path.join(repo_dir, repo_name),
         )['stdout']
 
         self.assertEqual(
@@ -451,24 +444,25 @@ class RepoGit(ConfigTest):
 class RepoMercurial(ConfigTest):
 
     def test_repo_mercurial(self):
-        mercurial_test_repo = os.path.join(
-            self.TMP_DIR, '.mercurial_test_repo')
-        mercurial_repo_name = 'my_mercurial_project'
+        repo_dir = os.path.join(
+            self.TMP_DIR, '.repo_dir'
+        )
+        repo_name = 'my_mercurial_project'
 
         mercurial_repo = Repo({
-            'url': 'hg+file://' + os.path.join(mercurial_test_repo, mercurial_repo_name),
+            'url': 'hg+file://' + os.path.join(repo_dir, repo_name),
             'parent_path': self.TMP_DIR,
-            'name': mercurial_repo_name
+            'name': repo_name
         })
 
         self.assertIsInstance(mercurial_repo, MercurialRepo)
         self.assertIsInstance(mercurial_repo, BaseRepo)
 
-        os.mkdir(mercurial_test_repo)
+        os.mkdir(repo_dir)
         run([
-            'hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo
+            'hg', 'init', mercurial_repo['name']], cwd=repo_dir
             )
-        self.assertTrue(os.path.exists(mercurial_test_repo))
+        self.assertTrue(os.path.exists(repo_dir))
 
         mercurial_checkout_dest = os.path.join(
             self.TMP_DIR, mercurial_repo['name'])
@@ -478,19 +472,19 @@ class RepoMercurial(ConfigTest):
 
         run([
             'touch', testfile_filename
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(repo_dir, repo_name))
         run([
             'hg', 'add', testfile_filename
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(repo_dir, repo_name))
         run([
             'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(repo_dir, repo_name))
 
         mercurial_repo.update_repo()
 
         test_repo_revision = run(
             ['hg', 'parents', '--template={rev}'],
-            cwd=os.path.join(mercurial_test_repo, mercurial_repo_name),
+            cwd=os.path.join(repo_dir, repo_name),
         )['stdout']
 
         self.assertEqual(
