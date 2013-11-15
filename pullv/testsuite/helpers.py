@@ -14,6 +14,7 @@ import os
 import logging
 import tempfile
 import shutil
+from ..repo import Repo
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +29,13 @@ class ConfigTest(unittest.TestCase):
     """
 
     def tearDown(self):
+        """Remove TMP_DIR."""
         if os.path.isdir(self.TMP_DIR):
             shutil.rmtree(self.TMP_DIR)
         logger.debug('wiped %s' % self.TMP_DIR)
 
     def setUp(self):
+        """Create TMP_DIR for TestCase."""
         self.TMP_DIR = tempfile.mkdtemp(suffix='pullv')
 
 
@@ -41,6 +44,7 @@ class ConfigExamples(ConfigTest):
     """ConfigExamples mixin that creates test directory + sample configs."""
 
     def setUp(self):
+        """Extend ConfigTest and add sample configs to class."""
 
         super(ConfigExamples, self).setUp()
 
@@ -132,6 +136,8 @@ class ConfigExamples(ConfigTest):
 
 
 class RepoTest(ConfigTest):
+
+    """Create Repo's for test repository."""
 
     def create_svn_repo(self):
         """Create an svn repository for tests. Return SVN repo directory.
