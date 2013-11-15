@@ -11,6 +11,8 @@ TODO
   and python API
 - add and fetch remotes
 - Add variables ``{{repo_dir}}`` / ``{{home}}``
+- support for SSH identity on git repos
+- support for full netloc on SVN (username/pw, etc)
 - Expand ~
 
 .. todo:: vim: set filetype=rst:
