@@ -181,9 +181,6 @@ class RepoTest(ConfigTest):
             'name': git_repo_name
         })
 
-        self.assertIsInstance(git_repo, GitRepo)
-        self.assertIsInstance(git_repo, BaseRepo)
-
         os.mkdir(git_test_repo)
         run([
             'git', 'init', git_repo['name']
@@ -208,7 +205,7 @@ class RepoTest(ConfigTest):
 
         return os.path.join(git_test_repo, git_repo_name)
 
-    def test_repo_mercurial(self):
+    def create_mercurial_repo(self):
         mercurial_test_repo = os.path.join(
             self.TMP_DIR, '.mercurial_test_repo')
         mercurial_repo_name = 'my_mercurial_project'
@@ -219,14 +216,10 @@ class RepoTest(ConfigTest):
             'name': mercurial_repo_name
         })
 
-        self.assertIsInstance(mercurial_repo, MercurialRepo)
-        self.assertIsInstance(mercurial_repo, BaseRepo)
-
         os.mkdir(mercurial_test_repo)
         run([
             'hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo
             )
-        self.assertTrue(os.path.exists(mercurial_test_repo))
 
         mercurial_checkout_dest = os.path.join(
             self.TMP_DIR, mercurial_repo['name'])

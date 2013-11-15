@@ -15,7 +15,7 @@ import tempfile
 import kaptan
 from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, get_repos, run
-from .helpers import ConfigTest, ConfigExamples
+from .helpers import ConfigTest, ConfigExamples, RepoTest
 
 logger = logging.getLogger(__name__)
 
