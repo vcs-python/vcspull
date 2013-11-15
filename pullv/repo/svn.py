@@ -10,12 +10,12 @@ pullv.repo.svn
 
 """
 
-from .base import BaseRepo
+import re
+import os
 import logging
 import urlparse
 from ..util import run
-import re
-import os
+from .base import BaseRepo
 
 logger = logging.getLogger(__name__)
 
