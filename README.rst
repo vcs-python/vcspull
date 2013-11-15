@@ -37,11 +37,8 @@ YAML config at ``~/.pullv.yaml``:
     /home/user/:
         .vim:
             repo: git+git@github.com:tony/vim-config.git
-            shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
         .tmux:
             repo: git+git@github.com:tony/tmux-config.git
-            shell_command_after:
-                - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
 
 Repo type and address is specified in `pip vcs url`_ format.
 
