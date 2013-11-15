@@ -47,7 +47,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
     """Base class for repositories.
 
     Extends :py:class:`collections.MutableMapping` and
-    :py:class`logging.LoggerAdapter`.
+    :py:class:`logging.LoggerAdapter`.
 
     """
 
