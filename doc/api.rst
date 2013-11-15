@@ -18,22 +18,22 @@ API
         :inherited-members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.RepoLoggingAdapter
+    .. autoclass:: pullv.repo.base.RepoLoggingAdapter
         :members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.BaseRepo
+    .. autoclass:: pullv.repo.base.BaseRepo
         :members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.GitRepo
+    .. autoclass:: pullv.repo.git.GitRepo
         :members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.MercurialRepo
+    .. autoclass:: pullv.repo.hg.MercurialRepo
         :members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.SubversionRepo
+    .. autoclass:: pullv.repo.svn.SubversionRepo
         :members:
         :show-inheritance:
