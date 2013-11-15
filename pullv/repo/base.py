@@ -24,10 +24,14 @@ logger = logging.getLogger(__name__)
 
 class RepoLoggingAdapter(logging.LoggerAdapter):
 
+    """Adapter for adding Repo related content to logger."""
+
     def process(self, msg, kwargs):
-        ''' prefix the :class:`Repo` object dict items with ``repo_``. Because
-        both :class:`Repo` and :py:class:`logging.LogRecord` use ``name``.
-        '''
+        """Return extra kwargs for :class:`Repo` prefixed with``repo_``.
+
+        Both :class:`Repo` and :py:class:`logging.LogRecord` use ``name``.
+
+        """
 
         prefixed_dict = {}
         for key, v in self.attributes.iteritems():
@@ -39,6 +43,13 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
 
 
 class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
+
+    """Base class for repositories.
+
+    Extends :py:class:`collections.MutableMapping` and
+    :py:class`logging.LoggerAdapter`.
+
+    """
 
     def __init__(self, attributes=None):
         self.attributes = dict(attributes) if attributes is not None else {}
@@ -55,6 +66,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         RepoLoggingAdapter.__init__(self, logger, self.attributes)
 
     def check_destination(self, *args, **kwargs):
+        """Assure destination path exists. If not, create directories."""
         if not os.path.exists(self['parent_path']):
             util.mkdir_p(self['parent_path'])
         else:
@@ -69,12 +81,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         return "%s(%r)" % (self.__class__, self.__dict__)
 
     def get_url_rev(self):
-        """
-        Returns the correct repository URL and revision by parsing the given
-        repository URL
-
-        From pip
-        """
+        """Return repo URL and revision by parsing :attr:`~.url`."""
         error_message = (
             "Sorry, '%s' is a malformed VCS url. "
             "The format is <vcs>+<protocol>://<url>, "
@@ -100,6 +107,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         self.dirty = True
 
     def keys(self):
+        """Return keys."""
         return self.attributes.keys()
 
     def __iter__(self):
