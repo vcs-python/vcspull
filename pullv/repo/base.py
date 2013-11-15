@@ -56,12 +56,12 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def check_destination(self, *args, **kwargs):
         if not os.path.exists(self['parent_path']):
-            os.mkdir(self['parent_path'])
+            util.mkdir_p(self['parent_path'])
         else:
             if not os.path.exists(self['path']):
                 self.info('Repo directory for %s (%s) does not exist @ %s' % (
                     self['name'], self['vcs'], self['path']))
-                os.mkdir(self['path'])
+                util.mkdir_p(self['path'])
 
         return True
 

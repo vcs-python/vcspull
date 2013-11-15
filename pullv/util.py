@@ -13,6 +13,7 @@ from __future__ import absolute_import, division, print_function, with_statement
 import subprocess
 import os
 import sys
+import errno
 import logging
 import fnmatch
 from . import exc
@@ -172,6 +173,24 @@ def which(exe=None):
         )
     logger.error('No executable was passed to be searched by which')
     return None
+
+
+def mkdir_p(path):
+    """Make directories recursively.
+
+    Source: http://stackoverflow.com/a/600612
+
+    :param path: path to create
+    :type path: string
+
+    """
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
 
 
 # http://www.rfk.id.au/blog/entry/preparing-pyenchant-for-python-3/

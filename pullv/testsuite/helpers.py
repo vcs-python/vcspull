@@ -15,6 +15,7 @@ import logging
 import tempfile
 import shutil
 from ..repo import Repo
+from ..util import run
 
 logger = logging.getLogger(__name__)
 
@@ -155,9 +156,6 @@ class RepoTest(ConfigTest):
             'parent_path': self.TMP_DIR,
             'name': svn_repo_name
         })
-
-        self.assertIsInstance(svn_repo, SubversionRepo)
-        self.assertIsInstance(svn_repo, BaseRepo)
 
         os.mkdir(svn_test_repo)
         run([
