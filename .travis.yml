@@ -14,4 +14,4 @@ before_install:
  - git config --global user.email 'travis@nowhere.edu'
 install:
   - "pip install -e ."
-script: python run_tests.py
+script: python setup.py test
