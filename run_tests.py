@@ -2,7 +2,10 @@
 # -*- coding: utf-8 -*-
 
 
-import unittest
+try:
+    import unittest2 as unittest
+except ImportError:  # Python 2.7
+    import unittest
 import os
 import sys
 import logging
