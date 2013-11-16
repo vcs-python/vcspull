@@ -46,6 +46,16 @@ master_doc = 'index'
 project = u'pullv'
 copyright = u'2013, Tony Narlock'
 
+rst_prolog = """
+.. note::
+
+    pullv needs your help reporting errors, bugs and usability feedback.
+    If you encounter an error, please post on the `Issue tracker`_.
+
+.. _Issue tracker: https://github.com/tony/pullv/issues
+"""
+
+
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
