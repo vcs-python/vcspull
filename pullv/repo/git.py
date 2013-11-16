@@ -104,6 +104,8 @@ class GitRepo(BaseRepo):
 
         BaseRepo.__init__(self, arguments, *args, **kwargs)
 
+        self.remotes = []
+
     def get_revision(self):
         current_rev = run(
             ['git', 'rev-parse', 'HEAD'],
@@ -134,6 +136,14 @@ class GitRepo(BaseRepo):
                 sys.stderr.flush()
 
         self.info('Cloned\n\t%s' % (process.stdout.read()))
+
+        if self.remotes:
+            for r in self.remotes:
+                self.info('Adding remote %s <%s>' % (r['remote_name'], r['url']))
+                self.remote_set(
+                    name=r['remote_name'],
+                    url=r['url']
+                )
 
     def update_repo(self):
         self.check_destination()
@@ -269,7 +279,7 @@ class GitRepo(BaseRepo):
         cmd = 'git submodule update {0} {1}'.format('--init' if init else '', opts)
         return _git_run(cmd, cwd=cwd, runas=user, identity=identity)
 
-    def remotes(self, cwd=None, user=None):
+    def remotes_get(self, cwd=None, user=None):
         """Get remotes like git remote -v.
 
         cwd

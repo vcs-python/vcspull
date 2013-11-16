@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 class RepoGit(ConfigTest):
 
-    def test_repo_git(self):
+    """Integration level tests."""
+
+    def test_repo_git_update(self):
         repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
         repo_name = 'my_git_project'
 
@@ -59,14 +61,49 @@ class RepoGit(ConfigTest):
         self.assertTrue(os.path.exists(git_checkout_dest))
 
 
+class GitRepoRemotes(RepoTest):
+    def test_remotes(self):
+        repo_dir, git_repo = self.create_git_repo()
+
+        git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
+
+        git_repo = Repo({
+            'url': 'git+file://' + git_checkout_dest,
+            'parent_path': os.path.dirname(repo_dir),
+            'name': os.path.basename(os.path.normpath(repo_dir)),
+            'remotes': [
+                {
+                    'remote_name': 'myrepo',
+                    'url': 'file:///'
+                }
+            ]
+
+        })
+
+        git_repo.obtain()
+
+        self.assertIn('myrepo', git_repo.remotes_get())
+
+
+
+
+
 class TestRemoteGit(RepoTest):
 
     def test_ls_remotes(self):
         repo_dir, git_repo = self.create_git_repo()
 
-        remotes = git_repo.remotes()
+        remotes = git_repo.remotes_get()
 
         self.assertIn('origin', remotes)
+
+    def test_get_remotes(self):
+        repo_dir, git_repo = self.create_git_repo()
+
+        self.assertIn(
+            'origin',
+            git_repo.remotes_get()
+        )
 
     def test_set_remote(self):
         repo_dir, git_repo = self.create_git_repo()
@@ -90,6 +127,6 @@ class TestRemoteGit(RepoTest):
 
         self.assertIn(
             'myrepo',
-            git_repo.remotes(),
-            msg='.remotes() returns new remote'
+            git_repo.remotes_get(),
+            msg='.remotes_get() returns new remote'
         )
