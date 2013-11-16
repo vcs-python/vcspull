@@ -54,6 +54,9 @@ setup(
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'Programming Language :: Python',
-        "Topic :: Software Development",
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        "Topic :: Utilities",
+        "Topic :: System :: Shells",
     ],
 )

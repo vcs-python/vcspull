@@ -45,7 +45,7 @@ Repo type and address is specified in `pip vcs url`_ format.
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 
 ==============  ==========================================================
-Python support  Python 2.7 (2.6 and 3.3 in development)
+Python support  Python 2.6, 2.7 (3.3 in development)
 VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
 Travis          http://travis-ci.org/tony/pullv
