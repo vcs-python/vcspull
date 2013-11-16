@@ -19,6 +19,9 @@ JSON file.
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories
 * update to the latest repos with ``$ pullv``
+* `Documentation`_, `API`_ and `Examples`_.
+
+See the `Quickstart`_ to jump in.
 
 YAML config at ``~/.pullv.yaml``:
 
@@ -76,3 +79,7 @@ run             .. code-block:: bash
 ==============  ==========================================================
 
 .. _BSD: http://opensource.org/licenses/BSD-3-Clause
+.. _Documentation: http://pullv.readthedocs.org/en/latest/
+.. _API: http://pullv.readthedocs.org/en/latest/api.html
+.. _Examples: http://pullv.readthedocs.org/en/latest/examples.html
+.. _Quickstart: http://pullv.readthedocs.org/en/latest/quickstart.html
