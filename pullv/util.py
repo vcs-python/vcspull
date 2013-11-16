@@ -16,7 +16,7 @@ import sys
 import errno
 import logging
 import fnmatch
-from . import exc
+from .exc import PullvException
 
 PY2 = sys.version_info[0] == 2
 
@@ -129,7 +129,7 @@ def run(
     try:
         proc = subprocess.Popen(cmd, **kwargs)
     except (OSError, IOError) as exc:
-        raise exc.PullvException('Unable to run command: {0}'.format(exc))
+        raise PullvException('Unable to run command: {0}'.format(exc))
 
     proc.wait()
 
@@ -165,7 +165,7 @@ def which(exe=None):
             full_path = os.path.join(path, exe)
             if os.access(full_path, os.X_OK):
                 return full_path
-        raise exc.PullvException(
+        raise PullvException(
             '{0!r} could not be found in the following search '
             'path: {1!r}'.format(
                 exe, search_path
