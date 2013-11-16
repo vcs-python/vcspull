@@ -56,7 +56,7 @@ def _git_ssh_helper(identity):
 
     helper.close()
 
-    os.chmod(helper.name, 0755)
+    os.chmod(helper.name, int('755', 8))
 
     return helper.name
 
