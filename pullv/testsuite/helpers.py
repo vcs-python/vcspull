@@ -9,7 +9,10 @@ pullv.tests.helpers
 
 """
 
-import unittest
+try:
+    import unittest2 as unittest
+except ImportError:  # Python 2.7
+    import unittest
 import os
 import logging
 import tempfile
