@@ -129,7 +129,7 @@ def run(
     try:
         proc = subprocess.Popen(cmd, **kwargs)
     except (OSError, IOError) as exc:
-        raise Error('Unable to run command: {0}'.format(exc))
+        raise exc.PullvException('Unable to run command: {0}'.format(exc))
 
     proc.wait()
 

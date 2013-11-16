@@ -291,6 +291,31 @@ class GitRepo(BaseRepo):
         cmd = 'git rev-parse {0}{1}'.format('--short ' if short else '', rev)
         return _git_run(cmd, cwd, runas=user)
 
+    def remotes(cwd, user=None):
+        """
+        Get remotes like git remote -v
+
+        cwd
+            The path to the Git repository
+
+        user : None
+            Run git as a user other than what the minion runs as
+
+        CLI Example:
+
+        .. code-block:: bash
+
+            salt '*' git.remotes /path/to/repo
+
+        """
+        cmd = 'git remote'
+        ret = run(cmd, cwd=cwd)
+        res = dict()
+        for remote_name in ret.splitlines():
+            remote = remote_name.strip()
+            res[remote] = self.remote_get(cwd, remote, user=user)
+        return res
+
     def remote_get(cwd, remote='origin', user=None):
         """
         get the fetch and push URL for a specified remote name

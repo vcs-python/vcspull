@@ -207,7 +207,7 @@ class RepoTest(ConfigTest):
             ], cwd=os.path.join(git_test_repo, git_repo_name))
         git_repo.update_repo()
 
-        return os.path.join(git_test_repo, git_repo_name)
+        return os.path.join(git_test_repo, git_repo_name), git_repo
 
     def create_mercurial_repo(self):
         mercurial_test_repo = os.path.join(
@@ -241,5 +241,4 @@ class RepoTest(ConfigTest):
             'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
             ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
 
-        return os.path.join(mercurial_test_repo, mercurial_repo_name)
-
+        return os.path.join(mercurial_test_repo, mercurial_repo_name), mercurial_repo

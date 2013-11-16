@@ -5,13 +5,13 @@ pullv.tests.test_repo_git
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details
+:license: BSD, see LICENSE for details.
 
 """
 
 import os
 import logging
-from .helpers import ConfigTest
+from .helpers import ConfigTest, RepoTest
 from ..repo import Repo
 from ..util import run
 logger = logging.getLogger(__name__)
@@ -59,3 +59,11 @@ class RepoGit(ConfigTest):
         self.assertTrue(os.path.exists(git_checkout_dest))
 
 
+class TestRemoteGit(RepoTest):
+
+    def test_remotes(self):
+        repo_dir, git_repo = self.create_git_repo()
+
+        remotes = git_repo.remotes()
+
+        logger.error(remotes)
