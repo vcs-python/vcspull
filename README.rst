@@ -5,9 +5,12 @@ pullv(1)
 .. image:: https://travis-ci.org/tony/pullv.png?branch=master
     :target: https://travis-ci.org/tony/pullv
 
+.. image:: https://badge.fury.io/py/pullv.png
+    :target: http://badge.fury.io/py/pullv
+
 .. figure:: https://raw.github.com/tony/pullv/master/doc/_static/pullv-screenshot.png
     :scale: 100%
-    :width: 65%
+    :width: 45%
     :align: center
 
     Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
