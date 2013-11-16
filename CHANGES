@@ -4,8 +4,16 @@ Changelog
 
 Here you can find the recent changes to tmuxp.
 
-0.2-dev
+0.1-dev
 -------
+
+11/16/2013
+""""""""""
+
+- [tests] refactor tests modules
+- [git] add some functions with saltstack to
+  :py:class:`pullv.repo.git.GitRepo`.
+- [version] reset to 0.1.0 w/o dev tag to begin releases.
 
 11/15/2013
 """"""""""

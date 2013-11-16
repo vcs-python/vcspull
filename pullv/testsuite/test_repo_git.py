@@ -64,6 +64,6 @@ class TestRemoteGit(RepoTest):
     def test_remotes(self):
         repo_dir, git_repo = self.create_git_repo()
 
-        remotes = git_repo.remotes()
+        #remotes = git_repo.remotes()
 
-        logger.error(remotes)
+        #logger.error(remotes)
