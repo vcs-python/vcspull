@@ -1,6 +1,4 @@
-========
-pullv(1)
-========
+`pullv` - mass-update vcs from JSON / YAML config files.
 
 .. image:: https://travis-ci.org/tony/pullv.png?branch=master
     :target: https://travis-ci.org/tony/pullv
