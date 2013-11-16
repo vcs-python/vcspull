@@ -54,7 +54,6 @@ Source          https://github.com/tony/pullv
 Docs            http://pullv.rtfd.org
 API             http://pullv.readthedocs.org/en/latest/api.html
 Issues          https://github.com/tony/pullv/issues
-Source          https://github.com/tony/pullv
 pypi            https://pypi.python.org/pypi/pullv
 License         `BSD`_.
 git repo        .. code-block:: bash
