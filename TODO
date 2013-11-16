@@ -2,6 +2,15 @@
 TODO
 ====
 
+Immediate
+---------
+
+- Reorganize this clusterf
+- Create a spec for pullv CLI and objects
+
+Warpath
+-------
+
 - auto-detect hg/git/svn recursively ++ dump to config file
 - concurrent repo updates, gevent
 - handle hg/git/svn not existing on computer
