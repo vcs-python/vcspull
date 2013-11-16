@@ -22,6 +22,30 @@ PY2 = sys.version_info[0] == 2
 
 logger = logging.getLogger(__name__)
 
+# http://www.rfk.id.au/blog/entry/preparing-pyenchant-for-python-3/
+try:
+    unicode = unicode
+except NameError:
+    # 'unicode' is undefined, must be Python 3
+    str = str
+    unicode = str
+    bytes = bytes
+    basestring = (str, bytes)
+else:
+    # 'unicode' exists, must be Python 2
+    str = str
+    unicode = unicode
+    bytes = str
+    basestring = basestring
+
+
+if not PY2:
+    input = input
+    from string import ascii_lowercase
+else:
+    input = raw_input
+    from string import lower as ascii_lowercase
+
 
 def expand_config(config):
     """Return expanded configuration.
@@ -111,6 +135,8 @@ def run(
     """Return output of command. Based off salt's _run."""
     ret = {}
 
+    if isinstance(cmd, basestring):
+        cmd = cmd.split(' ')
     if isinstance(cmd, list):
         cmd[0] = which(cmd[0])
 
@@ -191,28 +217,3 @@ def mkdir_p(path):
             pass
         else:
             raise
-
-
-# http://www.rfk.id.au/blog/entry/preparing-pyenchant-for-python-3/
-try:
-    unicode = unicode
-except NameError:
-    # 'unicode' is undefined, must be Python 3
-    str = str
-    unicode = str
-    bytes = bytes
-    basestring = (str, bytes)
-else:
-    # 'unicode' exists, must be Python 2
-    str = str
-    unicode = unicode
-    bytes = str
-    basestring = basestring
-
-
-if not PY2:
-    input = input
-    from string import ascii_lowercase
-else:
-    input = raw_input
-    from string import lower as ascii_lowercase

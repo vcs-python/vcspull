@@ -25,6 +25,7 @@ from .base import BaseRepo
 import logging
 import tempfile
 from ..util import run
+from .. import exc
 import os
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,6 @@ def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
 
     result = run(cmd,
                  cwd=cwd,
-                 runas=runas,
                  env=env,
                  **kwargs)
 
@@ -112,7 +112,6 @@ class GitRepo(BaseRepo):
         )
 
         return current_rev['stdout']
-
 
     def obtain(self):
         self.check_destination()
@@ -157,9 +156,8 @@ class GitRepo(BaseRepo):
             self.obtain()
             self.update_repo()
 
-    def current_branch(cwd, user=None):
-        """
-        Returns the current branch name, if on a branch.
+    def current_branch(self, cwd, user=None):
+        """Returns the current branch name, if on a branch.
 
         CLI Example:
 
@@ -172,8 +170,7 @@ class GitRepo(BaseRepo):
 
         return run(cmd, cwd=cwd, runas=user)
 
-
-    def revision(cwd, rev='HEAD', short=False, user=None):
+    def revision(self, cwd, rev='HEAD', short=False, user=None):
         """
         Returns the long hash of a given identifier (hash, branch, tag, HEAD, etc)
 
@@ -200,9 +197,8 @@ class GitRepo(BaseRepo):
         cmd = 'git rev-parse {0}{1}'.format('--short ' if short else '', rev)
         return run(cmd, cwd, runas=user)
 
-    def fetch(cwd, opts=None, user=None, identity=None):
-        """
-        Perform a fetch on the given repository
+    def fetch(self, cwd, opts=None, user=None, identity=None):
+        """Perform a fetch on the given repository.
 
         cwd
             The path to the Git repository
@@ -232,9 +228,8 @@ class GitRepo(BaseRepo):
 
         return _git_run(cmd, cwd=cwd, runas=user, identity=identity)
 
-    def submodule(cwd, init=True, opts=None, user=None, identity=None):
-        """
-        Initialize git submodules
+    def submodule(self, cwd, init=True, opts=None, user=None, identity=None):
+        """Initialize git submodules.
 
         cwd
             The path to the Git repository
@@ -264,36 +259,8 @@ class GitRepo(BaseRepo):
         cmd = 'git submodule update {0} {1}'.format('--init' if init else '', opts)
         return _git_run(cmd, cwd=cwd, runas=user, identity=identity)
 
-    def revision(cwd, rev='HEAD', short=False, user=None):
-        """
-        Returns the long hash of a given identifier (hash, branch, tag, HEAD, etc)
-
-        cwd
-            The path to the Git repository
-
-        rev: HEAD
-            The revision
-
-        short: False
-            Return an abbreviated SHA1 git hash
-
-        user : None
-            Run git as a user other than what the minion runs as
-
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.revision /path/to/repo mybranch
-        """
-        _check_git()
-
-        cmd = 'git rev-parse {0}{1}'.format('--short ' if short else '', rev)
-        return _git_run(cmd, cwd, runas=user)
-
-    def remotes(cwd, user=None):
-        """
-        Get remotes like git remote -v
+    def remotes(self, cwd=None, user=None):
+        """Get remotes like git remote -v.
 
         cwd
             The path to the Git repository
@@ -308,17 +275,20 @@ class GitRepo(BaseRepo):
             salt '*' git.remotes /path/to/repo
 
         """
-        cmd = 'git remote'
-        ret = run(cmd, cwd=cwd)
+
+        if not cwd:
+            cwd = self['path']
+
+        cmd = ['git', 'remote']
+        ret = run(cmd, cwd=cwd)['stdout']
         res = dict()
         for remote_name in ret.splitlines():
             remote = remote_name.strip()
             res[remote] = self.remote_get(cwd, remote, user=user)
         return res
 
-    def remote_get(cwd, remote='origin', user=None):
-        """
-        get the fetch and push URL for a specified remote name
+    def remote_get(self, cwd, remote='origin', user=None):
+        """Get the fetch and push URL for a specified remote name.
 
         remote : origin
             the remote name used to define the fetch and push URL
@@ -344,12 +314,11 @@ class GitRepo(BaseRepo):
                 return res
             else:
                 return None
-        except exceptions.CommandExecutionError:
+        except exc.PullvException:
             return None
 
-    def remote_set(cwd, name='origin', url=None, user=None):
-        """
-        sets a remote with name and URL like git remote add <remote_name> <remote_url>
+    def remote_set(self, cwd, name='origin', url=None, user=None):
+        """Set remote with name and URL like git remote add <remote_name> <remote_url>.
 
         remote_name : origin
             defines the remote name
@@ -374,10 +343,8 @@ class GitRepo(BaseRepo):
         _git_run(cmd, cwd=cwd, runas=user)
         return remote_get(cwd=cwd, remote=name, user=None)
 
-
-    def reset(cwd, opts=None, user=None):
-        """
-        Reset the repository checkout
+    def reset(self, cwd, opts=None, user=None):
+        """Reset the repository checkout.
 
         cwd
             The path to the Git repository
