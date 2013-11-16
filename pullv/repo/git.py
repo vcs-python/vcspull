@@ -94,8 +94,7 @@ def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
     if retcode == 0:
         return result['stdout']
     else:
-        raise exceptions.CommandExecutionError(result['stderr'])
-
+        raise exc.PullvException(result['stderr'])
 
 
 class GitRepo(BaseRepo):
@@ -156,7 +155,7 @@ class GitRepo(BaseRepo):
             self.obtain()
             self.update_repo()
 
-    def current_branch(self, cwd, user=None):
+    def current_branch(self, cwd=None, user=None):
         """Returns the current branch name, if on a branch.
 
         CLI Example:
@@ -165,12 +164,14 @@ class GitRepo(BaseRepo):
 
             salt '*' git.current_branch /path/to/repo
         """
+        if not cwd:
+            cwd = self['path']
         cmd = r'git branch --list | grep "^*\ " | cut -d " " -f 2 | ' + \
             'grep -v "(detached"'
 
         return run(cmd, cwd=cwd, runas=user)
 
-    def revision(self, cwd, rev='HEAD', short=False, user=None):
+    def revision(self, cwd=None, rev='HEAD', short=False, user=None):
         """
         Returns the long hash of a given identifier (hash, branch, tag, HEAD, etc)
 
@@ -194,10 +195,13 @@ class GitRepo(BaseRepo):
         """
         _check_git()
 
+        if not cwd:
+            cwd = self['path']
+
         cmd = 'git rev-parse {0}{1}'.format('--short ' if short else '', rev)
         return run(cmd, cwd, runas=user)
 
-    def fetch(self, cwd, opts=None, user=None, identity=None):
+    def fetch(self, cwd=None, opts=None, user=None, identity=None):
         """Perform a fetch on the given repository.
 
         cwd
@@ -221,6 +225,9 @@ class GitRepo(BaseRepo):
             salt '*' git.fetch cwd=/path/to/repo opts='--all' user=johnny
         """
         _check_git()
+
+        if not cwd:
+            cwd = self['path']
 
         if not opts:
             opts = ''
@@ -253,6 +260,9 @@ class GitRepo(BaseRepo):
             salt '*' git.submodule /path/to/repo.git/sub/repo
         """
         _check_git()
+
+        if not cwd:
+            cwd = self['path']
 
         if not opts:
             opts = ''
@@ -287,7 +297,7 @@ class GitRepo(BaseRepo):
             res[remote] = self.remote_get(cwd, remote, user=user)
         return res
 
-    def remote_get(self, cwd, remote='origin', user=None):
+    def remote_get(self, cwd=None, remote='origin', user=None):
         """Get the fetch and push URL for a specified remote name.
 
         remote : origin
@@ -303,6 +313,10 @@ class GitRepo(BaseRepo):
             salt '*' git.remote_get /path/to/repo
             salt '*' git.remote_get /path/to/repo upstream
         """
+
+        if not cwd:
+            cwd = self['path']
+
         try:
             cmd = 'git remote show -n {0}'.format(remote)
             ret = _git_run(cmd, cwd=cwd, runas=user)
@@ -317,7 +331,7 @@ class GitRepo(BaseRepo):
         except exc.PullvException:
             return None
 
-    def remote_set(self, cwd, name='origin', url=None, user=None):
+    def remote_set(self, cwd=None, name='origin', url=None, user=None):
         """Set remote with name and URL like git remote add <remote_name> <remote_url>.
 
         remote_name : origin
@@ -336,14 +350,16 @@ class GitRepo(BaseRepo):
             salt '*' git.remote_set /path/to/repo remote_url=git@github.com:saltstack/salt.git
             salt '*' git.remote_set /path/to/repo origin git@github.com:saltstack/salt.git
         """
-        if remote_get(cwd, name):
+        if not cwd:
+            cwd = self['path']
+        if self.remote_get(cwd, name):
             cmd = 'git remote rm {0}'.format(name)
             _git_run(cmd, cwd=cwd, runas=user)
         cmd = 'git remote add {0} {1}'.format(name, url)
         _git_run(cmd, cwd=cwd, runas=user)
-        return remote_get(cwd=cwd, remote=name, user=None)
+        return self.remote_get(cwd=cwd, remote=name, user=None)
 
-    def reset(self, cwd, opts=None, user=None):
+    def reset(self, cwd=None, opts=None, user=None):
         """Reset the repository checkout.
 
         cwd
@@ -362,6 +378,9 @@ class GitRepo(BaseRepo):
             salt '*' git.reset /path/to/repo master
         """
         _check_git()
+
+        if not cwd:
+            cwd = self['path']
 
         if not opts:
             opts = ''

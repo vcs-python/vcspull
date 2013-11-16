@@ -61,12 +61,35 @@ class RepoGit(ConfigTest):
 
 class TestRemoteGit(RepoTest):
 
-    def test_remotes(self):
+    def test_ls_remotes(self):
         repo_dir, git_repo = self.create_git_repo()
 
-        print(git_repo)
-
         remotes = git_repo.remotes()
-        print(remotes)
 
-        logger.error(remotes)
+        self.assertIn('origin', remotes)
+
+    def test_set_remote(self):
+        repo_dir, git_repo = self.create_git_repo()
+
+        mynewremote = git_repo.remote_set(
+            name='myrepo',
+            url='file:///'
+        )
+
+        self.assertIn(
+            'file:///',
+            mynewremote,
+            msg='remote_set returns remote'
+        )
+
+        self.assertIn(
+            'file:///',
+            git_repo.remote_get(remote='myrepo'),
+            msg='remote_get returns remote'
+        )
+
+        self.assertIn(
+            'myrepo',
+            git_repo.remotes(),
+            msg='.remotes() returns new remote'
+        )
