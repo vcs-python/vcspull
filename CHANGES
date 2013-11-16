@@ -40,9 +40,6 @@ Here you can find the recent changes to tmuxp.
 - Move in code patterns from `tmuxp`_. New logger, setup.py, testsuite
   structure, etc.
 
-0.1
----
-
 10/23/2013
 """"""""""
 
