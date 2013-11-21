@@ -59,6 +59,8 @@ Docs            http://pullv.rtfd.org
 API             http://pullv.readthedocs.org/en/latest/api.html
 Issues          https://github.com/tony/pullv/issues
 pypi            https://pypi.python.org/pypi/pullv
+Crate.io        https://crate.io/packages/pullv/
+Ohloh           https://www.ohloh.net/p/pullv
 License         `BSD`_.
 git repo        .. code-block:: bash
 
