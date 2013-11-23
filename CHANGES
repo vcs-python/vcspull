@@ -4,8 +4,8 @@ Changelog
 
 Here you can find the recent changes to pullv.
 
-0.1-dev
--------
+0.0.2
+-----
 
 11/23/2013
 """"""""""
@@ -21,6 +21,9 @@ Here you can find the recent changes to pullv.
 - [git] add some functions with saltstack to
   :py:class:`pullv.repo.git.GitRepo`.
 - [version] reset to 0.1.0 w/o dev tag to begin releases.
+
+0.0.1
+-----
 
 11/15/2013
 """"""""""
