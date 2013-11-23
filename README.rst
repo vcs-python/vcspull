@@ -23,10 +23,14 @@ JSON file.
 
 See the `Quickstart`_ to jump in.
 
-Current Limitations
+**Current Limitations:**
 
+- Main repo URL may not be ``git+ssh`` format. For a workaround, add
+  ``git+ssh`` server as remotes and use a public include. See `remote git
+  repo example`_ in the docs.
+- Support for ``svn`` username and password.
 
-.. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
+.. _remote git repo example: http://pullv.readthedocs.org/en/latest/examples.html#remote-git-repositories-and-ssh-git
 
 ==============  ==========================================================
 Python support  Python 2.6, 2.7 (3.3 in development)

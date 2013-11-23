@@ -6,8 +6,10 @@ Examples
 
 Repo type and address is specified in `pip vcs url`_ format.
 
-Remote git repostiries and SSH git
-----------------------------------
+.. _git_remote_ssh_git:
+
+Remote git repositories and SSH git
+-----------------------------------
 
 Note, ``git+ssh`` repos such as ``git+git@github.com:tony/kaptan.git``. It
 must be listed in remotes.
@@ -33,3 +35,5 @@ YAML:
 
 .. literalinclude:: ../examples/code-scholar.yaml
     :language: yaml
+
+.. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
