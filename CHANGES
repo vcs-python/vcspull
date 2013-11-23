@@ -7,6 +7,13 @@ Here you can find the recent changes to pullv.
 0.1-dev
 -------
 
+11/23/2013
+""""""""""
+
+- [tests] Move tests for making directory paths to ``test_repo``
+  TestSuite.
+- [tests] [git] more work on remotes with :class:`pullv.repo.git.GitRepo`.
+
 11/16/2013
 """"""""""
 
