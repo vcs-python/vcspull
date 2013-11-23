@@ -4,8 +4,8 @@ Changelog
 
 Here you can find the recent changes to pullv.
 
-dev
----
+0.0.3
+-----
 
 - [cli] - fixed bug where logger would output message twice
 - [`pep257`_] [`pep8`_] [logger] update ``pullv.log`` module to latest
