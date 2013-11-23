@@ -1,0 +1,17 @@
+/home/user/study/:
+    linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+    freebsd: git+https://github.com/freebsd/freebsd.git
+    sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
+    docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
+/home/user/github_projects/:
+    kaptan:
+        repo: git+https://github.com/emre/kaptan
+        remotes:
+            upstream: git+https://github.com/emre/kaptan
+            marksteve: git+https://github.com/marksteve/kaptan.git
+            tony: git+git@github.com:tony/kaptan.git
+/home/user/:
+    .vim:
+        repo: git+git@github.com:tony/vim-config.git
+    .tmux:
+        repo: git+git@github.com:tony/tmux-config.git
