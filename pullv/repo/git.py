@@ -27,6 +27,7 @@ import tempfile
 from ..util import run
 from .. import exc
 import os
+
 logger = logging.getLogger(__name__)
 
 
@@ -104,7 +105,7 @@ class GitRepo(BaseRepo):
 
         BaseRepo.__init__(self, arguments, *args, **kwargs)
 
-        self.remotes = []
+        self['remotes']= arguments['remotes'] if 'remotes' in arguments else []
 
     def get_revision(self):
         current_rev = run(
@@ -137,9 +138,13 @@ class GitRepo(BaseRepo):
 
         self.info('Cloned\n\t%s' % (process.stdout.read()))
 
-        if self.remotes:
-            for r in self.remotes:
-                self.info('Adding remote %s <%s>' % (r['remote_name'], r['url']))
+        logger.error('wat')
+        self.error('hu')
+        if self['remotes']:
+            self.error(self['remotes'])
+            for r in self['remotes']:
+                self.error(r)
+                self.error('Adding remote %s <%s>' % (r['remote_name'], r['url']))
                 self.remote_set(
                     name=r['remote_name'],
                     url=r['url']

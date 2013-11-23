@@ -80,12 +80,11 @@ class GitRepoRemotes(RepoTest):
 
         })
 
+        logger.error('hihihi')
         git_repo.obtain()
-
+        print(git_repo['remotes'])
+        print(git_repo.remote_get(remote='myrepo'))
         self.assertIn('myrepo', git_repo.remotes_get())
-
-
-
 
 
 class TestRemoteGit(RepoTest):

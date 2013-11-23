@@ -14,11 +14,12 @@ try:
 except ImportError:  # Python 2.7
     import unittest
 import os
+import copy
 import logging
 import tempfile
 import shutil
 from ..repo import Repo
-from ..util import run
+from ..util import run, expand_config
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class ConfigTest(unittest.TestCase):
 
     """Contains the fresh config dict/yaml's to test against.
 
-    This is because running ConfigExpand on SAMPLECONFIG_DICT would alter
+    This is because running ConfigExpand on config_dict would alter
     it in later test cases. these configs are used throughout the tests.
 
     """
@@ -52,7 +53,7 @@ class ConfigExamples(ConfigTest):
 
         super(ConfigExamples, self).setUp()
 
-        SAMPLECONFIG_YAML = """
+        config_yaml = """
         {TMP_DIR}/study/:
             linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
             freebsd: git+https://github.com/freebsd/freebsd.git
@@ -74,7 +75,7 @@ class ConfigExamples(ConfigTest):
                     - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
         """
 
-        SAMPLECONFIG_DICT = {
+        config_dict = {
             '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR): {
                 'linux': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
                 'freebsd': 'git+https://github.com/freebsd/freebsd.git',
@@ -102,9 +103,9 @@ class ConfigExamples(ConfigTest):
             }
         }
 
-        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(TMP_DIR=self.TMP_DIR)
+        config_yaml = config_yaml.format(TMP_DIR=self.TMP_DIR)
 
-        SAMPLECONFIG_FINAL_DICT = {
+        config_dict_expanded = {
             '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR): {
                 'linux': {'repo': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
                 'freebsd': {'repo': 'git+https://github.com/freebsd/freebsd.git', },
@@ -132,12 +133,17 @@ class ConfigExamples(ConfigTest):
             }
         }
 
-        self.config_dict = SAMPLECONFIG_DICT
-        self.config_dict_expanded = SAMPLECONFIG_FINAL_DICT
-        self.config_yaml = SAMPLECONFIG_YAML
+        self.config_dict = config_dict
 
-        SAMPLECONFIG_YAML = SAMPLECONFIG_YAML.format(TMP_DIR=self.TMP_DIR)
+        cdict = copy.deepcopy(config_dict)
+        self.assertDictEqual(
+            expand_config(cdict), config_dict_expanded,
+            "The sample config_dict must match the expanded version"
+            "config_dict_expanded."
+        )
 
+        self.config_dict_expanded = config_dict_expanded
+        self.config_yaml = config_yaml
 
 class RepoTest(ConfigTest):
 

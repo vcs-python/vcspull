@@ -15,36 +15,9 @@ import tempfile
 import kaptan
 from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, run, get_repos
-from .helpers import ConfigTest, ConfigExamples, RepoTest
+from .helpers import ConfigTest, ConfigExamples
 
 logger = logging.getLogger(__name__)
-
-
-class EnsureMakeDirsRecursively(RepoTest):
-
-    """Ensure that directories in pull are made recursively."""
-
-    YAML_CONFIG = """
-    {TMP_DIR}/study/python:
-        my_repo: svn+file://{REPO_DIR}
-    """
-
-    def test_makes_recursive(self):
-        repo_dir, svn_repo = self.create_svn_repo()
-        YAML_CONFIG = self.YAML_CONFIG.format(
-            TMP_DIR=self.TMP_DIR,
-            REPO_DIR=repo_dir
-        )
-        conf = kaptan.Kaptan(handler='yaml')
-        conf.import_config(YAML_CONFIG)
-        conf = conf.export('dict')
-        repos = expand_config(conf)
-
-        for r in get_repos(repos):
-            repo = Repo(r)
-            print(repo)
-            logger.error(repo)
-            repo.obtain()
 
 
 class ConfigFormatTest(ConfigExamples):
