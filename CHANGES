@@ -7,6 +7,9 @@ Here you can find the recent changes to pullv.
 0.0.3
 -----
 
+- [docs] [examples] more docs and examples
+- [internal] remove developer logger message that would show when
+  updating.
 - [cli] - fixed bug where logger would output message twice
 - [`pep257`_] [`pep8`_] [logger] update ``pullv.log`` module to latest
   code (from `tmuxp`_ project).
