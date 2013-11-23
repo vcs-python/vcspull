@@ -23,28 +23,8 @@ JSON file.
 
 See the `Quickstart`_ to jump in.
 
-YAML config at ``~/.pullv.yaml``:
+Current Limitations
 
-.. code-block:: yaml
-
-    /home/user/study/:
-        linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-        freebsd: git+https://github.com/freebsd/freebsd.git
-        sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
-        docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
-    /home/user/github_projects/:
-        kaptan:
-            repo: git+git@github.com:tony/kaptan.git
-            remotes:
-                upstream: git+https://github.com/emre/kaptan
-                marksteve: git+https://github.com/marksteve/kaptan.git
-    /home/user/:
-        .vim:
-            repo: git+git@github.com:tony/vim-config.git
-        .tmux:
-            repo: git+git@github.com:tony/tmux-config.git
-
-Repo type and address is specified in `pip vcs url`_ format.
 
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 

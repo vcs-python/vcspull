@@ -138,8 +138,6 @@ class GitRepo(BaseRepo):
 
         self.info('Cloned\n\t%s' % (process.stdout.read()))
 
-        logger.error('wat')
-        self.error('hu')
         if self['remotes']:
             self.error(self['remotes'])
             for r in self['remotes']:
