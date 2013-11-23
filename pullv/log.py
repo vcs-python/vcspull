@@ -33,9 +33,21 @@ def default_log_template(self, record):
 
     tpl = ''
     tpl += Style.RESET_ALL
-    tpl += LEVEL_COLORS.get(record.levelname) + Style.BRIGHT + '(%(levelname)s)' + Style.RESET_ALL + ' '
-    tpl += '[' + Fore.BLACK + Style.DIM + Style.BRIGHT + '%(asctime)s' + Fore.RESET + Style.RESET_ALL + ']'
-    tpl += ' ' + Fore.WHITE + Style.DIM + Style.BRIGHT + '%(name)s' + Fore.RESET + Style.RESET_ALL + ' '
+    tpl += (
+        LEVEL_COLORS.get(record.levelname) + Style.BRIGHT +
+        '(%(levelname)s)'
+        + Style.RESET_ALL + ' '
+    )
+    tpl += (
+        '[' + Fore.BLACK + Style.DIM + Style.BRIGHT +
+        '%(asctime)s'
+        + Fore.RESET + Style.RESET_ALL + ']'
+    )
+    tpl += (
+        ' ' + Fore.WHITE + Style.DIM + Style.BRIGHT +
+        '%(name)s'
+        + Fore.RESET + Style.RESET_ALL + ' '
+    )
     tpl += Style.RESET_ALL
 
     return tpl
@@ -55,7 +67,9 @@ class LogFormatter(logging.Formatter):
             record.message = "Bad message (%r): %r" % (e, record.__dict__)
 
         date_format = '%H:%m:%S'
-        record.asctime = time.strftime(date_format, self.converter(record.created))
+        record.asctime = time.strftime(
+            date_format, self.converter(record.created)
+        )
 
         prefix = self.template(record) % record.__dict__
 
@@ -73,11 +87,29 @@ def debug_log_template(self, record):
 
     tpl = ''
     tpl += Style.RESET_ALL
-    tpl += LEVEL_COLORS.get(record.levelname) + Style.BRIGHT + '(%(levelname)1.1s)' + Style.RESET_ALL + ' '
-    tpl += '[' + Fore.BLACK + Style.DIM + Style.BRIGHT + '%(asctime)s' + Fore.RESET + Style.RESET_ALL + ']'
-    tpl += ' ' + Fore.WHITE + Style.DIM + Style.BRIGHT + '%(name)s' + Fore.RESET + Style.RESET_ALL + ' '
-    tpl += Fore.GREEN + Style.BRIGHT + '%(module)s.%(funcName)s()'
-    tpl += Fore.BLACK + Style.DIM + Style.BRIGHT + ':' + Style.RESET_ALL + Fore.CYAN + '%(lineno)d'
+    tpl += (
+        LEVEL_COLORS.get(record.levelname) + Style.BRIGHT +
+        '(%(levelname)1.1s)'
+        + Style.RESET_ALL + ' '
+    )
+    tpl += (
+        '[' + Fore.BLACK + Style.DIM + Style.BRIGHT +
+        '%(asctime)s'
+        + Fore.RESET + Style.RESET_ALL + ']'
+    )
+    tpl += (
+        ' ' + Fore.WHITE + Style.DIM + Style.BRIGHT +
+        '%(name)s'
+        + Fore.RESET + Style.RESET_ALL + ' '
+    )
+    tpl += (
+        Fore.GREEN + Style.BRIGHT +
+        '%(module)s.%(funcName)s()'
+    )
+    tpl += (
+        Fore.BLACK + Style.DIM + Style.BRIGHT + ':' + Style.RESET_ALL +
+        Fore.CYAN + '%(lineno)d'
+    )
     tpl += Style.RESET_ALL
 
     return tpl
@@ -93,12 +125,10 @@ class DebugLogFormatter(LogFormatter):
 class RepoLogFormatter(LogFormatter):
 
     def template(self, record):
-        return '%s|%s| %s(%s) %s %s%s' % (
+        return '%s|%s| %s(%s) %s' % (
             Fore.GREEN + Style.DIM,
             record.repo_name,
             Fore.YELLOW,
             record.repo_vcs,
-            Fore.MAGENTA,
-            record.getMessage(),
             Fore.RESET
         )
