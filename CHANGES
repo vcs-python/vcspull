@@ -11,6 +11,7 @@ dev
   functionality.
 - [docs] update license docs for methods from salt (apache) and pip (mit).
 - [cli] autocomplete
+- [cli] Exit with ``Ctrl-C`` gracefully.
 
 0.0.3
 -----

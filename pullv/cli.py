@@ -19,7 +19,21 @@ import argcomplete
 from . import log
 from . import util
 from .repo import Repo
+
 logger = logging.getLogger(__name__)
+
+import re
+VERSIONFILE = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), '__init__.py'
+)
+verstrline = open(VERSIONFILE, "rt").read()
+VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VSRE, verstrline, re.M)
+if mo:
+    __version__ = mo.group(1)
+
+logger = logging.getLogger(__name__)
+
 
 config_dir = os.path.expanduser('~/.pullv/')
 cwd_dir = os.getcwd() + '/'
@@ -47,17 +61,24 @@ def setup_logger(logger=None, level='INFO'):
 def get_parser():
     """Return :py:class:`argparse.ArgumentParser` instance for CLI."""
 
-    main_parser = argparse.ArgumentParser(add_help=False)
+    main_parser = argparse.ArgumentParser()
 
     main_parser.add_argument(
         dest='config',
         type=str,
         nargs='+',
-        help='List config available in working directory and config folder.'
+        help='List config available in working directory and config folder.\n'
+             '.pullv hi'
     ).completer = ConfigFileCompleter(
         allowednames=('.yaml', '.json'), directories=False
     )
     main_parser.set_defaults(callback=command_load)
+
+    main_parser.add_argument(
+        '-v', '--version', action='version',
+        version='pullv %s' % __version__,
+        help='Prints the pullv version',
+    )
 
     return main_parser
 
@@ -72,10 +93,16 @@ def main():
 
     setup_logger(level=args.log_level.upper() if 'log_level' in args else 'INFO')
 
-    if args.callback is command_load:
-        command_load(args)
-    else:
-        parser.print_help()
+    try:
+
+        if args.config and args.callback is command_load:
+            command_load(args)
+        else:
+            parser.print_help()
+
+    except KeyboardInterrupt:
+        pass
+
 
 def command_load(args):
 
@@ -114,7 +141,7 @@ def command_load(args):
 
 class ConfigFileCompleter(argcomplete.completers.FilesCompleter):
 
-    """argcomplete completer for tmuxp files."""
+    """argcomplete completer for pullv files."""
 
     def __call__(self, prefix, **kwargs):
 
@@ -149,6 +176,7 @@ def in_dir(
             configs.append(filename)
 
     return configs
+
 
 def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     """Return True if file has a valid config file type.
