@@ -39,7 +39,6 @@ config_dir = os.path.expanduser('~/.pullv/')
 cwd_dir = os.getcwd() + '/'
 
 
-
 def setup_logger(logger=None, level='INFO'):
     """Setup logging for CLI use.
 
@@ -67,8 +66,7 @@ def get_parser():
         dest='config',
         type=str,
         nargs='+',
-        help='List config available in working directory and config folder.\n'
-             '.pullv hi'
+        help='Pull the latest repositories from config(s)'
     ).completer = ConfigFileCompleter(
         allowednames=('.yaml', '.json'), directories=False
     )
@@ -82,6 +80,7 @@ def get_parser():
 
     return main_parser
 
+
 def main():
     """Main CLI application."""
 
@@ -94,19 +93,16 @@ def main():
     setup_logger(level=args.log_level.upper() if 'log_level' in args else 'INFO')
 
     try:
-
         if args.config and args.callback is command_load:
             command_load(args)
         else:
             parser.print_help()
-
     except KeyboardInterrupt:
         pass
 
 
 def command_load(args):
-
-    if args.config:
+    if args.config == ['*']:
         yaml_config = os.path.expanduser('~/.pullv.yaml')
         has_yaml_config = os.path.exists(yaml_config)
         json_config = os.path.expanduser('~/.pullv.json')
@@ -192,3 +188,40 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     extensions = [extensions] if isinstance(
         extensions, basestring) else extensions
     return any(filename.endswith(e) for e in extensions)
+
+
+def validate_schema(conf):
+    """Return True if valid pullv schema.
+
+    :param conf: configuration
+    :type conf: string
+    :rtype: bool
+
+    """
+
+    raise NotImplementedError
+
+
+def load_repos(
+    path,
+    fnmatch,
+    types=['git', 'svn', 'hg'],  # repo types to match
+    dir=['*'],  # pattern to match
+    repo_names=['*']  # repo names to match
+):
+    """Return repos from a directory and fnmatch.
+
+    :param fnmatch:
+    :param types:
+    :param dir:
+    :param repo_names:
+
+    """
+
+    raise NotImplementedError
+
+    if os.path.join(path, fnmatch):
+        # direct match
+        configs=[os.path.join(path, fnmatch)]
+    else:
+        configs = fnmatch.filter((file for file in os.listdir(path)), fnmatch)
