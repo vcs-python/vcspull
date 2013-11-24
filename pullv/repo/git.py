@@ -19,6 +19,12 @@ pullv.repo.git
     - :py:meth:`GitRepo.current_branch`
     - :py:meth:`GitRepo.reset`
 
+From pip (MIT Licnese):
+
+    - :py:meth:`GitRepo.get_url_rev`
+    - :py:meth:`GitRepo.get_url`
+    - :py:meth:`GitRepo.get_revision`
+
 """
 
 from .base import BaseRepo
@@ -114,6 +120,58 @@ class GitRepo(BaseRepo):
         )
 
         return current_rev['stdout']
+
+    def get_url_rev(self):
+        """
+        Prefixes stub URLs like 'user@hostname:user/repo.git' with 'ssh://'.
+        That's required because although they use SSH they sometimes doesn't
+        work with a ssh:// scheme (e.g. Github). But we need a scheme for
+        parsing. Hence we remove it again afterwards and return it as a stub.
+        """
+        if not '://' in self['url']:
+            assert not 'file:' in self['url']
+            self.url = self.url.replace('git+', 'git+ssh://')
+            url, rev = super(GitRepo, self).get_url_rev()
+            url = url.replace('ssh://', '')
+        else:
+            url, rev = super(GitRepo, self).get_url_rev()
+
+        return url, rev
+
+    def get_url(self, location):
+        url = run(
+            ['git', 'config', 'remote.origin.url'],
+            show_stdout=False, cwd=location)
+        return url.strip()
+
+    def get_revision(self, location=None):
+
+        if not location:
+            location = self['path']
+
+        current_rev = run(
+            ['git', 'rev-parse', 'HEAD'], cwd=location)['stdout']
+        return current_rev.strip()
+
+    def get_refs(self, location):
+        """Return map of named refs (branches or tags) to commit hashes."""
+        output = run(['git', 'show-ref'],
+                                 show_stdout=False, cwd=location)
+        rv = {}
+        for line in output.strip().splitlines():
+            commit, ref = line.split(' ', 1)
+            ref = ref.strip()
+            ref_name = None
+            if ref.startswith('refs/remotes/'):
+                ref_name = ref[len('refs/remotes/'):]
+            elif ref.startswith('refs/heads/'):
+                ref_name = ref[len('refs/heads/'):]
+            elif ref.startswith('refs/tags/'):
+                ref_name = ref[len('refs/tags/'):]
+            if ref_name is not None:
+                rv[ref_name] = commit.strip()
+        return rv
+
 
     def obtain(self):
         self.check_destination()
