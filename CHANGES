@@ -4,6 +4,13 @@ Changelog
 
 Here you can find the recent changes to pullv.
 
+dev
+---
+
+- [svn] [git] [hg] added functionality for pip's netloc and vcs
+  functionality.
+- [docs] update license docs for methods from salt (apache) and pip (mit).
+
 0.0.3
 -----
 

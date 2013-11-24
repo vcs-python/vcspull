@@ -20,6 +20,10 @@ JSON file.
 * automatically checkout fresh repositories
 * update to the latest repos with ``$ pullv``
 * `Documentation`_, `API`_ and `Examples`_.
+* pullv builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
+
+.. _RFC3986: http://tools.ietf.org/html/rfc3986.html
+
 
 See the `Quickstart`_ to jump in.
 
@@ -69,3 +73,6 @@ run             .. code-block:: bash
 .. _API: http://pullv.readthedocs.org/en/latest/api.html
 .. _Examples: http://pullv.readthedocs.org/en/latest/examples.html
 .. _Quickstart: http://pullv.readthedocs.org/en/latest/quickstart.html
+.. _pip: http://www.pip-installer.org/en/latest/
+.. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
+.. _saltstack: http://www.saltstack.org

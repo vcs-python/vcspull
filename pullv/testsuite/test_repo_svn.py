@@ -38,6 +38,8 @@ class RepoSVN(RepoTest):
 
         svn_repo.obtain()
 
+        self.assertTrue(os.path.exists(svn_checkout_dest))
+
         tempFile = tempfile.NamedTemporaryFile(dir=svn_checkout_dest)
 
         run(['svn', 'add', tempFile.name], cwd=svn_checkout_dest)
@@ -53,5 +55,3 @@ class RepoSVN(RepoTest):
             tempFile.name
         )
         self.assertEqual(svn_repo.get_revision(tempFile.name), 1)
-
-        self.assertTrue(os.path.exists(svn_checkout_dest))
