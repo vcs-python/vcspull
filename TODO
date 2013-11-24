@@ -7,6 +7,10 @@ Immediate
 
 - Reorganize this clusterf
 - Create a spec for pullv CLI and objects
+- support for ``~``
+- support for ``~/.pullv/`` and multiple repository configs
+- support for ``$ pullv conffilename`` and ``$ pullv
+  /abs/path/to/file.yml``.
 
 Warpath
 -------
