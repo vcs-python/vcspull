@@ -149,37 +149,40 @@ class RepoTest(ConfigTest):
 
     """Create Repo's for test repository."""
 
-    def create_svn_repo(self):
+    def create_svn_repo(self, repo_name='my_svn_project'):
         """Create an svn repository for tests. Return SVN repo directory.
 
+        :param repo_name:
+        :type repo_name:
         :returns: directory of svn repository
         :rtype: string
 
         """
 
-        svn_test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
-        svn_repo_name = 'my_svn_project'
+        test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
 
         svn_repo = Repo({
-            'url': 'svn+file://' + os.path.join(svn_test_repo, svn_repo_name),
+            'url': 'svn+file://' + os.path.join(test_repo, repo_name),
             'parent_path': self.TMP_DIR,
-            'name': svn_repo_name
+            'name': repo_name
         })
 
-        os.mkdir(svn_test_repo)
+        os.mkdir(test_repo)
         run([
             'svnadmin', 'create', svn_repo['name']
-            ], cwd=svn_test_repo)
-        self.assertTrue(os.path.exists(svn_test_repo))
+            ], cwd=test_repo)
+        self.assertTrue(os.path.exists(test_repo))
 
         svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
         svn_repo.obtain()
 
-        return os.path.join(svn_test_repo, svn_repo_name), svn_repo
+        return os.path.join(test_repo, repo_name), svn_repo
 
     def create_git_repo(self):
         """Create an git repository for tests. Return directory.
 
+        :param repo_name:
+        :type repo_name:
         :returns: directory of svn repository
         :rtype: string
 
@@ -219,6 +222,15 @@ class RepoTest(ConfigTest):
         return os.path.join(git_test_repo, git_repo_name), git_repo
 
     def create_mercurial_repo(self):
+        """Create an hg repository for tests. Return directory.
+
+        :param repo_name:
+        :type repo_name:
+        :returns: directory of hg repository
+        :rtype: string
+
+        """
+
         mercurial_test_repo = os.path.join(
             self.TMP_DIR, '.mercurial_test_repo')
         mercurial_repo_name = 'my_mercurial_project'

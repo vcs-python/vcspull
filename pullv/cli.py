@@ -211,6 +211,7 @@ def load_repos(
 ):
     """Return repos from a directory and fnmatch.
 
+    :param path:
     :param fnmatch:
     :param types:
     :param dir:
