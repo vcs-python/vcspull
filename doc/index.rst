@@ -11,6 +11,7 @@ pullv
 
         quickstart
         examples
+        cli
         api
         history
         roadmap

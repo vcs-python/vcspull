@@ -47,6 +47,7 @@ setup(
     test_suite='pullv.testsuite',
     zip_safe=False,
     packages=['pullv', 'pullv.testsuite', 'pullv.repo', 'pullv._vendor', 'pullv._vendor.colorama'],
+    scripts=['pkg/pullv.bash', 'pkg/pullv.zsh', 'pkg/pullv.tcsh'],
     entry_points=dict(console_scripts=['pullv=pullv:cli.main']),
     classifiers=[
         'Development Status :: 3 - Alpha',

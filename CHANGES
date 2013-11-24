@@ -10,6 +10,7 @@ dev
 - [svn] [git] [hg] added functionality for pip's netloc and vcs
   functionality.
 - [docs] update license docs for methods from salt (apache) and pip (mit).
+- [cli] autocomplete
 
 0.0.3
 -----

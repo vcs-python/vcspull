@@ -1,2 +1,3 @@
 -r ../requirements.pip
 sphinx
+-e git+https://github.com/tony/sphinx-argparse.git@empty_subcommands_fix#egg=sphinx-argparse
