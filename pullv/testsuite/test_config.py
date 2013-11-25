@@ -115,16 +115,16 @@ class ExpandUserExpandVars(ConfigTest):
         ConfigTest.setUp(self)
 
         config_yaml = """
-        '{TMP_DIR}/study/':
+        '~/study/':
             sphinx: hg+file://{hg_repo_path}
             docutils: svn+file://{svn_repo_path}
             linux: git+file://{git_repo_path}
-        '{TMP_DIR}/github_projects/':
+        '~/github_projects/':
             kaptan:
                 repo: git+file://{git_repo_path}
                 remotes:
                     test_remote: git+file://{git_repo_path}
-        '{TMP_DIR}':
+        '~':
             .vim:
                 repo: git+file://{git_repo_path}
             .tmux:
@@ -133,12 +133,12 @@ class ExpandUserExpandVars(ConfigTest):
 
         config_json = """
         {
-          "${TMP_DIR}/study/": {
+          "~/study/": {
             "sphinx": "hg+file://${hg_repo_path}",
             "docutils": "svn+file://${svn_repo_path}",
             "linux": "git+file://${git_repo_path}"
           },
-          "${TMP_DIR}/github_projects/": {
+          "~/github_projects/": {
             "kaptan": {
               "repo": "git+file://${git_repo_path}",
               "remotes": {
@@ -165,3 +165,13 @@ class ExpandUserExpandVars(ConfigTest):
         config1_expanded = expand_config(self.config1)
         config2_expanded = expand_config(self.config2)
 
+        homepath = os.environ.get('HOME')
+        user = os.environ.get('USER')
+
+        paths = [path for path, v in config1_expanded.iteritems()]
+        self.assertIn(os.path.expanduser('~/github_projects/'), paths)
+        self.assertIn(os.path.expanduser('~/study/'), paths)
+        self.assertIn(os.path.expanduser('~'), paths)
+
+        for directory in config2_expanded:
+            print(directory)
