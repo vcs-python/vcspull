@@ -80,7 +80,13 @@ def expand_config(config):
             if 'shell_command_after' in repo_data:
                 if isinstance(repo_data['shell_command_after'], basestring):
                     repo_data['shell_command_after'] = [
-                        repo_data['shell_command_after']]
+                        repo_data['shell_command_after']
+                    ]
+
+    config = dict(
+        (os.path.expanduser(directory), repo_data) for directory, repo_data in config.iteritems()
+
+    )
 
     return config
 
