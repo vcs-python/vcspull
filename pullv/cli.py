@@ -65,7 +65,7 @@ def get_parser():
     main_parser.add_argument(
         dest='config',
         type=str,
-        nargs='+',
+        nargs='?',
         help='Pull the latest repositories from config(s)'
     ).completer = ConfigFileCompleter(
         allowednames=('.yaml', '.json'), directories=False
@@ -93,7 +93,7 @@ def main():
     setup_logger(level=args.log_level.upper() if 'log_level' in args else 'INFO')
 
     try:
-        if args.config and args.callback is command_load:
+        if not args.config or args.config and args.callback is command_load:
             command_load(args)
         else:
             parser.print_help()
@@ -102,7 +102,7 @@ def main():
 
 
 def command_load(args):
-    if args.config == ['*']:
+    if not args.config or args.config == ['*']:
         yaml_config = os.path.expanduser('~/.pullv.yaml')
         has_yaml_config = os.path.exists(yaml_config)
         json_config = os.path.expanduser('~/.pullv.json')
