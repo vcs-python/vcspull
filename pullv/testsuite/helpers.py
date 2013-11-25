@@ -18,6 +18,7 @@ import copy
 import logging
 import tempfile
 import shutil
+import uuid
 from ..repo import Repo
 from ..util import run, expand_config
 
@@ -145,6 +146,7 @@ class ConfigExamples(ConfigTest):
         self.config_dict_expanded = config_dict_expanded
         self.config_yaml = config_yaml
 
+
 class RepoTest(ConfigTest):
 
     """Create Repo's for test repository."""
@@ -159,24 +161,24 @@ class RepoTest(ConfigTest):
 
         """
 
-        test_repo = os.path.join(self.TMP_DIR, '.svn_test_repo')
+        repo_path = os.path.join(self.TMP_DIR, 'svnrepo_{0}'.format(uuid.uuid4()))
 
         svn_repo = Repo({
-            'url': 'svn+file://' + os.path.join(test_repo, repo_name),
+            'url': 'svn+file://' + os.path.join(repo_path, repo_name),
             'parent_path': self.TMP_DIR,
             'name': repo_name
         })
 
-        os.mkdir(test_repo)
+        os.mkdir(repo_path)
         run([
             'svnadmin', 'create', svn_repo['name']
-            ], cwd=test_repo)
-        self.assertTrue(os.path.exists(test_repo))
+            ], cwd=repo_path)
+        self.assertTrue(os.path.exists(repo_path))
 
         svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
         svn_repo.obtain()
 
-        return os.path.join(test_repo, repo_name), svn_repo
+        return os.path.join(repo_path, repo_name), svn_repo
 
     def create_git_repo(self, repo_name='test git repo'):
         """Create an git repository for tests. Return directory.
@@ -188,7 +190,7 @@ class RepoTest(ConfigTest):
 
         """
 
-        repo_path = os.path.join(self.TMP_DIR, '.repo_path')
+        repo_path = os.path.join(self.TMP_DIR, 'gitrepo_{0}'.format(uuid.uuid4()))
 
         git_repo = Repo({
             'url': 'git+file://' + os.path.join(repo_path, repo_name),
@@ -230,7 +232,7 @@ class RepoTest(ConfigTest):
 
         """
 
-        repo_path = os.path.join(self.TMP_DIR, '.repo_path')
+        repo_path = os.path.join(self.TMP_DIR, 'hgrepo_{0}'.format(uuid.uuid4()))
 
         mercurial_repo = Repo({
             'url': 'hg+file://' + os.path.join(repo_path, repo_name),
