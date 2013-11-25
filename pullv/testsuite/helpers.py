@@ -175,7 +175,6 @@ class RepoTest(ConfigTest):
             ], cwd=repo_path)
         self.assertTrue(os.path.exists(repo_path))
 
-        svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
         svn_repo.obtain()
 
         return os.path.join(repo_path, repo_name), svn_repo
@@ -204,7 +203,6 @@ class RepoTest(ConfigTest):
             ], cwd=repo_path)
         self.assertTrue(os.path.exists(repo_path))
 
-        git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
         git_repo.obtain()
 
         testfile_filename = 'testfile.test'
@@ -245,8 +243,6 @@ class RepoTest(ConfigTest):
             'hg', 'init', mercurial_repo['name']], cwd=repo_path
             )
 
-        mercurial_checkout_dest = os.path.join(
-            self.TMP_DIR, mercurial_repo['name'])
         mercurial_repo.obtain()
 
         testfile_filename = 'testfile.test'
