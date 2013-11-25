@@ -12,6 +12,7 @@ pullv.tests.test_cli
 import logging
 import os
 import tempfile
+import copy
 import kaptan
 from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, run, get_repos
@@ -55,6 +56,32 @@ class LoadRepos(RepoTest, ConfigTest):
                 repo: git+file://{git_repo_path}
         """
 
+        config_json = """
+        {
+          "${TMP_DIR}/study/": {
+            "sphinx": "hg+file://${hg_repo_path}",
+            "docutils": "svn+file://${svn_repo_path}",
+            "linux": "git+file://${git_repo_path}"
+          },
+          "${TMP_DIR}/github_projects/": {
+            "kaptan": {
+              "repo": "git+file://${git_repo_path}",
+              "remotes": {
+                "test_remote": "git+file://${git_repo_path}"
+              }
+            }
+          },
+          "${TMP_DIR}": {
+            ".vim": {
+              "repo": "git+file://${git_repo_path}"
+            },
+            ".tmux": {
+              "repo": git+file://${git_repo_path}
+            }
+          }
+        }
+        """
+
         config_yaml = config_yaml.format(
             svn_repo_path=self.svn_repo_path,
             hg_repo_path=self.hg_repo_path,
@@ -62,6 +89,24 @@ class LoadRepos(RepoTest, ConfigTest):
             TMP_DIR=self.TMP_DIR
         )
 
+        from string import Template
+        config_json = Template(config_json).substitute(
+            svn_repo_path=self.svn_repo_path,
+            hg_repo_path=self.hg_repo_path,
+            git_repo_path=self.git_repo_path,
+            TMP_DIR=self.TMP_DIR
+        )
+
+        print(config_json)
+
+        self.config_yaml = copy.deepcopy(config_yaml)
+        self.config_json = copy.deepcopy(config_json)
+
     def test_load_repos(self):
         """Load all repos from all configs."""
         self.maxDiff = None
+
+        conf = kaptan.Kaptan(handler='yaml')
+        conf.import_config(self.config_yaml)
+        conf = conf.export('dict')
+        repos = expand_config(conf)
