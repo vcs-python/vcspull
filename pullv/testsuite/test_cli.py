@@ -40,25 +40,27 @@ class LoadRepos(RepoTest, ConfigTest):
 
         config_yaml = """
         {TMP_DIR}/study/:
-            linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-            freebsd: git+https://github.com/freebsd/freebsd.git
-            sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
-            docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
+            sphinx: hg+file://{hg_repo_path}
+            docutils: svn+file://{svn_repo_path}
+            linux: git+file://{git_repo_path}
         {TMP_DIR}/github_projects/:
             kaptan:
-                repo: git+git@github.com:tony/kaptan.git
+                repo: git+file://{git_repo_path}
                 remotes:
-                    upstream: git+https://github.com/emre/kaptan
-                    marksteve: git+https://github.com/marksteve/kaptan.git
+                    test_remote: git+file://{git_repo_path}
         {TMP_DIR}:
             .vim:
-                repo: git+git@github.com:tony/vim-config.git
-                shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
+                repo: git+file://{git_repo_path}
             .tmux:
-                repo: git+git@github.com:tony/tmux-config.git
-                shell_command_after:
-                    - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
+                repo: git+file://{git_repo_path}
         """
+
+        config_yaml = config_yaml.format(
+            svn_repo_path=self.svn_repo_path,
+            hg_repo_path=self.hg_repo_path,
+            git_repo_path=self.git_repo_path,
+            TMP_DIR=self.TMP_DIR
+        )
 
     def test_load_repos(self):
         """Load all repos from all configs."""
