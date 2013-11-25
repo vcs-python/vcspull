@@ -119,7 +119,7 @@ class ExpandUserExpandVars(ConfigTest):
             sphinx: hg+file://{hg_repo_path}
             docutils: svn+file://{svn_repo_path}
             linux: git+file://{git_repo_path}
-        '~/github_projects/':
+        '${HOME}/github_projects/':
             kaptan:
                 repo: git+file://{git_repo_path}
                 remotes:
@@ -138,7 +138,7 @@ class ExpandUserExpandVars(ConfigTest):
             "docutils": "svn+file://${svn_repo_path}",
             "linux": "git+file://${git_repo_path}"
           },
-          "~/github_projects/": {
+          "${HOME}/github_projects/": {
             "kaptan": {
               "repo": "git+file://${git_repo_path}",
               "remotes": {
@@ -169,9 +169,10 @@ class ExpandUserExpandVars(ConfigTest):
         user = os.environ.get('USER')
 
         paths = [path for path, v in config1_expanded.iteritems()]
-        self.assertIn(os.path.expanduser('~/github_projects/'), paths)
+        self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)
         self.assertIn(os.path.expanduser('~'), paths)
 
-        for directory in config2_expanded:
-            print(directory)
+        paths = [path for path, v in config2_expanded.iteritems()]
+        self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
+        self.assertIn(os.path.expanduser('~/study/'), paths)

@@ -84,8 +84,11 @@ def expand_config(config):
                     ]
 
     config = dict(
-        (os.path.expanduser(directory), repo_data) for directory, repo_data in config.iteritems()
+        (os.path.expandvars(directory), repo_data) for directory, repo_data in config.iteritems()
+    )
 
+    config = dict(
+        (os.path.expanduser(directory), repo_data) for directory, repo_data in config.iteritems()
     )
 
     return config

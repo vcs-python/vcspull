@@ -11,6 +11,8 @@ dev
   functionality.
 - [docs] update license docs for methods from salt (apache) and pip (mit).
 - [cli] autocomplete
+- [config] [tests] Support for expanding environment variables in syntax
+  with ``${envvar}`` and ``~``.
 - [cli] Exit with ``Ctrl-C`` gracefully.
 
 0.0.3
