@@ -21,13 +21,17 @@ from .helpers import RepoTest, ConfigTest
 logger = logging.getLogger(__name__)
 
 
-class LoadRepos(RepoTest, ConfigTest):
+class RepoIntegrationTest(RepoTest, ConfigTest):
 
-    """Integration: Verify load_repos() load functionality.
+    """TestCase base that prepares custom repos, configs.
+
+    :var git_repo_path: git repo
+    :var svn_repo_path: svn repo
+    :var hg_repo_path: hg repo
+    :var TMP_DIR: temporary directory for testcase
+    :var CONFIG_DIR: the ``.pullv`` dir inside of ``TMP_DIR``.
 
     Create a local svn, git and hg repo. Create YAML config file with paths.
-
-    Test load_repos arguments to filter.
 
     """
 
@@ -39,32 +43,33 @@ class LoadRepos(RepoTest, ConfigTest):
         self.hg_repo_path, self.hg_repo = self.create_mercurial_repo()
         self.svn_repo_path, self.svn_repo = self.create_svn_repo()
 
+        self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.pullv')
+
+        os.makedirs(self.CONFIG_DIR)
+        self.assertTrue(os.path.exists(self.CONFIG_DIR))
+
         config_yaml = """
-        {TMP_DIR}/study/:
-            sphinx: hg+file://{hg_repo_path}
+        {TMP_DIR}/samedir/:
             docutils: svn+file://{svn_repo_path}
-            linux: git+file://{git_repo_path}
-        {TMP_DIR}/github_projects/:
+        {TMP_DIR}/github_projects/deeper/:
             kaptan:
                 repo: git+file://{git_repo_path}
                 remotes:
                     test_remote: git+file://{git_repo_path}
         {TMP_DIR}:
-            .vim:
-                repo: git+file://{git_repo_path}
+            samereopname: git+file://{git_repo_path}
             .tmux:
                 repo: git+file://{git_repo_path}
         """
 
         config_json = """
         {
-          "${TMP_DIR}/study/": {
+          "${TMP_DIR}/samedir/": {
             "sphinx": "hg+file://${hg_repo_path}",
-            "docutils": "svn+file://${svn_repo_path}",
             "linux": "git+file://${git_repo_path}"
           },
-          "${TMP_DIR}/github_projects/": {
-            "kaptan": {
+          "${TMP_DIR}/another_directory/": {
+            "anotherkaptan": {
               "repo": "git+file://${git_repo_path}",
               "remotes": {
                 "test_remote": "git+file://${git_repo_path}"
@@ -74,11 +79,19 @@ class LoadRepos(RepoTest, ConfigTest):
           "${TMP_DIR}": {
             ".vim": {
               "repo": "git+file://${git_repo_path}"
-            },
-            ".tmux": {
-              "repo": git+file://${git_repo_path}
+            }
+          },
+          "${TMP_DIR}/srv/www/": {
+            "test": {
+              "repo": "git+file://${git_repo_path}"
+            }
+          },
+          "${TMP_DIR}/srv/www/test/": {
+            "subrepodiffvcs": {
+              "repo": "svn+file://${git_repo_path}"
             }
           }
+
         }
         """
 
@@ -97,16 +110,64 @@ class LoadRepos(RepoTest, ConfigTest):
             TMP_DIR=self.TMP_DIR
         )
 
-        print(config_json)
-
         self.config_yaml = copy.deepcopy(config_yaml)
         self.config_json = copy.deepcopy(config_json)
 
-    def test_load_repos(self):
-        """Load all repos from all configs."""
-        self.maxDiff = None
-
         conf = kaptan.Kaptan(handler='yaml')
         conf.import_config(self.config_yaml)
-        conf = conf.export('dict')
-        repos = expand_config(conf)
+        self.config1 = conf.export('dict')
+
+        self.config1_name = 'repos1.yaml'
+        self.config1_file = os.path.join(self.CONFIG_DIR, self.config1_name)
+
+        with open(self.config1_file, 'w') as buf:
+            buf.write(self.config_yaml)
+
+        conf = kaptan.Kaptan(handler='json')
+        conf.import_config(self.config_json)
+        self.config2 = conf.export('dict')
+
+        self.assertTrue(os.path.exists(self.config1_file))
+
+        self.config2_name = 'repos2.json'
+        self.config2_file = os.path.join(self.CONFIG_DIR, self.config2_name)
+
+        with open(self.config2_file, 'w') as buf:
+            buf.write(self.config_json)
+
+        self.assertTrue(os.path.exists(self.config2_file))
+
+
+class LoadConfigs(RepoIntegrationTest):
+
+    """Test load_configs."""
+
+    def test_load_configs(self):
+        pass
+
+    def test_load_configs_path(self):
+        pass
+
+    def test_load_configs_fnmatch(self):
+        pass
+
+    def test_load_configs_filetypes(self):
+        pass
+
+    def test_duplicate_repos(self):
+        """Duplicate path + name with different repo URL / remotes raises."""
+        pass
+
+    def test_merges_same_duplicates(self):
+        """Will merge same repos."""
+        pass
+
+
+class GetRepos(RepoIntegrationTest):
+
+    pass
+
+
+class ScanRepos(RepoIntegrationTest):
+
+    pass

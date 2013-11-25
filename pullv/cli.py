@@ -202,20 +202,21 @@ def validate_schema(conf):
     raise NotImplementedError
 
 
-def load_repos(
-    path,
-    fnmatch,
-    types=['git', 'svn', 'hg'],  # repo types to match
-    dir=['*'],  # pattern to match
-    repo_names=['*']  # repo names to match
-):
-    """Return repos from a directory and fnmatch.
+def load_configs(
+    path=['~/.pullv'],
+    fnmatch=['*'],
+    filetypes=['json', 'yaml'],
 
-    :param path:
+):
+    """Return repos from a directory and fnmatch. Not recursive.
+
+    :param path: list of paths to search
     :param fnmatch:
-    :param types:
-    :param dir:
-    :param repo_names:
+    :param filetypes:
+    :raises LoadConfigRepoConflict: There are two configs that have same path
+        and name with different repo urls.
+    :returns: list of absolute paths to config files.
+    :rtype: iter(dict)
 
     """
 
@@ -226,3 +227,47 @@ def load_repos(
         configs=[os.path.join(path, fnmatch)]
     else:
         configs = fnmatch.filter((file for file in os.listdir(path)), fnmatch)
+
+    #if configs load and validate_schema, then load.
+    configs = [config for config in configs if validate_schema(config)]
+
+    return configs
+
+
+def get_repos_new(
+    vcs=['git', 'svn', 'hg'],  # repo types to match
+    dir=['*'],  # pattern to match
+    repo_names=['*']  # repo names to fnmatch
+):
+    """Return Repo objects from config.
+
+    :param configs: list of config items
+    :type: list
+    :param vcs:
+    :type vcs: list
+    :param dir:
+    :type vcs: list
+    :param repo_names:
+    :type repo_names: list
+    :returns: list of Repos from config
+    :rtype: iter(:class:`Repo`)
+
+    """
+    pass
+
+
+def scan_repos(
+    path='~',
+    subrepos=False
+):
+    """Return repositories within directory.
+
+    :param path: path to search
+    :type path: string
+    :param subrepos: search for repos within repos
+    :type subrepos: bool
+    :returns: list of Repos from file system
+    :rtype: iter(:class:`Repo`)
+
+    """
+    pass
