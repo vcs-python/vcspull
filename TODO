@@ -2,6 +2,14 @@
 TODO
 ====
 
+Next steps
+----------
+
+    - Support for http://docs.python.org/2.7/library/string.html#string.Template
+      in tests.
+    - http://docs.python.org/2/library/glob.html
+    - http://docs.python.org/2/library/os.path.html#os.path.expanduser
+    - http://docs.python.org/2/library/os.path.html#os.path.expandvars
 Immediate
 ---------
 
