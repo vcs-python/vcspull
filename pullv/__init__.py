@@ -15,4 +15,4 @@ from . import util
 from . import log
 from . import cli
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'
