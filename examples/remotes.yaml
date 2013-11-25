@@ -1,4 +1,4 @@
-/home/tony/workspace/:
+~/workspace/:
   kaptan:
     repo: git+https://github.com/emre/kaptan
     remotes:

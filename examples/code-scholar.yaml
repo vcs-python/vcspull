@@ -1,4 +1,4 @@
-/home/tony/study/c:
+~/study/c:
   awesome: 'git+git://git.naquadah.org/awesome.git'
   weechat: 'git+git://git.sv.gnu.org/weechat.git'
   retroarch: 'git+https://github.com/Themaister/RetroArch.git'
@@ -8,6 +8,7 @@
   tmux: 'git+git://git.code.sf.net/p/tmux/tmux-code'
   git: 'git+https://github.com/git/git.git'
   postgres: 'git+https://github.com/postgres/postgres.git'
+  pgadmin3: 'git+git://git.postgresql.org/git/pgadmin3.git'
   sandy: 'git+http://git.suckless.org/sandy'
   understate: 'git+https://github.com/L3V3L9/understate.git'
   util-cursor: 'git+git://anongit.freedesktop.org/xcb/util-cursor'
@@ -15,7 +16,7 @@
   cpython: 'hg+http://hg.python.org/cpython/'
   vim: 'hg+https://vim.googlecode.com/hg/'
   nginx: 'hg+http://hg.nginx.org/nginx'
-/home/tony/study/c++:
+~/study/c++:
   vimpc: 'git+https://github.com/boysetsfrog/vimpc'
   mpd: 'git+git://git.musicpd.org/master/mpd.git'
   libmpd: 'git+git://git.musicpd.org/master/libmpd.git'
@@ -107,7 +108,7 @@
   jasmine-node: 'git+https://github.com/mhevery/jasmine-node.git'
   node-querystring: 'git+https://github.com/visionmedia/node-querystring.git'
   highlight.js: 'git+https://github.com/isagalaev/highlight.js.git'
-/home/tony/study/javascript:
+~/study/javascript:
   backbone.deepmodel: 'git+https://github.com/powmedia/backbone-deep-model.git'
   underscore: 'git+https://github.com/documentcloud/underscore.git'
   lodash: 'git+https://github.com/bestiejs/lodash.git'
@@ -126,9 +127,9 @@
   bower: 'git+https://github.com/twitter/bower.git'
   codemirror: 'git+https://github.com/marijnh/CodeMirror.git'
   doctorjs: 'git+https://github.com/mozilla/doctorjs.git'
-/home/tony/study/python:
+~/study/python:
   jmespath: 'git+https://github.com/boto/jmespath.git'
-
+  anyvcs: 'git+https://github.com/ScottDuckworth/python-anyvcs.git'
   pip: 'git+git://github.com/pypa/pip.git'
   ipdb: 'git+http://github.com/gotcha/ipdb.git'
   virtualenv: 'git+https://github.com/pypa/virtualenv.git'
