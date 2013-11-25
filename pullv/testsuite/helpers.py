@@ -178,7 +178,7 @@ class RepoTest(ConfigTest):
 
         return os.path.join(test_repo, repo_name), svn_repo
 
-    def create_git_repo(self):
+    def create_git_repo(self, repo_name='test git repo'):
         """Create an git repository for tests. Return directory.
 
         :param repo_name:
@@ -188,20 +188,19 @@ class RepoTest(ConfigTest):
 
         """
 
-        git_test_repo = os.path.join(self.TMP_DIR, '.git_test_repo')
-        git_repo_name = 'my_git_project'
+        repo_path = os.path.join(self.TMP_DIR, '.repo_path')
 
         git_repo = Repo({
-            'url': 'git+file://' + os.path.join(git_test_repo, git_repo_name),
+            'url': 'git+file://' + os.path.join(repo_path, repo_name),
             'parent_path': self.TMP_DIR,
-            'name': git_repo_name
+            'name': repo_name
         })
 
-        os.mkdir(git_test_repo)
+        os.mkdir(repo_path)
         run([
             'git', 'init', git_repo['name']
-            ], cwd=git_test_repo)
-        self.assertTrue(os.path.exists(git_test_repo))
+            ], cwd=repo_path)
+        self.assertTrue(os.path.exists(repo_path))
 
         git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
         git_repo.obtain()
@@ -210,18 +209,18 @@ class RepoTest(ConfigTest):
 
         run([
             'touch', testfile_filename
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
+            ], cwd=os.path.join(repo_path, repo_name))
         run([
             'git', 'add', testfile_filename
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
+            ], cwd=os.path.join(repo_path, repo_name))
         run([
             'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
-            ], cwd=os.path.join(git_test_repo, git_repo_name))
+            ], cwd=os.path.join(repo_path, repo_name))
         git_repo.update_repo()
 
-        return os.path.join(git_test_repo, git_repo_name), git_repo
+        return os.path.join(repo_path, repo_name), git_repo
 
-    def create_mercurial_repo(self):
+    def create_mercurial_repo(self, repo_name='test hg repo'):
         """Create an hg repository for tests. Return directory.
 
         :param repo_name:
@@ -231,19 +230,17 @@ class RepoTest(ConfigTest):
 
         """
 
-        mercurial_test_repo = os.path.join(
-            self.TMP_DIR, '.mercurial_test_repo')
-        mercurial_repo_name = 'my_mercurial_project'
+        repo_path = os.path.join(self.TMP_DIR, '.repo_path')
 
         mercurial_repo = Repo({
-            'url': 'hg+file://' + os.path.join(mercurial_test_repo, mercurial_repo_name),
+            'url': 'hg+file://' + os.path.join(repo_path, repo_name),
             'parent_path': self.TMP_DIR,
-            'name': mercurial_repo_name
+            'name': repo_name
         })
 
-        os.mkdir(mercurial_test_repo)
+        os.mkdir(repo_path)
         run([
-            'hg', 'init', mercurial_repo['name']], cwd=mercurial_test_repo
+            'hg', 'init', mercurial_repo['name']], cwd=repo_path
             )
 
         mercurial_checkout_dest = os.path.join(
@@ -254,12 +251,12 @@ class RepoTest(ConfigTest):
 
         run([
             'touch', testfile_filename
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(repo_path, repo_name))
         run([
             'hg', 'add', testfile_filename
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(repo_path, repo_name))
         run([
             'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
-            ], cwd=os.path.join(mercurial_test_repo, mercurial_repo_name))
+            ], cwd=os.path.join(repo_path, repo_name))
 
-        return os.path.join(mercurial_test_repo, mercurial_repo_name), mercurial_repo
+        return os.path.join(repo_path, repo_name), mercurial_repo
