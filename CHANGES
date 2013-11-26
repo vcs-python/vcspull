@@ -4,8 +4,8 @@ Changelog
 
 Here you can find the recent changes to pullv.
 
-dev
----
+0.0.4
+-----
 
 - [svn] [git] [hg] added functionality for pip's netloc and vcs
   functionality.
