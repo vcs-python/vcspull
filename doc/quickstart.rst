@@ -25,13 +25,15 @@ Configuration
 
 .. seealso:: :ref:`examples`.
 
+We will check out the source code of `flask`_ to ``~/code/flask``.
+
 Prefer JSON? Create a ``~/.pullv.json`` file:
 
 .. code-block:: json
 
     {
-      "~/new/": {
-        "amarok": "git+git://anongit.kde.org/amarok.git"
+      "~/code/": {
+        "flask": "git+https://github.com/mitsuhiko/flask.git"
       }
     }
 
@@ -40,7 +42,7 @@ YAML? Create a ``~/.pullv.yaml`` file:
 .. code-block:: yaml
 
     ~/code/:
-        "amarok": "git+git://anongit.kde.org/amarok.git"
+        "flask": "git+https://github.com/mitsuhiko/flask.git"
 
 The ``git+`` in front of the repository URL. Mercurial repositories use 
 ``hg+`` and Subversion will use ``svn+``. Repo type and address is
