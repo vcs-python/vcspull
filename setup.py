@@ -5,8 +5,7 @@
 pullv
 -----
 
-Obtain and update multiple git, mercurial and subversions repositories
-simultaneously.
+Mass update git, hg and svn repos simultaneously from YAML / JSON file.
 
 """
 import sys
@@ -38,8 +37,8 @@ setup(
     license='BSD',
     author='Tony Narlock',
     author_email='tony@git-pull.com',
-    description='Manage multiple git, mercurial and subversion '
-                'repositories from a YAML / JSON file.',
+    description='Mass update git, hg and svn repos simultaneously from'
+                'YAML / JSON file.',
     long_description=open('README.rst').read(),
     include_package_data=True,
     install_requires=install_reqs,

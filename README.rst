@@ -22,9 +22,6 @@ JSON file.
 * `Documentation`_, `API`_ and `Examples`_.
 * pullv builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
 
-.. _RFC3986: http://tools.ietf.org/html/rfc3986.html
-
-
 See the `Quickstart`_ to jump in.
 
 **Current Limitations:**
@@ -35,6 +32,7 @@ See the `Quickstart`_ to jump in.
 - Support for ``svn`` username and password.
 
 .. _remote git repo example: http://pullv.readthedocs.org/en/latest/examples.html#remote-git-repositories-and-ssh-git
+.. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 
 ==============  ==========================================================
 Python support  Python 2.6, 2.7 (3.3 in development)
