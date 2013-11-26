@@ -55,3 +55,4 @@ Now run the command:
     $ pullv
 
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
+.. _flask: http://flask.pocoo.org/
