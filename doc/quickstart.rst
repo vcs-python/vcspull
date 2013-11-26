@@ -43,10 +43,13 @@ YAML? Create a ``~/.pullv.yaml`` file:
         "amarok": "git+git://anongit.kde.org/amarok.git"
 
 The ``git+`` in front of the repository URL. Mercurial repositories use 
-``hg+`` and Subversion will use ``svn+``.
+``hg+`` and Subversion will use ``svn+``. Repo type and address is
+specified in `pip vcs url`_ format.
 
 Now run the command:
 
 .. code-block:: bash
 
     $ pullv
+
+.. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
