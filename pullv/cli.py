@@ -10,11 +10,12 @@ pullv.cli
 
 from __future__ import absolute_import, division, print_function, with_statement
 
-import logging
 import os
 import sys
-import kaptan
+import fnmatch
+import logging
 import argparse
+import kaptan
 import argcomplete
 from . import log
 from . import util
@@ -90,7 +91,9 @@ def main():
 
     args = parser.parse_args()
 
-    setup_logger(level=args.log_level.upper() if 'log_level' in args else 'INFO')
+    setup_logger(
+        level=args.log_level.upper() if 'log_level' in args else 'INFO'
+    )
 
     try:
         if not args.config or args.config and args.callback is command_load:
@@ -202,16 +205,17 @@ def validate_schema(conf):
     raise NotImplementedError
 
 
-def load_configs(
+def find_configs(
     path=['~/.pullv'],
-    fnmatch=['*'],
+    match=['*'],
     filetypes=['json', 'yaml'],
 
 ):
-    """Return repos from a directory and fnmatch. Not recursive.
+    """Return repos from a directory and match. Not recursive.
 
     :param path: list of paths to search
-    :param fnmatch:
+    :type path: list
+    :param match:
     :param filetypes:
     :raises LoadConfigRepoConflict: There are two configs that have same path
         and name with different repo urls.
@@ -220,14 +224,42 @@ def load_configs(
 
     """
 
-    raise NotImplementedError
+    configs = []
 
-    if os.path.join(path, fnmatch):
-        # direct match
-        configs=[os.path.join(path, fnmatch)]
+    if isinstance(path, list):
+        for p in path:
+            return find_configs(p, match, filetypes)
     else:
-        configs = fnmatch.filter((file for file in os.listdir(path)), fnmatch)
+        if isinstance(match, list):
+            for m in match:
+                return find_configs(path, m, filetypes)
+        else:
+            print(path)
+            configs = fnmatch.filter(
+                (os.path.join(path, f) for f in os.listdir(path)), match
+            )
 
+    return configs
+
+
+def load_configs(
+    path=['~/.pullv'],
+    fnmatch=['*'],
+    filetypes=['json', 'yaml'],
+
+):
+    """Return repos from a directory and fnmatch. Not recursive.
+
+    :param configs: paths to config file
+    :type path: list
+    :returns: expanded config dict item
+    :rtype: iter(dict)
+
+    """
+
+    configs = []
+
+    configs = (open(f) for f in configs)
     #if configs load and validate_schema, then load.
     configs = [config for config in configs if validate_schema(config)]
 

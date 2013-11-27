@@ -17,6 +17,7 @@ import kaptan
 from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, run, get_repos
 from .helpers import RepoTest, ConfigTest
+from .. import cli
 
 logger = logging.getLogger(__name__)
 
@@ -138,22 +139,34 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
         self.assertTrue(os.path.exists(self.config2_file))
 
 
+class FindConfigs(RepoIntegrationTest):
+
+    """Test find_configs."""
+
+    def test_path_string(self):
+        """path as a string."""
+        configs = cli.find_configs(path=[self.CONFIG_DIR])
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
+
+    def test_path_list(self):
+        pass
+
+    def test_match_string(self):
+        pass
+
+    def test_match_list(self):
+        pass
+
+    def test_filetypes_string(self):
+        pass
+
+    def test_filetypes_list(self):
+        pass
+
+
 class LoadConfigs(RepoIntegrationTest):
-
-    """Test load_configs."""
-
-    def test_load_configs(self):
-        pass
-
-    def test_load_configs_path(self):
-        pass
-
-    def test_load_configs_fnmatch(self):
-        pass
-
-    def test_load_configs_filetypes(self):
-        pass
-
     def test_duplicate_repos(self):
         """Duplicate path + name with different repo URL / remotes raises."""
         pass
