@@ -172,8 +172,13 @@ class GitRepo(BaseRepo):
                 rv[ref_name] = commit.strip()
         return rv
 
+    def obtain(self, quiet=False):
+        """Retrieve the repository, clone if doesn't exist.
 
-    def obtain(self):
+        :param quiet: Suppress stderr output.
+        :type quiet: bool
+
+        """
         self.check_destination()
         import subprocess
         import sys
@@ -186,13 +191,15 @@ class GitRepo(BaseRepo):
             stderr=subprocess.PIPE,
             env=os.environ.copy(), cwd=self['path'],
         )
-        while True:
-            err = process.stderr.read(1)
-            if err == '' and process.poll() is not None:
-                break
-            if err != '':
-                sys.stderr.write(err)
-                sys.stderr.flush()
+
+        if not quiet:
+            while True:
+                err = process.stderr.read(1)
+                if err == '' and process.poll() is not None:
+                    break
+                if err != '':
+                    sys.stderr.write(err)
+                    sys.stderr.flush()
 
         self.info('Cloned\n\t%s' % (process.stdout.read()))
 

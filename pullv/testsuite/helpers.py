@@ -203,7 +203,7 @@ class RepoTest(ConfigTest):
             ], cwd=repo_path)
         self.assertTrue(os.path.exists(repo_path))
 
-        git_repo.obtain()
+        git_repo.obtain(quiet=True)
 
         testfile_filename = 'testfile.test'
 
