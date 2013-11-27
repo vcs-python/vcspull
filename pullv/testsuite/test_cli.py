@@ -145,24 +145,97 @@ class FindConfigs(RepoIntegrationTest):
 
     def test_path_string(self):
         """path as a string."""
-        configs = cli.find_configs(path=[self.CONFIG_DIR])
+        configs = cli.find_configs(path=self.CONFIG_DIR)
 
         self.assertIn(self.config1_file, configs)
         self.assertIn(self.config2_file, configs)
 
     def test_path_list(self):
-        pass
+        configs = cli.find_configs(path=[self.CONFIG_DIR])
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
 
     def test_match_string(self):
-        pass
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='repos1'
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertNotIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='repos2'
+        )
+
+        self.assertNotIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='randomstring'
+        )
+
+        self.assertNotIn(self.config1_file, configs)
+        self.assertNotIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='*'
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='repos*'
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='repos[1-9]'
+        )
+
+        self.assertEqual(
+            len([c for c in configs if self.config1_file in c]), 1
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
 
     def test_match_list(self):
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match=['repos1', 'repos2']
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match=['repos1']
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertEqual(
+            len([c for c in configs if self.config1_file in c]), 1
+        )
+        self.assertNotIn(self.config2_file, configs)
+        self.assertEqual(
+            len([c for c in configs if self.config2_file in c]), 0
+        )
+
+    def test_filetype_string(self):
         pass
 
-    def test_filetypes_string(self):
-        pass
-
-    def test_filetypes_list(self):
+    def test_filetype_list(self):
         pass
 
 

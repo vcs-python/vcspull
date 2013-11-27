@@ -13,6 +13,7 @@ from __future__ import absolute_import, division, print_function, with_statement
 import os
 import sys
 import fnmatch
+import glob
 import logging
 import argparse
 import kaptan
@@ -208,7 +209,7 @@ def validate_schema(conf):
 def find_configs(
     path=['~/.pullv'],
     match=['*'],
-    filetypes=['json', 'yaml'],
+    filetype=['json', 'yaml'],
 
 ):
     """Return repos from a directory and match. Not recursive.
@@ -216,7 +217,7 @@ def find_configs(
     :param path: list of paths to search
     :type path: list
     :param match:
-    :param filetypes:
+    :param filetype:
     :raises LoadConfigRepoConflict: There are two configs that have same path
         and name with different repo urls.
     :returns: list of absolute paths to config files.
@@ -228,23 +229,27 @@ def find_configs(
 
     if isinstance(path, list):
         for p in path:
-            return find_configs(p, match, filetypes)
+            return find_configs(p, match, filetype)
     else:
         if isinstance(match, list):
             for m in match:
-                return find_configs(path, m, filetypes)
+                configs.extend(find_configs(path, m, filetype))
         else:
-            print(path)
-            configs = fnmatch.filter(
-                (os.path.join(path, f) for f in os.listdir(path)), match
-            )
+            if isinstance(filetype, list):
+                for f in filetype:
+                    configs.extend(find_configs(path, match, f))
+            else:
+                match = os.path.join(path, match)
+                match += ".{filetype}".format(filetype=filetype)
+
+                configs = glob.glob(match)
 
     return configs
 
 
 def load_configs(
     path=['~/.pullv'],
-    fnmatch=['*'],
+    match=['*'],
     filetypes=['json', 'yaml'],
 
 ):
