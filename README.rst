@@ -38,9 +38,8 @@ See the `Quickstart`_ to jump in.
 Python support  Python 2.6, 2.7 (3.3 in development)
 VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
-Travis          http://travis-ci.org/tony/pullv
-Crate.io        https://crate.io/packages/pullv/
 Source          https://github.com/tony/pullv
+Travis          http://travis-ci.org/tony/pullv
 Docs            http://pullv.rtfd.org
 API             http://pullv.readthedocs.org/en/latest/api.html
 Issues          https://github.com/tony/pullv/issues
