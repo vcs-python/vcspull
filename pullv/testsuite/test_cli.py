@@ -233,10 +233,68 @@ class FindConfigs(RepoIntegrationTest):
         )
 
     def test_filetype_string(self):
-        pass
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='repos1',
+            filetype='yaml',
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertNotIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='repos1',
+            filetype='json',
+        )
+
+        self.assertNotIn(self.config1_file, configs)
+        self.assertNotIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='repos*',
+            filetype='json',
+        )
+
+        self.assertNotIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match='repos*',
+            filetype='*',
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
 
     def test_filetype_list(self):
-        pass
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match=['repos*'],
+            filetype=['*'],
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            match=['repos*'],
+            filetype=['json', 'yaml'],
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
+
+        configs = cli.find_configs(
+            path=[self.CONFIG_DIR],
+            filetype=['json', 'yaml'],
+        )
+
+        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config2_file, configs)
 
 
 class LoadConfigs(RepoIntegrationTest):
