@@ -194,18 +194,6 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     return any(filename.endswith(e) for e in extensions)
 
 
-def validate_schema(conf):
-    """Return True if valid pullv schema.
-
-    :param conf: configuration
-    :type conf: string
-    :rtype: bool
-
-    """
-
-    raise NotImplementedError
-
-
 def find_configs(
     path=['~/.pullv'],
     match=['*'],
@@ -221,7 +209,7 @@ def find_configs(
     :raises LoadConfigRepoConflict: There are two configs that have same path
         and name with different repo urls.
     :returns: list of absolute paths to config files.
-    :rtype: iter(dict)
+    :rtype: list
 
     """
 
@@ -247,12 +235,7 @@ def find_configs(
     return configs
 
 
-def load_configs(
-    path=['~/.pullv'],
-    match=['*'],
-    filetypes=['json', 'yaml'],
-
-):
+def load_configs(configs):
     """Return repos from a directory and fnmatch. Not recursive.
 
     :param configs: paths to config file
@@ -262,13 +245,21 @@ def load_configs(
 
     """
 
-    configs = []
+    #configs = [open(f).read() for f in configs]
+    configdict = {}
 
-    configs = (open(f) for f in configs)
+    for config in configs:
+        fName, fExt = os.path.splitext(config)
+        conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
+        conf.import_config(config)
+        configdict.update(conf.export('dict'))
+
     #if configs load and validate_schema, then load.
-    configs = [config for config in configs if validate_schema(config)]
+    #configs = [config for config in configs if validate_schema(config)]
 
-    return configs
+    configdict = util.expand_config(configdict)
+
+    return configdict
 
 
 def get_repos_new(
@@ -308,3 +299,15 @@ def scan_repos(
 
     """
     pass
+
+
+def validate_schema(conf):
+    """Return True if valid pullv schema.
+
+    :param conf: configuration
+    :type conf: string
+    :rtype: bool
+
+    """
+
+    return True

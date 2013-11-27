@@ -14,6 +14,7 @@ import os
 import tempfile
 import copy
 import kaptan
+from pprint import pprint
 from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from pullv.util import expand_config, run, get_repos
 from .helpers import RepoTest, ConfigTest
@@ -298,6 +299,17 @@ class FindConfigs(RepoIntegrationTest):
 
 
 class LoadConfigs(RepoIntegrationTest):
+    def test_load(self):
+        """Load a list of file into dict."""
+        configs = cli.find_configs(
+            path=self.CONFIG_DIR
+        )
+
+        configdicts = cli.load_configs(configs)
+
+        pprint(configs)
+        pprint(configdicts)
+
     def test_duplicate_repos(self):
         """Duplicate path + name with different repo URL / remotes raises."""
         pass
