@@ -36,7 +36,7 @@ class RepoGit(ConfigTest):
             'git', 'init', git_repo['name']
             ], cwd=repo_dir)
         git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
-        git_repo.obtain()
+        git_repo.obtain(quiet=True)
 
         testfile = 'testfile.test'
 
