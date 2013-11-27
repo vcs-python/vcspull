@@ -59,9 +59,12 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
                 remotes:
                     test_remote: git+file://{git_repo_path}
         {TMP_DIR}:
-            samereopname: git+file://{git_repo_path}
+            samereponame: git+file://{git_repo_path}
             .tmux:
                 repo: git+file://{git_repo_path}
+        {TMP_DIR}/srv/www/test/:
+            subrepodiffvcs:
+                repo: svn+file://${git_repo_path}
         """
 
         config_json = """
@@ -79,6 +82,7 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
             }
           },
           "${TMP_DIR}": {
+            "samereponame": "git+file://{git_repo_path}",
             ".vim": {
               "repo": "git+file://${git_repo_path}"
             }
@@ -312,7 +316,29 @@ class LoadConfigs(RepoIntegrationTest):
 
     def test_duplicate_repos(self):
         """Duplicate path + name with different repo URL / remotes raises."""
-        pass
+
+        configs = cli.find_configs(
+            path=self.CONFIG_DIR
+        )
+
+        config_yaml = """
+        {TMP_DIR}/srv/www/test/:
+            subrepodiffvcs:
+                repo: svn+file://${git_repo_path}
+        """
+
+        config_yaml = config_yaml.format(
+            svn_repo_path=self.svn_repo_path,
+            hg_repo_path=self.hg_repo_path,
+            git_repo_path=self.git_repo_path,
+            TMP_DIR=self.TMP_DIR
+        )
+
+        conf = kaptan.Kaptan(handler='json')
+        conf.import_config(self.config_json)
+        self.config2 = conf.export('dict')
+
+        configdicts = cli.load_configs(configs)
 
     def test_merges_same_duplicates(self):
         """Will merge same repos."""
