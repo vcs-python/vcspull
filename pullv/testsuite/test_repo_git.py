@@ -80,7 +80,7 @@ class GitRepoRemotes(RepoTest):
 
         })
 
-        git_repo.obtain()
+        git_repo.obtain(quiet=True)
         self.assertIn('myrepo', git_repo.remotes_get())
 
 
