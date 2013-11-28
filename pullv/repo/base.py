@@ -31,7 +31,7 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
         """
 
         prefixed_dict = {}
-        for key, v in self.attributes.iteritems():
+        for key, v in self.attributes.items():
             prefixed_dict['repo_' + key] = v
 
         kwargs["extra"] = prefixed_dict
