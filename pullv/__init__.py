@@ -12,7 +12,7 @@ pullv
 
 from __future__ import absolute_import, division, print_function, with_statement
 
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 from .util import expand_config, get_repos, mkdir_p, run, scan, which
 from .log import LogFormatter, DebugLogFormatter, RepoLogFormatter
