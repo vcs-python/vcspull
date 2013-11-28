@@ -13,9 +13,6 @@ from __future__ import absolute_import, division, print_function, with_statement
 import os
 import logging
 
-from .. import util
-from .. import log
-
 from .git import GitRepo
 from .hg import MercurialRepo
 from .svn import SubversionRepo
