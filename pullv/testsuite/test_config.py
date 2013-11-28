@@ -168,11 +168,11 @@ class ExpandUserExpandVars(ConfigTest):
         homepath = os.environ.get('HOME')
         user = os.environ.get('USER')
 
-        paths = [path for path, v in config1_expanded.iteritems()]
+        paths = [path for path, v in config1_expanded.items()]
         self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)
         self.assertIn(os.path.expanduser('~'), paths)
 
-        paths = [path for path, v in config2_expanded.iteritems()]
+        paths = [path for path, v in config2_expanded.items()]
         self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)

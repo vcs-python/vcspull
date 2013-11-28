@@ -52,7 +52,7 @@ class RepoGit(ConfigTest):
         test_repo_revision = run(
             ['git', 'rev-parse', 'HEAD'],
             cwd=os.path.join(repo_dir, repo_name),
-        )['stdout'].strip()
+        )['stdout']
 
         self.assertEqual(
             git_repo.get_revision(),

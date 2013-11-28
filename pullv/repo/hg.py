@@ -101,7 +101,7 @@ class MercurialRepo(BaseRepo):
 
         current_revision = run(
             ['git', 'parents', '--template={rev}'],
-            cwd=location)['stdout'].strip()
+            cwd=location)['stdout']
         return current_revision
 
     def get_revision_hash(self, location=None):

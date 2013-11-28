@@ -151,14 +151,14 @@ class GitRepo(BaseRepo):
 
         current_rev = run(
             ['git', 'rev-parse', 'HEAD'], cwd=location)['stdout']
-        return current_rev.strip()
+        return current_rev
 
     def get_refs(self, location):
         """Return map of named refs (branches or tags) to commit hashes."""
         output = run(['git', 'show-ref'],
                                  show_stdout=False, cwd=location)
         rv = {}
-        for line in output.strip().splitlines():
+        for line in output:
             commit, ref = line.split(' ', 1)
             ref = ref.strip()
             ref_name = None
@@ -225,7 +225,7 @@ class GitRepo(BaseRepo):
                 'git', 'pull'
             ], cwd=self['path'])
 
-            if 'Already up-to-date' in proc['stdout'].strip():
+            if 'Already up-to-date' in proc['stdout']:
                 self.info('Already up-to-date.')
             else:
                 self.info('Updated\n\t%s' % (proc['stdout']))
@@ -370,7 +370,7 @@ class GitRepo(BaseRepo):
         cmd = ['git', 'remote']
         ret = run(cmd, cwd=cwd)['stdout']
         res = dict()
-        for remote_name in ret.splitlines():
+        for remote_name in ret:
             remote = remote_name.strip()
             res[remote] = self.remote_get(cwd, remote, user=user)
         return res
@@ -390,6 +390,7 @@ class GitRepo(BaseRepo):
 
             salt '*' git.remote_get /path/to/repo
             salt '*' git.remote_get /path/to/repo upstream
+
         """
 
         if not cwd:
@@ -398,7 +399,7 @@ class GitRepo(BaseRepo):
         try:
             cmd = 'git remote show -n {0}'.format(remote)
             ret = _git_run(cmd, cwd=cwd, runas=user)
-            lines = ret.splitlines()
+            lines = ret
             remote_fetch_url = lines[1].replace('Fetch URL: ', '').strip()
             remote_push_url = lines[2].replace('Push  URL: ', '').strip()
             if remote_fetch_url != remote and remote_push_url != remote:

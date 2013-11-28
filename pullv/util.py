@@ -171,12 +171,16 @@ def run(
 
     proc.wait()
 
-    out, err = proc.stdout.read(), proc.stderr.read()
+    stdout, stderr = proc.stdout.read(), proc.stderr.read()
     proc.stdout.close()
     proc.stderr.close()
 
-    ret['stdout'] = out
-    ret['stderr'] = err
+    stdout = stdout.decode().split('\n')
+    ret['stdout'] = list(filter(None, stdout))  # filter empty values
+
+    stderr = stderr.decode().split('\n')
+    ret['stderr'] = list(filter(None, stderr))  # filter empty values
+
     ret['pid'] = proc.pid
     ret['retcode'] = proc.returncode
 

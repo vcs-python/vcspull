@@ -65,10 +65,10 @@ class SubversionRepo(BaseRepo):
         _INI_RE = re.compile(r"^([^:]+):\s+(\S.*)$", re.M)
 
         info_list = []
-        for infosplit in infos.split('\n\n'):
-            info_list.append(_INI_RE.findall(infosplit))
+        for infosplit in infos:
+            info_list.extend(_INI_RE.findall(infosplit))
 
-        return int([dict(tmp) for tmp in info_list][0]['Revision'])
+        return int(dict(info_list)['Revision'])
 
     def get_location(self, dist, dependency_links):
         for url in dependency_links:
