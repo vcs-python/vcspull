@@ -34,8 +34,6 @@ mo = re.search(VSRE, verstrline, re.M)
 if mo:
     __version__ = mo.group(1)
 
-logger = logging.getLogger(__name__)
-
 
 config_dir = os.path.expanduser('~/.pullv/')
 cwd_dir = os.getcwd() + '/'
