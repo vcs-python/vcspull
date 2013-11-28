@@ -276,9 +276,28 @@ def load_configs(configs):
         fName, fExt = os.path.splitext(config)
         conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
         conf.import_config(config)
-        print(config)
-        print(conf.export('dict'))
-        configdict = update(configdict, conf.export('dict'))
+
+        newconfigdict = util.expand_config(conf.export('dict'))
+
+        if configdict:
+            for path in newconfigdict:
+                if path in configdict:
+                    for repo_name in newconfigdict[path]:
+                        if repo_name in configdict[path]:
+                            if newconfigdict[path][repo_name] != configdict[path][repo_name]:
+                                print('same path + repo for %s' % repo_name)
+                                if newconfigdict[path][repo_name]['repo'] != configdict[path][repo_name]['repo']:
+                                    msg = (
+                                        'same path + repo, different vcs (%s)\n'
+                                        '%s\n%s' %
+                                        (
+                                            repo_name,
+                                            configdict[path][repo_name]['repo'],
+                                            newconfigdict[path][repo_name]['repo']
+                                        )
+                                    )
+                                    raise Exception(msg)
+        configdict = update(configdict, newconfigdict)
         # configdict.update(conf.export('dict'))
 
     #if configs load and validate_schema, then load.

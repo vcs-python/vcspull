@@ -62,9 +62,6 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
             samereponame: git+file://{git_repo_path}
             .tmux:
                 repo: git+file://{git_repo_path}
-        {TMP_DIR}/srv/www/test/:
-            subrepodiffvcs:
-                repo: svn+file://${git_repo_path}
         """
 
         config_json = """
@@ -82,7 +79,7 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
             }
           },
           "${TMP_DIR}": {
-            "samereponame": "git+file://{git_repo_path}",
+            "samereponame": "git+file://${git_repo_path}",
             ".vim": {
               "repo": "git+file://${git_repo_path}"
             }
@@ -91,13 +88,7 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
             "test": {
               "repo": "git+file://${git_repo_path}"
             }
-          },
-          "${TMP_DIR}/srv/www/test/": {
-            "subrepodiffvcs": {
-              "repo": "svn+file://${git_repo_path}"
-            }
           }
-
         }
         """
 
@@ -303,6 +294,7 @@ class FindConfigs(RepoIntegrationTest):
 
 
 class LoadConfigs(RepoIntegrationTest):
+
     def test_load(self):
         """Load a list of file into dict."""
         configs = cli.find_configs(
@@ -320,7 +312,7 @@ class RepoIntegrationDuplicateTest(RepoIntegrationTest):
 
         config_yaml3 = """
         {TMP_DIR}/srv/www/test/:
-            subrepodiffvcs:
+            subRepoDiffVCS:
                 repo: svn+file://${svn_repo_path}
             subRepoSameVCS: git+file://${git_repo_path}
             vcsOn1: svn+file://${svn_repo_path}
@@ -328,7 +320,7 @@ class RepoIntegrationDuplicateTest(RepoIntegrationTest):
 
         config_yaml4 = """
         {TMP_DIR}/srv/www/test/:
-            subrepodiffvcs:
+            subRepoDiffVCS:
                 repo: git+file://${git_repo_path}
             subRepoSameVCS: git+file://${git_repo_path}
             vcsOn2: svn+file://${svn_repo_path}
@@ -376,7 +368,18 @@ class LoadConfigsUpdateDepth(RepoIntegrationDuplicateTest):
 
     def test_merge_nested_dict(self):
 
-        self.assertEqual('vcsOn1', self.config3)
+        self.assertIn(
+            'vcsOn1',
+            self.config3[os.path.join(self.TMP_DIR, 'srv/www/test/')]
+        )
+        self.assertNotIn(
+            'vcsOn2',
+            self.config3[os.path.join(self.TMP_DIR, 'srv/www/test/')]
+        )
+        self.assertIn(
+            'vcsOn2',
+            self.config4[os.path.join(self.TMP_DIR, 'srv/www/test/')]
+        )
 
 
 class LoadConfigsDuplicate(RepoIntegrationDuplicateTest):
@@ -388,12 +391,9 @@ class LoadConfigsDuplicate(RepoIntegrationDuplicateTest):
             path=self.CONFIG_DIR,
             match="repoduplicate[1-2]"
         )
-        pprint(configs)
 
-        configdict = cli.load_configs(configs)
-
-        pprint(configdict)
-        pass
+        with self.assertRaises(Exception):
+            configdict = cli.load_configs(configs)
 
     def test_duplicate_path_same_vcs(self):
         """Raise no warning if duplicate path same vcs."""
