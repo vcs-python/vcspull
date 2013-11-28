@@ -27,12 +27,12 @@ From pip (MIT Licnese):
 
 """
 
-from .base import BaseRepo
+import os
 import logging
 import tempfile
+from .base import BaseRepo
 from ..util import run
 from .. import exc
-import os
 
 logger = logging.getLogger(__name__)
 

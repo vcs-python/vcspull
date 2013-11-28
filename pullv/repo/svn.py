@@ -21,11 +21,10 @@ The following are from pip MIT license:
 
 """
 
-import re
 import os
+import re
 import logging
-import urlparse
-from ..util import run
+from ..util import run, urlparse
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)

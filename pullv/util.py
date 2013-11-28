@@ -42,9 +42,12 @@ else:
 if not PY2:
     input = input
     from string import ascii_lowercase
+    import urllib.parse as urllib
+    import urllib.parse as urlparse
 else:
     input = raw_input
     from string import lower as ascii_lowercase
+    import urlparse
 
 
 def expand_config(config):

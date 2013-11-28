@@ -14,11 +14,11 @@ MIT license:
 
 """
 
-
-from .base import BaseRepo
-import logging
-from ..util import run
 import os
+import logging
+from .base import BaseRepo
+from ..util import run
+
 logger = logging.getLogger(__name__)
 
 

@@ -13,12 +13,9 @@ from __future__ import absolute_import, division, print_function, with_statement
 import collections
 import os
 import sys
-import urlparse
 import logging
-from .. import util
-from .. import log
+from ..util import mkdir_p, urlparse
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -68,12 +65,12 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
     def check_destination(self, *args, **kwargs):
         """Assure destination path exists. If not, create directories."""
         if not os.path.exists(self['parent_path']):
-            util.mkdir_p(self['parent_path'])
+            mkdir_p(self['parent_path'])
         else:
             if not os.path.exists(self['path']):
                 self.info('Repo directory for %s (%s) does not exist @ %s' % (
                     self['name'], self['vcs'], self['path']))
-                util.mkdir_p(self['path'])
+                mkdir_p(self['path'])
 
         return True
 
