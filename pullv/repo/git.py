@@ -228,7 +228,11 @@ class GitRepo(BaseRepo):
             if 'Already up-to-date' in proc['stdout']:
                 self.info('Already up-to-date.')
             else:
-                self.info('Updated.\n%s' % ('\n'.join(proc['stdout'])))
+                if proc['stderr']:
+                    if 'You are not currently on a branch' in proc['stderr'][0]:
+                        self.info('Not on branch, Fetched.')
+                else:
+                    self.info('\n'.join(proc['stdout']))
         else:
             self.obtain()
             self.update_repo()
