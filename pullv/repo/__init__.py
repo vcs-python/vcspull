@@ -13,16 +13,17 @@ from __future__ import absolute_import, division, print_function, with_statement
 import os
 import logging
 
+from ..log import RepoLogFormatter
+
 from .git import GitRepo
 from .hg import MercurialRepo
 from .svn import SubversionRepo
 from .base import BaseRepo, RepoLoggingAdapter
 
-logger = logging.getLogger(__name__)
-from ..log import RepoLogFormatter
-
 __all__ = ['GitRepo', 'MercurialRepo', 'SubversionRepo', 'BaseRepo', 'Repo',
            'RepoLoggingAdapter']
+
+logger = logging.getLogger(__name__)
 
 
 class FilterRepo(logging.Filter):
@@ -71,9 +72,10 @@ class Repo(object):
                 ' git+, svn+ to the repo URL. Examples:\n'
                 '\t %s\n'
                 '\t %s\n'
-                '\t %s\n' %
-                (attributes['url'],
-                 'git+https://github.com/freebsd/freebsd.git',
-                 'hg+https://bitbucket.org/birkenfeld/sphinx',
-                 'svn+http://svn.code.sf.net/p/docutils/code/trunk')
+                '\t %s\n' % (
+                    attributes['url'],
+                    'git+https://github.com/freebsd/freebsd.git',
+                    'hg+https://bitbucket.org/birkenfeld/sphinx',
+                    'svn+http://svn.code.sf.net/p/docutils/code/trunk'
                 )
+            )
