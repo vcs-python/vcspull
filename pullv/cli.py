@@ -18,7 +18,7 @@ import logging
 import argparse
 import kaptan
 import argcomplete
-from . import util
+from .util import expand_config, get_repos
 from .log import DebugLogFormatter
 from .repo import Repo
 
@@ -127,10 +127,10 @@ def command_load(args):
             config.import_config(config_file)
 
             logging.debug('%r' % config.get())
-            logging.debug('%r' % util.expand_config(config.get()))
-            logging.debug('%r' % util.get_repos(util.expand_config(config.get())))
+            logging.debug('%r' % expand_config(config.get()))
+            logging.debug('%r' % get_repos(expand_config(config.get())))
 
-            for repo_dict in util.get_repos(util.expand_config(config.get())):
+            for repo_dict in get_repos(expand_config(config.get())):
                 r = Repo(repo_dict)
                 logger.debug('%s' % r)
                 r.update_repo()
@@ -274,7 +274,7 @@ def load_configs(configs):
         conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
         conf.import_config(config)
 
-        newconfigdict = util.expand_config(conf.export('dict'))
+        newconfigdict = expand_config(conf.export('dict'))
 
         if configdict:
             for path in newconfigdict:
@@ -300,7 +300,7 @@ def load_configs(configs):
     #if configs load and validate_schema, then load.
     #configs = [config for config in configs if validate_schema(config)]
 
-    configdict = util.expand_config(configdict)
+    configdict = expand_config(configdict)
 
     return configdict
 
