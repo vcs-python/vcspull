@@ -235,6 +235,30 @@ def find_configs(
     return configs
 
 
+import collections
+
+def update(d, u):
+    """Return updated dict.
+
+    http://stackoverflow.com/a/3233356
+
+    :param d: dict
+    :type d: dict
+    :param u: updated dict.
+    :type u: dict
+    :rtype: dict
+
+    """
+
+    for k, v in u.iteritems():
+        if isinstance(v, collections.Mapping):
+            r = update(d.get(k, {}), v)
+            d[k] = r
+        else:
+            d[k] = u[k]
+    return d
+
+
 def load_configs(configs):
     """Return repos from a directory and fnmatch. Not recursive.
 
@@ -252,7 +276,10 @@ def load_configs(configs):
         fName, fExt = os.path.splitext(config)
         conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
         conf.import_config(config)
-        configdict.update(conf.export('dict'))
+        print(config)
+        print(conf.export('dict'))
+        configdict = update(configdict, conf.export('dict'))
+        # configdict.update(conf.export('dict'))
 
     #if configs load and validate_schema, then load.
     #configs = [config for config in configs if validate_schema(config)]

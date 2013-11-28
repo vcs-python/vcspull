@@ -311,37 +311,92 @@ class LoadConfigs(RepoIntegrationTest):
 
         configdicts = cli.load_configs(configs)
 
-        pprint(configs)
-        pprint(configdicts)
 
-    def test_duplicate_repos(self):
-        """Duplicate path + name with different repo URL / remotes raises."""
+class RepoIntegrationDuplicateTest(RepoIntegrationTest):
 
-        configs = cli.find_configs(
-            path=self.CONFIG_DIR
-        )
+    def setUp(self):
 
-        config_yaml = """
+        super(RepoIntegrationDuplicateTest, self).setUp()
+
+        config_yaml3 = """
         {TMP_DIR}/srv/www/test/:
             subrepodiffvcs:
-                repo: svn+file://${git_repo_path}
+                repo: svn+file://${svn_repo_path}
+            subRepoSameVCS: git+file://${git_repo_path}
+            vcsOn1: svn+file://${svn_repo_path}
         """
 
-        config_yaml = config_yaml.format(
+        config_yaml4 = """
+        {TMP_DIR}/srv/www/test/:
+            subrepodiffvcs:
+                repo: git+file://${git_repo_path}
+            subRepoSameVCS: git+file://${git_repo_path}
+            vcsOn2: svn+file://${svn_repo_path}
+        """
+
+        config_yaml3 = config_yaml3.format(
             svn_repo_path=self.svn_repo_path,
             hg_repo_path=self.hg_repo_path,
             git_repo_path=self.git_repo_path,
             TMP_DIR=self.TMP_DIR
         )
 
-        conf = kaptan.Kaptan(handler='json')
-        conf.import_config(self.config_json)
-        self.config2 = conf.export('dict')
+        config_yaml4 = config_yaml4.format(
+            svn_repo_path=self.svn_repo_path,
+            hg_repo_path=self.hg_repo_path,
+            git_repo_path=self.git_repo_path,
+            TMP_DIR=self.TMP_DIR
+        )
 
-        configdicts = cli.load_configs(configs)
+        config_yaml3 = copy.deepcopy(config_yaml3)
+        config_yaml4 = copy.deepcopy(config_yaml4)
 
-    def test_merges_same_duplicates(self):
-        """Will merge same repos."""
+        self.config3_name = 'repoduplicate1.yaml'
+        self.config3_file = os.path.join(self.CONFIG_DIR, self.config3_name)
+
+        with open(self.config3_file, 'w') as buf:
+            buf.write(config_yaml3)
+
+        conf = kaptan.Kaptan(handler='yaml')
+        conf.import_config(self.config3_file)
+        self.config3 = conf.export('dict')
+
+        self.config4_name = 'repoduplicate2.yaml'
+        self.config4_file = os.path.join(self.CONFIG_DIR, self.config4_name)
+
+        with open(self.config4_file, 'w') as buf:
+            buf.write(config_yaml4)
+
+        conf = kaptan.Kaptan(handler='yaml')
+        conf.import_config(self.config4_file)
+        self.config4 = conf.export('dict')
+
+
+class LoadConfigsUpdateDepth(RepoIntegrationDuplicateTest):
+
+    def test_merge_nested_dict(self):
+
+        self.assertEqual('vcsOn1', self.config3)
+
+
+class LoadConfigsDuplicate(RepoIntegrationDuplicateTest):
+
+    def test_duplicate_path_diff_vcs(self):
+        """Duplicate path + name with different repo URL / remotes raises."""
+
+        configs = cli.find_configs(
+            path=self.CONFIG_DIR,
+            match="repoduplicate[1-2]"
+        )
+        pprint(configs)
+
+        configdict = cli.load_configs(configs)
+
+        pprint(configdict)
+        pass
+
+    def test_duplicate_path_same_vcs(self):
+        """Raise no warning if duplicate path same vcs."""
         pass
 
 
