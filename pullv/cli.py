@@ -18,8 +18,8 @@ import logging
 import argparse
 import kaptan
 import argcomplete
-from . import log
 from . import util
+from .log import DebugLogFormatter
 from .repo import Repo
 
 logger = logging.getLogger(__name__)
@@ -50,9 +50,8 @@ def setup_logger(logger=None, level='INFO'):
         logger = logging.getLogger()
     if not logger.handlers:
         channel = logging.StreamHandler()
-        channel.setFormatter(log.DebugLogFormatter())
+        channel.setFormatter(DebugLogFormatter())
 
-        # channel.setFormatter(log.LogFormatter())
         logger.setLevel(level)
         logger.addHandler(channel)
 
