@@ -11,8 +11,8 @@ pullv
 """
 
 from __future__ import absolute_import, division, print_function, with_statement
-from . import util
-from . import log
+from .util import expand_config, get_repos, mkdir_p, run, scan, which
+from .log import LogFormatter, DebugLogFormatter, RepoLogFormatter
 from . import cli
 
 __version__ = '0.0.4'
