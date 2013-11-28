@@ -61,8 +61,8 @@ def expand_config(config):
     :rtype: dict
 
     """
-    for directory, repos in config.iteritems():
-        for repo, repo_data in repos.iteritems():
+    for directory, repos in config.items():
+        for repo, repo_data in repos.items():
 
             '''
             repo_name: http://myrepo.com/repo.git
@@ -87,11 +87,11 @@ def expand_config(config):
                     ]
 
     config = dict(
-        (os.path.expandvars(directory), repo_data) for directory, repo_data in config.iteritems()
+        (os.path.expandvars(directory), repo_data) for directory, repo_data in config.items()
     )
 
     config = dict(
-        (os.path.expanduser(directory), repo_data) for directory, repo_data in config.iteritems()
+        (os.path.expanduser(directory), repo_data) for directory, repo_data in config.items()
     )
 
     return config
@@ -106,8 +106,8 @@ def get_repos(config):
 
     """
     repo_list = []
-    for directory, repos in config.iteritems():
-        for repo, repo_data in repos.iteritems():
+    for directory, repos in config.items():
+        for repo, repo_data in repos.items():
             repo_dict = {
                 'name': repo,
                 'parent_path': directory,
@@ -116,7 +116,7 @@ def get_repos(config):
 
             if 'remotes' in repo_data:
                 repo_dict['remotes'] = []
-                for remote_name, url in repo_data['remotes'].iteritems():
+                for remote_name, url in repo_data['remotes'].items():
                     remote_dict = {
                         'remote_name': remote_name,
                         'url': url
