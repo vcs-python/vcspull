@@ -172,6 +172,8 @@ def run(
     proc.wait()
 
     out, err = proc.stdout.read(), proc.stderr.read()
+    proc.stdout.close()
+    proc.stderr.close()
 
     ret['stdout'] = out
     ret['stderr'] = err
