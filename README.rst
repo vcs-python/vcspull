@@ -35,7 +35,7 @@ See the `Quickstart`_ to jump in.
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 
 ==============  ==========================================================
-Python support  Python 2.6, 2.7 (3.3 in development)
+Python support  Python 2.6, 2.7, >= 3.3
 VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
 Source          https://github.com/tony/pullv

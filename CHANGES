@@ -4,6 +4,13 @@ Changelog
 
 Here you can find the recent changes to pullv.
 
+dev
+---
+
+- [tests] tests for loading multiple configs, config conflict cases
+- [internal] fix recursive imports, using explicit importing
+- [py3] python 3 support
+
 0.0.4
 -----
 

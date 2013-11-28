@@ -47,7 +47,7 @@ class SubversionRepo(BaseRepo):
         checkout = run([
             'svn', 'checkout', '-q', url, self['path'],
         ])
-        self.info('Checked out\n\t%s', checkout['stdout'])
+        self.info('Checked out.\n%s', checkout['stdout'])
 
     def get_revision_file(self, location=None):
         """Return revision for a file."""
@@ -210,7 +210,7 @@ class SubversionRepo(BaseRepo):
                 cwd=self['path']
             )
 
-            self.info('Updated\n\t%s' % (proc['stdout']))
+            self.info('Updated\n%s' % '\n'.join(proc['stdout']))
         else:
             self.obtain()
             self.update_repo()

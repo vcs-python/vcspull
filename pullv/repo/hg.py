@@ -37,11 +37,11 @@ class MercurialRepo(BaseRepo):
         clone = run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
-        self.info('Cloned\n\t%s' % clone['stdout'])
+        self.info('Cloned.\n%s' % '\n'.join(clone['stdout']))
         update = run([
             'hg', 'update', '-q'
         ], cwd=self['path'])
-        self.info('Updated\n\t%s' % update['stdout'])
+        self.info('Updated.\n%s' % '\n'.join(update['stdout']))
 
     def get_revision(self):
         current_rev = run(

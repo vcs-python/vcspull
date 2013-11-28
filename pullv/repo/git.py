@@ -184,7 +184,7 @@ class GitRepo(BaseRepo):
         import sys
 
         url, rev = self.get_url_rev()
-        self.info('Cloning')
+        self.info('Cloning.')
         process = subprocess.Popen(
             ['git', 'clone', '--progress', url, self['path']],
             stdout=subprocess.PIPE,
@@ -201,7 +201,7 @@ class GitRepo(BaseRepo):
                     sys.stderr.write(err)
                     sys.stderr.flush()
 
-        self.info('Cloned\n\t%s' % (process.stdout.read()))
+        self.info('Cloned.\n%s' % (process.stdout.read()))
 
         if self['remotes']:
             self.error(self['remotes'])
@@ -228,7 +228,7 @@ class GitRepo(BaseRepo):
             if 'Already up-to-date' in proc['stdout']:
                 self.info('Already up-to-date.')
             else:
-                self.info('Updated\n\t%s' % (proc['stdout']))
+                self.info('Updated.\n%s' % ('\n'.join(proc['stdout'])))
         else:
             self.obtain()
             self.update_repo()
