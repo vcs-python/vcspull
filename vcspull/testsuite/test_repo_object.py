@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Tests for placing config dicts into :py:class:`Repo` objects.
 
-pullv.tests.test_repo_object
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vcspull.testsuite.test_repo_object
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details

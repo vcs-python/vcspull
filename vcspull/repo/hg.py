@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Mercurial Repo object for pullv.
+"""Mercurial Repo object for vcspull.
 
-pullv.repo.hg
-~~~~~~~~~~~~~
+vcspull.repo.hg
+~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details. The following licenses are from pip

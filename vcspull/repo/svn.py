@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Subversion object for pullv.
+"""Subversion object for vcspull.
 
-pullv.repo.svn
-~~~~~~~~~~~~~~
+vcspull.repo.svn
+~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details.

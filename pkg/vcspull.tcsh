@@ -7,4 +7,4 @@ export COMP_LINE=${COMMAND_LINE}
 export COMP_WORDBREAKS=
 export COMP_POINT=${#COMMAND_LINE}
 export _ARGCOMPLETE=1
-pullv 8>&1 9>&2 1>/dev/null 2>/dev/null
+vcspull 8>&1 9>&2 1>/dev/null 2>/dev/null

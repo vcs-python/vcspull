@@ -22,4 +22,4 @@ _python_argcomplete() {
 # elif [ $SHELLNAME = "tcsh" ];  then
 # fi
 
-eval "$(register-python-argcomplete pullv)"
+eval "$(register-python-argcomplete vcspull)"

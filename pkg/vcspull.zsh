@@ -63,4 +63,4 @@ _bash_complete() {
   return ret
 }
 
-eval "$(register-python-argcomplete pullv)"
+eval "$(register-python-argcomplete vcspull)"

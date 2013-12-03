@@ -1,8 +1,8 @@
 # -*- coding: utf8 - *-
-"""CLI utilities for pullv.
+"""CLI utilities for vcspull.
 
-pullv.cli
-~~~~~~~~~
+vcspull.cli
+~~~~~~~~~~~
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details
 
@@ -35,7 +35,7 @@ if mo:
     __version__ = mo.group(1)
 
 
-config_dir = os.path.expanduser('~/.pullv/')
+config_dir = os.path.expanduser('~/.vcspull/')
 cwd_dir = os.getcwd() + '/'
 
 
@@ -73,8 +73,8 @@ def get_parser():
 
     main_parser.add_argument(
         '-v', '--version', action='version',
-        version='pullv %s' % __version__,
-        help='Prints the pullv version',
+        version='vcspull %s' % __version__,
+        help='Prints the vcspull version',
     )
 
     return main_parser
@@ -104,13 +104,13 @@ def main():
 
 def command_load(args):
     if not args.config or args.config == ['*']:
-        yaml_config = os.path.expanduser('~/.pullv.yaml')
+        yaml_config = os.path.expanduser('~/.vcspull.yaml')
         has_yaml_config = os.path.exists(yaml_config)
-        json_config = os.path.expanduser('~/.pullv.json')
+        json_config = os.path.expanduser('~/.vcspull.json')
         has_json_config = os.path.exists(json_config)
         if not has_yaml_config and not has_json_config:
-            logger.fatal('No config file found. Create a .pullv.{yaml,conf}'
-                        ' in your $HOME directory. http://pullv.rtfd.org for a'
+            logger.fatal('No config file found. Create a .vcspull.{yaml,conf}'
+                        ' in your $HOME directory. http://vcspull.rtfd.org for a'
                         ' quickstart.')
         else:
             if sum(filter(None, [has_json_config, has_yaml_config])) > int(1):
@@ -138,7 +138,7 @@ def command_load(args):
 
 class ConfigFileCompleter(argcomplete.completers.FilesCompleter):
 
-    """argcomplete completer for pullv files."""
+    """argcomplete completer for vcspull files."""
 
     def __call__(self, prefix, **kwargs):
 
@@ -153,7 +153,7 @@ class ConfigFileCompleter(argcomplete.completers.FilesCompleter):
 
 
 def in_dir(
-    config_dir=os.path.expanduser('~/.pullv'),
+    config_dir=os.path.expanduser('~/.vcspull'),
     extensions=['.yml', '.yaml', '.json']
 ):
     """Return a list of configs in ``config_dir``.
@@ -192,7 +192,7 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
 
 
 def find_configs(
-    path=['~/.pullv'],
+    path=['~/.vcspull'],
     match=['*'],
     filetype=['json', 'yaml'],
 
@@ -345,7 +345,7 @@ def scan_repos(
 
 
 def validate_schema(conf):
-    """Return True if valid pullv schema.
+    """Return True if valid vcspull schema.
 
     :param conf: configuration
     :type conf: string

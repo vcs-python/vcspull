@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Tests for pullv.
+"""Tests for vcspull.
 
-pullv.tests.test_cli
-~~~~~~~~~~~~~~~~~~~~
+vcspull.testsuite.test_cli
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details
@@ -15,8 +15,8 @@ import tempfile
 import copy
 import kaptan
 from pprint import pprint
-from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
-from pullv.util import expand_config, run, get_repos
+from vcspull.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
+from vcspull.util import expand_config, run, get_repos
 from .helpers import RepoTest, ConfigTest
 from .. import cli
 
@@ -31,7 +31,7 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
     :var svn_repo_path: svn repo
     :var hg_repo_path: hg repo
     :var TMP_DIR: temporary directory for testcase
-    :var CONFIG_DIR: the ``.pullv`` dir inside of ``TMP_DIR``.
+    :var CONFIG_DIR: the ``.vcspull`` dir inside of ``TMP_DIR``.
 
     Create a local svn, git and hg repo. Create YAML config file with paths.
 
@@ -45,7 +45,7 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
         self.hg_repo_path, self.hg_repo = self.create_mercurial_repo()
         self.svn_repo_path, self.svn_repo = self.create_svn_repo()
 
-        self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.pullv')
+        self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.vcspull')
 
         os.makedirs(self.CONFIG_DIR)
         self.assertTrue(os.path.exists(self.CONFIG_DIR))

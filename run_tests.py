@@ -13,15 +13,15 @@ import argparse
 logging.disable(logging.CRITICAL)
 
 
-pullv_path = sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-if pullv_path not in sys.path:
-    sys.path.insert(0, pullv_path)
+vcspull_path = sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+if vcspull_path not in sys.path:
+    sys.path.insert(0, vcspull_path)
 
 
 def main(verbosity=2, failfast=False):
-    """Run TestSuite for pullv. Exit with code 0 if success."""
+    """Run TestSuite for vcspull. Exit with code 0 if success."""
 
-    suites = unittest.TestLoader().discover('pullv.testsuite', pattern="test_*.py")
+    suites = unittest.TestLoader().discover('vcspull.testsuite', pattern="test_*.py")
     result = unittest.TextTestRunner(
         verbosity=verbosity, failfast=failfast).run(suites)
     if result.wasSuccessful():
@@ -32,7 +32,7 @@ def main(verbosity=2, failfast=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='''\
-        Run tests suite for pullv. With no arguments, runs all test suites in pullv.testsuite.
+        Run tests suite for vcspull. With no arguments, runs all test suites in vcspull.testsuite.
 
         Default usage:
             $ ./run_tests.py
@@ -58,13 +58,13 @@ if __name__ == '__main__':
             $ ./run_tests.py test_config.ImportExportTest.test_export_json \\
                 test_config.ImportExportTest.test_window
 
-        ./run_tests will automatically assume the package namespace ``pullv.testsuite``.
+        ./run_tests will automatically assume the package namespace ``vcspull.testsuite``.
 
             $ ./run_tests.py test_config.ImportExportTest
 
         is the same as:
 
-            $ ./run_tests.py pullv.testsuite.test_config.ImportExportTest
+            $ ./run_tests.py vcspull.testsuite.test_config.ImportExportTest
         '''
     )
     parser.add_argument('-l', '--log-level', dest='log_level', default='INFO',
@@ -81,15 +81,15 @@ if __name__ == '__main__':
     verbosity = args.verbosity
 
     import logging
-    logging.getLogger('pullv.testsuite').setLevel(args.log_level.upper())
+    logging.getLogger('vcspull.testsuite').setLevel(args.log_level.upper())
 
     if 'help' in args:
         parser.print_help()
     if args.tests and len(args.tests) > int(0):
         for arg in args.tests:
-            if not arg.startswith('pullv.testsuite'):
+            if not arg.startswith('vcspull.testsuite'):
                 loc = args.tests.index(arg)
-                args.tests[loc] = 'pullv.testsuite.%s' % arg
+                args.tests[loc] = 'vcspull.testsuite.%s' % arg
         suites = unittest.TestLoader().loadTestsFromNames(args.tests)
         result = unittest.TextTestRunner(
             verbosity=verbosity, failfast=args.failfast).run(suites)

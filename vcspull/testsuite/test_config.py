@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Tests for pullv.
+"""Tests for vcspull.
 
-pullv.tests.test_config
-~~~~~~~~~~~~~~~~~~~~~~~
+vcspull.testsuite.test_config
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details
@@ -13,8 +13,8 @@ import os
 import copy
 import logging
 import kaptan
-from pullv.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
-from pullv.util import expand_config, run, get_repos
+from vcspull.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
+from vcspull.util import expand_config, run, get_repos
 from .helpers import ConfigTest, ConfigExamples
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class ConfigImportExportTest(ConfigExamples):
 
     def test_export_json(self):
         TMP_DIR = self.TMP_DIR
-        json_config_file = os.path.join(TMP_DIR, '.pullv.json')
+        json_config_file = os.path.join(TMP_DIR, '.vcspull.json')
 
         config = kaptan.Kaptan()
         config.import_config(self.config_dict)
@@ -53,7 +53,7 @@ class ConfigImportExportTest(ConfigExamples):
         self.assertDictEqual(self.config_dict, new_config_data)
 
     def test_export_yaml(self):
-        yaml_config_file = os.path.join(self.TMP_DIR, '.pullv.yaml')
+        yaml_config_file = os.path.join(self.TMP_DIR, '.vcspull.yaml')
 
         config = kaptan.Kaptan()
         config.import_config(self.config_dict)
@@ -71,23 +71,23 @@ class ConfigImportExportTest(ConfigExamples):
     def test_scan_config(self):
         configs = []
 
-        garbage_file = os.path.join(self.TMP_DIR, '.pullv.psd')
+        garbage_file = os.path.join(self.TMP_DIR, '.vcspull.psd')
         buf = open(garbage_file, 'w')
         buf.write('wat')
         buf.close()
 
         for r, d, f in os.walk(self.TMP_DIR):
-            for filela in (x for x in f if x.endswith(('.json', 'yaml')) and x.startswith('.pullv')):
+            for filela in (x for x in f if x.endswith(('.json', 'yaml')) and x.startswith('.vcspull')):
                 configs.append(os.path.join(self.TMP_DIR, filela))
 
         files = 0
-        if os.path.exists(os.path.join(self.TMP_DIR, '.pullv.json')):
+        if os.path.exists(os.path.join(self.TMP_DIR, '.vcspull.json')):
             files += 1
-            self.assertIn(os.path.join(self.TMP_DIR, '.pullv.json'), configs)
+            self.assertIn(os.path.join(self.TMP_DIR, '.vcspull.json'), configs)
 
-        if os.path.exists(os.path.join(self.TMP_DIR, '.pullv.yaml')):
+        if os.path.exists(os.path.join(self.TMP_DIR, '.vcspull.yaml')):
             files += 1
-            self.assertIn(os.path.join(self.TMP_DIR, '.pullv.yaml'), configs)
+            self.assertIn(os.path.join(self.TMP_DIR, '.vcspull.yaml'), configs)
 
         self.assertEqual(len(configs), files)
 

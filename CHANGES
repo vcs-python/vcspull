@@ -2,7 +2,12 @@
 Changelog
 =========
 
-Here you can find the recent changes to pullv.
+Here you can find the recent changes to vcspull.
+
+0.0.6
+-----
+
+- Renamed to ``vcspull``.
 
 0.0.5
 -----

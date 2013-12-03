@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Tests for pullv.
+"""Tests for vcspull.
 
-pullv.tests
-~~~~~~~~~~~
+vcspull.testsuite
+~~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details

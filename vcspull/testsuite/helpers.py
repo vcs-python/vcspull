@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Tests for pullv.
+"""Tests for vcspull.
 
-pullv.tests.helpers
-~~~~~~~~~~~~~~~~~~~
+vcspull.testsuite.helpers
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details
@@ -42,7 +42,7 @@ class ConfigTest(unittest.TestCase):
 
     def setUp(self):
         """Create TMP_DIR for TestCase."""
-        self.TMP_DIR = tempfile.mkdtemp(suffix='pullv')
+        self.TMP_DIR = tempfile.mkdtemp(suffix='vcspull')
 
 
 class ConfigExamples(ConfigTest):

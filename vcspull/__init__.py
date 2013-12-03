@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """Manage multiple git, mercurial, svn repositories from a YAML / JSON file.
 
-pullv
-~~~~~
+vcspull
+~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details

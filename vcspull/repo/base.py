@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Base class for Repository objects.
 
-pullv.repo.base
-~~~~~~~~~~~~~~~
+vcspull.repo.base
+~~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details

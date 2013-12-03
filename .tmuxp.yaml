@@ -1,7 +1,7 @@
-session_name: pullv
+session_name: vcspull
 start_directory: ./ # load session relative to config location (project root).
 windows:
-- window_name: pullv
+- window_name: vcspull
   layout: main-horizontal
   options:
     main-pane-height: 35
@@ -17,7 +17,7 @@ windows:
     focus: true
   - pane
   - shell_command: 
-    - command -v .env/bin/pullv >/dev/null 2>&1 || { pip install -e .; }
+    - command -v .env/bin/vcspull >/dev/null 2>&1 || { pip install -e .; }
     - command -v watching_testrunner >/dev/null 2>&1 || { pip install watching_testrunner; }
     - watching_testrunner --basepath ./ --pattern="*.py" 'python run_tests.py'
 - window_name: docs
@@ -28,14 +28,13 @@ windows:
     - command -v virtualenv >/dev/null 2>&1 || { pip install virtualenv; }
     - '[ -d .env -a -f .env/bin/activate ] && source .env/bin/activate || virtualenv .env'
     - '[ ! -d .env/build ] || rm -rf .env/build'
-    - command -v .env/bin/pullv >/dev/null 2>&1 || { pip install -e .; }
+    - command -v .env/bin/vcspull >/dev/null 2>&1 || { pip install -e .; }
     - cd ./doc
   panes:
   - shell_command:
     - reset
     - vim
     - :Ex
-    focus: true
   - pwd
   - echo 'docs built to <http://0.0.0.0:8002/_build/html>'; python -m SimpleHTTPServer 8002
   - shell_command:

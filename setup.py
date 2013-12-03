@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf8 - *-
-"""pullv lives at <https://github.com/tony/pullv>.
+"""vcspull lives at <https://github.com/tony/vcspull>.
 
-pullv
------
+vcspull
+-------
 
 Mass update git, hg and svn repos simultaneously from YAML / JSON file.
 
@@ -20,7 +20,7 @@ if sys.version_info < (2, 7):
     tests_reqs += ['unittest2']
 
 import re
-VERSIONFILE = "pullv/__init__.py"
+VERSIONFILE = "vcspull/__init__.py"
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)
@@ -30,10 +30,10 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
 setup(
-    name='pullv',
+    name='vcspull',
     version=__version__,
-    url='http://github.com/tony/pullv/',
-    download_url='https://pypi.python.org/pypi/pullv',
+    url='http://github.com/tony/vcspull/',
+    download_url='https://pypi.python.org/pypi/vcspull',
     license='BSD',
     author='Tony Narlock',
     author_email='tony@git-pull.com',
@@ -43,11 +43,11 @@ setup(
     include_package_data=True,
     install_requires=install_reqs,
     tests_require=tests_reqs,
-    test_suite='pullv.testsuite',
+    test_suite='vcspull.testsuite',
     zip_safe=False,
-    packages=['pullv', 'pullv.testsuite', 'pullv.repo', 'pullv._vendor', 'pullv._vendor.colorama'],
-    scripts=['pkg/pullv.bash', 'pkg/pullv.zsh', 'pkg/pullv.tcsh'],
-    entry_points=dict(console_scripts=['pullv=pullv:cli.main']),
+    packages=['vcspull', 'vcspull.testsuite', 'vcspull.repo', 'vcspull._vendor', 'vcspull._vendor.colorama'],
+    scripts=['pkg/vcspull.bash', 'pkg/vcspull.zsh', 'pkg/vcspull.tcsh'],
+    entry_points=dict(console_scripts=['vcspull=vcspull:cli.main']),
     classifiers=[
         'Development Status :: 3 - Alpha',
         "License :: OSI Approved :: BSD License",

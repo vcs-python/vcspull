@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Git Repo object for pullv.
+"""Git Repo object for vcspull.
 
-pullv.repo.git
-~~~~~~~~~~~~~~
+vcspull.repo.git
+~~~~~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details. The following modules also are taken

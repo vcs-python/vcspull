@@ -1,8 +1,8 @@
 # -*- coding: utf8 - *-
-"""Exceptions for pullv.
+"""Exceptions for vcspull.
 
-pullv.exc
-~~~~~~~~~
+vcspull.exc
+~~~~~~~~~~~
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details
 

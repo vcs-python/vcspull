@@ -1,12 +1,12 @@
-``pullv`` - mass-update vcs from JSON / YAML config files.
+``vcspull`` - mass-update vcs from JSON / YAML config files.
 
-.. image:: https://travis-ci.org/tony/pullv.png?branch=master
-    :target: https://travis-ci.org/tony/pullv
+.. image:: https://travis-ci.org/tony/vcspull.png?branch=master
+    :target: https://travis-ci.org/tony/vcspull
 
-.. image:: https://badge.fury.io/py/pullv.png
-    :target: http://badge.fury.io/py/pullv
+.. image:: https://badge.fury.io/py/vcspull.png
+    :target: http://badge.fury.io/py/vcspull
 
-.. figure:: https://raw.github.com/tony/pullv/master/doc/_static/pullv-screenshot.png
+.. figure:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-screenshot.png
     :scale: 100%
     :width: 45%
     :align: center
@@ -18,9 +18,9 @@ JSON file.
 
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories
-* update to the latest repos with ``$ pullv``
+* update to the latest repos with ``$ vcspull``
 * `Documentation`_, `API`_ and `Examples`_.
-* pullv builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
+* vcspull builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
 
 See the `Quickstart`_ to jump in.
 
@@ -31,29 +31,30 @@ See the `Quickstart`_ to jump in.
   repo example`_ in the docs.
 - Support for ``svn`` username and password.
 
-.. _remote git repo example: http://pullv.readthedocs.org/en/latest/examples.html#remote-git-repositories-and-ssh-git
+.. _remote git repo example: http://vcspull.readthedocs.org/en/latest/examples.html#remote-git-repositories-and-ssh-git
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 
 ==============  ==========================================================
 Python support  Python 2.6, 2.7, >= 3.3
 VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
-Source          https://github.com/tony/pullv
-Travis          http://travis-ci.org/tony/pullv
-Docs            http://pullv.rtfd.org
-API             http://pullv.readthedocs.org/en/latest/api.html
-Issues          https://github.com/tony/pullv/issues
-pypi            https://pypi.python.org/pypi/pullv
-Crate.io        https://crate.io/packages/pullv/
-Ohloh           https://www.ohloh.net/p/pullv
+Source          https://github.com/tony/vcspull
+Docs            http://vcspull.rtfd.org
+Changelog       http://vcspull.readthedocs.org/en/latest/history.html
+API             http://vcspull.readthedocs.org/en/latest/api.html
+Issues          https://github.com/tony/vcspull/issues
+Travis          http://travis-ci.org/tony/vcspull
+pypi            https://pypi.python.org/pypi/vcspull
+Crate.io        https://crate.io/packages/vcspull/
+Ohloh           https://www.ohloh.net/p/vcspull
 License         `BSD`_.
 git repo        .. code-block:: bash
 
-                    $ git clone https://github.com/tony/pullv.git
+                    $ git clone https://github.com/tony/vcspull.git
 install dev     .. code-block:: bash
 
-                    $ git clone https://github.com/tony/pullv.git pullv
-                    $ cd ./pullv
+                    $ git clone https://github.com/tony/vcspull.git vcspull
+                    $ cd ./vcspull
                     $ virtualenv .env
                     $ source .env/bin/activate
                     $ pip install -e .
@@ -62,14 +63,14 @@ tests           .. code-block:: bash
                     $ python ./run_tests.py
 run             .. code-block:: bash
 
-                    $ pullv
+                    $ vcspull
 ==============  ==========================================================
 
 .. _BSD: http://opensource.org/licenses/BSD-3-Clause
-.. _Documentation: http://pullv.readthedocs.org/en/latest/
-.. _API: http://pullv.readthedocs.org/en/latest/api.html
-.. _Examples: http://pullv.readthedocs.org/en/latest/examples.html
-.. _Quickstart: http://pullv.readthedocs.org/en/latest/quickstart.html
+.. _Documentation: http://vcspull.readthedocs.org/en/latest/
+.. _API: http://vcspull.readthedocs.org/en/latest/api.html
+.. _Examples: http://vcspull.readthedocs.org/en/latest/examples.html
+.. _Quickstart: http://vcspull.readthedocs.org/en/latest/quickstart.html
 .. _pip: http://www.pip-installer.org/en/latest/
 .. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _saltstack: http://www.saltstack.org

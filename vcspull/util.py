@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Utility functions for pullv.
+"""Utility functions for vcspull.
 
-pullv.util
-~~~~~~~~~~
+vcspull.util
+~~~~~~~~~~~~
 
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details

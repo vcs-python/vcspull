@@ -1,8 +1,8 @@
 # -*- coding: utf8 - *-
-"""Log utilities for pullv.
+"""Log utilities for vcspull.
 
-pullv.log
-~~~~~~~~~
+vcspull.log
+~~~~~~~~~~~
 :copyright: Copyright 2013 Tony Narlock.
 :license: BSD, see LICENSE for details
 
