@@ -13,25 +13,25 @@ For bash, ``.bashrc``:
 
 .. code-block:: bash
 
-    $ source pullv.bash
+    $ source vcspull.bash
 
 For tcsh, ``.tcshrc``:
 
 .. code-block:: bash
 
-    $ complete pullv 'p/*/`tmuxp.tcsh`/'
+    $ complete vcspull 'p/*/`tmuxp.tcsh`/'
 
 For zsh, ``.zshrc``:
 
 .. code-block:: bash
 
-    $ source pullv.zsh
+    $ source vcspull.zsh
 
 
 Load config
 """""""""""
 
 .. argparse::
-    :module: pullv.cli
+    :module: vcspull.cli
     :func: get_parser
     :prog: tmuxp

@@ -28,7 +28,7 @@ config showing off every current feature and inline shortcut available.
 Code scholar
 ------------
 
-This ``.pullv.yaml`` is used to checkout and sync multiple open source
+This ``.vcspull.yaml`` is used to checkout and sync multiple open source
 configs.
 
 YAML:

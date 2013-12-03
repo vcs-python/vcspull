@@ -4,36 +4,36 @@
 API
 ===
 
-.. module:: pullv
+.. module:: vcspull
 
-.. automodule:: pullv.util
+.. automodule:: vcspull.util
    :members:
    :inherited-members:
    :show-inheritance:
 
-.. automodule:: pullv.repo
+.. automodule:: vcspull.repo
 
     .. autoclass:: Repo
         :members:
         :inherited-members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.base.RepoLoggingAdapter
+    .. autoclass:: vcspull.repo.base.RepoLoggingAdapter
         :members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.base.BaseRepo
+    .. autoclass:: vcspull.repo.base.BaseRepo
         :members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.git.GitRepo
+    .. autoclass:: vcspull.repo.git.GitRepo
         :members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.hg.MercurialRepo
+    .. autoclass:: vcspull.repo.hg.MercurialRepo
         :members:
         :show-inheritance:
 
-    .. autoclass:: pullv.repo.svn.SubversionRepo
+    .. autoclass:: vcspull.repo.svn.SubversionRepo
         :members:
         :show-inheritance:

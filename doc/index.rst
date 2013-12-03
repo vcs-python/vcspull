@@ -1,7 +1,7 @@
 .. _index:
 
 =====
-pullv
+vcspull
 =====
 
 .. sidebar:: Contents
@@ -16,7 +16,7 @@ pullv
         history
         roadmap
 
-.. figure:: _static/pullv-screenshot.png
+.. figure:: _static/vcspull-screenshot.png
     :scale: 100%
     :width: 50%
     :align: center

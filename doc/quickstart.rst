@@ -6,19 +6,19 @@ Quickstart
 Installation
 ------------
 
-First, install pullv.
+First, install vcspull.
 
 For latest official version:
 
 .. code-block:: bash
 
-    $ pip install pullv
+    $ pip install vcspull
 
 Development version:
 
 .. code-block:: bash
 
-    $ pip install -e git+https://github.com/tony/pullv.git#egg=pullv
+    $ pip install -e git+https://github.com/tony/vcspull.git#egg=vcspull
 
 Configuration
 -------------
@@ -27,7 +27,7 @@ Configuration
 
 We will check out the source code of `flask`_ to ``~/code/flask``.
 
-Prefer JSON? Create a ``~/.pullv.json`` file:
+Prefer JSON? Create a ``~/.vcspull.json`` file:
 
 .. code-block:: json
 
@@ -37,7 +37,7 @@ Prefer JSON? Create a ``~/.pullv.json`` file:
       }
     }
 
-YAML? Create a ``~/.pullv.yaml`` file:
+YAML? Create a ``~/.vcspull.yaml`` file:
 
 .. code-block:: yaml
 
@@ -52,7 +52,7 @@ Now run the command:
 
 .. code-block:: bash
 
-    $ pullv
+    $ vcspull
 
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _flask: http://flask.pocoo.org/
