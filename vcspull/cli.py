@@ -12,19 +12,22 @@ from __future__ import absolute_import, division, print_function, with_statement
 
 import os
 import sys
+import collections
 import fnmatch
 import glob
 import logging
+import re
 import argparse
+
 import kaptan
 import argcomplete
+
 from .util import expand_config, get_repos
 from .log import DebugLogFormatter
 from .repo import Repo
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
-import re
 VERSIONFILE = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), '__init__.py'
 )
@@ -34,26 +37,25 @@ mo = re.search(VSRE, verstrline, re.M)
 if mo:
     __version__ = mo.group(1)
 
-
 config_dir = os.path.expanduser('~/.vcspull/')
 cwd_dir = os.getcwd() + '/'
 
 
-def setup_logger(logger=None, level='INFO'):
+def setup_logger(log=None, level='INFO'):
     """Setup logging for CLI use.
 
-    :param logger: instance of logger
-    :type logger: :py:class:`Logger`
+    :param log: instance of logger
+    :type log: :py:class:`Logger`
 
     """
-    if not logger:
-        logger = logging.getLogger()
-    if not logger.handlers:
+    if not log:
+        log = logging.getLogger()
+    if not log.handlers:
         channel = logging.StreamHandler()
         channel.setFormatter(DebugLogFormatter())
 
-        logger.setLevel(level)
-        logger.addHandler(channel)
+        log.setLevel(level)
+        log.addHandler(channel)
 
 
 def get_parser():
@@ -93,6 +95,8 @@ def main():
         level=args.log_level.upper() if 'log_level' in args else 'INFO'
     )
 
+    log.error('hi')
+
     try:
         if not args.config or args.config and args.callback is command_load:
             command_load(args)
@@ -109,9 +113,11 @@ def command_load(args):
         json_config = os.path.expanduser('~/.vcspull.json')
         has_json_config = os.path.exists(json_config)
         if not has_yaml_config and not has_json_config:
-            logger.fatal('No config file found. Create a .vcspull.{yaml,conf}'
-                        ' in your $HOME directory. http://vcspull.rtfd.org for a'
-                        ' quickstart.')
+            log.fatal(
+                'No config file found. Create a .vcspull.{yaml,conf}'
+                ' in your $HOME directory. http://vcspull.rtfd.org for a'
+                ' quickstart.'
+            )
         else:
             if sum(filter(None, [has_json_config, has_yaml_config])) > int(1):
                 sys.exit(
@@ -132,7 +138,7 @@ def command_load(args):
 
             for repo_dict in get_repos(expand_config(config.get())):
                 r = Repo(repo_dict)
-                logger.debug('%s' % r)
+                log.debug('%s' % r)
                 r.update_repo()
 
 
@@ -231,8 +237,6 @@ def find_configs(
 
     return configs
 
-
-import collections
 
 def update(d, u):
     """Return updated dict.

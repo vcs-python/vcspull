@@ -13,7 +13,7 @@ from __future__ import absolute_import, division, print_function, with_statement
 import os
 import logging
 
-from ..log import RepoLogFormatter
+from ..log import RepoLogFormatter, RepoFilter
 
 from .git import GitRepo
 from .hg import MercurialRepo
@@ -25,20 +25,10 @@ __all__ = ['GitRepo', 'MercurialRepo', 'SubversionRepo', 'BaseRepo', 'Repo',
 
 logger = logging.getLogger(__name__)
 
-
-class FilterRepo(logging.Filter):
-
-    """Only include repo logs for this type of record."""
-
-    def filter(self, record):
-        """Only return a record if a repo_vcs object."""
-        return True if 'repo_vcs' in record.__dict__ else False
-
-
 logger.propagate = False
 channel = logging.StreamHandler()
 channel.setFormatter(RepoLogFormatter())
-channel.addFilter(FilterRepo())
+channel.addFilter(RepoFilter())
 logger.setLevel('INFO')
 logger.addHandler(channel)
 

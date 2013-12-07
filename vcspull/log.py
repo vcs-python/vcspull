@@ -32,23 +32,23 @@ def default_log_template(self, record):
     """
 
     tpl = ''
-    tpl += Style.RESET_ALL
-    tpl += (
+    reset = Style.RESET_ALL
+    levelname = (
         LEVEL_COLORS.get(record.levelname) + Style.BRIGHT +
         '(%(levelname)s)'
         + Style.RESET_ALL + ' '
     )
-    tpl += (
+    asctime += (
         '[' + Fore.BLACK + Style.DIM + Style.BRIGHT +
         '%(asctime)s'
         + Fore.RESET + Style.RESET_ALL + ']'
     )
-    tpl += (
+    name += (
         ' ' + Fore.WHITE + Style.DIM + Style.BRIGHT +
         '%(name)s'
         + Fore.RESET + Style.RESET_ALL + ' '
     )
-    tpl += Style.RESET_ALL
+    tpl = reset + levelname + asctime + name + reset
 
     return tpl
 
@@ -132,3 +132,12 @@ class RepoLogFormatter(LogFormatter):
             record.repo_vcs,
             Fore.RESET
         )
+
+
+class RepoFilter(logging.Filter):
+
+    """Only include repo logs for this type of record."""
+
+    def filter(self, record):
+        """Only return a record if a repo_vcs object."""
+        return True if 'repo_vcs' in record.__dict__ else False
