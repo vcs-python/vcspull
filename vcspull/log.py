@@ -31,23 +31,23 @@ def default_log_template(self, record):
 
     """
 
-    tpl = ''
     reset = Style.RESET_ALL
     levelname = (
         LEVEL_COLORS.get(record.levelname) + Style.BRIGHT +
         '(%(levelname)s)'
         + Style.RESET_ALL + ' '
     )
-    asctime += (
+    asctime = (
         '[' + Fore.BLACK + Style.DIM + Style.BRIGHT +
         '%(asctime)s'
         + Fore.RESET + Style.RESET_ALL + ']'
     )
-    name += (
+    name = (
         ' ' + Fore.WHITE + Style.DIM + Style.BRIGHT +
         '%(name)s'
         + Fore.RESET + Style.RESET_ALL + ' '
     )
+
     tpl = reset + levelname + asctime + name + reset
 
     return tpl
@@ -85,32 +85,32 @@ def debug_log_template(self, record):
 
     """
 
-    tpl = ''
-    tpl += Style.RESET_ALL
-    tpl += (
+    reset = Style.RESET_ALL
+    levelname = (
         LEVEL_COLORS.get(record.levelname) + Style.BRIGHT +
         '(%(levelname)1.1s)'
         + Style.RESET_ALL + ' '
     )
-    tpl += (
+    asctime = (
         '[' + Fore.BLACK + Style.DIM + Style.BRIGHT +
         '%(asctime)s'
         + Fore.RESET + Style.RESET_ALL + ']'
     )
-    tpl += (
+    name = (
         ' ' + Fore.WHITE + Style.DIM + Style.BRIGHT +
         '%(name)s'
         + Fore.RESET + Style.RESET_ALL + ' '
     )
-    tpl += (
+    module_funcName = (
         Fore.GREEN + Style.BRIGHT +
         '%(module)s.%(funcName)s()'
     )
-    tpl += (
+    lineno = (
         Fore.BLACK + Style.DIM + Style.BRIGHT + ':' + Style.RESET_ALL +
         Fore.CYAN + '%(lineno)d'
     )
-    tpl += Style.RESET_ALL
+
+    tpl = reset + levelname + asctime + name + module_funcName + lineno + reset
 
     return tpl
 
