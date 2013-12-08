@@ -1,8 +1,8 @@
 .. _index:
 
-=====
+=======
 vcspull
-=====
+=======
 
 .. sidebar:: Contents
 
