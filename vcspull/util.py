@@ -10,44 +10,18 @@ vcspull.util
 """
 
 from __future__ import absolute_import, division, print_function, with_statement
+
 import subprocess
 import os
 import sys
 import errno
 import logging
 import fnmatch
-from .exc import PullvException
 
-PY2 = sys.version_info[0] == 2
+from .exc import PullvException
+from ._compat import string_types
 
 logger = logging.getLogger(__name__)
-
-# http://www.rfk.id.au/blog/entry/preparing-pyenchant-for-python-3/
-try:
-    unicode = unicode
-except NameError:
-    # 'unicode' is undefined, must be Python 3
-    str = str
-    unicode = str
-    bytes = bytes
-    basestring = (str, bytes)
-else:
-    # 'unicode' exists, must be Python 2
-    str = str
-    unicode = unicode
-    bytes = str
-    basestring = basestring
-
-
-if not PY2:
-    input = input
-    from string import ascii_lowercase
-    import urllib.parse as urllib
-    import urllib.parse as urlparse
-else:
-    input = raw_input
-    from string import lower as ascii_lowercase
-    import urlparse
 
 
 def expand_config(config):
@@ -74,14 +48,14 @@ def expand_config(config):
             also assures the repo is a :py:class:`dict`.
             '''
 
-            if isinstance(repo_data, basestring):
+            if isinstance(repo_data, string_types):
                 config[directory][repo] = {'repo': repo_data}
 
             '''
             ``shell_command_after``: if str, turn to list.
             '''
             if 'shell_command_after' in repo_data:
-                if isinstance(repo_data['shell_command_after'], basestring):
+                if isinstance(repo_data['shell_command_after'], string_types):
                     repo_data['shell_command_after'] = [
                         repo_data['shell_command_after']
                     ]
@@ -147,7 +121,7 @@ def run(
     """Return output of command. Based off salt's _run."""
     ret = {}
 
-    if isinstance(cmd, basestring):
+    if isinstance(cmd, string_types):
         cmd = cmd.split(' ')
     if isinstance(cmd, list):
         cmd[0] = which(cmd[0])

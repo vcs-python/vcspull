@@ -24,7 +24,8 @@ The following are from pip MIT license:
 import os
 import re
 import logging
-from ..util import run, urlparse
+from ..util import run
+from .._compat import urlparse
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)

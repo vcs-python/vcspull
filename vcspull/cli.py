@@ -17,11 +17,12 @@ import fnmatch
 import glob
 import logging
 import re
-import argparse
 
+import argparse
 import kaptan
 import argcomplete
 
+from ._compat import string_types
 from .util import expand_config, get_repos
 from .log import DebugLogFormatter
 from .repo import Repo
@@ -94,8 +95,6 @@ def main():
     setup_logger(
         level=args.log_level.upper() if 'log_level' in args else 'INFO'
     )
-
-    log.error('hi')
 
     try:
         if not args.config or args.config and args.callback is command_load:
@@ -193,7 +192,7 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     """
 
     extensions = [extensions] if isinstance(
-        extensions, basestring) else extensions
+        extensions, string_types) else extensions
     return any(filename.endswith(e) for e in extensions)
 
 

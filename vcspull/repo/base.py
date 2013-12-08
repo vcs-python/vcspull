@@ -14,7 +14,8 @@ import collections
 import os
 import sys
 import logging
-from ..util import mkdir_p, urlparse
+from ..util import mkdir_p
+from .._compat import urlparse
 
 logger = logging.getLogger(__name__)
 
