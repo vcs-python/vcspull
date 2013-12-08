@@ -13,6 +13,6 @@ before_install:
 install:
   - "pip install -e ."
 # script: python setup.py test
-script: coverage run --source=tmuxp setup.py test
+script: coverage run --source=vcspull setup.py test
 after_success:
   - coveralls
