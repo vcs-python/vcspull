@@ -45,7 +45,6 @@ API             http://vcspull.readthedocs.org/en/latest/api.html
 Issues          https://github.com/tony/vcspull/issues
 Travis          http://travis-ci.org/tony/vcspull
 pypi            https://pypi.python.org/pypi/vcspull
-Crate.io        https://crate.io/packages/vcspull/
 Ohloh           https://www.ohloh.net/p/vcspull
 License         `BSD`_.
 git repo        .. code-block:: bash
