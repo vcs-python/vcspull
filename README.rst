@@ -6,6 +6,9 @@
 .. image:: https://badge.fury.io/py/vcspull.png
     :target: http://badge.fury.io/py/vcspull
 
+.. image:: https://coveralls.io/repos/tony/vcspull/badge.png?branch=master
+    :target: https://coveralls.io/r/tony/vcspull?branch=master
+
 .. figure:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-screenshot.png
     :scale: 100%
     :width: 45%
@@ -44,6 +47,7 @@ Changelog       http://vcspull.readthedocs.org/en/latest/history.html
 API             http://vcspull.readthedocs.org/en/latest/api.html
 Issues          https://github.com/tony/vcspull/issues
 Travis          http://travis-ci.org/tony/vcspull
+Test Coverage   https://coveralls.io/r/tony/vcspull
 pypi            https://pypi.python.org/pypi/vcspull
 Ohloh           https://www.ohloh.net/p/vcspull
 License         `BSD`_.

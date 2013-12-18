@@ -24,4 +24,4 @@ vcspull
     Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse.
 
 .. include:: ../README.rst
-    :start-line: 14
+    :start-line: 16
