@@ -129,6 +129,12 @@ class DebugLogFormatter(LogFormatter):
 class RepoLogFormatter(LogFormatter):
 
     def template(self, record):
+        record.message = ''.join([
+            Fore.MAGENTA, Style.BRIGHT,
+            record.message,
+            Fore.RESET,
+            Style.RESET_ALL
+        ])
         return '%s|%s| %s(%s) %s' % (
             Fore.GREEN + Style.DIM,
             record.repo_name,
