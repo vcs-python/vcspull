@@ -38,8 +38,7 @@ from .base import BaseRepo
 from ..util import run
 from .. import exc
 
-#logger = logging.getLogger(__name__)
-from ..log import logger
+logger = logging.getLogger(__name__)
 
 
 def _git_ssh_helper(identity):

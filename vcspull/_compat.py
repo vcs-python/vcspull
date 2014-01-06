@@ -33,6 +33,15 @@ if not PY2:
 
     exec('def reraise(tp, value, tb=None):\n raise(tp, value, tb)')
 
+    console_encoding = sys.__stdout__.encoding
+    def console_to_str(s):
+        """ From pypa/pip project, pip.backwardwardcompat. License MIT. """
+        try:
+            return s.decode(console_encoding)
+        except UnicodeDecodeError:
+            return s.decode('utf_8')
+
+
 else:
     text_type = unicode
     string_types = (str, unicode)
@@ -57,6 +66,9 @@ else:
     input = raw_input
     from string import lower as ascii_lowercase
     import urlparse
+
+    def console_to_str(s):
+        return s.decode('utf_8')
 
     def reraise(tp, value, tb=None):
         if value.__traceback__ is not tb:

@@ -15,7 +15,7 @@ import subprocess
 import logging
 
 from ..util import mkdir_p
-from .._compat import urlparse, text_type
+from .._compat import urlparse, text_type, console_to_str
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +56,7 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
             % (msg, self.in_progress))
         if self._show_progress():
             if msg and isinstance(msg, text_type):
-                # sys.stdout.write(' ' * self.indent + msg + text_type(type(msg)))
-                self.info(' a' * self.indent + msg)
+                self.info(' ' * self.indent + msg)
             sys.stdout.flush()
             self.in_progress_hanging = True
         else:
@@ -139,13 +138,13 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
             self.start_progress(' '.join(cmd))
             while True:
 
-                err = process.stderr.read(128)
+                err = console_to_str(process.stderr.read(128))
                 if err == '' and process.poll() is not None:
                     break
                 if err != '':
                     self.show_progress("%s" % err)
 
-            self.end_progress('%s' % (process.stdout.read()))
+            self.end_progress('%s' % (console_to_str(process.stdout.read())))
         else:
             self.info('%s' % (process.stdout.read()))
 
