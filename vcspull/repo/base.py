@@ -4,18 +4,18 @@
 vcspull.repo.base
 ~~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details
-
 """
+from __future__ import absolute_import, division, print_function, \
+    with_statement, unicode_literals
 
-from __future__ import absolute_import, division, print_function, with_statement
 import collections
 import os
 import sys
+import subprocess
 import logging
+
 from ..util import mkdir_p
-from .._compat import urlparse
+from .._compat import urlparse, text_type
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,13 @@ logger = logging.getLogger(__name__)
 class RepoLoggingAdapter(logging.LoggerAdapter):
 
     """Adapter for adding Repo related content to logger."""
+
+    def __init__(self, *args, **kwargs):
+        self.indent = 0
+        self.in_progress = None
+        self.in_progress_hanging = False
+
+        logging.LoggerAdapter.__init__(self, *args, **kwargs)
 
     def process(self, msg, kwargs):
         """Return extra kwargs for :class:`Repo` prefixed with``repo_``.
@@ -38,6 +45,60 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
         kwargs["extra"] = prefixed_dict
 
         return msg, kwargs
+
+    def _show_progress(self):
+        """Should we display download progress?"""
+        return sys.stdout.isatty()
+
+    def start_progress(self, msg=True):
+        assert not self.in_progress, (
+            "Tried to start_progress(%r) while in_progress %r"
+            % (msg, self.in_progress))
+        if self._show_progress():
+            if msg and isinstance(msg, text_type):
+                # sys.stdout.write(' ' * self.indent + msg + text_type(type(msg)))
+                self.info(' a' * self.indent + msg)
+            sys.stdout.flush()
+            self.in_progress_hanging = True
+        else:
+            self.in_progress_hanging = False
+        self.in_progress = msg
+        self.last_message = None
+
+    def end_progress(self, msg='done.'):
+        assert self.in_progress, (
+            "Tried to end_progress without start_progress")
+        if self._show_progress():
+            if not self.in_progress_hanging and isinstance(msg, text_type):
+                # Some message has been printed out since start_progress
+                sys.stdout.write('...' + self.in_progress + msg + '\n')
+                sys.stdout.flush()
+            else:
+                # These erase any messages shown with show_progress (besides .'s)
+                self.show_progress('')
+                self.show_progress('')
+                sys.stdout.write(msg)
+                #sys.stdout.write(msg + '\n')
+                sys.stdout.flush()
+        self.in_progress = None
+        self.in_progress_hanging = False
+
+    def show_progress(self, message=None):
+        """If we are in a progress scope, and no log messages have been
+        shown, write out another '.'"""
+        if self.in_progress_hanging:
+            if message is None:
+                # sys.stdout.write('.')
+                sys.stdout.flush()
+            else:
+                if self.last_message:
+                    padding = ' ' * max(0, len(self.last_message) - len(message))
+                else:
+                    padding = ''
+                sys.stdout.write('\r%s%s%s' %
+                                (' ' * self.indent, message, padding))
+                sys.stdout.flush()
+                self.last_message = message
 
 
 class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
@@ -62,6 +123,34 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
             urlparse.uses_fragment.extend(self.schemes)
 
         RepoLoggingAdapter.__init__(self, logger, self.attributes)
+
+    def run(
+        self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=os.environ.copy(), cwd=None, stream_stderr=True, *args, **kwargs
+    ):
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy(), cwd=cwd
+        )
+
+        if stream_stderr:
+            self.start_progress(' '.join(cmd))
+            while True:
+
+                err = process.stderr.read(128)
+                if err == '' and process.poll() is not None:
+                    break
+                if err != '':
+                    self.show_progress("%s" % err)
+
+            self.end_progress('%s' % (process.stdout.read()))
+        else:
+            self.info('%s' % (process.stdout.read()))
+
+        return process
+
 
     def check_destination(self, *args, **kwargs):
         """Assure destination path exists. If not, create directories."""

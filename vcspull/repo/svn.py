@@ -5,14 +5,11 @@
 vcspull.repo.svn
 ~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details.
-
-The follow are from salt Apache license:
+The follow are from saltstack/salt (Apache license):
 
     - :py:meth:`SubversionRepo.get_revision_file`
 
-The following are from pip MIT license:
+The following are pypa/pip (MIT license):
 
     - :py:meth:`SubversionRepo.get_url_rev`
     - :py:meth:`SubversionRepo.get_url`
@@ -20,15 +17,21 @@ The following are from pip MIT license:
     - :py:meth:`~.get_rev_options`
 
 """
+from __future__ import absolute_import, division, print_function, \
+    with_statement, unicode_literals
 
 import os
 import re
 import logging
+import subprocess
+
 from ..util import run
 from .._compat import urlparse
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)
+
+from ..log import logger
 
 
 class SubversionRepo(BaseRepo):
@@ -39,16 +42,18 @@ class SubversionRepo(BaseRepo):
     def __init__(self, arguments, *args, **kwargs):
         BaseRepo.__init__(self, arguments, *args, **kwargs)
 
-    def obtain(self):
+    def obtain(self, quiet=None):
         self.check_destination()
 
         url, rev = self.get_url_rev()
         rev_options = get_rev_options(url, rev)
 
-        checkout = run([
-            'svn', 'checkout', '-q', url, self['path'],
-        ])
-        self.info('Checked out.\n%s', checkout['stdout'])
+        process = self.run(
+            ['svn', 'checkout', '-q', url, self['path']],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy(),
+        )
 
     def get_revision_file(self, location=None):
         """Return revision for a file."""
@@ -206,12 +211,15 @@ class SubversionRepo(BaseRepo):
             dest = self['path'] if not dest else dest
 
             url, rev = self.get_url_rev()
-            proc = run(
+
+            process = self.run(
                 ['svn', 'update'],
-                cwd=self['path']
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=os.environ.copy(), cwd=self['path'],
             )
 
-            self.info('Updated\n%s' % '\n'.join(proc['stdout']))
+
         else:
             self.obtain()
             self.update_repo()

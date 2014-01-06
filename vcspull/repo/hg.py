@@ -4,18 +4,21 @@
 vcspull.repo.hg
 ~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details. The following licenses are from pip
-MIT license:
+The following is from pypa/pip (MIT license):
 
     - :py:meth:`MercurialRepo.get_url_rev`
     - :py:meth:`MercurialRepo.get_url`
     - :py:meth:`MercurialRepo.get_revision`
 
 """
+from __future__ import absolute_import, division, print_function, \
+    with_statement, unicode_literals
 
+import re
+import subprocess
 import os
 import logging
+
 from .base import BaseRepo
 from ..util import run
 
@@ -34,14 +37,12 @@ class MercurialRepo(BaseRepo):
 
         url, rev = self.get_url_rev()
 
-        clone = run([
+        clone = self.run([
             'hg', 'clone', '--noupdate', '-q', url, self['path']])
 
-        self.info('Cloned.\n%s' % '\n'.join(clone['stdout']))
-        update = run([
+        update = self.run([
             'hg', 'update', '-q'
         ], cwd=self['path'])
-        self.info('Updated.\n%s' % '\n'.join(update['stdout']))
 
     def get_revision(self):
         current_rev = run(
@@ -116,12 +117,21 @@ class MercurialRepo(BaseRepo):
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.hg')):
-            run([
-                'hg', 'update'
-            ], cwd=self['path'])
-            run([
-                'hg', 'pull', '-u'
-            ], cwd=self['path'])
+
+            process = self.run(
+                ['hg', 'update'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=os.environ.copy(), cwd=self['path']
+            )
+
+            process = self.run(
+                ['hg', 'pull', '-u'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=os.environ.copy(), cwd=self['path']
+            )
+
         else:
             self.obtain()
             self.update_repo()

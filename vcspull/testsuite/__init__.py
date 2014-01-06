@@ -14,6 +14,8 @@ iter_suites, main and suite are from Werkzeug, license BSD.
 Homepage at: http://werkzeug.pocoo.org/
 
 """
+from __future__ import absolute_import, division, print_function, \
+    with_statement, unicode_literals
 
 import logging
 import unittest

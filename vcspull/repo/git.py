@@ -26,13 +26,14 @@ From pip (MIT Licnese):
     - :py:meth:`GitRepo.get_revision`
 
 """
-
 from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
 import os
 import logging
 import tempfile
+import subprocess
+
 from .base import BaseRepo
 from ..util import run
 from .. import exc
@@ -184,31 +185,15 @@ class GitRepo(BaseRepo):
 
         """
         self.check_destination()
-        import subprocess
-        import sys
 
         url, rev = self.get_url_rev()
         self.info('Cloning.')
-        process = subprocess.Popen(
+        process = self.run(
             ['git', 'clone', '--progress', url, self['path']],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=os.environ.copy(), cwd=self['path'],
         )
-
-        if not quiet:
-            logger.start_progress('')
-            while True:
-
-                err = process.stderr.read(128)
-                if err == '' and process.poll() is not None:
-                    break
-                if err != '':
-                    logger.show_progress("%s" % err)
-
-            logger.end_progress('Cloned.\n%s' % (process.stdout.read()))
-        else:
-            self.info('Cloned.\n%s' % (process.stdout.read()))
 
         if self['remotes']:
             self.error(self['remotes'])
@@ -224,22 +209,22 @@ class GitRepo(BaseRepo):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
 
-            proc = run([
+            self.run([
                 'git', 'fetch'
             ], cwd=self['path'])
 
-            proc = run([
+            p = self.run([
                 'git', 'pull'
             ], cwd=self['path'])
 
-            if 'Already up-to-date' in proc['stdout']:
-                self.info('Already up-to-date.')
-            else:
-                if proc['stderr']:
-                    if 'You are not currently on a branch' in proc['stderr'][0]:
-                        self.info('Not on branch, Fetched.')
-                else:
-                    self.info('\n'.join(proc['stdout']))
+            # if 'Already up-to-date' in proc['stdout']:
+                # self.info('Already up-to-date.')
+            # else:
+                # if proc['stderr']:
+                    # if 'You are not currently on a branch' in proc['stderr'][0]:
+                        # self.info('Not on branch, Fetched.')
+                # else:
+                    # self.info('\n'.join(proc['stdout']))
         else:
             self.obtain()
             self.update_repo()

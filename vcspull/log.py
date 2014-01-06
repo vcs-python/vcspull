@@ -277,12 +277,13 @@ class Logger(object):
         """Should we display download progress?"""
         return sys.stdout.isatty()
 
-    def start_progress(self, msg):
+    def start_progress(self, msg=None):
         assert not self.in_progress, (
             "Tried to start_progress(%r) while in_progress %r"
             % (msg, self.in_progress))
         if self._show_progress():
-            sys.stdout.write(' ' * self.indent + msg)
+            if msg:
+                sys.stdout.write(' ' * self.indent + msg)
             sys.stdout.flush()
             self.in_progress_hanging = True
         else:
