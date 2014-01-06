@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Tests for vcspull.
 
-vcspull.testsuite.test_repo_git
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vcspull.testsuite.repo_git
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
 

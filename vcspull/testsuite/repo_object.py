@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Tests for placing config dicts into :py:class:`Repo` objects.
 
-vcspull.testsuite.test_repo_object
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vcspull.testsuite.repo_object
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
 

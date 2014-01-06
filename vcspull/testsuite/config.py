@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Tests for vcspull.
 
-vcspull.testsuite.test_config
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+vcspull.testsuite.config
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
 

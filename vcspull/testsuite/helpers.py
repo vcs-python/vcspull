@@ -4,11 +4,6 @@
 vcspull.testsuite.helpers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-LICENSE:
-
-assert* in http://hg.python.org/unittest2. Vendorized part of unittest2.
-BSD LICENSE at http://hg.python.org/unittest2/file/2b6411b9a838/setup.py
-
 """
 
 import unittest
