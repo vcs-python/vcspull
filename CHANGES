@@ -4,11 +4,12 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
-current
--------
+0.0.7
+-----
 
-- New logging system from pypa/pip with support showing current download
-  output.
+- New logging system from pypa/pip with support showing current stderr
+  (checkout, pull, cloning) progress.
+- ``unicode_literals``, ``__future__`` for python 3 support.
 
 0.0.6
 -----
