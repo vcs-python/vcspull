@@ -169,7 +169,7 @@ class SubversionRepo(BaseRepo):
         else:
             try:
                 # subversion >= 1.7
-                xml = run(['git', 'info', '--xml', location])['stdout']
+                xml = run(['svn', 'info', '--xml', location])['stdout']
                 url = _svn_info_xml_url_re.search(xml).group(1)
                 revs = [int(m.group(1)) for m in _svn_info_xml_rev_re.finditer(xml)]
             except InstallationError:
@@ -184,7 +184,7 @@ class SubversionRepo(BaseRepo):
 
     def get_tag_revs(self, svn_tag_url):
         stdout = run(
-            ['git', 'ls', '-v', svn_tag_url], show_stdout=False)
+            ['svn', 'ls', '-v', svn_tag_url], show_stdout=False)
         results = []
         for line in stdout.splitlines():
             parts = line.split()
