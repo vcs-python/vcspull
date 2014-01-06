@@ -4,6 +4,12 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+current
+-------
+
+- New logging system from pypa/pip with support showing current download
+  output.
+
 0.0.6
 -----
 
