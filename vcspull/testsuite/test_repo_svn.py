@@ -4,17 +4,17 @@
 vcspull.testsuite.test_repo_git
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details
-
 """
 
 import os
 import logging
 import tempfile
+import unittest
+
 from .helpers import RepoTest
 from ..repo import Repo
 from ..util import run
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,3 +55,9 @@ class RepoSVN(RepoTest):
             tempFile.name
         )
         self.assertEqual(svn_repo.get_revision(tempFile.name), 1)
+
+
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(RepoSVN))
+    return suite

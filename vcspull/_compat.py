@@ -30,6 +30,9 @@ if not PY2:
     from string import ascii_lowercase
     import urllib.parse as urllib
     import urllib.parse as urlparse
+
+    exec('def reraise(tp, value, tb=None):\n raise(tp, value, tb)')
+
 else:
     text_type = unicode
     string_types = (str, unicode)
@@ -54,6 +57,11 @@ else:
     input = raw_input
     from string import lower as ascii_lowercase
     import urlparse
+
+    def reraise(tp, value, tb=None):
+        if value.__traceback__ is not tb:
+            raise(value.with_traceback(tb))
+        raise value
 
 
 number_types = integer_types + (float,)

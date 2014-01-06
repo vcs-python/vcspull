@@ -4,16 +4,16 @@
 vcspull.testsuite.test_repo_git
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details.
-
 """
 
 import os
 import logging
+import unittest
+
 from .helpers import ConfigTest, RepoTest
 from ..repo import Repo
 from ..util import run
+
 logger = logging.getLogger(__name__)
 
 
@@ -126,3 +126,11 @@ class TestRemoteGit(RepoTest):
             git_repo.remotes_get(),
             msg='.remotes_get() returns new remote'
         )
+
+
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(GitRepoRemotes))
+    suite.addTest(unittest.makeSuite(RepoGit))
+    suite.addTest(unittest.makeSuite(TestRemoteGit))
+    return suite

@@ -4,26 +4,30 @@
 vcspull.testsuite.helpers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details
+LICENSE:
+
+assert* in http://hg.python.org/unittest2. Vendorized part of unittest2.
+BSD LICENSE at http://hg.python.org/unittest2/file/2b6411b9a838/setup.py
 
 """
 
-try:
-    import unittest2 as unittest
-except ImportError:  # Python 2.7
-    import unittest
+import unittest
 import os
+import sys
 import copy
 import logging
 import tempfile
 import shutil
 import uuid
+import re
 from ..repo import Repo
 from ..util import run, expand_config
+from .._compat import string_types
 
 logger = logging.getLogger(__name__)
 
+if sys.version_info <= (2, 7,):
+    import unittest2 as unittest
 
 class ConfigTest(unittest.TestCase):
 
@@ -43,6 +47,11 @@ class ConfigTest(unittest.TestCase):
     def setUp(self):
         """Create TMP_DIR for TestCase."""
         self.TMP_DIR = tempfile.mkdtemp(suffix='vcspull')
+
+
+
+
+
 
 
 class ConfigExamples(ConfigTest):

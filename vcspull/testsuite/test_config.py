@@ -4,15 +4,15 @@
 vcspull.testsuite.test_config
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details
-
 """
 
 import os
 import copy
+import unittest
 import logging
+
 import kaptan
+
 from vcspull.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from vcspull.util import expand_config, run, get_repos
 from .helpers import ConfigTest, ConfigExamples
@@ -176,3 +176,12 @@ class ExpandUserExpandVars(ConfigTest):
         paths = [path for path, v in config2_expanded.items()]
         self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)
+
+
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(ConfigExpandTest))
+    suite.addTest(unittest.makeSuite(ConfigFormatTest))
+    suite.addTest(unittest.makeSuite(ConfigImportExportTest))
+    suite.addTest(unittest.makeSuite(ExpandUserExpandVars))
+    return suite

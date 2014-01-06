@@ -4,16 +4,16 @@
 vcspull.testsuite.test_repo_git
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details
-
 """
 
 import os
+import unittest
 import logging
+
 from .helpers import ConfigTest
 from ..repo import Repo
 from ..util import run
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,3 +65,9 @@ class RepoMercurial(ConfigTest):
         )
 
         self.assertTrue(os.path.exists(mercurial_checkout_dest))
+
+
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(RepoMercurial))
+    return suite

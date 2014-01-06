@@ -4,13 +4,13 @@
 vcspull.testsuite.test_repo_object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details
-
 """
 
 import os
+import unittest
+
 import kaptan
+
 from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from ..util import expand_config, get_repos, run
 from .helpers import ConfigExamples, RepoTest
@@ -138,3 +138,9 @@ class EnsureMakeDirsRecursively(RepoTest):
             repo = Repo(r)
             repo.obtain()
 
+
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(ConfigToObjectTest))
+    suite.addTest(unittest.makeSuite(EnsureMakeDirsRecursively))
+    return suite

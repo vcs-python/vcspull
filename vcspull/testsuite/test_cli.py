@@ -4,21 +4,22 @@
 vcspull.testsuite.test_cli
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details
-
 """
 
 import logging
 import os
 import tempfile
 import copy
+import unittest
+
 import kaptan
-from pprint import pprint
+
+from .. import cli
+
 from vcspull.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from vcspull.util import expand_config, run, get_repos
 from .helpers import RepoTest, ConfigTest
-from .. import cli
+
 
 logger = logging.getLogger(__name__)
 
@@ -408,3 +409,16 @@ class GetRepos(RepoIntegrationTest):
 class ScanRepos(RepoIntegrationTest):
 
     pass
+
+
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(RepoIntegrationTest))
+    suite.addTest(unittest.makeSuite(FindConfigs))
+    suite.addTest(unittest.makeSuite(LoadConfigs))
+    suite.addTest(unittest.makeSuite(RepoIntegrationDuplicateTest))
+    suite.addTest(unittest.makeSuite(LoadConfigsUpdateDepth))
+    suite.addTest(unittest.makeSuite(LoadConfigsDuplicate))
+    suite.addTest(unittest.makeSuite(GetRepos))
+    suite.addTest(unittest.makeSuite(ScanRepos))
+    return suite
