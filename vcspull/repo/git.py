@@ -27,6 +27,9 @@ From pip (MIT Licnese):
 
 """
 
+from __future__ import absolute_import, division, print_function, \
+    with_statement, unicode_literals
+
 import os
 import logging
 import tempfile
@@ -34,7 +37,8 @@ from .base import BaseRepo
 from ..util import run
 from .. import exc
 
-logger = logging.getLogger(__name__)
+#logger = logging.getLogger(__name__)
+from ..log import logger
 
 
 def _git_ssh_helper(identity):
@@ -193,15 +197,18 @@ class GitRepo(BaseRepo):
         )
 
         if not quiet:
+            logger.start_progress('')
             while True:
-                err = process.stderr.read(1)
+
+                err = process.stderr.read(128)
                 if err == '' and process.poll() is not None:
                     break
                 if err != '':
-                    sys.stderr.write(err)
-                    sys.stderr.flush()
+                    logger.show_progress("%s" % err)
 
-        self.info('Cloned.\n%s' % (process.stdout.read()))
+            logger.end_progress('Cloned.\n%s' % (process.stdout.read()))
+        else:
+            self.info('Cloned.\n%s' % (process.stdout.read()))
 
         if self['remotes']:
             self.error(self['remotes'])
@@ -341,7 +348,6 @@ class GitRepo(BaseRepo):
 
             salt '*' git.submodule /path/to/repo.git/sub/repo
         """
-        _check_git()
 
         if not cwd:
             cwd = self['path']
@@ -460,7 +466,6 @@ class GitRepo(BaseRepo):
 
             salt '*' git.reset /path/to/repo master
         """
-        _check_git()
 
         if not cwd:
             cwd = self['path']
