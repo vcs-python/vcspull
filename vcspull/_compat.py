@@ -19,6 +19,7 @@ if not PY2:
 
     from io import StringIO, BytesIO
     import pickle
+    import configparser
 
     izip = zip
     imap = map
@@ -34,14 +35,13 @@ if not PY2:
     exec('def reraise(tp, value, tb=None):\n raise(tp, value, tb)')
 
     console_encoding = sys.__stdout__.encoding
+
     def console_to_str(s):
         """ From pypa/pip project, pip.backwardwardcompat. License MIT. """
         try:
             return s.decode(console_encoding)
         except UnicodeDecodeError:
             return s.decode('utf_8')
-
-
 else:
     text_type = unicode
     string_types = (str, unicode)
@@ -57,6 +57,7 @@ else:
     from cStringIO import StringIO as BytesIO
     from StringIO import StringIO
     import cPickle as pickle
+    import ConfigParser as configparser
 
     from itertools import izip, imap
     range_type = xrange

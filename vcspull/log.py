@@ -11,7 +11,6 @@ from __future__ import absolute_import, division, print_function, \
 
 import logging
 import os
-import sys
 import time
 
 from ._vendor import colorama
@@ -153,31 +152,3 @@ class RepoFilter(logging.Filter):
         return True if 'repo_vcs' in record.__dict__ else False
 
 
-# Below is MIT-code from pip/pip
-
-def _color_wrap(*colors):
-    def wrapped(inp):
-        return "".join(list(colors) + [inp, colorama.Style.RESET_ALL])
-    return wrapped
-
-
-def should_color(consumer, environ, std=(sys.stdout, sys.stderr)):
-    real_consumer = (
-        consumer if not isinstance(consumer, colorama.AnsiToWin32)
-                    else consumer.wrapped
-    )
-
-    # If consumer isn't stdout or stderr we shouldn't colorize it
-    if real_consumer not in std:
-        return False
-
-    # If consumer is a tty we should color it
-    if hasattr(real_consumer, "isatty") and real_consumer.isatty():
-        return True
-
-    # If we have an ASNI term we should color it
-    if environ.get("TERM") == "ANSI":
-        return True
-
-    # If anything else we should not color it
-    return False
