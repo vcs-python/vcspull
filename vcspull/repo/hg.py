@@ -6,9 +6,9 @@ vcspull.repo.hg
 
 The following is from pypa/pip (MIT license):
 
-    - :py:meth:`MercurialRepo.get_url_rev`
-    - :py:meth:`MercurialRepo.get_url`
-    - :py:meth:`MercurialRepo.get_revision`
+- :py:meth:`MercurialRepo.get_url_rev`
+- :py:meth:`MercurialRepo.get_url`
+- :py:meth:`MercurialRepo.get_revision`
 
 """
 from __future__ import absolute_import, division, print_function, \

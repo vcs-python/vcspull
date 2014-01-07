@@ -7,14 +7,14 @@ vcspull.repo.svn
 
 The follow are from saltstack/salt (Apache license):
 
-    - :py:meth:`SubversionRepo.get_revision_file`
+- :py:meth:`SubversionRepo.get_revision_file`
 
 The following are pypa/pip (MIT license):
 
-    - :py:meth:`SubversionRepo.get_url_rev`
-    - :py:meth:`SubversionRepo.get_url`
-    - :py:meth:`SubversionRepo.get_revision`
-    - :py:meth:`~.get_rev_options`
+- :py:meth:`SubversionRepo.get_url_rev`
+- :py:meth:`SubversionRepo.get_url`
+- :py:meth:`SubversionRepo.get_revision`
+- :py:meth:`~.get_rev_options`
 
 """
 from __future__ import absolute_import, division, print_function, \

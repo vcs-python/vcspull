@@ -14,7 +14,7 @@ from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
 __title__ = 'vcspull'
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 __author__ = 'Tony Narlock'
 __license__ = 'BSD'
 __copyright__ = 'Copyright 2013 Tony Narlock'

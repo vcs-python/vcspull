@@ -4,26 +4,24 @@
 vcspull.repo.git
 ~~~~~~~~~~~~~~~~
 
-:copyright: Copyright 2013 Tony Narlock.
-:license: BSD, see LICENSE for details. The following modules also are taken
-    from https://github.com/saltstack/salt (Apache License):
+From https://github.com/saltstack/salt (Apache License):
 
-    - :py:meth:`~._git_ssh_helper`
-    - :py:meth:`~._git_run`
-    - :py:meth:`GitRepo.revision`
-    - :py:meth:`GitRepo.submodule`
-    - :py:meth:`GitRepo.remote`
-    - :py:meth:`GitRepo.remote_get`
-    - :py:meth:`GitRepo.remote_set`
-    - :py:meth:`GitRepo.fetch`
-    - :py:meth:`GitRepo.current_branch`
-    - :py:meth:`GitRepo.reset`
+- :py:meth:`~._git_ssh_helper`
+- :py:meth:`~._git_run`
+- :py:meth:`GitRepo.revision`
+- :py:meth:`GitRepo.submodule`
+- :py:meth:`GitRepo.remote`
+- :py:meth:`GitRepo.remote_get`
+- :py:meth:`GitRepo.remote_set`
+- :py:meth:`GitRepo.fetch`
+- :py:meth:`GitRepo.current_branch`
+- :py:meth:`GitRepo.reset`
 
 From pip (MIT Licnese):
 
-    - :py:meth:`GitRepo.get_url_rev`
-    - :py:meth:`GitRepo.get_url`
-    - :py:meth:`GitRepo.get_revision`
+- :py:meth:`GitRepo.get_url_rev`
+- :py:meth:`GitRepo.get_url`
+- :py:meth:`GitRepo.get_revision`
 
 """
 from __future__ import absolute_import, division, print_function, \
