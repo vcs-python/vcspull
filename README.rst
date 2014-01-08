@@ -63,7 +63,7 @@ install dev     .. code-block:: bash
                     $ pip install -e .
 tests           .. code-block:: bash
 
-                    $ python ./run_tests.py
+                    $ python ./run-tests.py
 run             .. code-block:: bash
 
                     $ vcspull
