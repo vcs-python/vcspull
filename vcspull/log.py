@@ -1,4 +1,4 @@
-# -*- coding: utf8 - *-
+# -*- coding: utf-8 -*-
 """Log utilities for vcspull.
 
 vcspull.log

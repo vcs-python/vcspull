@@ -1,4 +1,4 @@
-# -*- coding: utf8 - *-
+# -*- coding: utf-8 -*-
 """Exceptions for vcspull.
 
 vcspull.exc

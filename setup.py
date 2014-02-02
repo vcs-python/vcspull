@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf8 - *-
+# -*- coding: utf-8 -*-
 """vcspull lives at <https://github.com/tony/vcspull>.
 
 vcspull

@@ -1,4 +1,4 @@
-# -*- coding: utf8 - *-
+# -*- coding: utf-8 -*-
 """For accessing vcspull as a package.
 
 vcspull
