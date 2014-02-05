@@ -29,7 +29,7 @@ setup(
     author=p.author,
     author_email=p.email,
     description=p.description,
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
     include_package_data=True,
     install_requires=install_reqs,
     tests_require=tests_reqs,
