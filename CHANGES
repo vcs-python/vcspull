@@ -4,6 +4,11 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+0.0.8.1
+-------
+
+- [setup.py] remove history from readme
+
 0.0.8
 -----
 
