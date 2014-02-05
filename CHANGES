@@ -4,6 +4,14 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+0.0.8.3
+-------
+
+- [logging] `Issue #6`_ - fix issue where log templates would not
+  concatenate correctly.
+
+.. _issue #1: https://github.com/tony/vcspull/issues/6
+
 0.0.8.2
 -------
 
@@ -61,82 +69,82 @@ Here you can find the recent changes to vcspull.
 - [internal] remove developer logger message that would show when
   updating.
 - [cli] - fixed bug where logger would output message twice
-- [`pep257`_] [`pep8`_] [logger] update ``pullv.log`` module to latest
+- [`pep257`_] [`pep8`_] [logger] update ``vcspull.log`` module to latest
   code (from `tmuxp`_ project).
 
 0.0.2
 -----
 
 11/23/2013
-""""""""""
+~~~~~~~~~~
 
 - [tests] Move tests for making directory paths to ``test_repo``
   TestSuite.
-- [tests] [git] more work on remotes with :class:`pullv.repo.git.GitRepo`.
+- [tests] [git] more work on remotes with :class:`vcspull.repo.git.GitRepo`.
 
 11/16/2013
-""""""""""
+~~~~~~~~~~
 
 - [tests] refactor tests modules
 - [git] add some functions with saltstack to
-  :py:class:`pullv.repo.git.GitRepo`.
+  :py:class:`vcspull.repo.git.GitRepo`.
 - [version] reset to 0.1.0 w/o dev tag to begin releases.
 
 0.0.1
 -----
 
 11/15/2013
-""""""""""
+~~~~~~~~~~
 
 - [cli] [tests] fix `issue #1`_ for making directories recursively.
 
-.. _issue #1: https://github.com/tony/pullv/issues/1
+.. _issue #1: https://github.com/tony/vcspull/issues/1
 
 11/14/2013
-""""""""""
+~~~~~~~~~~
 
 - [tests] :py:mod:`tempfile`.
 - [cli] [config] remove .ini support
 
 11/09/2013
-""""""""""
+~~~~~~~~~~
 
 - `pep257`_ to all modules.
 - Add `argcomplete`_.
 
 11/09/2013
-""""""""""
+~~~~~~~~~~
 
 - Move in code patterns from `tmuxp`_. New logger, setup.py, testsuite
   structure, etc.
 
 10/23/2013
-""""""""""
+~~~~~~~~~~
 
 - add example
 
 10/17/2013
-""""""""""
+~~~~~~~~~~
 
 - fix packaging issue, add MANIFEST.in
 - bump to 0.1.1
 
 10/08/2013
-""""""""""
+~~~~~~~~~~
 
 - move to semver
 
 10/06/2013
-""""""""""
+~~~~~~~~~~
 
-https://github.com/tony/pullv/compare/a96e723269...a5be723de5
+https://github.com/tony/vcspull/compare/a96e723269...a5be723de5
 
 - remove virtualenv dep [Done]
 - remove pip dep [Done]
 - logging for repo obtain/update/makedir/rev [Done]
 - logging.notify with alternative format [Done]
 - removed salt-specific code used for Popen
-  (https://github.com/tony/pullv/commit/67dbb793e7)
+  (https://github.com/tony/vcspull/commit/67dbb793e7)
 
 .. _tmuxp: http://tmuxp.rtfd.org
 .. _pep257: http://www.python.org/dev/peps/pep-0257/
