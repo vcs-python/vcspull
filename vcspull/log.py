@@ -33,7 +33,7 @@ def default_log_template(self, record):
 
     """
 
-    reset = Style.RESET_ALL
+    reset = [Style.RESET_ALL]
     levelname = [
         LEVEL_COLORS.get(record.levelname), Style.BRIGHT,
         '(%(levelname)s)',
@@ -87,7 +87,7 @@ def debug_log_template(self, record):
 
     """
 
-    reset = Style.RESET_ALL
+    reset = [Style.RESET_ALL]
     levelname = [
         LEVEL_COLORS.get(record.levelname), Style.BRIGHT,
         '(%(levelname)1.1s)',
