@@ -4,6 +4,12 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+0.0.8.2
+-------
+
+- [packaging] Fix issue where ``package_metadata.py`` missing from
+  ``MANIFEST.in``.
+
 0.0.8.1
 -------
 
@@ -14,7 +20,7 @@ Here you can find the recent changes to vcspull.
 
 - Use werkzeug/flask style unit test suites.
 - [docs] Fix section headings.
-- [internals] use conventions from `tony/cookiecutter-pypackage`_
+- [internals] use conventions from `tony/cookiecutter-pypackage`_.
 
 0.0.7
 -----
