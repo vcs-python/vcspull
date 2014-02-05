@@ -8,6 +8,7 @@ dev
 ---
 
 - Use werkzeug/flask style unit test suites.
+- [docs] Fix section headings.
 
 0.0.7
 -----

@@ -7,7 +7,7 @@ Command Line Interface
 .. _bash_completion:
 
 Bash completion
-"""""""""""""""
+---------------
 
 For bash, ``.bashrc``:
 
@@ -29,7 +29,7 @@ For zsh, ``.zshrc``:
 
 
 Load config
-"""""""""""
+-----------
 
 .. argparse::
     :module: vcspull.cli

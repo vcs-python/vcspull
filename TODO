@@ -5,6 +5,8 @@ TODO
 Next steps
 ----------
 
+- Update to use conventions in
+  https://github.com/tony/cookiecutter-pypackage.
 - Support for http://docs.python.org/2.7/library/string.html#string.Template
   in tests.
 - http://docs.python.org/2/library/glob.html
