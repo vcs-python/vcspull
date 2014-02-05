@@ -16,7 +16,7 @@ from __future__ import absolute_import, division, print_function, \
 __title__ = 'vcspull'
 __package_name__ = 'vcspull'
 __description__ = 'Mass update git, hg and svn repos simultaneously from YAML / JSON file.'
-__version__ = '0.0.8.2'
+__version__ = '0.0.8.3'
 __author__ = 'Tony Narlock'
 __email__ = 'tony@git-pull.com'
 __license__ = 'BSD'
