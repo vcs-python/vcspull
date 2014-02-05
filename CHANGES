@@ -9,6 +9,7 @@ dev
 
 - Use werkzeug/flask style unit test suites.
 - [docs] Fix section headings.
+- [internals] use conventions from `tony/cookiecutter-pypackage`_
 
 0.0.7
 -----
@@ -131,5 +132,6 @@ https://github.com/tony/pullv/compare/a96e723269...a5be723de5
 .. _pep8: http://www.python.org/dev/peps/pep-0008/
 .. _sphinx-argparse: https://github.com/tony/sphinx-argparse
 .. _argcomplete: https://github.com/kislyuk/argcomplete
+.. _tony/cookiecutter-pypackage: https://github.com/tony/cookiecutter-pypackage.
 
 .. todo:: vim: set filetype=rst:

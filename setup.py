@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""vcspull lives at <https://github.com/tony/vcspull>.
+"""vcspull lives at <https://github.com/tony/vcspull>."""
 
-vcspull
--------
-
-Mass update git, hg and svn repos simultaneously from YAML / JSON file.
-
-"""
 import sys
+import os
 from setuptools import setup
+
+sys.path.insert(0, os.getcwd())  # we want to grab this:
+from package_metadata import p
 
 with open('requirements.pip') as f:
     install_reqs = [line for line in f.read().split('\n') if line]
@@ -19,32 +17,25 @@ if sys.version_info < (2, 7):
     install_reqs += ['argparse']
     tests_reqs += ['unittest2']
 
-import re
-VERSIONFILE = "vcspull/__init__.py"
-verstrline = open(VERSIONFILE, "rt").read()
-VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
-mo = re.search(VSRE, verstrline, re.M)
-if mo:
-    __version__ = mo.group(1)
-else:
-    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
+readme = open('README.rst').read()
+history = open('CHANGES').read().replace('.. :changelog:', '')
 
 setup(
-    name='vcspull',
-    version=__version__,
+    name=p.title,
+    version=p.version,
     url='http://github.com/tony/vcspull/',
     download_url='https://pypi.python.org/pypi/vcspull',
-    license='BSD',
-    author='Tony Narlock',
-    author_email='tony@git-pull.com',
-    description='Mass update git, hg and svn repos simultaneously from '
-                'YAML / JSON file.',
-    long_description=open('README.rst').read(),
+    license=p.license,
+    author=p.author,
+    author_email=p.email,
+    description=p.description,
+    long_description=readme + '\n\n' + history,
     include_package_data=True,
     install_requires=install_reqs,
     tests_require=tests_reqs,
     test_suite='vcspull.testsuite',
     zip_safe=False,
+    keywords=p.title,
     packages=['vcspull', 'vcspull.testsuite', 'vcspull.repo', 'vcspull._vendor', 'vcspull._vendor.colorama'],
     scripts=['pkg/vcspull.bash', 'pkg/vcspull.zsh', 'pkg/vcspull.tcsh'],
     entry_points=dict(console_scripts=['vcspull=vcspull:cli.main']),
