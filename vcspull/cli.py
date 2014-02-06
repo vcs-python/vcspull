@@ -112,7 +112,7 @@ def command_load(args):
         has_json_config = os.path.exists(json_config)
         if not has_yaml_config and not has_json_config:
             log.fatal(
-                'No config file found. Create a .vcspull.{yaml,conf}'
+                'No config file found. Create a .vcspull.yaml or .vcspull.json'
                 ' in your $HOME directory. http://vcspull.rtfd.org for a'
                 ' quickstart.'
             )

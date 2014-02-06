@@ -4,6 +4,12 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+0.0.8.4
+-------
+
+- [cli] Update documentation when no config found to show ``yaml`` and
+  ``json``. Remove mentioning of ``conf``.
+
 0.0.8.3
 -------
 
