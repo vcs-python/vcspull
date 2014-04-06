@@ -1,5 +1,5 @@
 session_name: vcspull
-before_script: ./bootstrap_env.py
+before_script: ./bootstrap_env.py  # ./ to load relative to project root
 start_directory: ./ # load session relative to config location (project root).
 windows:
 - window_name: vcspull
@@ -24,4 +24,4 @@ windows:
   - focus: true
   - pane
   - echo 'docs built to <http://0.0.0.0:8002/_build/html>'; python -m SimpleHTTPServer 8002
-  -  watching_testrunner --basepath ./ --pattern="*.rst" 'make html'
+  - watching_testrunner --basepath ./ --pattern="*.rst" 'make html'

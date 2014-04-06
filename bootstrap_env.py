@@ -73,7 +73,7 @@ def which(exe=None, throw=True):
     return None
 
 
-project_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.dirname(os.path.realpath(__file__))
 env_dir = os.path.join(project_dir, '.env')
 pip_bin = os.path.join(env_dir, 'bin', 'pip')
 python_bin = os.path.join(env_dir, 'bin', 'python')
@@ -107,6 +107,10 @@ except ImportError:
 def main():
     if not virtualenv_exists:
         virtualenv_bin = which('virtualenv', throw=False)
+
+        subprocess.check_call(
+            [virtualenv_bin, env_dir]
+        )
 
         subprocess.check_call(
             [pip_bin, 'install', '-e', project_dir]
