@@ -4,6 +4,12 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+CURRENT
+-------
+
+- [dev]: support for tmuxp ``before_script`` to set up local virtualenv +
+  dependencies.
+
 0.0.8.4
 -------
 
