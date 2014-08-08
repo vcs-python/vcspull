@@ -9,6 +9,8 @@ Next steps
   https://github.com/tony/cookiecutter-pypackage.
 - Support for http://docs.python.org/2.7/library/string.html#string.Template
   in tests.
+- Tests for cli.py should work without hg, git, svn installed or be
+  skipped.
 - http://docs.python.org/2/library/glob.html
 - http://docs.python.org/2/library/os.path.html#os.path.expanduser
 - http://docs.python.org/2/library/os.path.html#os.path.expandvars

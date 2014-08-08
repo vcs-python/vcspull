@@ -15,11 +15,21 @@ import unittest
 
 from .helpers import RepoTest
 from ..repo import Repo
-from ..util import run
+from ..util import run, which
+from ..exc import PullvException
 
 logger = logging.getLogger(__name__)
 
 
+def has_svn():
+    try:
+        which('svn')
+        return True
+    except PullvException:
+        return False
+
+
+@unittest.skipUnless(has_svn(), "requires SVN")
 class RepoSVN(RepoTest):
 
     def test_repo_svn(self):

@@ -14,11 +14,20 @@ import logging
 
 from .helpers import ConfigTest
 from ..repo import Repo
-from ..util import run
+from ..util import run, which
 
 logger = logging.getLogger(__name__)
 
 
+def has_mercurial():
+    try:
+        which('hg')
+        return True
+    except Exception:
+        return False
+
+
+@unittest.skipUnless(has_mercurial(), "requires Mercurial (hg)")
 class RepoMercurial(ConfigTest):
 
     def test_repo_mercurial(self):
