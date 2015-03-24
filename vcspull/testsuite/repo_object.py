@@ -18,6 +18,60 @@ from ..util import expand_config, get_repos, run
 from .helpers import ConfigExamples, RepoTest
 
 
+class GetReposTest(ConfigExamples, unittest.TestCase):
+
+    def test_filter_dir(self):
+        """``get_repos`` filter by dir"""
+        config = self.config_dict_expanded
+
+        repo_list = get_repos(
+            self.config_dict_expanded,
+            dirmatch="*github_project*"
+        )
+
+        self.assertEqual(len(repo_list), 1)
+        repo_key = '{TMP_DIR}/github_projects/'.format(
+            TMP_DIR=self.TMP_DIR,
+        )
+        exected_repo = self.config_dict_expanded[repo_key]['kaptan']
+        for r in repo_list:
+            self.assertEqual(r['name'], 'kaptan')
+
+    def test_filter_name(self):
+        """``get_repos`` filter by name"""
+        config = self.config_dict_expanded
+
+        repo_list = get_repos(
+            self.config_dict_expanded,
+            namematch=".vim"
+        )
+
+        self.assertEqual(len(repo_list), 1)
+        repo_key = '{TMP_DIR}'.format(
+            TMP_DIR=self.TMP_DIR,
+        )
+        exected_repo = self.config_dict_expanded[repo_key]['.vim']
+        for r in repo_list:
+            self.assertEqual(r['name'], '.vim')
+
+    def test_filter_vcs(self):
+        """``get_repos`` filter by vcs"""
+        config = self.config_dict_expanded
+
+        repo_list = get_repos(
+            self.config_dict_expanded,
+            repomatch="*kernel.org*"
+        )
+
+        self.assertEqual(len(repo_list), 1)
+        repo_key = '{TMP_DIR}/study/'.format(
+            TMP_DIR=self.TMP_DIR,
+        )
+        exected_repo = self.config_dict_expanded[repo_key]['linux']
+        for r in repo_list:
+            self.assertEqual(r['name'], 'linux')
+
+
 class ConfigToObjectTest(ConfigExamples):
 
     """TestCase for converting config (dict) into Repo object."""
@@ -143,6 +197,7 @@ class EnsureMakeDirsRecursively(RepoTest):
 
 def suite():
     suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(GetReposTest))
     suite.addTest(unittest.makeSuite(ConfigToObjectTest))
     suite.addTest(unittest.makeSuite(EnsureMakeDirsRecursively))
     return suite
