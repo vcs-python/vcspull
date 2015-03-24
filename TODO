@@ -18,6 +18,7 @@ Next steps
 Immediate
 ---------
 
+- Bug: remotes with git+git will show up in remotes url
 - Reorganize this clusterf
 - Create a spec for pullv CLI and objects
 - support for ``~``
