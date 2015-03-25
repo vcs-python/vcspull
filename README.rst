@@ -51,6 +51,8 @@ Have a lot of projects? Use arguments to clone / update what you need.
     
 Use `fnmatch`_:
 
+.. code-block:: bash
+
     # any repo starting with "fla"
     $ vcspull "fla*"
     
