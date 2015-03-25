@@ -46,11 +46,6 @@ class ConfigTest(unittest.TestCase):
         self.TMP_DIR = tempfile.mkdtemp(suffix='vcspull')
 
 
-
-
-
-
-
 class ConfigExamples(ConfigTest):
 
     """ConfigExamples mixin that creates test directory + sample configs."""

@@ -18,8 +18,12 @@ from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
 import logging
-import unittest
 import sys
+
+try:
+    import unittest2 as unittest
+except ImportError:  # Python 2.7
+    import unittest
 
 from .. import log
 from .._compat import string_types, PY2, reraise

@@ -22,12 +22,17 @@ __email__ = 'tony@git-pull.com'
 __license__ = 'BSD'
 __copyright__ = 'Copyright 2013 Tony Narlock'
 
-from .util import expand_config, get_repos, mkdir_p, run, scan, which
-from .log import LogFormatter, DebugLogFormatter, RepoLogFormatter, \
-    RepoFilter
-from .cli import ConfigFileCompleter, command_load, find_configs, get_parser, \
-    get_repos_new, in_dir, is_config_file, load_configs, main, scan_repos, \
-    setup_logger, update, validate_schema
+from .util import (
+    expand_config, get_repos, mkdir_p, run, scan, which, update_dict
+)
+from .log import (
+    LogFormatter, DebugLogFormatter, RepoLogFormatter, RepoFilter
+)
+from .cli import (
+    ConfigFileCompleter, command_load, find_configs, get_parser,
+    get_repos_new, in_dir, is_config_file, load_configs, main, scan_repos,
+    setup_logger, validate_schema
+)
 
 # Set default logging handler to avoid "No handler found" warnings.
 import logging

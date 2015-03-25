@@ -10,6 +10,7 @@ from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
 import subprocess
+import collections
 import os
 import sys
 import errno
@@ -69,17 +70,30 @@ def expand_config(config):
     return config
 
 
-def get_repos(config):
+def get_repos(config, dirmatch=None, repomatch=None, namematch=None):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
     :param config: the expanded repo config in :py:class:`dict` format.
     :type config: dict
+    :param dirmatch: array of fnmatch's for directory
+    :type dirmatch: str or None
+    :param repomatch: array of fnmatch's for vcs url
+    :type repomatch: str or None
+    :param namematch: array of fnmatch's for project name
+    :type namematch: str or None
     :rtype: list
+    :todo: optimize performance, tests.
 
     """
     repo_list = []
     for directory, repos in config.items():
         for repo, repo_data in repos.items():
+            if dirmatch and not fnmatch.fnmatch(directory, dirmatch):
+                continue
+            if repomatch and not fnmatch.fnmatch(repo_data['repo'], repomatch):
+                continue
+            if namematch and not fnmatch.fnmatch(repo, namematch):
+                continue
             repo_dict = {
                 'name': repo,
                 'parent_path': directory,
@@ -207,3 +221,25 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+
+def update_dict(d, u):
+    """Return updated dict.
+
+    http://stackoverflow.com/a/3233356
+
+    :param d: dict
+    :type d: dict
+    :param u: updated dict.
+    :type u: dict
+    :rtype: dict
+
+    """
+
+    for k, v in u.items():
+        if isinstance(v, collections.Mapping):
+            r = update_dict(d.get(k, {}), v)
+            d[k] = r
+        else:
+            d[k] = u[k]
+    return d

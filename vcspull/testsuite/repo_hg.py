@@ -9,9 +9,9 @@ from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
 import os
-import unittest
 import logging
 
+from . import unittest
 from .helpers import ConfigTest
 from ..repo import Repo
 from ..util import run, which

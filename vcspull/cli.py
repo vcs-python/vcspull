@@ -11,7 +11,6 @@ from __future__ import absolute_import, division, print_function, \
 
 import os
 import sys
-import collections
 import fnmatch
 import glob
 import logging
@@ -22,7 +21,7 @@ import kaptan
 import argcomplete
 
 from ._compat import string_types
-from .util import expand_config, get_repos
+from .util import expand_config, get_repos, update_dict
 from .log import DebugLogFormatter
 from .repo import Repo
 
@@ -64,6 +63,7 @@ def get_parser():
     main_parser = argparse.ArgumentParser()
 
     main_parser.add_argument(
+        '-c', '--config',
         dest='config',
         type=str,
         nargs='?',
@@ -71,6 +71,31 @@ def get_parser():
     ).completer = ConfigFileCompleter(
         allowednames=('.yaml', '.json'), directories=False
     )
+
+    main_parser.add_argument(
+        '-d', '--dirmatch',
+        dest='dirmatch',
+        type=str,
+        nargs='?',
+        help='Pull only from the directories. Accepts fnmatch(1)'
+             'by commands'
+    )
+
+    main_parser.add_argument(
+        '-r', '--repomatch',
+        dest='repomatch',
+        type=str,
+        nargs='?',
+        help='Pull only from the repository urls. Accepts fnmatch(1)'
+    )
+
+    main_parser.add_argument(
+        dest='namematch',
+        type=str,
+        nargs='?',
+        help='Pull only from project name. Accepts fnmatch(1)'
+    )
+
     main_parser.set_defaults(callback=command_load)
 
     main_parser.add_argument(
@@ -134,7 +159,13 @@ def command_load(args):
             logging.debug('%r' % expand_config(config.get()))
             logging.debug('%r' % get_repos(expand_config(config.get())))
 
-            for repo_dict in get_repos(expand_config(config.get())):
+            repos = get_repos(
+                expand_config(config.get()),
+                dirmatch=args.dirmatch,
+                repomatch=args.repomatch,
+                namematch=args.namematch
+            )
+            for repo_dict in repos:
                 r = Repo(repo_dict)
                 log.debug('%s' % r)
                 r.update_repo()
@@ -236,28 +267,6 @@ def find_configs(
     return configs
 
 
-def update(d, u):
-    """Return updated dict.
-
-    http://stackoverflow.com/a/3233356
-
-    :param d: dict
-    :type d: dict
-    :param u: updated dict.
-    :type u: dict
-    :rtype: dict
-
-    """
-
-    for k, v in u.items():
-        if isinstance(v, collections.Mapping):
-            r = update(d.get(k, {}), v)
-            d[k] = r
-        else:
-            d[k] = u[k]
-    return d
-
-
 def load_configs(configs):
     """Return repos from a directory and fnmatch. Not recursive.
 
@@ -268,7 +277,7 @@ def load_configs(configs):
 
     """
 
-    #configs = [open(f).read() for f in configs]
+    # configs = [open(f).read() for f in configs]
     configdict = {}
 
     for config in configs:
@@ -296,11 +305,11 @@ def load_configs(configs):
                                         )
                                     )
                                     raise Exception(msg)
-        configdict = update(configdict, newconfigdict)
+        configdict = update_dict(configdict, newconfigdict)
         # configdict.update(conf.export('dict'))
 
-    #if configs load and validate_schema, then load.
-    #configs = [config for config in configs if validate_schema(config)]
+    # if configs load and validate_schema, then load.
+    # configs = [config for config in configs if validate_schema(config)]
 
     configdict = expand_config(configdict)
 

@@ -9,6 +9,13 @@ CURRENT
 
 - [dev]: support for tmuxp ``before_script`` to set up local virtualenv +
   dependencies.
+- [dev]: Clean up ``__init__.py`` imports
+- [internals]: move :meth:`update` to :meth:`update_dict` in ``utils``.
+- [cli]: ``-d`` / ``--dirmatch`` for matching directories, accepts
+  `fnmatch`_ \'s.
+- [cli]: ``-r`` / ``--repomatch`` for matching directories, accepts
+  `fnmatch`_ \'s.
+- [cli]: ``-c`` / ``--config`` YAML / JSON file of repositories
 
 0.0.8.4
 -------
