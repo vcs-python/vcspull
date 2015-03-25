@@ -113,7 +113,7 @@ class GitRepo(BaseRepo):
 
         BaseRepo.__init__(self, arguments, *args, **kwargs)
 
-        self['remotes']= arguments['remotes'] if 'remotes' in arguments else []
+        self['remotes'] = arguments['remotes'] if 'remotes' in arguments else []
 
     def get_revision(self):
         current_rev = run(
@@ -130,11 +130,19 @@ class GitRepo(BaseRepo):
         work with a ssh:// scheme (e.g. Github). But we need a scheme for
         parsing. Hence we remove it again afterwards and return it as a stub.
         """
-        if not '://' in self['url']:
-            assert not 'file:' in self['url']
+        if '://' not in self['url']:
+            assert 'file:' not in self['url']
             self.url = self.url.replace('git+', 'git+ssh://')
+            self.info(self.url)
             url, rev = super(GitRepo, self).get_url_rev()
             url = url.replace('ssh://', '')
+        elif 'github.com:' in self['url']:
+            raise exc.PullvException(
+                "Repo %s is malformatted, please use the convention %s for"
+                "ssh / private GitHub repositories." % (
+                    self['url'], "git+https://github.com/username/repo.git"
+                )
+            )
         else:
             url, rev = super(GitRepo, self).get_url_rev()
 
@@ -157,8 +165,10 @@ class GitRepo(BaseRepo):
 
     def get_refs(self, location):
         """Return map of named refs (branches or tags) to commit hashes."""
-        output = run(['git', 'show-ref'],
-                                 show_stdout=False, cwd=location)
+        output = run(
+            ['git', 'show-ref'],
+            show_stdout=False, cwd=location
+        )
         rv = {}
         for line in output:
             commit, ref = line.split(' ', 1)
