@@ -16,6 +16,8 @@ CURRENT
 - [cli]: ``-r`` / ``--repomatch`` for matching directories, accepts
   `fnmatch`_ \'s.
 - [cli]: ``-c`` / ``--config`` YAML / JSON file of repositories
+- [config/vcs]: Exception for private / ssh GitHub repository URLs and 
+  message to change to correct format.
 
 0.0.8.4
 -------

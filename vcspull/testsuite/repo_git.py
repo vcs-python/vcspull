@@ -13,6 +13,7 @@ import logging
 import unittest
 
 from .helpers import ConfigTest, RepoTest
+from .. import exc
 from ..repo import Repo
 from ..util import run
 
@@ -86,6 +87,23 @@ class GitRepoRemotes(RepoTest):
         self.assertIn('myrepo', git_repo.remotes_get())
 
 
+class GitRepoSSHUrl(RepoTest):
+
+    def test_private_ssh_format(self):
+        repo_dir, git_repo = self.create_git_repo()
+
+        git_checkout_dest = os.path.join(self.TMP_DIR, 'private_ssh_repo')
+
+        git_repo = Repo({
+            'url': 'git+ssh://github.com:' + git_checkout_dest,
+            'parent_path': os.path.dirname(repo_dir),
+            'name': os.path.basename(os.path.normpath(repo_dir)),
+        })
+
+        with self.assertRaisesRegexp(exc.PullvException, "is malformatted"):
+            git_repo.obtain(quiet=True)
+
+
 class TestRemoteGit(RepoTest):
 
     def test_ls_remotes(self):
@@ -133,6 +151,7 @@ class TestRemoteGit(RepoTest):
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(GitRepoRemotes))
+    suite.addTest(unittest.makeSuite(GitRepoSSHUrl))
     suite.addTest(unittest.makeSuite(RepoGit))
     suite.addTest(unittest.makeSuite(TestRemoteGit))
     return suite
