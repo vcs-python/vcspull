@@ -11,8 +11,8 @@ Repo type and address is specified in `pip vcs url`_ format.
 Remote git repositories and SSH git
 -----------------------------------
 
-Note, ``git+ssh`` repos such as ``git+git@github.com:tony/kaptan.git``. It
-must be listed in remotes.
+Note, ``git+ssh`` repos such as ``git+git@github.com:tony/kaptan.git``.
+Must use the format ``git+ssh://git@github.com/tony/kaptan.git``
 
 .. literalinclude:: ../examples/remotes.yaml
     :language: yaml

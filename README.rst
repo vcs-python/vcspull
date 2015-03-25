@@ -26,17 +26,44 @@ JSON file.
 * `Documentation`_, `API`_ and `Examples`_.
 * vcspull builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
 
-See the `Quickstart`_ to jump in.
+See the `Quickstart`_ to jump in. Or see an `example .vcspull.yaml`_.
+
+**Here's what you can do**
+
+Create a ``.vcspull.yaml``:
+
+.. code-block:: yaml
+   
+    ~/code/:
+        "flask": "git+https://github.com/mitsuhiko/flask.git"
+
+Clone and update your repositories at any time:
+
+.. code-block:: bash
+    
+    $ vcspull
+    
+Have a lot of projects? Use arguments to clone / update what you need.
+
+.. code-block:: bash
+    
+    $ vcspull flask
+    
+Use `fnmatch`_:
+
+    # any repo starting with "fla"
+    $ vcspull "fla*"
+    
+    # inside of a directory with "co" anywhere, on github.
+    $ vcspull -d "*co*" -r "*github.com*" "fla*"
 
 **Current Limitations:**
 
-- Main repo URL may not be ``git+ssh`` format. For a workaround, add
-  ``git+ssh`` server as remotes and use a public include. See `remote git
-  repo example`_ in the docs.
 - Support for ``svn`` username and password.
 
-.. _remote git repo example: http://vcspull.readthedocs.org/en/latest/examples.html#remote-git-repositories-and-ssh-git
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
+.. _example .vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
+.. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
 ==============  ==========================================================
 Python support  Python 2.7, >= 3.3

@@ -4,4 +4,4 @@
     remotes:
       upstream: git+https://github.com/emre/kaptan
       marksteve: git+https://github.com/marksteve/kaptan.git
-      tony: git+git@github.com:tony/kaptan.git
+      tony: git+ssh://git@github.com/tony/kaptan.git

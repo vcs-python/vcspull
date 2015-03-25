@@ -4,8 +4,8 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
-CURRENT
--------
+0.0.9
+-----
 
 - [dev]: support for tmuxp ``before_script`` to set up local virtualenv +
   dependencies.
@@ -18,6 +18,8 @@ CURRENT
 - [cli]: ``-c`` / ``--config`` YAML / JSON file of repositories
 - [config/vcs]: Exception for private / ssh GitHub repository URLs and 
   message to change to correct format.
+- [docs]: Update docs to reflect updates on new commands and how to clone
+  private / priveleged GitHub repos.
 
 0.0.8.4
 -------
