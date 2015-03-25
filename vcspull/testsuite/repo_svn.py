@@ -11,8 +11,9 @@ from __future__ import absolute_import, division, print_function, \
 import os
 import logging
 import tempfile
-import unittest
 
+
+from . import unittest
 from .helpers import RepoTest
 from ..repo import Repo
 from ..util import run, which
