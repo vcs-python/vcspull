@@ -1,4 +1,5 @@
-``vcspull`` - mass-update vcs from JSON / YAML config files.
+``vcspull`` - manage your git, mercurial and svn repositories via CLI.
+Configure via JSON / YAML config files.
 
 .. image:: https://travis-ci.org/tony/vcspull.png?branch=master
     :target: https://travis-ci.org/tony/vcspull
@@ -16,7 +17,7 @@
 
     Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
 
-Sync multiple git, mercurial and subversions repositories via a YAML /
+Sync multiple git, mercurial and subversion repositories via a YAML /
 JSON file.
 
 * supports svn, git, hg version control systems
