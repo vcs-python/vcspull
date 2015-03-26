@@ -4,10 +4,12 @@
 
 import sys
 import os
+
 from setuptools import setup
 
-sys.path.insert(0, os.getcwd())  # we want to grab this:
-from package_metadata import p
+about = {}
+with open("vcspull/__about__.py") as fp:
+    exec(fp.read(), about)
 
 with open('requirements.pip') as f:
     install_reqs = [line for line in f.read().split('\n') if line]
@@ -21,21 +23,21 @@ readme = open('README.rst').read()
 history = open('CHANGES').read().replace('.. :changelog:', '')
 
 setup(
-    name=p.title,
-    version=p.version,
+    name=about['__title__'],
+    version=about['__version__'],
     url='http://github.com/tony/vcspull/',
     download_url='https://pypi.python.org/pypi/vcspull',
-    license=p.license,
-    author=p.author,
-    author_email=p.email,
-    description=p.description,
+    license=about['__license__'],
+    author=about['__author__'],
+    author_email=about['__email__'],
+    description=about['__description__'],
     long_description=readme,
     include_package_data=True,
     install_requires=install_reqs,
     tests_require=tests_reqs,
     test_suite='vcspull.testsuite',
     zip_safe=False,
-    keywords=p.title,
+    keywords=about['__title__'],
     packages=['vcspull', 'vcspull.testsuite', 'vcspull.repo', 'vcspull._vendor', 'vcspull._vendor.colorama'],
     scripts=['pkg/vcspull.bash', 'pkg/vcspull.zsh', 'pkg/vcspull.tcsh'],
     entry_points=dict(console_scripts=['vcspull=vcspull:cli.main']),

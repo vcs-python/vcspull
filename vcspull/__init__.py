@@ -13,15 +13,6 @@ vcspull
 from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
-__title__ = 'vcspull'
-__package_name__ = 'vcspull'
-__description__ = 'Manage git, mercurial and svn repositories through CLI. Configure with JSON / YAML files.'
-__version__ = '0.0.9'
-__author__ = 'Tony Narlock'
-__email__ = 'tony@git-pull.com'
-__license__ = 'BSD'
-__copyright__ = 'Copyright 2013-2015 Tony Narlock'
-
 from .util import (
     expand_config, get_repos, mkdir_p, run, scan, which, update_dict
 )

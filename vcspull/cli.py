@@ -15,11 +15,12 @@ import fnmatch
 import glob
 import logging
 import re
-
 import argparse
+
 import kaptan
 import argcomplete
 
+from .__about__ import __version__
 from ._compat import string_types
 from .util import expand_config, get_repos, update_dict
 from .log import DebugLogFormatter
@@ -27,14 +28,6 @@ from .repo import Repo
 
 log = logging.getLogger(__name__)
 
-VERSIONFILE = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)), '__init__.py'
-)
-verstrline = open(VERSIONFILE, "rt").read()
-VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
-mo = re.search(VSRE, verstrline, re.M)
-if mo:
-    __version__ = mo.group(1)
 
 config_dir = os.path.expanduser('~/.vcspull/')
 cwd_dir = os.getcwd() + '/'
