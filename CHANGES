@@ -4,7 +4,7 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
-CURRENT
+0.0.9.1
 -------
 
 - [internals]: move to ``__about__.py`` convention for pulling package
