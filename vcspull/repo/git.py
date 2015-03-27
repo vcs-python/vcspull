@@ -133,7 +133,6 @@ class GitRepo(BaseRepo):
         if '://' not in self['url']:
             assert 'file:' not in self['url']
             self.url = self.url.replace('git+', 'git+ssh://')
-            self.info(self.url)
             url, rev = super(GitRepo, self).get_url_rev()
             url = url.replace('ssh://', '')
         elif 'github.com:' in self['url']:

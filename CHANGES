@@ -9,6 +9,7 @@ CURRENT
 
 - [internals]: move to ``__about__.py`` convention for pulling package
   data.
+- [internals]: remove extraneous url from stdout in git repositories.
 
 0.0.9
 -----
