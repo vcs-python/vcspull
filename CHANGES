@@ -28,6 +28,8 @@ CURRENT
 - [docs]: Update docs to reflect updates on new commands and how to clone
   private / priveleged GitHub repos.
 
+.. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
+
 0.0.8.4
 -------
 
@@ -40,7 +42,7 @@ CURRENT
 - [logging] `Issue #6`_ - fix issue where log templates would not
   concatenate correctly.
 
-.. _issue #1: https://github.com/tony/vcspull/issues/6
+.. _issue #6: https://github.com/tony/vcspull/issues/6
 
 0.0.8.2
 -------
