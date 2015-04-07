@@ -202,7 +202,6 @@ class GitRepo(BaseRepo):
         )
 
         if self['remotes']:
-            self.error(self['remotes'])
             for r in self['remotes']:
                 self.error(r)
                 self.error('Adding remote %s <%s>' % (r['remote_name'], r['url']))
