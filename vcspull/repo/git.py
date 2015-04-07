@@ -223,13 +223,13 @@ class GitRepo(BaseRepo):
             ], cwd=self['path'])
 
             # if 'Already up-to-date' in proc['stdout']:
-                # self.info('Already up-to-date.')
+            #     self.info('Already up-to-date.')
             # else:
-                # if proc['stderr']:
-                    # if 'You are not currently on a branch' in proc['stderr'][0]:
-                        # self.info('Not on branch, Fetched.')
-                # else:
-                    # self.info('\n'.join(proc['stdout']))
+            #     if proc['stderr']:
+            #         if 'You are not currently on a branch' in proc['stderr'][0]:
+            #             self.info('Not on branch, Fetched.')
+            #     else:
+            #         self.info('\n'.join(proc['stdout']))
         else:
             self.obtain()
             self.update_repo()
@@ -272,7 +272,6 @@ class GitRepo(BaseRepo):
 
             salt '*' git.revision /path/to/repo mybranch
         """
-        _check_git()
 
         if not cwd:
             cwd = self['path']
@@ -303,7 +302,6 @@ class GitRepo(BaseRepo):
 
             salt '*' git.fetch cwd=/path/to/repo opts='--all' user=johnny
         """
-        _check_git()
 
         if not cwd:
             cwd = self['path']
