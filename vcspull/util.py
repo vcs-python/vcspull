@@ -6,8 +6,9 @@ vcspull.util
 
 """
 
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (
+    absolute_import, division, print_function, with_statement, unicode_literals
+)
 
 import subprocess
 import collections
@@ -21,6 +22,29 @@ from .exc import PullvException
 from ._compat import string_types
 
 logger = logging.getLogger(__name__)
+
+
+def in_dir(
+    config_dir=os.path.expanduser('~/.vcspull'),
+    extensions=['.yml', '.yaml', '.json']
+):
+    """Return a list of configs in ``config_dir``.
+
+    :param config_dir: directory to search
+    :type config_dir: string
+    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
+    :type extensions: list
+    :rtype: list
+
+    """
+    configs = []
+
+    for filename in os.listdir(config_dir):
+        if is_config_file(filename, extensions) and \
+           not filename.startswith('.'):
+            configs.append(filename)
+
+    return configs
 
 
 def expand_config(config):
@@ -243,3 +267,19 @@ def update_dict(d, u):
         else:
             d[k] = u[k]
     return d
+
+
+def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
+    """Return True if file has a valid config file type.
+
+    :param filename: filename to check (e.g. ``mysession.json``).
+    :type filename: string
+    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
+    :type extensions: list or string
+    :rtype: bool
+
+    """
+
+    extensions = [extensions] if isinstance(
+        extensions, string_types) else extensions
+    return any(filename.endswith(e) for e in extensions)

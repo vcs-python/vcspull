@@ -8,6 +8,10 @@ CURRENT
 -------
 
 - [cli]: fix message when adding remotes
+- [internals]: split config-related functions into ``config`` module.
+- [tests]: consolidate tests from ``testsuite.cli`` into
+  ``testsuite.config``.
+- [tests: remove stub TestSuites insite of ``cli`` tests.
 
 0.0.9.1
 -------
