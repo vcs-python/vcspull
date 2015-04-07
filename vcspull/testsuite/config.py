@@ -194,8 +194,12 @@ class InDirTest(ConfigTest):
         os.makedirs(self.CONFIG_DIR)
         self.assertTrue(os.path.exists(self.CONFIG_DIR))
 
-        self.file1 = tempfile.NamedTemporaryFile(dir=self.CONFIG_DIR, delete=False)
-        self.file2 = tempfile.NamedTemporaryFile(dir=self.CONFIG_DIR, delete=False)
+        self.file1 = tempfile.NamedTemporaryFile(
+            dir=self.CONFIG_DIR, delete=False, suffix=".yaml"
+        )
+        self.file2 = tempfile.NamedTemporaryFile(
+            dir=self.CONFIG_DIR, delete=False, suffix=".json"
+        )
 
     def tearDown(self):
         os.remove(self.file1.name)
@@ -203,7 +207,13 @@ class InDirTest(ConfigTest):
         ConfigTest.tearDown(self)
 
     def test_in_dir(self):
-        pass
+        expected = [
+            os.path.basename(self.file1.name),
+            os.path.basename(self.file2.name),
+        ]
+        result = config.in_dir(self.CONFIG_DIR)
+
+        self.assertItemsEqual(expected, result)
 
 
 class RepoIntegrationTest(RepoTest, ConfigTest):
@@ -592,6 +602,7 @@ def suite():
     suite.addTest(unittest.makeSuite(RepoIntegrationTest))
     suite.addTest(unittest.makeSuite(FindConfigs))
     suite.addTest(unittest.makeSuite(LoadConfigs))
+    suite.addTest(unittest.makeSuite(InDirTest))
     suite.addTest(unittest.makeSuite(RepoIntegrationDuplicateTest))
     suite.addTest(unittest.makeSuite(LoadConfigsUpdateDepth))
     suite.addTest(unittest.makeSuite(LoadConfigsDuplicate))
