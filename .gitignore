@@ -3,6 +3,7 @@
 *.pyc
 *.tar.gz
 *.egg-info
+.eggs
 
 doc/_build
 
