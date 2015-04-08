@@ -12,13 +12,13 @@ from __future__ import (
 import tempfile
 import os
 import copy
-import unittest
 import logging
 
 import kaptan
 
 from vcspull.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from vcspull.util import expand_config, run, get_repos
+from . import unittest
 from .helpers import RepoTest, ConfigTestDirectoryMixin, ConfigExampleMixin, RepoIntegrationTest
 
 from .. import config

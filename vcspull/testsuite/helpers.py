@@ -9,7 +9,6 @@ from __future__ import (
     absolute_import, division, print_function, with_statement, unicode_literals
 )
 
-import unittest
 import os
 import sys
 import copy
@@ -21,6 +20,7 @@ import re
 
 import kaptan
 
+from . import unittest
 from ..repo import Repo
 from ..util import run, expand_config
 from .._compat import string_types
