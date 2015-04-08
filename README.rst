@@ -79,7 +79,7 @@ Issues          https://github.com/tony/vcspull/issues
 Travis          http://travis-ci.org/tony/vcspull
 Test Coverage   https://coveralls.io/r/tony/vcspull
 pypi            https://pypi.python.org/pypi/vcspull
-Ohloh           https://www.ohloh.net/p/vcspull
+Open Hub        https://www.openhub.net/p/vcspull
 License         `BSD`_.
 git repo        .. code-block:: bash
 
