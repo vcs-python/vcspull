@@ -150,20 +150,33 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     return any(filename.endswith(e) for e in extensions)
 
 
+def find_home_configs(path=['~'], filetype=['json', 'yaml']):
+    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory.
+
+    :param path: path of user's home directory
+
+    """
+
+    pass
+
 def find_configs(
     path=['~/.vcspull'],
     match=['*'],
     filetype=['json', 'yaml'],
-
 ):
     """Return repos from a directory and match. Not recursive.
 
     :param path: list of paths to search
     :type path: list
-    :param match:
-    :param filetype:
-    :raises LoadConfigRepoConflict: There are two configs that have same path
-        and name with different repo urls.
+    :param match: list of globs to search against
+    :type match: list
+    :param filetype: list of filetypes to search against
+    :type filetype: list
+    :raises:
+        - LoadConfigRepoConflict: There are two configs that have same path
+          and name with different repo urls.
+        - NoConfigsFound: No configs found in home directory or ~/.vcspull
+          directory.
     :returns: list of absolute paths to config files.
     :rtype: list
 
@@ -175,6 +188,7 @@ def find_configs(
         for p in path:
             return find_configs(p, match, filetype)
     else:
+        path = os.path.expanduser(path)
         if isinstance(match, list):
             for m in match:
                 configs.extend(find_configs(path, m, filetype))

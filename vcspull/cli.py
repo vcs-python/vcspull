@@ -23,7 +23,7 @@ import argcomplete
 from .__about__ import __version__
 from ._compat import string_types
 from .util import expand_config, get_repos, update_dict, in_dir
-from .config import find_configs
+from .config import find_configs, load_configs
 from .log import DebugLogFormatter
 from .repo import Repo
 
@@ -124,6 +124,7 @@ def main():
 
 
 def command_load(args):
+    """Load YAML and JSON configs and begin creating / updating repos."""
     if not args.config or args.config == ['*']:
         yaml_config = os.path.expanduser('~/.vcspull.yaml')
         has_yaml_config = os.path.exists(yaml_config)
@@ -153,12 +154,16 @@ def command_load(args):
             logging.debug('%r' % expand_config(config.get()))
             logging.debug('%r' % get_repos(expand_config(config.get())))
 
+            logging.error('find_configs(): %r' % find_configs())
+            configs = load_configs(find_configs())
+            logging.error(configs)
             repos = get_repos(
                 expand_config(config.get()),
                 dirmatch=args.dirmatch,
                 repomatch=args.repomatch,
                 namematch=args.namematch
             )
+
             for repo_dict in repos:
                 r = Repo(repo_dict)
                 log.debug('%s' % r)
