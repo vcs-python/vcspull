@@ -212,7 +212,10 @@ class InDirTest(ConfigTestDirectoryMixin):
         ]
         result = config.in_dir(self.CONFIG_DIR)
 
-        self.assertItemsEqual(expected, result)
+        try:
+            self.assertItemsEqual(expected, result)
+        except AttributeError:
+            self.assertCountEqual(expected, result)
 
 
 class FindConfigs(RepoTest, ConfigTestDirectoryMixin):
