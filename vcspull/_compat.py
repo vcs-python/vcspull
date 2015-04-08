@@ -12,6 +12,8 @@ if PY2:
     integer_types = (int, long)
     from urllib import urlretrieve
 
+    from test import test_support as support
+
     text_to_native = lambda s, enc: s.encode(enc)
 
     iterkeys = lambda d: d.iterkeys()
@@ -64,6 +66,8 @@ else:
     import urllib.parse as urllib
     import urllib.parse as urlparse
     from urllib.request import urlretrieve
+
+    from test import support
 
     console_encoding = sys.__stdout__.encoding
 

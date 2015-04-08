@@ -16,13 +16,13 @@ import logging
 
 import kaptan
 
+from .._compat import support
 from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from ..util import expand_config, run, get_repos
 
 from . import unittest
 from .helpers import (
-    RepoTestMixin, ConfigTestMixin, ConfigTestCase,
-    RepoIntegrationTest
+    ConfigTestMixin, ConfigTestCase, RepoIntegrationTest
 )
 
 from .. import config
@@ -220,6 +220,40 @@ class InDirTest(ConfigTestCase):
             self.assertItemsEqual(expected, result)
         except AttributeError:
             self.assertCountEqual(expected, result)
+
+
+class FindConfigsHome(ConfigTestCase, unittest.TestCase):
+
+    """Test find_configs in home directory."""
+
+    def tearDown(self):
+        ConfigTestCase.tearDown(self)
+
+    def setUp(self):
+        self._createConfigDirectory()
+
+        self.config_file1_path = os.path.join(self.TMP_DIR, '.tmuxp.yaml')
+        self.config_file1 = open(self.config_file1_path, 'w')
+        self.config_file1.write('wat')
+        self.config_file1.close()
+        self.config_file2_path = os.path.join(self.TMP_DIR, '.tmuxp.json')
+        self.config_file2 = open(self.config_file2_path, 'w').close()
+
+        self.assertTrue(os.path.exists(self.config_file1_path))
+        self.assertTrue(os.path.exists(self.config_file2_path))
+
+    @unittest.skip("WIP")
+    def test_find_configs(self):
+
+        with support.EnvironmentVarGuard() as env:
+            env.set("HOME", self.TMP_DIR)
+            self.assertEqual(os.environ.get("HOME"), self.TMP_DIR)
+            configs = config.find_home_configs()
+            self.assertTrue(os.path.exists(self.config_file1_path))
+            self.assertTrue(os.path.exists(self.config_file2_path))
+
+            self.assertIn(['.tmuxp.yaml', '.tmuxp.json'], configs)
+        pass
 
 
 class FindConfigs(ConfigTestCase, unittest.TestCase):
@@ -526,6 +560,7 @@ def suite():
     suite.addTest(unittest.makeSuite(ExpandUserExpandVars))
     suite.addTest(unittest.makeSuite(RepoIntegrationTest))
     suite.addTest(unittest.makeSuite(FindConfigs))
+    suite.addTest(unittest.makeSuite(FindConfigsHome))
     suite.addTest(unittest.makeSuite(LoadConfigs))
     suite.addTest(unittest.makeSuite(InDirTest))
     suite.addTest(unittest.makeSuite(RepoIntegrationDuplicateTest))

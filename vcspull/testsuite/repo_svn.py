@@ -15,7 +15,7 @@ import tempfile
 
 
 from . import unittest
-from .helpers import RepoTestMixin
+from .helpers import RepoTestMixin, ConfigTestCase
 from ..repo import Repo
 from ..util import run, which
 from ..exc import PullvException
@@ -32,7 +32,7 @@ def has_svn():
 
 
 @unittest.skipUnless(has_svn(), "requires SVN")
-class RepoSVN(RepoTestMixin):
+class RepoSVN(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
     def test_repo_svn(self):
         repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
