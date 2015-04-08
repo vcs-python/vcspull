@@ -31,7 +31,7 @@ if sys.version_info <= (2, 7,):
     import unittest2 as unittest
 
 
-class ConfigTestDirectoryMixin(unittest.TestCase):
+class ConfigTestMixin(unittest.TestCase):
 
     """Contains the fresh config dict/yaml's to test against.
 
@@ -40,32 +40,16 @@ class ConfigTestDirectoryMixin(unittest.TestCase):
 
     """
 
-    def tearDown(self):
-        self._removeConfigDirectory()
-
     def _removeConfigDirectory(self):
         """Remove TMP_DIR."""
         if os.path.isdir(self.TMP_DIR):
             shutil.rmtree(self.TMP_DIR)
         logger.debug('wiped %s' % self.TMP_DIR)
 
-    def setUp(self):
-        self._createConfigDirectory()
 
     def _createConfigDirectory(self):
         """Create TMP_DIR for TestCase."""
         self.TMP_DIR = tempfile.mkdtemp(suffix='vcspull')
-
-
-class ConfigExampleMixin(ConfigTestDirectoryMixin):
-
-    """ConfigExampleMixin mixin that creates test directory + sample configs."""
-
-    def setUp(self):
-        """Extend ConfigTestDirectoryMixin and add sample configs to class."""
-
-        super(ConfigExampleMixin, self).setUp()
-        self._seedConfigExampleMixin()
 
     def _seedConfigExampleMixin(self):
 
@@ -162,9 +146,17 @@ class ConfigExampleMixin(ConfigTestDirectoryMixin):
         self.config_yaml = config_yaml
 
 
-class RepoTest(ConfigTestDirectoryMixin):
+class ConfigTestCase(ConfigTestMixin, unittest.TestCase):
+    def tearDown(self):
+        self._removeConfigDirectory()
 
-    """Create Repo's for test repository."""
+    def setUp(self):
+        self._createConfigDirectory()
+        self._seedConfigExampleMixin()
+
+class RepoTestMixin(object):
+
+    """Mixin for create Repo's for test repository."""
 
     def create_svn_repo(self, repo_name='my_svn_project', create_repo=False):
         """Create an svn repository for tests. Return SVN repo directory.
@@ -284,7 +276,8 @@ class RepoTest(ConfigTestDirectoryMixin):
         return os.path.join(repo_path, repo_name), mercurial_repo
 
 
-class RepoIntegrationTest(RepoTest, ConfigTestDirectoryMixin):
+
+class RepoIntegrationTest(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
     """TestCase base that prepares custom repos, configs.
 
@@ -300,7 +293,7 @@ class RepoIntegrationTest(RepoTest, ConfigTestDirectoryMixin):
 
     def setUp(self):
 
-        ConfigTestDirectoryMixin.setUp(self)
+        ConfigTestCase.setUp(self)
 
         self.git_repo_path, self.git_repo = self.create_git_repo()
         self.hg_repo_path, self.hg_repo = self.create_mercurial_repo()

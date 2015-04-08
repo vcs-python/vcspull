@@ -12,7 +12,7 @@ import os
 import logging
 import unittest
 
-from .helpers import ConfigTestDirectoryMixin, RepoTest
+from .helpers import RepoTestMixin, RepoIntegrationTest, ConfigTestCase
 from .. import exc
 from ..repo import Repo
 from ..util import run
@@ -20,7 +20,7 @@ from ..util import run
 logger = logging.getLogger(__name__)
 
 
-class RepoGit(ConfigTestDirectoryMixin):
+class RepoGit(RepoIntegrationTest, unittest.TestCase):
 
     """Integration level tests."""
 
@@ -64,7 +64,7 @@ class RepoGit(ConfigTestDirectoryMixin):
         self.assertTrue(os.path.exists(git_checkout_dest))
 
 
-class GitRepoRemotes(RepoTest):
+class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
     def test_remotes(self):
         repo_dir, git_repo = self.create_git_repo(create_repo=True)
 
@@ -87,7 +87,7 @@ class GitRepoRemotes(RepoTest):
         self.assertIn('myrepo', git_repo.remotes_get())
 
 
-class GitRepoSSHUrl(RepoTest):
+class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
     def test_private_ssh_format(self):
         repo_dir, git_repo = self.create_git_repo()
@@ -104,7 +104,7 @@ class GitRepoSSHUrl(RepoTest):
             git_repo.obtain(quiet=True)
 
 
-class TestRemoteGit(RepoTest):
+class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
     def test_ls_remotes(self):
         repo_dir, git_repo = self.create_git_repo(create_repo=True)

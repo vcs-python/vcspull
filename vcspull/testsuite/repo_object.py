@@ -15,10 +15,10 @@ import kaptan
 
 from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from ..util import expand_config, get_repos, run
-from .helpers import ConfigExampleMixin, RepoTest
+from .helpers import ConfigTestCase, RepoTestMixin
 
 
-class GetReposTest(ConfigExampleMixin, unittest.TestCase):
+class GetReposTest(ConfigTestCase, unittest.TestCase):
 
     def test_filter_dir(self):
         """``get_repos`` filter by dir"""
@@ -72,7 +72,7 @@ class GetReposTest(ConfigExampleMixin, unittest.TestCase):
             self.assertEqual(r['name'], 'linux')
 
 
-class ConfigToObjectTest(ConfigExampleMixin):
+class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
     """TestCase for converting config (dict) into Repo object."""
 
@@ -170,7 +170,7 @@ class ConfigToObjectTest(ConfigExampleMixin):
                     self.assertIn('url', remote)
 
 
-class EnsureMakeDirsRecursively(RepoTest):
+class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin, unittest.TestCase):
 
     """Ensure that directories in pull are made recursively."""
 

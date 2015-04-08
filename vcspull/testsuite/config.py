@@ -16,17 +16,21 @@ import logging
 
 import kaptan
 
-from vcspull.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
-from vcspull.util import expand_config, run, get_repos
+from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
+from ..util import expand_config, run, get_repos
+
 from . import unittest
-from .helpers import RepoTest, ConfigTestDirectoryMixin, ConfigExampleMixin, RepoIntegrationTest
+from .helpers import (
+    RepoTestMixin, ConfigTestMixin, ConfigTestCase,
+    RepoIntegrationTest
+)
 
 from .. import config
 
 logger = logging.getLogger(__name__)
 
 
-class ConfigFormatTest(ConfigExampleMixin):
+class ConfigFormatTest(ConfigTestCase, unittest.TestCase):
 
     """Verify that example YAML is returning expected dict format."""
 
@@ -39,7 +43,7 @@ class ConfigFormatTest(ConfigExampleMixin):
         self.assertDictEqual(self.config_dict, config.export('dict'))
 
 
-class ConfigImportExportTest(ConfigExampleMixin):
+class ConfigImportExportTest(ConfigTestCase):
 
     def test_export_json(self):
         TMP_DIR = self.TMP_DIR
@@ -98,7 +102,7 @@ class ConfigImportExportTest(ConfigExampleMixin):
         self.assertEqual(len(configs), files)
 
 
-class ConfigExpandTest(ConfigExampleMixin):
+class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
 
     """Expand configuration into full form."""
 
@@ -112,12 +116,12 @@ class ConfigExpandTest(ConfigExampleMixin):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
-class ExpandUserExpandVars(ConfigTestDirectoryMixin):
+class ExpandUserExpandVars(ConfigTestMixin):
     """Verify .expandvars and .expanduser works with configs."""
 
     def setUp(self):
 
-        ConfigTestDirectoryMixin.setUp(self)
+        ConfigTestMixin.setUp(self)
 
         config_yaml = """
         '~/study/':
@@ -183,10 +187,10 @@ class ExpandUserExpandVars(ConfigTestDirectoryMixin):
         self.assertIn(os.path.expanduser('~/study/'), paths)
 
 
-class InDirTest(ConfigTestDirectoryMixin):
+class InDirTest(ConfigTestCase):
     def setUp(self):
 
-        ConfigTestDirectoryMixin.setUp(self)
+        ConfigTestCase.setUp(self)
 
         self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.vcspull')
 
@@ -203,7 +207,7 @@ class InDirTest(ConfigTestDirectoryMixin):
     def tearDown(self):
         os.remove(self.config_file1.name)
         os.remove(self.config_file2.name)
-        ConfigTestDirectoryMixin.tearDown(self)
+        ConfigTestCase.tearDown(self)
 
     def test_in_dir(self):
         expected = [
@@ -218,12 +222,15 @@ class InDirTest(ConfigTestDirectoryMixin):
             self.assertCountEqual(expected, result)
 
 
-class FindConfigs(RepoTest, ConfigTestDirectoryMixin):
+class FindConfigs(ConfigTestCase, unittest.TestCase):
 
     """Test find_configs."""
 
+    def tearDown(self):
+        ConfigTestCase.tearDown(self)
+
     def setUp(self):
-        ConfigTestDirectoryMixin.setUp(self)
+        ConfigTestCase.setUp(self)
 
         self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.vcspull')
 
@@ -414,7 +421,7 @@ class LoadConfigs(RepoIntegrationTest):
             self.fail(e)
 
 
-class RepoIntegrationDuplicateTest(RepoIntegrationTest):
+class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
 
     def setUp(self):
 
