@@ -12,7 +12,7 @@ import os
 import logging
 
 from . import unittest
-from .helpers import ConfigTest
+from .helpers import ConfigTestDirectoryMixin
 from ..repo import Repo
 from ..util import run, which
 
@@ -28,7 +28,7 @@ def has_mercurial():
 
 
 @unittest.skipUnless(has_mercurial(), "requires Mercurial (hg)")
-class RepoMercurial(ConfigTest):
+class RepoMercurial(ConfigTestDirectoryMixin):
 
     def test_repo_mercurial(self):
         repo_dir = os.path.join(

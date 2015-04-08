@@ -19,14 +19,14 @@ import kaptan
 
 from vcspull.repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from vcspull.util import expand_config, run, get_repos
-from .helpers import RepoTest, ConfigTest, ConfigExamples, RepoIntegrationTest
+from .helpers import RepoTest, ConfigTestDirectoryMixin, ConfigExampleMixin, RepoIntegrationTest
 
 from .. import config
 
 logger = logging.getLogger(__name__)
 
 
-class ConfigFormatTest(ConfigExamples):
+class ConfigFormatTest(ConfigExampleMixin):
 
     """Verify that example YAML is returning expected dict format."""
 
@@ -39,7 +39,7 @@ class ConfigFormatTest(ConfigExamples):
         self.assertDictEqual(self.config_dict, config.export('dict'))
 
 
-class ConfigImportExportTest(ConfigExamples):
+class ConfigImportExportTest(ConfigExampleMixin):
 
     def test_export_json(self):
         TMP_DIR = self.TMP_DIR
@@ -98,7 +98,7 @@ class ConfigImportExportTest(ConfigExamples):
         self.assertEqual(len(configs), files)
 
 
-class ConfigExpandTest(ConfigExamples):
+class ConfigExpandTest(ConfigExampleMixin):
 
     """Expand configuration into full form."""
 
@@ -112,13 +112,12 @@ class ConfigExpandTest(ConfigExamples):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
-class ExpandUserExpandVars(ConfigTest):
-
+class ExpandUserExpandVars(ConfigTestDirectoryMixin):
     """Verify .expandvars and .expanduser works with configs."""
 
     def setUp(self):
 
-        ConfigTest.setUp(self)
+        ConfigTestDirectoryMixin.setUp(self)
 
         config_yaml = """
         '~/study/':
@@ -184,10 +183,10 @@ class ExpandUserExpandVars(ConfigTest):
         self.assertIn(os.path.expanduser('~/study/'), paths)
 
 
-class InDirTest(ConfigTest):
+class InDirTest(ConfigTestDirectoryMixin):
     def setUp(self):
 
-        ConfigTest.setUp(self)
+        ConfigTestDirectoryMixin.setUp(self)
 
         self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.vcspull')
 
@@ -204,7 +203,7 @@ class InDirTest(ConfigTest):
     def tearDown(self):
         os.remove(self.config_file1.name)
         os.remove(self.config_file2.name)
-        ConfigTest.tearDown(self)
+        ConfigTestDirectoryMixin.tearDown(self)
 
     def test_in_dir(self):
         expected = [
@@ -216,12 +215,12 @@ class InDirTest(ConfigTest):
         self.assertItemsEqual(expected, result)
 
 
-class FindConfigs(RepoTest, ConfigTest):
+class FindConfigs(RepoTest, ConfigTestDirectoryMixin):
 
     """Test find_configs."""
 
     def setUp(self):
-        ConfigTest.setUp(self)
+        ConfigTestDirectoryMixin.setUp(self)
 
         self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.vcspull')
 

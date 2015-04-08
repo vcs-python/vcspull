@@ -12,7 +12,7 @@ import os
 import logging
 import unittest
 
-from .helpers import ConfigTest, RepoTest
+from .helpers import ConfigTestDirectoryMixin, RepoTest
 from .. import exc
 from ..repo import Repo
 from ..util import run
@@ -20,7 +20,7 @@ from ..util import run
 logger = logging.getLogger(__name__)
 
 
-class RepoGit(ConfigTest):
+class RepoGit(ConfigTestDirectoryMixin):
 
     """Integration level tests."""
 
@@ -66,7 +66,7 @@ class RepoGit(ConfigTest):
 
 class GitRepoRemotes(RepoTest):
     def test_remotes(self):
-        repo_dir, git_repo = self.create_git_repo()
+        repo_dir, git_repo = self.create_git_repo(create_repo=True)
 
         git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
 
@@ -107,14 +107,14 @@ class GitRepoSSHUrl(RepoTest):
 class TestRemoteGit(RepoTest):
 
     def test_ls_remotes(self):
-        repo_dir, git_repo = self.create_git_repo()
+        repo_dir, git_repo = self.create_git_repo(create_repo=True)
 
         remotes = git_repo.remotes_get()
 
         self.assertIn('origin', remotes)
 
     def test_get_remotes(self):
-        repo_dir, git_repo = self.create_git_repo()
+        repo_dir, git_repo = self.create_git_repo(create_repo=True)
 
         self.assertIn(
             'origin',
@@ -122,7 +122,7 @@ class TestRemoteGit(RepoTest):
         )
 
     def test_set_remote(self):
-        repo_dir, git_repo = self.create_git_repo()
+        repo_dir, git_repo = self.create_git_repo(create_repo=True)
 
         mynewremote = git_repo.remote_set(
             name='myrepo',

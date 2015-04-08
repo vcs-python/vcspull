@@ -31,7 +31,7 @@ if sys.version_info <= (2, 7,):
     import unittest2 as unittest
 
 
-class ConfigTest(unittest.TestCase):
+class ConfigTestDirectoryMixin(unittest.TestCase):
 
     """Contains the fresh config dict/yaml's to test against.
 
@@ -41,24 +41,33 @@ class ConfigTest(unittest.TestCase):
     """
 
     def tearDown(self):
+        self._removeConfigDirectory()
+
+    def _removeConfigDirectory(self):
         """Remove TMP_DIR."""
         if os.path.isdir(self.TMP_DIR):
             shutil.rmtree(self.TMP_DIR)
         logger.debug('wiped %s' % self.TMP_DIR)
 
     def setUp(self):
+        self._createConfigDirectory()
+
+    def _createConfigDirectory(self):
         """Create TMP_DIR for TestCase."""
         self.TMP_DIR = tempfile.mkdtemp(suffix='vcspull')
 
 
-class ConfigExamples(ConfigTest):
+class ConfigExampleMixin(ConfigTestDirectoryMixin):
 
-    """ConfigExamples mixin that creates test directory + sample configs."""
+    """ConfigExampleMixin mixin that creates test directory + sample configs."""
 
     def setUp(self):
-        """Extend ConfigTest and add sample configs to class."""
+        """Extend ConfigTestDirectoryMixin and add sample configs to class."""
 
-        super(ConfigExamples, self).setUp()
+        super(ConfigExampleMixin, self).setUp()
+        self._seedConfigExampleMixin()
+
+    def _seedConfigExampleMixin(self):
 
         config_yaml = """
         {TMP_DIR}/study/:
@@ -153,15 +162,17 @@ class ConfigExamples(ConfigTest):
         self.config_yaml = config_yaml
 
 
-class RepoTest(ConfigTest):
+class RepoTest(ConfigTestDirectoryMixin):
 
     """Create Repo's for test repository."""
 
-    def create_svn_repo(self, repo_name='my_svn_project'):
+    def create_svn_repo(self, repo_name='my_svn_project', create_repo=False):
         """Create an svn repository for tests. Return SVN repo directory.
 
         :param repo_name:
         :type repo_name:
+        :param create_repo: If true, create repository
+        :type create_repo: bool
         :returns: directory of svn repository
         :rtype: string
 
@@ -175,21 +186,24 @@ class RepoTest(ConfigTest):
             'name': repo_name
         })
 
-        os.mkdir(repo_path)
-        run([
-            'svnadmin', 'create', svn_repo['name']
-            ], cwd=repo_path)
-        self.assertTrue(os.path.exists(repo_path))
+        if create_repo:
+            os.mkdir(repo_path)
+            run([
+                'svnadmin', 'create', svn_repo['name']
+                ], cwd=repo_path)
+            self.assertTrue(os.path.exists(repo_path))
 
-        svn_repo.obtain()
+            svn_repo.obtain()
 
         return os.path.join(repo_path, repo_name), svn_repo
 
-    def create_git_repo(self, repo_name='test git repo'):
+    def create_git_repo(self, repo_name='test git repo', create_repo=False):
         """Create an git repository for tests. Return directory.
 
         :param repo_name:
         :type repo_name:
+        :param create_repo: If true, create repository
+        :type create_repo: bool
         :returns: directory of svn repository
         :rtype: string
 
@@ -203,34 +217,37 @@ class RepoTest(ConfigTest):
             'name': repo_name
         })
 
-        os.mkdir(repo_path)
-        run([
-            'git', 'init', git_repo['name']
-            ], cwd=repo_path)
-        self.assertTrue(os.path.exists(repo_path))
+        if create_repo:
+            os.mkdir(repo_path)
+            run([
+                'git', 'init', git_repo['name']
+                ], cwd=repo_path)
+            self.assertTrue(os.path.exists(repo_path))
 
-        git_repo.obtain(quiet=True)
+            git_repo.obtain(quiet=True)
 
-        testfile_filename = 'testfile.test'
+            testfile_filename = 'testfile.test'
 
-        run([
-            'touch', testfile_filename
-            ], cwd=os.path.join(repo_path, repo_name))
-        run([
-            'git', 'add', testfile_filename
-            ], cwd=os.path.join(repo_path, repo_name))
-        run([
-            'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
-            ], cwd=os.path.join(repo_path, repo_name))
-        git_repo.update_repo()
+            run([
+                'touch', testfile_filename
+                ], cwd=os.path.join(repo_path, repo_name))
+            run([
+                'git', 'add', testfile_filename
+                ], cwd=os.path.join(repo_path, repo_name))
+            run([
+                'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
+                ], cwd=os.path.join(repo_path, repo_name))
+            git_repo.update_repo()
 
         return os.path.join(repo_path, repo_name), git_repo
 
-    def create_mercurial_repo(self, repo_name='test hg repo'):
+    def create_mercurial_repo(self, repo_name='test hg repo', create_repo=False):
         """Create an hg repository for tests. Return directory.
 
         :param repo_name:
         :type repo_name:
+        :param create_repo: If true, create repository
+        :type create_repo: bool
         :returns: directory of hg repository
         :rtype: string
 
@@ -244,29 +261,30 @@ class RepoTest(ConfigTest):
             'name': repo_name
         })
 
-        os.mkdir(repo_path)
-        run([
-            'hg', 'init', mercurial_repo['name']], cwd=repo_path
-            )
+        if create_repo:
+            os.mkdir(repo_path)
+            run([
+                'hg', 'init', mercurial_repo['name']], cwd=repo_path
+                )
 
-        mercurial_repo.obtain()
+            mercurial_repo.obtain()
 
-        testfile_filename = 'testfile.test'
+            testfile_filename = 'testfile.test'
 
-        run([
-            'touch', testfile_filename
-            ], cwd=os.path.join(repo_path, repo_name))
-        run([
-            'hg', 'add', testfile_filename
-            ], cwd=os.path.join(repo_path, repo_name))
-        run([
-            'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
-            ], cwd=os.path.join(repo_path, repo_name))
+            run([
+                'touch', testfile_filename
+                ], cwd=os.path.join(repo_path, repo_name))
+            run([
+                'hg', 'add', testfile_filename
+                ], cwd=os.path.join(repo_path, repo_name))
+            run([
+                'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
+                ], cwd=os.path.join(repo_path, repo_name))
 
         return os.path.join(repo_path, repo_name), mercurial_repo
 
 
-class RepoIntegrationTest(RepoTest, ConfigTest):
+class RepoIntegrationTest(RepoTest, ConfigTestDirectoryMixin):
 
     """TestCase base that prepares custom repos, configs.
 
@@ -282,7 +300,7 @@ class RepoIntegrationTest(RepoTest, ConfigTest):
 
     def setUp(self):
 
-        ConfigTest.setUp(self)
+        ConfigTestDirectoryMixin.setUp(self)
 
         self.git_repo_path, self.git_repo = self.create_git_repo()
         self.hg_repo_path, self.hg_repo = self.create_mercurial_repo()

@@ -15,10 +15,10 @@ import kaptan
 
 from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from ..util import expand_config, get_repos, run
-from .helpers import ConfigExamples, RepoTest
+from .helpers import ConfigExampleMixin, RepoTest
 
 
-class GetReposTest(ConfigExamples, unittest.TestCase):
+class GetReposTest(ConfigExampleMixin, unittest.TestCase):
 
     def test_filter_dir(self):
         """``get_repos`` filter by dir"""
@@ -72,7 +72,7 @@ class GetReposTest(ConfigExamples, unittest.TestCase):
             self.assertEqual(r['name'], 'linux')
 
 
-class ConfigToObjectTest(ConfigExamples):
+class ConfigToObjectTest(ConfigExampleMixin):
 
     """TestCase for converting config (dict) into Repo object."""
 
@@ -180,7 +180,7 @@ class EnsureMakeDirsRecursively(RepoTest):
     """
 
     def test_makes_recursive(self):
-        repo_dir, svn_repo = self.create_svn_repo()
+        repo_dir, svn_repo = self.create_svn_repo(create_repo=True)
         YAML_CONFIG = self.YAML_CONFIG.format(
             TMP_DIR=self.TMP_DIR,
             REPO_DIR=repo_dir

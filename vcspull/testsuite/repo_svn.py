@@ -55,13 +55,12 @@ class RepoSVN(RepoTest):
 
         tempFile = tempfile.NamedTemporaryFile(dir=svn_checkout_dest)
 
-        run(['svn', 'add', tempFile.name], cwd=svn_checkout_dest)
+        run(['svn', 'add', '--non-interactive', tempFile.name], cwd=svn_checkout_dest)
         run(
             ['svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']],
             cwd=svn_checkout_dest
         )
         self.assertEqual(svn_repo.get_revision(), 0)
-        svn_repo.update_repo()
 
         self.assertEqual(
             os.path.join(svn_checkout_dest, tempFile.name),
