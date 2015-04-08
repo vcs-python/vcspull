@@ -194,141 +194,163 @@ class InDirTest(ConfigTest):
         os.makedirs(self.CONFIG_DIR)
         self.assertTrue(os.path.exists(self.CONFIG_DIR))
 
-        self.file1 = tempfile.NamedTemporaryFile(
+        self.config_file1 = tempfile.NamedTemporaryFile(
             dir=self.CONFIG_DIR, delete=False, suffix=".yaml"
         )
-        self.file2 = tempfile.NamedTemporaryFile(
+        self.config_file2 = tempfile.NamedTemporaryFile(
             dir=self.CONFIG_DIR, delete=False, suffix=".json"
         )
 
     def tearDown(self):
-        os.remove(self.file1.name)
-        os.remove(self.file2.name)
+        os.remove(self.config_file1.name)
+        os.remove(self.config_file2.name)
         ConfigTest.tearDown(self)
 
     def test_in_dir(self):
         expected = [
-            os.path.basename(self.file1.name),
-            os.path.basename(self.file2.name),
+            os.path.basename(self.config_file1.name),
+            os.path.basename(self.config_file2.name),
         ]
         result = config.in_dir(self.CONFIG_DIR)
 
         self.assertItemsEqual(expected, result)
 
 
-
-
-class FindConfigs(RepoIntegrationTest):
+class FindConfigs(RepoTest, ConfigTest):
 
     """Test find_configs."""
+
+    def setUp(self):
+        ConfigTest.setUp(self)
+
+        self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.vcspull')
+
+        os.makedirs(self.CONFIG_DIR)
+        self.assertTrue(os.path.exists(self.CONFIG_DIR))
+
+        self.config_file1 = tempfile.NamedTemporaryFile(
+            prefix="repos1",
+            dir=self.CONFIG_DIR, delete=False, suffix=".yaml"
+        )
+        self.config_file1_filename, self.config_file1_fileext = os.path.splitext(
+            os.path.basename(self.config_file1.name)
+        )
+        self.config_file2 = tempfile.NamedTemporaryFile(
+            prefix="repos2",
+            dir=self.CONFIG_DIR, delete=False, suffix=".json"
+        )
+        self.config_file2_filename, self.config_file2_fileext = os.path.splitext(
+            os.path.basename(self.config_file2.name)
+        )
+
 
     def test_path_string(self):
         """path as a string."""
         configs = config.find_configs(path=self.CONFIG_DIR)
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
     def test_path_list(self):
         configs = config.find_configs(path=[self.CONFIG_DIR])
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
     def test_match_string(self):
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
-            match='repos1'
+            match=self.config_file1_filename
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertNotIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertNotIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
-            match='repos2'
+            match=self.config_file2_filename
         )
 
-        self.assertNotIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertNotIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
             match='randomstring'
         )
 
-        self.assertNotIn(self.config1_file, configs)
-        self.assertNotIn(self.config2_file, configs)
+        self.assertNotIn(self.config_file1.name, configs)
+        self.assertNotIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
             match='*'
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
             match='repos*'
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
-            match='repos[1-9]'
+            match='repos[1-9]*'
         )
 
         self.assertEqual(
-            len([c for c in configs if self.config1_file in c]), 1
+            len([c for c in configs if self.config_file1.name in c]), 1
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
     def test_match_list(self):
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
-            match=['repos1', 'repos2']
+            match=[self.config_file1_filename, self.config_file2_filename]
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
-            match=['repos1']
+            match=[self.config_file1_filename]
         )
 
-        self.assertIn(self.config1_file, configs)
+        self.assertIn(self.config_file1.name, configs)
         self.assertEqual(
-            len([c for c in configs if self.config1_file in c]), 1
+            len([c for c in configs if self.config_file1.name in c]), 1
         )
-        self.assertNotIn(self.config2_file, configs)
+        self.assertNotIn(self.config_file2.name, configs)
         self.assertEqual(
-            len([c for c in configs if self.config2_file in c]), 0
+            len([c for c in configs if self.config_file2.name in c]), 0
         )
 
     def test_filetype_string(self):
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
-            match='repos1',
+            match=self.config_file1_filename,
             filetype='yaml',
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertNotIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertNotIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
-            match='repos1',
+            match=self.config_file1_filename,
             filetype='json',
         )
 
-        self.assertNotIn(self.config1_file, configs)
-        self.assertNotIn(self.config2_file, configs)
+        self.assertNotIn(self.config_file1.name, configs)
+        self.assertNotIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
@@ -336,8 +358,8 @@ class FindConfigs(RepoIntegrationTest):
             filetype='json',
         )
 
-        self.assertNotIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertNotIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
@@ -345,8 +367,8 @@ class FindConfigs(RepoIntegrationTest):
             filetype='*',
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
     def test_filetype_list(self):
         configs = config.find_configs(
@@ -355,8 +377,8 @@ class FindConfigs(RepoIntegrationTest):
             filetype=['*'],
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
@@ -364,16 +386,16 @@ class FindConfigs(RepoIntegrationTest):
             filetype=['json', 'yaml'],
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
         configs = config.find_configs(
             path=[self.CONFIG_DIR],
             filetype=['json', 'yaml'],
         )
 
-        self.assertIn(self.config1_file, configs)
-        self.assertIn(self.config2_file, configs)
+        self.assertIn(self.config_file1.name, configs)
+        self.assertIn(self.config_file2.name, configs)
 
 
 class LoadConfigs(RepoIntegrationTest):
