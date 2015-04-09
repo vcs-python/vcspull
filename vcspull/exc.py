@@ -24,7 +24,6 @@ class NoConfigsFound(VCSPullException):
         ' quickstart.'
     )
 
-
 class MultipleRootConfigs(VCSPullException):
     message = (
         'Multiple configs found in home directory use only one.'
