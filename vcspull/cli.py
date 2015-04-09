@@ -20,6 +20,7 @@ import argparse
 import kaptan
 import argcomplete
 
+from . import exc
 from .__about__ import __version__
 from ._compat import string_types
 from .util import expand_config, get_repos, update_dict, in_dir
@@ -126,33 +127,35 @@ def main():
 def command_load(args):
     """Load YAML and JSON configs and begin creating / updating repos."""
     if not args.config or args.config == ['*']:
+        configs = find_configs(include_home=True)
+    else:
+        configs = [args.config]
 
-        configs = load_configs(find_configs(include_home=True))
-        repos = get_repos(
-            configs,
-            dirmatch=args.dirmatch,
-            repomatch=args.repomatch,
-            namematch=args.namematch
+    configs = load_configs(configs)
+    repos = get_repos(
+        configs,
+        dirmatch=args.dirmatch,
+        repomatch=args.repomatch,
+        namematch=args.namematch
+    )
+
+    for repo_dict in repos:
+        r = Repo(repo_dict)
+        log.debug('%s' % r)
+        r.update_repo()
+
+    if len(repos) == 0:
+        raise exc.NoConfigsFound(
+            'No config file found. Your options are:'
+
+            '1. Create a .vcspull.yaml or .vcspull.json in your $HOME '
+            '   directory.'
+            '2. Create .yaml or .json files in your $HOME/.vcspull '
+            '   directory.'
+            '\n'
+            'Check out the documentation at http://vcspull.rtfd.org for '
+            'examples.'
         )
-
-        for repo_dict in repos:
-            r = Repo(repo_dict)
-            log.debug('%s' % r)
-            r.update_repo()
-
-        if len(repos) == 0:
-            raise exc.NoConfigsFound(
-                'No config file found. Your options are:'
-
-                '1. Create a .vcspull.yaml or .vcspull.json in your $HOME '
-                '   directory.'
-                '2. Create .yaml or .json files in your $HOME/.vcspull '
-                '   directory.'
-                '\n'
-                'Check out the documentation at http://vcspull.rtfd.org for '
-                'examples.'
-            )
-
 
 
 class ConfigFileCompleter(argcomplete.completers.FilesCompleter):
