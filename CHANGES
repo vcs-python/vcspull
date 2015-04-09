@@ -4,8 +4,8 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
-CURRENT
--------
+0.0.10
+------
 
 - [cli]: fix message when adding remotes
 - [internals]: split config-related functions into ``config`` module.
