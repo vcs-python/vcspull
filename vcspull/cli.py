@@ -126,48 +126,33 @@ def main():
 def command_load(args):
     """Load YAML and JSON configs and begin creating / updating repos."""
     if not args.config or args.config == ['*']:
-        yaml_config = os.path.expanduser('~/.vcspull.yaml')
-        has_yaml_config = os.path.exists(yaml_config)
-        json_config = os.path.expanduser('~/.vcspull.json')
-        has_json_config = os.path.exists(json_config)
-        if not has_yaml_config and not has_json_config:
-            log.fatal(
-                'No config file found. Create a .vcspull.yaml or .vcspull.json'
-                ' in your $HOME directory. http://vcspull.rtfd.org for a'
-                ' quickstart.'
-            )
-        else:
-            if sum(filter(None, [has_json_config, has_yaml_config])) > int(1):
-                sys.exit(
-                    'multiple configs found in home directory use only one.'
-                    ' .yaml, .json.'
-                )
-            elif has_yaml_config:
-                config_file = yaml_config
-            elif has_json_config:
-                config_file = json_config
 
-            config = kaptan.Kaptan()
-            config.import_config(config_file)
+        configs = load_configs(find_configs(include_home=True))
+        repos = get_repos(
+            configs,
+            dirmatch=args.dirmatch,
+            repomatch=args.repomatch,
+            namematch=args.namematch
+        )
 
-            logging.debug('%r' % config.get())
-            logging.debug('%r' % expand_config(config.get()))
-            logging.debug('%r' % get_repos(expand_config(config.get())))
+        for repo_dict in repos:
+            r = Repo(repo_dict)
+            log.debug('%s' % r)
+            r.update_repo()
 
-            logging.error('find_configs(): %r' % find_configs())
-            configs = load_configs(find_configs())
-            logging.error(configs)
-            repos = get_repos(
-                expand_config(config.get()),
-                dirmatch=args.dirmatch,
-                repomatch=args.repomatch,
-                namematch=args.namematch
+        if len(repos) == 0:
+            raise exc.NoConfigsFound(
+                'No config file found. Your options are:'
+
+                '1. Create a .vcspull.yaml or .vcspull.json in your $HOME '
+                'directory.'
+                '2. Create .yaml or .json files in your $HOME/.vcspull '
+                '   directory.'
+                '\n'
+                'Check out the documentation at http://vcspull.rtfd.org for '
+                'examples.'
             )
 
-            for repo_dict in repos:
-                r = Repo(repo_dict)
-                log.debug('%s' % r)
-                r.update_repo()
 
 
 class ConfigFileCompleter(argcomplete.completers.FilesCompleter):

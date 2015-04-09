@@ -167,7 +167,7 @@ def find_home_configs(filetype=['json', 'yaml']):
     has_json_config = os.path.exists(json_config)
 
     if not has_yaml_config and not has_json_config:
-        raise exc.NoConfigsFound(
+        log.debug(
             'No config file found. Create a .vcspull.yaml or .vcspull.json'
             ' in your $HOME directory. http://vcspull.rtfd.org for a'
             ' quickstart.'
@@ -190,6 +190,7 @@ def find_configs(
     path=['~/.vcspull'],
     match=['*'],
     filetype=['json', 'yaml'],
+    include_home=False
 ):
     """Return repos from a directory and match. Not recursive.
 
@@ -199,6 +200,8 @@ def find_configs(
     :type match: list
     :param filetype: list of filetypes to search against
     :type filetype: list
+    :param include_home: Include home configuration files
+    :type include_home: bool
     :raises:
         - LoadConfigRepoConflict: There are two configs that have same path
           and name with different repo urls.
@@ -211,9 +214,13 @@ def find_configs(
 
     configs = []
 
+    if include_home is True:
+        configs.extend(find_home_configs())
+
     if isinstance(path, list):
         for p in path:
-            return find_configs(p, match, filetype)
+            configs.extend(find_configs(p, match, filetype))
+            return configs
     else:
         path = os.path.expanduser(path)
         if isinstance(match, list):

@@ -438,6 +438,35 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
+    def test_include_home_configs(self):
+        with support.EnvironmentVarGuard() as env:
+            env.set("HOME", self.TMP_DIR)
+            configs = config.find_configs(
+                path=[self.CONFIG_DIR],
+                match='*',
+                include_home=True
+            )
+
+            self.assertIn(self.config_file1.name, configs)
+            self.assertIn(self.config_file2.name, configs)
+
+            self.config_file3_path = os.path.join(self.TMP_DIR, '.vcspull.json')
+            self.config_file3 = open(self.config_file3_path, 'a').close()
+
+            results = config.find_configs(
+                path=[self.CONFIG_DIR],
+                match='*',
+                include_home=True
+            )
+            expectedIn = os.path.join(self.TMP_DIR, '.vcspull.json')
+
+            self.assertIn(expectedIn, results)
+            self.assertIn(self.config_file1.name, results)
+            self.assertIn(self.config_file2.name, results)
+
+            os.remove(self.config_file3_path)
+
+
 
 class LoadConfigs(RepoIntegrationTest):
 
