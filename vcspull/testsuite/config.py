@@ -16,6 +16,7 @@ import logging
 
 import kaptan
 
+from .. import exc
 from .._compat import support
 from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from ..util import expand_config, run, get_repos
@@ -232,36 +233,34 @@ class FindConfigsHome(ConfigTestCase, unittest.TestCase):
     def setUp(self):
         self._createConfigDirectory()
 
-        self.config_file1_path = os.path.join(self.TMP_DIR, '.tmuxp.yaml')
-        self.config_file1 = open(self.config_file1_path, 'w')
-        self.config_file1.write('wat')
-        self.config_file1.close()
-        self.config_file2_path = os.path.join(self.TMP_DIR, '.tmuxp.json')
-        self.config_file2 = open(self.config_file2_path, 'w').close()
+        self.config_file1_path = os.path.join(self.TMP_DIR, '.vcspull.yaml')
+        self.config_file1 = open(self.config_file1_path, 'a').close()
 
-        self.assertTrue(os.path.exists(self.config_file1_path))
-        self.assertTrue(os.path.exists(self.config_file2_path))
-
-    @unittest.skip("WIP")
     def test_find_configs(self):
 
         with support.EnvironmentVarGuard() as env:
             env.set("HOME", self.TMP_DIR)
             self.assertEqual(os.environ.get("HOME"), self.TMP_DIR)
-            configs = config.find_home_configs()
-            self.assertTrue(os.path.exists(self.config_file1_path))
-            self.assertTrue(os.path.exists(self.config_file2_path))
+            expectedIn = os.path.join(self.TMP_DIR, '.vcspull.yaml')
+            results = config.find_home_configs()
 
-            self.assertIn(['.tmuxp.yaml', '.tmuxp.json'], configs)
-        pass
+            self.assertIn(expectedIn, results)
+
+    def test_multiple_configs_raises_exception(self):
+        self.config_file2_path = os.path.join(self.TMP_DIR, '.vcspull.json')
+        self.config_file2 = open(self.config_file2_path, 'a').close()
+
+        with support.EnvironmentVarGuard() as env:
+            with self.assertRaises(exc.MultipleRootConfigs):
+                env.set("HOME", self.TMP_DIR)
+                self.assertEqual(os.environ.get("HOME"), self.TMP_DIR)
+                configs = config.find_home_configs()
+        os.remove(self.config_file2_path)
 
 
 class FindConfigs(ConfigTestCase, unittest.TestCase):
 
     """Test find_configs."""
-
-    def tearDown(self):
-        ConfigTestCase.tearDown(self)
 
     def setUp(self):
         ConfigTestCase.setUp(self)
@@ -285,7 +284,6 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.config_file2_filename, self.config_file2_fileext = os.path.splitext(
             os.path.basename(self.config_file2.name)
         )
-
 
     def test_path_string(self):
         """path as a string."""

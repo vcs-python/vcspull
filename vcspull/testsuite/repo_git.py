@@ -100,7 +100,7 @@ class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
             'name': os.path.basename(os.path.normpath(repo_dir)),
         })
 
-        with self.assertRaisesRegexp(exc.PullvException, "is malformatted"):
+        with self.assertRaisesRegexp(exc.VCSPullException, "is malformatted"):
             git_repo.obtain(quiet=True)
 
 

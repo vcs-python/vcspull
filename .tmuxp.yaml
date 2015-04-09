@@ -12,7 +12,7 @@ windows:
   panes:
   - focus: true
   - pane
-  - watching_testrunner --basepath ./ --pattern="*.py" 'python run-tests.py'
+  - sniffer
 - window_name: docs
   layout: main-horizontal
   options:
@@ -24,4 +24,4 @@ windows:
   - focus: true
   - pane
   - echo 'docs built to <http://0.0.0.0:8002/_build/html>'; python -m SimpleHTTPServer 8002
-  - watching_testrunner --basepath ./ --pattern="*.rst" 'make html'
+  - sniffer

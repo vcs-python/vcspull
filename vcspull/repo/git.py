@@ -103,7 +103,7 @@ def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
     if retcode == 0:
         return result['stdout']
     else:
-        raise exc.PullvException(result['stderr'])
+        raise exc.VCSPullException(result['stderr'])
 
 
 class GitRepo(BaseRepo):
@@ -136,7 +136,7 @@ class GitRepo(BaseRepo):
             url, rev = super(GitRepo, self).get_url_rev()
             url = url.replace('ssh://', '')
         elif 'github.com:' in self['url']:
-            raise exc.PullvException(
+            raise exc.VCSPullException(
                 "Repo %s is malformatted, please use the convention %s for"
                 "ssh / private GitHub repositories." % (
                     self['url'], "git+https://github.com/username/repo.git"
@@ -405,7 +405,7 @@ class GitRepo(BaseRepo):
                 return res
             else:
                 return None
-        except exc.PullvException:
+        except exc.VCSPullException:
             return None
 
     def remote_set(self, cwd=None, name='origin', url=None, user=None):

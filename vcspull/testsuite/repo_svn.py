@@ -18,7 +18,7 @@ from . import unittest
 from .helpers import RepoTestMixin, ConfigTestCase
 from ..repo import Repo
 from ..util import run, which
-from ..exc import PullvException
+from ..exc import VCSPullException
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def has_svn():
     try:
         which('svn')
         return True
-    except PullvException:
+    except VCSPullException:
         return False
 
 

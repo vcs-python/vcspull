@@ -18,7 +18,7 @@ import errno
 import logging
 import fnmatch
 
-from .exc import PullvException
+from . import exc
 from ._compat import string_types
 
 logger = logging.getLogger(__name__)
@@ -177,7 +177,7 @@ def run(
     try:
         proc = subprocess.Popen(cmd, **kwargs)
     except (OSError, IOError) as exc:
-        raise PullvException('Unable to run command: {0}'.format(exc))
+        raise exc.VCSPullException('Unable to run command: {0}'.format(exc))
 
     proc.wait()
 
@@ -219,7 +219,7 @@ def which(exe=None):
             full_path = os.path.join(path, exe)
             if os.access(full_path, os.X_OK):
                 return full_path
-        raise PullvException(
+        raise exc.VCSPullException(
             '{0!r} could not be found in the following search '
             'path: {1!r}'.format(
                 exe, search_path

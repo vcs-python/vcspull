@@ -19,10 +19,12 @@ import logging
 
 import kaptan
 
+from . import exc
 from .util import update_dict
 from ._compat import string_types
 
 log = logging.getLogger(__name__)
+
 
 def get_repos(config, dirmatch=None, repomatch=None, namematch=None):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
@@ -162,26 +164,17 @@ def find_home_configs(filetype=['json', 'yaml']):
     yaml_config = os.path.expanduser('~/.vcspull.yaml')
     has_yaml_config = os.path.exists(yaml_config)
     json_config = os.path.expanduser('~/.vcspull.json')
-    log.fatal(os.listdir(os.path.dirname(json_config)))
-
-
     has_json_config = os.path.exists(json_config)
-    log.fatal(os.environ.get("HOME"))
-    log.fatal(yaml_config)
-    log.fatal(has_json_config)
-    log.fatal(json_config)
-    log.fatal(has_yaml_config)
-    log.fatal(open(json_config).read())
 
     if not has_yaml_config and not has_json_config:
-        log.fatal(
+        raise exc.NoConfigsFound(
             'No config file found. Create a .vcspull.yaml or .vcspull.json'
             ' in your $HOME directory. http://vcspull.rtfd.org for a'
             ' quickstart.'
         )
     else:
         if sum(filter(None, [has_json_config, has_yaml_config])) > int(1):
-            sys.exit(
+            raise exc.MultipleRootConfigs(
                 'multiple configs found in home directory use only one.'
                 ' .yaml, .json.'
             )
@@ -191,6 +184,7 @@ def find_home_configs(filetype=['json', 'yaml']):
             configs.append(json_config)
 
     return configs
+
 
 def find_configs(
     path=['~/.vcspull'],

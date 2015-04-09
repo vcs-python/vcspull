@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
-
+from __future__ import (
+    absolute_import, division, print_function, with_statement, unicode_literals
+)
 
 import os
 import sys
 import subprocess
+import platform
 
 
 def warning(*objs):
@@ -116,9 +117,22 @@ def main():
             [pip_bin, 'install', '-e', project_dir]
         )
 
-    if not os.path.isfile(os.path.join(env_dir, 'bin', 'watching_testrunner')):
+    if not os.path.isfile(os.path.join(env_dir, 'bin', 'sniffer')):
         subprocess.check_call(
-            [pip_bin, 'install', 'watching-testrunner']
+            [pip_bin, 'install', 'sniffer']
+        )
+
+    if platform.system() == 'Linux':
+        subprocess.check_call(
+            [pip_bin, 'install', 'pyinotify']
+        )
+    elif platform.system() == 'Darwin':
+        subprocess.check_call(
+            [pip_bin, 'install', 'MacFSEvents']
+        )
+    elif platform.system() == 'Windows':
+        subprocess.check_call(
+            [pip_bin, 'install', 'pywin32']
         )
 
     if not os.path.isfile(os.path.join(env_dir, 'bin', 'sphinx-quickstart')):
