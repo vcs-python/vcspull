@@ -145,7 +145,7 @@ def command_load(args):
                 'No config file found. Your options are:'
 
                 '1. Create a .vcspull.yaml or .vcspull.json in your $HOME '
-                'directory.'
+                '   directory.'
                 '2. Create .yaml or .json files in your $HOME/.vcspull '
                 '   directory.'
                 '\n'
