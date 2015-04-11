@@ -5,6 +5,9 @@ TODO
 Next steps
 ----------
 
+- Scan for repos in home directory / specified / PWD into yaml/json file.
+- Verify / update remotes of repositories (in case it was updated via the
+  yaml or manually)
 - Update to use conventions in
   https://github.com/tony/cookiecutter-pypackage.
 - Support for http://docs.python.org/2.7/library/string.html#string.Template
