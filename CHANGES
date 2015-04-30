@@ -8,6 +8,7 @@ current
 -------
 
 - [cli]: support for specifying for config file path with ``-c``.
+- [cli]: clarify error output when no repositories found
 
 0.0.10
 ------

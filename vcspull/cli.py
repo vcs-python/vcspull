@@ -30,6 +30,12 @@ from .repo import Repo
 
 log = logging.getLogger(__name__)
 
+NO_REPOS_FOUND = """
+    No repositories found.
+
+    Check out the documentation at http://vcspull.rtfd.org for
+    examples.
+"""
 
 config_dir = os.path.expanduser('~/.vcspull/')
 cwd_dir = os.getcwd() + '/'
@@ -145,17 +151,7 @@ def command_load(args):
         r.update_repo()
 
     if len(repos) == 0:
-        raise exc.NoConfigsFound(
-            'No config file found. Your options are:'
-
-            '1. Create a .vcspull.yaml or .vcspull.json in your $HOME '
-            '   directory.'
-            '2. Create .yaml or .json files in your $HOME/.vcspull '
-            '   directory.'
-            '\n'
-            'Check out the documentation at http://vcspull.rtfd.org for '
-            'examples.'
-        )
+        raise exc.NoConfigsFound(NO_REPOS_FOUND)
 
 
 class ConfigFileCompleter(argcomplete.completers.FilesCompleter):
