@@ -4,6 +4,7 @@
 *.tar.gz
 *.egg-info
 .eggs
+.ropeproject
 
 doc/_build
 
