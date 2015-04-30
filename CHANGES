@@ -4,8 +4,8 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
-current
--------
+0.1
+---
 
 - [cli]: support for specifying for config file path with ``-c``.
 - [cli]: clarify error output when no repositories found

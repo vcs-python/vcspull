@@ -1,7 +1,7 @@
 __title__ = 'vcspull'
 __package_name__ = 'vcspull'
 __description__ = 'Manage git, mercurial and svn repositories through CLI. Configure with JSON / YAML files.'
-__version__ = '0.0.10'
+__version__ = '0.1.0'
 __author__ = 'Tony Narlock'
 __email__ = 'tony@git-pull.com'
 __license__ = 'BSD'
