@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 
 import os
 import termstyle
@@ -26,9 +27,8 @@ def execute_nose(*args):
     try:
         return main()
     except SystemExit as x:
-        if x.message:
-            print "Found error {0}: {1}".format(x.code, x.message)
+        if hasattr(x, 'message'):
+            print("Found error {0}: {1}".format(x.code, x.message))
             return not x.code
         else:
             return 1
-

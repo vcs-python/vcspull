@@ -4,6 +4,11 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+Current
+-------
+
+- [testing] Fix sniffer on Python 3
+
 0.1
 ---
 
