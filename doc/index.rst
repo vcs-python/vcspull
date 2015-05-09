@@ -16,10 +16,8 @@ vcspull
         history
         roadmap
 
-.. figure:: _static/vcspull-screenshot.png
-    :scale: 100%
-    :width: 50%
-    :align: center
+.. image:: _static/vcspull-demo.gif
+    :width: 100%
 
     Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse.
 

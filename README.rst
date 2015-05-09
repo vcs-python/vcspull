@@ -1,16 +1,18 @@
 ``vcspull`` - manage your git, mercurial and svn repositories via CLI.
 Configure via JSON / YAML config files.
 
-.. image:: https://travis-ci.org/tony/vcspull.png?branch=master
-    :target: https://travis-ci.org/tony/vcspull
-
-.. image:: https://badge.fury.io/py/vcspull.png
+.. image:: https://img.shields.io/pypi/v/vcspull.svg
     :target: http://badge.fury.io/py/vcspull
 
-.. image:: https://coveralls.io/repos/tony/vcspull/badge.png?branch=master
-    :target: https://coveralls.io/r/tony/vcspull?branch=master
+.. image:: https://img.shields.io/travis/tony/vcspull.svg
+   :target: https://travis-ci.org/tony/vcspull
 
-.. figure:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-screenshot.png
+.. image:: https://img.shields.io/coveralls/tony/vcspull.svg
+    :target: https://coveralls.io/r/tony/vcspull?branch=master
+    
+.. image:: https://img.shields.io/github/license/tony/vcspull.svg
+
+.. image:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-demo.gif
     :scale: 100%
     :width: 45%
     :align: center
