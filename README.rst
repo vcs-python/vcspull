@@ -17,7 +17,7 @@ Configure via JSON / YAML config files.
     :width: 45%
     :align: center
 
-    Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
+Above: Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
 
 Sync multiple git, mercurial and subversion repositories via a YAML /
 JSON file.
