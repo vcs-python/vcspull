@@ -4,10 +4,12 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
-Current
--------
+0.1.1
+-----
 
 - [testing] Fix sniffer on Python 3
+- [cli] remove redundant message when adding remotes
+- [docs] add animated screencast preview for ReadTheDocs and README.rst
 
 0.1
 ---
@@ -208,4 +210,4 @@ https://github.com/tony/vcspull/compare/a96e723269...a5be723de5
 .. _argcomplete: https://github.com/kislyuk/argcomplete
 .. _tony/cookiecutter-pypackage: https://github.com/tony/cookiecutter-pypackage.
 
-.. todo:: vim: set filetype=rst:
+.. vim: set filetype=rst:
