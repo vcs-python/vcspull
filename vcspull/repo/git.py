@@ -109,8 +109,22 @@ def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
 class GitRepo(BaseRepo):
     schemes = ('git')
 
-    def __init__(self, url, remotes=[], **kwargs):
+    def __init__(self, url, remotes=None, **kwargs):
+        """A git repository.
 
+        :param url: URL in pip vcs format:
+
+            - ``git+https://github.com/tony/vcspull.git``
+            - ``git+ssh://git@github.com:tony/vcspull.git``
+        :type url: str
+        :param remotes: list of remotes in dict format::
+
+            [{
+            "remote_name": "myremote",
+            "url": "https://github.com/tony/vim-config.git"
+            }]
+        :type remotes: list
+        """
         BaseRepo.__init__(self, url, **kwargs)
 
         self['remotes'] = remotes
