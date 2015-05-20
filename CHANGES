@@ -4,12 +4,14 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
-CURRENT
--------
+0.2
+---
 
 - [api] Change the API of :class:`vcspull.repo.base.BaseRepo` and
   :class:`vcspull.repo.Repo` to accept arguments as ``kwargs``
 - [api]: Rename ``parent_path`` to ``cwd``.
+- [docs]: Pydoc documentation for ``Repo`` usage.
+- [docs]: Python API example
 
 0.1.1
 -----
