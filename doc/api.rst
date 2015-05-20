@@ -1,8 +1,8 @@
 .. _api:
 
-===
-API
-===
+==========
+Python API
+==========
 
 .. module:: vcspull
 

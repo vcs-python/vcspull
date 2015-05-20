@@ -8,7 +8,6 @@ vcspull.repo
 from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
-import os
 import logging
 
 from ..log import RepoLogFormatter, RepoFilter
@@ -35,8 +34,9 @@ class Repo(object):
 
     """Return an object with a base class of :class:`Repo` depending on url.
 
-    Return instance of :class:`SubversionRepo`, :class:`GitRepo` or
-    :class:`MercurialRepo`. The object returned is a child of :class:`BaseRepo`.
+    Return instance of :class:`vcspull.repo.svn.SubversionRepo`,
+    :class:`vcspull.repo.git.GitRepo` or :class:`vcspull.repo.hg.MercurialRepo`.
+    The object returned is a child of :class:`vcspull.repo.base.BaseRepo`.
 
     Usage Example::
 

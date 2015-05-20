@@ -82,7 +82,7 @@ class LogFormatter(logging.Formatter):
 def debug_log_template(self, record):
     """ Return the prefix for the log message. Template for Formatter.
 
-    :param: record: :py:class:`logging.LogRecord` object. this is passed in
+    :param: record: :class:`logging.LogRecord` object. this is passed in
     from inside the :py:meth:`logging.Formatter.format` record.
 
     """
