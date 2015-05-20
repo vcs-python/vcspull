@@ -236,11 +236,6 @@ class GitRepo(BaseRepo):
     def current_branch(self, cwd=None, user=None):
         """Returns the current branch name, if on a branch.
 
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.current_branch /path/to/repo
         """
         if not cwd:
             cwd = self['path']
@@ -265,11 +260,6 @@ class GitRepo(BaseRepo):
         user : None
             Run git as a user other than what the minion runs as
 
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.revision /path/to/repo mybranch
         """
 
         if not cwd:
@@ -293,13 +283,6 @@ class GitRepo(BaseRepo):
         identity : None
             A path to a private key to use over SSH
 
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.fetch /path/to/repo '--all'
-
-            salt '*' git.fetch cwd=/path/to/repo opts='--all' user=johnny
         """
 
         if not cwd:
@@ -329,11 +312,6 @@ class GitRepo(BaseRepo):
         identity : None
             A path to a private key to use over SSH
 
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.submodule /path/to/repo.git/sub/repo
         """
 
         if not cwd:
@@ -352,12 +330,6 @@ class GitRepo(BaseRepo):
 
         user : None
             Run git as a user other than what the minion runs as
-
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.remotes /path/to/repo
 
         """
 
@@ -380,13 +352,6 @@ class GitRepo(BaseRepo):
 
         user : None
             Run git as a user other than what the minion runs as
-
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.remote_get /path/to/repo
-            salt '*' git.remote_get /path/to/repo upstream
 
         """
 
@@ -419,12 +384,6 @@ class GitRepo(BaseRepo):
         user : None
             Run git as a user other than what the minion runs as
 
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.remote_set /path/to/repo remote_url=git@github.com:saltstack/salt.git
-            salt '*' git.remote_set /path/to/repo origin git@github.com:saltstack/salt.git
         """
         if not cwd:
             cwd = self['path']
@@ -447,11 +406,6 @@ class GitRepo(BaseRepo):
         user : None
             Run git as a user other than what the minion runs as
 
-        CLI Example:
-
-        .. code-block:: bash
-
-            salt '*' git.reset /path/to/repo master
         """
 
         if not cwd:
