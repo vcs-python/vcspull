@@ -37,7 +37,11 @@ setup(
     test_suite='vcspull.testsuite',
     zip_safe=False,
     keywords=about['__title__'],
-    packages=['vcspull', 'vcspull.testsuite', 'vcspull.repo', 'vcspull._vendor', 'vcspull._vendor.colorama'],
+    packages=['vcspull',
+              'vcspull.testsuite',
+              'vcspull.repo',
+              'vcspull._vendor',
+              'vcspull._vendor.colorama'],
     scripts=['pkg/vcspull.bash', 'pkg/vcspull.zsh', 'pkg/vcspull.tcsh'],
     entry_points=dict(console_scripts=['vcspull=vcspull:cli.main']),
     classifiers=[
