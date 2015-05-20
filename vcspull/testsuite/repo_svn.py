@@ -40,7 +40,7 @@ class RepoSVN(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
         svn_repo = Repo(**{
             'url': 'svn+file://' + os.path.join(repo_dir, repo_name),
-            'parent_path': self.TMP_DIR,
+            'cwd': self.TMP_DIR,
             'name': repo_name
         })
 

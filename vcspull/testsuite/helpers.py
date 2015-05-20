@@ -174,7 +174,7 @@ class RepoTestMixin(object):
 
         svn_repo = Repo(**{
             'url': 'svn+file://' + os.path.join(repo_path, repo_name),
-            'parent_path': self.TMP_DIR,
+            'cwd': self.TMP_DIR,
             'name': repo_name
         })
 
@@ -205,7 +205,7 @@ class RepoTestMixin(object):
 
         git_repo = Repo(**{
             'url': 'git+file://' + os.path.join(repo_path, repo_name),
-            'parent_path': self.TMP_DIR,
+            'cwd': self.TMP_DIR,
             'name': repo_name
         })
 
@@ -249,7 +249,7 @@ class RepoTestMixin(object):
 
         mercurial_repo = Repo(**{
             'url': 'hg+file://' + os.path.join(repo_path, repo_name),
-            'parent_path': self.TMP_DIR,
+            'cwd': self.TMP_DIR,
             'name': repo_name
         })
 

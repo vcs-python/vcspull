@@ -120,7 +120,7 @@ def get_repos(config, dirmatch=None, repomatch=None, namematch=None):
                 continue
             repo_dict = {
                 'name': repo,
-                'parent_path': directory,
+                'cwd': directory,
                 'url': repo_data['repo'],
             }
 

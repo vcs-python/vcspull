@@ -38,7 +38,7 @@ class RepoMercurial(ConfigTestCase, unittest.TestCase):
 
         mercurial_repo = Repo(**{
             'url': 'hg+file://' + os.path.join(repo_dir, repo_name),
-            'parent_path': self.TMP_DIR,
+            'cwd': self.TMP_DIR,
             'name': repo_name
         })
 

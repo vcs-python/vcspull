@@ -8,7 +8,8 @@ CURRENT
 -------
 
 - [api] Change the API of :class:`vcspull.repo.base.BaseRepo` and
-  :class:`vcspull.repo.Repo` to accept arguments as ``kwargs``.
+  :class:`vcspull.repo.Repo` to accept arguments as ``kwargs``
+- [api]: Rename ``parent_path`` to ``cwd``.
 
 0.1.1
 -----

@@ -109,12 +109,12 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     """
 
-    def __init__(self, url, parent_path, *args, **kwargs):
+    def __init__(self, url, cwd, *args, **kwargs):
         self.attributes = kwargs
         self.attributes['url'] = url
-        self.attributes['parent_path'] = parent_path
+        self.attributes['cwd'] = cwd
 
-        self['path'] = os.path.join(self['parent_path'], self['name'])
+        self['path'] = os.path.join(self['cwd'], self['name'])
 
         # Register more schemes with urlparse for various version control
         # systems
@@ -155,8 +155,8 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def check_destination(self, *args, **kwargs):
         """Assure destination path exists. If not, create directories."""
-        if not os.path.exists(self['parent_path']):
-            mkdir_p(self['parent_path'])
+        if not os.path.exists(self['cwd']):
+            mkdir_p(self['cwd'])
         else:
             if not os.path.exists(self['path']):
                 self.info('Repo directory for %s (%s) does not exist @ %s' % (

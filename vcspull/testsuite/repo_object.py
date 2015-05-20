@@ -83,7 +83,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         SAMPLECONFIG_LIST = [
             {
                 'name': None,
-                'parent_path': None,
+                'cwd': None,
                 'url': None,
                 'remotes': []
             }
@@ -98,7 +98,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         for r in repo_list:
             self.assertIsInstance(r, dict)
             self.assertIn('name', r)
-            self.assertIn('parent_path', r)
+            self.assertIn('cwd', r)
             self.assertIn('url', r)
 
             if 'remotes' in r:
@@ -118,18 +118,18 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         git_repo = Repo(**{
             'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709',
-            'parent_path': self.TMP_DIR,
+            'cwd': self.TMP_DIR,
             'name': 'myproject1'
         })
 
-        # TODO parent_path and name if duplicated should give an error
+        # TODO cwd and name if duplicated should give an error
 
         self.assertIsInstance(git_repo, GitRepo)
         self.assertIsInstance(git_repo, BaseRepo)
 
         hg_repo = Repo(**{
             'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
-            'parent_path': self.TMP_DIR,
+            'cwd': self.TMP_DIR,
             'name': 'myproject2'
         })
 
@@ -138,7 +138,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         svn_repo = Repo(**{
             'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
-            'parent_path': self.TMP_DIR,
+            'cwd': self.TMP_DIR,
             'name': 'myproject3'
         })
 
@@ -154,13 +154,13 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
             self.assertIsInstance(r, BaseRepo)
             self.assertIn('name', r)
             self.assertEqual(r['name'], repo_dict['name'])
-            self.assertIn('parent_path', r)
-            self.assertEqual(r['parent_path'], repo_dict['parent_path'])
+            self.assertIn('cwd', r)
+            self.assertEqual(r['cwd'], repo_dict['cwd'])
             self.assertIn('url', r)
             self.assertEqual(r['url'], repo_dict['url'])
 
             self.assertEqual(r['path'], os.path.join(
-                r['parent_path'], r['name']))
+                r['cwd'], r['name']))
 
             if 'remotes' in repo_dict:
                 self.assertIsInstance(r['remotes'], list)
