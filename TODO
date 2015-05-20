@@ -14,6 +14,11 @@ Next steps
   in tests.
 - Tests for cli.py should work without hg, git, svn installed or be
   skipped.
+- Multiple arguments for repo names, separated by space
+- Ability for timeout/retries when running subprocess calls (such as when
+  pulling repos) and tests for it. Make the timeout adjustable via
+  Repo initialization and through the update_repo method as well. Make
+  tests for it.
 - http://docs.python.org/2/library/glob.html
 - http://docs.python.org/2/library/os.path.html#os.path.expanduser
 - http://docs.python.org/2/library/os.path.html#os.path.expandvars
