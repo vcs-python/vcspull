@@ -82,10 +82,12 @@ Python API Usage
    |vim-config| (git)  git pull
    Already up-to-date.
 
-
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 .. _example .vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
 .. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
+
+More information 
+----------------
 
 ==============  ==========================================================
 Python support  Python 2.7, >= 3.3
