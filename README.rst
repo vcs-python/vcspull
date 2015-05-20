@@ -1,16 +1,7 @@
 ``vcspull`` - manage your git, mercurial and svn repositories via CLI.
 Configure via JSON / YAML config files.
 
-.. image:: https://img.shields.io/pypi/v/vcspull.svg
-    :target: http://badge.fury.io/py/vcspull
-
-.. image:: https://img.shields.io/travis/tony/vcspull.svg
-   :target: https://travis-ci.org/tony/vcspull
-
-.. image:: https://img.shields.io/coveralls/tony/vcspull.svg
-    :target: https://coveralls.io/r/tony/vcspull?branch=master
-    
-.. image:: https://img.shields.io/github/license/tony/vcspull.svg
+|pypi| |docs| |build-status| |coverage| |license|
 
 .. image:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-demo.gif
     :scale: 100%
@@ -129,3 +120,23 @@ run             .. code-block:: bash
 .. _pip: http://www.pip-installer.org/en/latest/
 .. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _saltstack: http://www.saltstack.org
+
+.. |pypi| image:: https://img.shields.io/pypi/v/vcspull.svg
+    :alt: Python Package
+    :target: http://badge.fury.io/py/vcspull
+
+.. |build-status| image:: https://img.shields.io/travis/tony/vcspull.svg
+   :alt: Build Status
+   :target: https://travis-ci.org/tony/vcspull
+
+.. |coverage| image:: https://img.shields.io/coveralls/tony/vcspull.svg
+    :alt: Code Coverage
+    :target: https://coveralls.io/r/tony/vcspull?branch=master
+    
+.. |license| image:: https://img.shields.io/github/license/tony/vcspull.svg
+    :alt: License 
+
+.. |docs| image:: https://readthedocs.org/projects/vcspull/badge/?version=latest
+    :alt: Documentation Status
+    :scale: 100%
+    :target: https://readthedocs.org/projects/vcspull/
