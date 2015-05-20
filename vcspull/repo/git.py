@@ -109,11 +109,11 @@ def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
 class GitRepo(BaseRepo):
     schemes = ('git')
 
-    def __init__(self, url, **kwargs):
+    def __init__(self, url, remotes=[], **kwargs):
 
         BaseRepo.__init__(self, url, **kwargs)
 
-        self['remotes'] = kwargs.get('remotes', [])
+        self['remotes'] = remotes
 
     def get_revision(self):
         current_rev = run(
