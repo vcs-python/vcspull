@@ -26,11 +26,12 @@ JSON file.
 * automatically checkout fresh repositories
 * update to the latest repos with ``$ vcspull``
 * `Documentation`_, `API`_ and `Examples`_.
-* vcspull builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
+* builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
 
 See the `Quickstart`_ to jump in. Or see an `example .vcspull.yaml`_.
 
-**Here's what you can do**
+Command line Usage
+------------------
 
 Create a ``.vcspull.yaml``:
 
@@ -61,9 +62,28 @@ Use `fnmatch`_:
     # inside of a directory with "co" anywhere, on github.
     $ vcspull -d "*co*" -r "*github.com*" "fla*"
 
-**Current Limitations:**
+Python API Usage
+----------------
 
-- Support for ``svn`` username and password.
+.. code-block:: python
+
+   In [1]: from vcspull.repo import Repo
+
+
+   In [2]: r = Repo(url='git+https://www.github.com/tony/vim-config', cwd='/tmp/',
+            name='vim-config')
+
+
+   In [3]: r.update_repo()
+   |vim-config| (git)  Repo directory for vim-config (git) does not exist @ /tmp/vim-config
+   |vim-config| (git)  Cloning.
+   |vim-config| (git)  git clone --progress https://www.github.com/tony/vim-config /tmp/vim-config
+   Cloning into '/tmp/vim-config'...
+   Checking connectivity... done.
+   |vim-config| (git)  git fetch
+   |vim-config| (git)  git pull
+   Already up-to-date.
+
 
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 .. _example .vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
