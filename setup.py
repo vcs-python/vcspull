@@ -3,7 +3,6 @@
 """vcspull lives at <https://github.com/tony/vcspull>."""
 
 import sys
-import os
 
 from setuptools import setup
 
@@ -46,6 +45,8 @@ setup(
         "License :: OSI Approved :: BSD License",
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
+        "Operating System :: POSIX",
+        "Operating System :: MacOS :: MacOS X",
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
