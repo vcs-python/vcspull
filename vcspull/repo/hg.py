@@ -29,8 +29,8 @@ class MercurialRepo(BaseRepo):
 
     schemes = ('hg', 'hg+http', 'hg+https', 'hg+file')
 
-    def __init__(self, arguments, *args, **kwargs):
-        BaseRepo.__init__(self, arguments, *args, **kwargs)
+    def __init__(self, url, **kwargs):
+        BaseRepo.__init__(self, url, **kwargs)
 
     def obtain(self):
         self.check_destination()

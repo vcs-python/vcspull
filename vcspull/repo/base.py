@@ -109,8 +109,9 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     """
 
-    def __init__(self, attributes=None):
-        self.attributes = dict(attributes) if attributes is not None else {}
+    def __init__(self, url, *args, **kwargs):
+        self.attributes = kwargs
+        self.attributes['url'] = url
 
         self['path'] = os.path.join(self['parent_path'], self['name'])
 

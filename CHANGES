@@ -4,6 +4,12 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+CURRENT
+-------
+
+- [api] Change the API of :class:`vcspull.repo.base.BaseRepo` and
+  :class:`vcspull.repo.Repo` to accept arguments as ``kwargs``.
+
 0.1.1
 -----
 

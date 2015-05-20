@@ -37,8 +37,8 @@ class SubversionRepo(BaseRepo):
 
     schemes = ('svn')
 
-    def __init__(self, arguments, *args, **kwargs):
-        BaseRepo.__init__(self, arguments, *args, **kwargs)
+    def __init__(self, url, **kwargs):
+        BaseRepo.__init__(self, url, **kwargs)
 
     def obtain(self, quiet=None):
         self.check_destination()

@@ -28,7 +28,7 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
         repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
         repo_name = 'my_git_project'
 
-        git_repo = Repo({
+        git_repo = Repo(**{
             'url': 'git+file://' + os.path.join(repo_dir, repo_name),
             'parent_path': self.TMP_DIR,
             'name': repo_name
@@ -70,7 +70,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
         git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
 
-        git_repo = Repo({
+        git_repo = Repo(**{
             'url': 'git+file://' + git_checkout_dest,
             'parent_path': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
@@ -94,7 +94,7 @@ class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
         git_checkout_dest = os.path.join(self.TMP_DIR, 'private_ssh_repo')
 
-        git_repo = Repo({
+        git_repo = Repo(**{
             'url': 'git+ssh://github.com:' + git_checkout_dest,
             'parent_path': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),

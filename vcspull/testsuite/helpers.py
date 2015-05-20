@@ -172,7 +172,7 @@ class RepoTestMixin(object):
 
         repo_path = os.path.join(self.TMP_DIR, 'svnrepo_{0}'.format(uuid.uuid4()))
 
-        svn_repo = Repo({
+        svn_repo = Repo(**{
             'url': 'svn+file://' + os.path.join(repo_path, repo_name),
             'parent_path': self.TMP_DIR,
             'name': repo_name
@@ -203,7 +203,7 @@ class RepoTestMixin(object):
 
         repo_path = os.path.join(self.TMP_DIR, 'gitrepo_{0}'.format(uuid.uuid4()))
 
-        git_repo = Repo({
+        git_repo = Repo(**{
             'url': 'git+file://' + os.path.join(repo_path, repo_name),
             'parent_path': self.TMP_DIR,
             'name': repo_name
@@ -247,7 +247,7 @@ class RepoTestMixin(object):
 
         repo_path = os.path.join(self.TMP_DIR, 'hgrepo_{0}'.format(uuid.uuid4()))
 
-        mercurial_repo = Repo({
+        mercurial_repo = Repo(**{
             'url': 'hg+file://' + os.path.join(repo_path, repo_name),
             'parent_path': self.TMP_DIR,
             'name': repo_name

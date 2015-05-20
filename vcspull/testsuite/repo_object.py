@@ -116,7 +116,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         """
 
-        git_repo = Repo({
+        git_repo = Repo(**{
             'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709',
             'parent_path': self.TMP_DIR,
             'name': 'myproject1'
@@ -127,7 +127,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         self.assertIsInstance(git_repo, GitRepo)
         self.assertIsInstance(git_repo, BaseRepo)
 
-        hg_repo = Repo({
+        hg_repo = Repo(**{
             'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
             'parent_path': self.TMP_DIR,
             'name': 'myproject2'
@@ -136,7 +136,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         self.assertIsInstance(hg_repo, MercurialRepo)
         self.assertIsInstance(hg_repo, BaseRepo)
 
-        svn_repo = Repo({
+        svn_repo = Repo(**{
             'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
             'parent_path': self.TMP_DIR,
             'name': 'myproject3'
@@ -149,7 +149,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         """:py:obj:`dict` objects into Repo objects."""
         repo_list = get_repos(self.config_dict_expanded)
         for repo_dict in repo_list:
-            r = Repo(repo_dict)
+            r = Repo(**repo_dict)
 
             self.assertIsInstance(r, BaseRepo)
             self.assertIn('name', r)
@@ -191,7 +191,7 @@ class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin, unittest.TestCase
         repos = expand_config(conf)
 
         for r in get_repos(repos):
-            repo = Repo(r)
+            repo = Repo(**r)
             repo.obtain()
 
 

@@ -146,7 +146,7 @@ def command_load(args):
     )
 
     for repo_dict in repos:
-        r = Repo(repo_dict)
+        r = Repo(**repo_dict)
         log.debug('%s' % r)
         r.update_repo()
 

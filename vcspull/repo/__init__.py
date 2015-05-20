@@ -42,18 +42,20 @@ class Repo(object):
 
     """
 
-    def __new__(cls, attributes, *args, **kwargs):
-        vcs_url = attributes['url']
+    def __new__(cls, url, **kwargs):
 
-        if vcs_url.startswith('git+'):
-            attributes['vcs'] = 'git'
-            return GitRepo(attributes, *args, **kwargs)
-        if vcs_url.startswith('hg+'):
-            attributes['vcs'] = 'hg'
-            return MercurialRepo(attributes, *args, **kwargs)
-        if vcs_url.startswith('svn+'):
-            attributes['vcs'] = 'svn'
-            return SubversionRepo(attributes, *args, **kwargs)
+        if url.startswith('git+'):
+            if 'vcs' not in kwargs:
+                kwargs['vcs'] = 'git'
+            return GitRepo(url, **kwargs)
+        if url.startswith('hg+'):
+            if 'vcs' not in kwargs:
+                kwargs['vcs'] = 'hg'
+            return MercurialRepo(url, **kwargs)
+        if url.startswith('svn+'):
+            if 'vcs' not in kwargs:
+                kwargs['vcs'] = 'svn'
+            return SubversionRepo(url, **kwargs)
         else:
             raise Exception(
                 'repo URL %s requires a vcs scheme. Prepend hg+,'
@@ -61,7 +63,7 @@ class Repo(object):
                 '\t %s\n'
                 '\t %s\n'
                 '\t %s\n' % (
-                    attributes['url'],
+                    url,
                     'git+https://github.com/freebsd/freebsd.git',
                     'hg+https://bitbucket.org/birkenfeld/sphinx',
                     'svn+http://svn.code.sf.net/p/docutils/code/trunk'
