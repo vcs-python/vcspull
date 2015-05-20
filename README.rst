@@ -69,10 +69,8 @@ Python API Usage
 
    In [1]: from vcspull.repo import Repo
 
-
    In [2]: r = Repo(url='git+https://www.github.com/tony/vim-config', cwd='/tmp/',
             name='vim-config')
-
 
    In [3]: r.update_repo()
    |vim-config| (git)  Repo directory for vim-config (git) does not exist @ /tmp/vim-config
