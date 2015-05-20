@@ -38,8 +38,22 @@ class Repo(object):
     Return instance of :class:`SubversionRepo`, :class:`GitRepo` or
     :class:`MercurialRepo`. The object returned is a child of :class:`BaseRepo`.
 
-    For external API purposes.
+    Usage Example::
 
+        In [1]: from vcspull.repo import Repo
+
+        In [2]: r = Repo(url='git+https://www.github.com/tony/vim-config', cwd='/tmp/',
+                    name='vim-config')
+
+        In [3]: r.update_repo()
+        |vim-config| (git)  Repo directory for vim-config (git) does not exist @ /tmp/vim-config
+        |vim-config| (git)  Cloning.
+        |vim-config| (git)  git clone --progress https://www.github.com/tony/vim-config /tmp/vim-config
+        Cloning into '/tmp/vim-config'...
+        Checking connectivity... done.
+        |vim-config| (git)  git fetch
+        |vim-config| (git)  git pull
+        Already up-to-date.
     """
 
     def __new__(cls, url, **kwargs):
