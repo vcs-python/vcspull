@@ -16,7 +16,7 @@ with open('requirements.pip') as f:
 
 if sys.version_info < (2, 7):
     install_reqs += ['argparse']
-    tests_reqs += ['unittest2']
+    tests_reqs += ['unittest2', 'mock']
 
 readme = open('README.rst').read()
 history = open('CHANGES').read().replace('.. :changelog:', '')
