@@ -55,9 +55,8 @@ class ConfigImportExportTest(ConfigTestCase):
 
         json_config_data = config.export('json', indent=2)
 
-        buf = open(json_config_file, 'w')
-        buf.write(json_config_data)
-        buf.close()
+        with open(json_config_file, 'w') as buf:
+            buf.write(json_config_data)
 
         new_config = kaptan.Kaptan()
         new_config_data = new_config.import_config(json_config_file).get()
@@ -71,9 +70,8 @@ class ConfigImportExportTest(ConfigTestCase):
 
         yaml_config_data = config.export('yaml', indent=2)
 
-        buf = open(yaml_config_file, 'w')
-        buf.write(yaml_config_data)
-        buf.close()
+        with open(yaml_config_file, 'w') as buf:
+            buf.write(yaml_config_data)
 
         new_config = kaptan.Kaptan()
         new_config_data = new_config.import_config(yaml_config_file).get()
@@ -83,9 +81,8 @@ class ConfigImportExportTest(ConfigTestCase):
         configs = []
 
         garbage_file = os.path.join(self.TMP_DIR, '.vcspull.psd')
-        buf = open(garbage_file, 'w')
-        buf.write('wat')
-        buf.close()
+        with open(garbage_file, 'w') as buf:
+            buf.write('wat')
 
         for r, d, f in os.walk(self.TMP_DIR):
             for filela in (x for x in f if x.endswith(('.json', 'yaml')) and x.startswith('.vcspull')):
