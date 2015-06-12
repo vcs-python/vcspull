@@ -15,7 +15,9 @@ import unittest
 import mock
 
 from .helpers import RepoTestMixin, RepoIntegrationTest, ConfigTestCase
+
 from .. import exc
+from .._compat import StringIO
 from ..repo import Repo
 from ..util import run
 
@@ -150,7 +152,7 @@ class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
         )
 
 
-class RepositoryNotFoundRegression(RepoTestMixin, ConfigTestCase, unittest.TestCase):
+class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase, unittest.TestCase):
     """Need to imitate git remote not found.
 
     |isobar-frontend| (git)  Repo directory for isobar-frontend (git) does not exist @ /home/tony/study/standards-and-practices/html/isobar-frontend
@@ -164,32 +166,26 @@ class RepositoryNotFoundRegression(RepoTestMixin, ConfigTestCase, unittest.TestC
     and the repository exists.
     """
 
-
     def test_repository_not_found_raises_exception(self):
         repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
         repo_name = 'my_git_project'
 
         url = 'git+file://' + os.path.join(repo_dir, repo_name)
-        # url = 'git+https://github.com/isobar-idev/code-standards/'
         git_repo = Repo(**{
             'url': url,
             'cwd': self.TMP_DIR,
             'name': repo_name
         })
         error_output = 'ERROR: hello mock subprocess stderr'
-        from .._compat import StringIO, text_type
+
         with self.assertRaisesRegexp(exc.VCSPullException, error_output):
             with mock.patch("vcspull.repo.base.subprocess.Popen") as mock_subprocess:
                 mock_subprocess.return_value = mock.Mock(
                     stdout=StringIO('hello mock subprocess stdout'),
-                    stderr=StringIO(text_type(error_output))
+                    stderr=StringIO(error_output)
                 )
 
                 response = git_repo.obtain()
-                print(response)
-
-    def test_repository_not_found_exits(self):
-        pass
 
 def suite():
     suite = unittest.TestSuite()
@@ -197,5 +193,5 @@ def suite():
     suite.addTest(unittest.makeSuite(GitRepoSSHUrl))
     suite.addTest(unittest.makeSuite(RepoGit))
     suite.addTest(unittest.makeSuite(TestRemoteGit))
-    suite.addTest(unittest.makeSuite(RepositoryNotFoundRegression))
+    suite.addTest(unittest.makeSuite(ErrorInStdErrorRaisesException))
     return suite
