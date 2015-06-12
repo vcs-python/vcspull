@@ -14,6 +14,7 @@ import sys
 import subprocess
 import logging
 
+from .. import exc
 from ..util import mkdir_p
 from .._compat import urlparse, text_type, console_to_str
 
@@ -143,6 +144,8 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
                 err = console_to_str(process.stderr.read(128))
                 if err == '' and process.poll() is not None:
                     break
+                elif 'ERROR' in err:
+                    raise exc.VCSPullException(err + console_to_str(process.stderr.read()))
                 if err != '':
                     self.show_progress("%s" % err)
 
