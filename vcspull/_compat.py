@@ -77,6 +77,8 @@ else:
             return s.decode(console_encoding)
         except UnicodeDecodeError:
             return s.decode('utf_8')
+        except AttributeError:  # for tests, #13
+            return s
 
     def reraise(tp, value, tb=None):
         if value.__traceback__ is not tb:

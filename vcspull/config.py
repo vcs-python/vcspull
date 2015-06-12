@@ -249,7 +249,6 @@ def load_configs(configs):
 
     """
 
-    # configs = [open(f).read() for f in configs]
     configdict = {}
 
     for config in configs:
