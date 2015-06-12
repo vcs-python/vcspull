@@ -4,6 +4,12 @@ Changelog
 
 Here you can find the recent changes to vcspull.
 
+0.2.1
+-----
+
+- [internal] [tests]: handle ``ERROR`` in git cloning, add tests. Fixes
+  cases like ``ERROR: Repository not found``.
+
 0.2
 ---
 
