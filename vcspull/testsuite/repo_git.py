@@ -150,7 +150,6 @@ class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
         )
 
 
-
 class RepositoryNotFoundRegression(RepoTestMixin, ConfigTestCase, unittest.TestCase):
     """Need to imitate git remote not found.
 
@@ -178,10 +177,13 @@ class RepositoryNotFoundRegression(RepoTestMixin, ConfigTestCase, unittest.TestC
             'name': repo_name
         })
         error_output = 'ERROR: hello mock subprocess stderr'
-        from .._compat import StringIO
+        from .._compat import StringIO, text_type
         with self.assertRaisesRegexp(exc.VCSPullException, error_output):
             with mock.patch("vcspull.repo.base.subprocess.Popen") as mock_subprocess:
-                mock_subprocess.return_value = mock.Mock(stdout=StringIO('hello mock subprocess stdout'), stderr=StringIO(error_output))
+                mock_subprocess.return_value = mock.Mock(
+                    stdout=StringIO('hello mock subprocess stdout'),
+                    stderr=StringIO(text_type(error_output))
+                )
 
                 response = git_repo.obtain()
                 print(response)
