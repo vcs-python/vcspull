@@ -13,8 +13,8 @@ import logging
 import os
 import time
 
-from ._vendor import colorama
-from ._vendor.colorama import init, Fore, Back, Style
+import colorama
+from colorama import init, Fore, Back, Style
 
 LEVEL_COLORS = {
     'DEBUG': Fore.BLUE,  # Blue
