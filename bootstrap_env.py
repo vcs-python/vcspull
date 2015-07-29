@@ -122,6 +122,11 @@ def main():
             [pip_bin, 'install', 'sniffer']
         )
 
+    if not os.path.isfile(os.path.join(env_dir, 'bin', 'mock')):
+        subprocess.check_call(
+            [pip_bin, 'install', 'mock']
+        )
+
     if platform.system() == 'Linux':
         subprocess.check_call(
             [pip_bin, 'install', 'pyinotify']
