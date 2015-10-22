@@ -1,19 +1,26 @@
 language: python
+sudo: false
 python:
   - 2.6
   - 2.7
   - 3.3
   - 3.4
+  - 3.5
 before_install:
-  - sudo apt-get update -qq
   - export PIP_USE_MIRRORS=true
   - pip install coveralls
-  - sudo apt-get install -qq mercurial git-core subversion cvs
   - git config --global user.name 'travis-ci'
   - git config --global user.email 'travis@nowhere.edu'
 install:
   - "pip install -e ."
 # script: python setup.py test
 script: coverage run --source=vcspull setup.py test
+addons:
+  apt:
+    packages:
+    - mercurial
+    - git-core
+    - subversion
+    - cvs
 after_success:
   - coveralls
