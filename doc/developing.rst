@@ -27,13 +27,13 @@ virtualenv with:
 
 .. code-block:: sh
 
-    $ virtualenv .env
+    $ virtualenv .venv
 
 Then activate it to current tty / terminal session with:
 
 .. code-block:: sh
 
-    $ source .env/bin/activate
+    $ source .venv/bin/activate
 
 Good! Now let's run this:
 
@@ -50,7 +50,7 @@ Test Runner
 
 As you seen above, the ``vcspull`` command will now be available to you,
 since you are in the virtual environment, your `PATH` environment was
-updated to include a special version of ``python`` inside your ``.env``
+updated to include a special version of ``python`` inside your ``.venv``
 folder with its own packages.
 
 .. code-block:: bash
