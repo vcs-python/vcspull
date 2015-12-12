@@ -80,6 +80,7 @@ pip_bin = os.path.join(env_dir, 'bin', 'pip')
 python_bin = os.path.join(env_dir, 'bin', 'python')
 virtualenv_bin = which('virtualenv', throw=False)
 virtualenv_exists = os.path.exists(env_dir) and os.path.isfile(python_bin)
+entr_bin = which('entr', throw=False)
 sphinx_requirements_filepath = os.path.join(project_dir, 'doc', 'requirements.pip')
 
 
@@ -117,27 +118,18 @@ def main():
             [pip_bin, 'install', '-e', project_dir]
         )
 
-    if not os.path.isfile(os.path.join(env_dir, 'bin', 'sniffer')):
-        subprocess.check_call(
-            [pip_bin, 'install', 'sniffer']
+    if not entr_bin:
+        message = (
+            'entr(1) is missing.\n'
+            'If you want to enable rebuilding documentation and '
+            're-running commands when a file is saved.\n'
+            'See https://bitbucket.org/eradman/entr/'
         )
+        print(message)
 
     if not os.path.isfile(os.path.join(env_dir, 'bin', 'mock')):
         subprocess.check_call(
             [pip_bin, 'install', 'mock']
-        )
-
-    if platform.system() == 'Linux':
-        subprocess.check_call(
-            [pip_bin, 'install', 'pyinotify']
-        )
-    elif platform.system() == 'Darwin':
-        subprocess.check_call(
-            [pip_bin, 'install', 'MacFSEvents']
-        )
-    elif platform.system() == 'Windows':
-        subprocess.check_call(
-            [pip_bin, 'install', 'pywin32']
         )
 
     if not os.path.isfile(os.path.join(env_dir, 'bin', 'sphinx-quickstart')):
