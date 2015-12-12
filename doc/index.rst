@@ -18,5 +18,6 @@ vcspull
    examples
    cli
    api
+   developing
    history
    roadmap
