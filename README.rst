@@ -101,8 +101,8 @@ install dev     .. code-block:: bash
 
                     $ git clone https://github.com/tony/vcspull.git vcspull
                     $ cd ./vcspull
-                    $ virtualenv .env
-                    $ source .env/bin/activate
+                    $ virtualenv .venv
+                    $ source .venv/bin/activate
                     $ pip install -e .
 tests           .. code-block:: bash
 

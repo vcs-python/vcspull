@@ -1,5 +1,5 @@
-.env
-.env3
+.venv
+.venv3
 *.pyc
 *.tar.gz
 *.egg-info
