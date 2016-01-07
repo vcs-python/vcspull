@@ -12,8 +12,6 @@ if PY2:
     integer_types = (int, long)
     from urllib import urlretrieve
 
-    from test import test_support as support
-
     text_to_native = lambda s, enc: s.encode(enc)
 
     iterkeys = lambda d: d.iterkeys()

@@ -17,13 +17,12 @@ import logging
 import kaptan
 
 from .. import exc
-from .._compat import support
 from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
 from ..util import expand_config, run, get_repos
 
 from . import unittest
 from .helpers import (
-    ConfigTestMixin, ConfigTestCase, RepoIntegrationTest
+    ConfigTestMixin, ConfigTestCase, RepoIntegrationTest, EnvironmentVarGuard
 )
 
 from .. import config
@@ -235,7 +234,7 @@ class FindConfigsHome(ConfigTestCase, unittest.TestCase):
 
     def test_find_configs(self):
 
-        with support.EnvironmentVarGuard() as env:
+        with EnvironmentVarGuard() as env:
             env.set("HOME", self.TMP_DIR)
             self.assertEqual(os.environ.get("HOME"), self.TMP_DIR)
             expectedIn = os.path.join(self.TMP_DIR, '.vcspull.yaml')
@@ -247,7 +246,7 @@ class FindConfigsHome(ConfigTestCase, unittest.TestCase):
         self.config_file2_path = os.path.join(self.TMP_DIR, '.vcspull.json')
         self.config_file2 = open(self.config_file2_path, 'a').close()
 
-        with support.EnvironmentVarGuard() as env:
+        with EnvironmentVarGuard() as env:
             with self.assertRaises(exc.MultipleRootConfigs):
                 env.set("HOME", self.TMP_DIR)
                 self.assertEqual(os.environ.get("HOME"), self.TMP_DIR)
@@ -436,7 +435,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file2.name, configs)
 
     def test_include_home_configs(self):
-        with support.EnvironmentVarGuard() as env:
+        with EnvironmentVarGuard() as env:
             env.set("HOME", self.TMP_DIR)
             configs = config.find_configs(
                 path=[self.CONFIG_DIR],
