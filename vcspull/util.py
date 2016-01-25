@@ -13,7 +13,6 @@ from __future__ import (
 import subprocess
 import collections
 import os
-import sys
 import errno
 import logging
 import fnmatch
@@ -84,11 +83,13 @@ def expand_config(config):
                     ]
 
     config = dict(
-        (os.path.expandvars(directory), repo_data) for directory, repo_data in config.items()
+        (os.path.expandvars(directory), repo_data) for
+        directory, repo_data in config.items()
     )
 
     config = dict(
-        (os.path.expanduser(directory), repo_data) for directory, repo_data in config.items()
+        (os.path.expanduser(directory), repo_data) for
+        directory, repo_data in config.items()
     )
 
     return config
@@ -134,14 +135,6 @@ def get_repos(config, dirmatch=None, repomatch=None, namematch=None):
                     repo_dict['remotes'].append(remote_dict)
             repo_list.append(repo_dict)
     return repo_list
-
-
-def scan(dir):
-    """Return a list of repositories."""
-    matches = []
-    for root, dirnames, filenames in os.walk(dir):
-        for filename in fnmatch.filter(filenames, '.git'):
-            matches.append(os.path.join(root, filename))
 
 
 def run(
