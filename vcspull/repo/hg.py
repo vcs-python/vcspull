@@ -51,17 +51,6 @@ class MercurialRepo(BaseRepo):
 
         return current_rev['stdout']
 
-    def get_url(self, location=None):
-        if not location:
-            location = self['path']
-
-        url = run(
-            ['git', 'showconfig', 'paths.default'],
-            cwd=location)['stdout'].strip()
-        if self._is_local_repository(url):
-            url = path_to_url(url)
-        return url.strip()
-
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.hg')):
