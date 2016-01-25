@@ -167,15 +167,6 @@ class GitRepo(BaseRepo):
             show_stdout=False, cwd=location)
         return url.strip()
 
-    def get_revision(self, location=None):
-
-        if not location:
-            location = self['path']
-
-        current_rev = run(
-            ['git', 'rev-parse', 'HEAD'], cwd=location)['stdout']
-        return current_rev
-
     def get_refs(self, location):
         """Return map of named refs (branches or tags) to commit hashes."""
         output = run(
@@ -208,7 +199,7 @@ class GitRepo(BaseRepo):
 
         url, rev = self.get_url_rev()
         self.info('Cloning.')
-        process = self.run(
+        self.run(
             ['git', 'clone', '--progress', url, self['path']],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -217,7 +208,8 @@ class GitRepo(BaseRepo):
 
         if self['remotes']:
             for r in self['remotes']:
-                self.error('Adding remote %s <%s>' % (r['remote_name'], r['url']))
+                self.error('Adding remote %s <%s>' %
+                           (r['remote_name'], r['url']))
                 self.remote_set(
                     name=r['remote_name'],
                     url=r['url']
@@ -231,18 +223,9 @@ class GitRepo(BaseRepo):
                 'git', 'fetch'
             ], cwd=self['path'])
 
-            p = self.run([
+            self.run([
                 'git', 'pull'
             ], cwd=self['path'])
-
-            # if 'Already up-to-date' in proc['stdout']:
-            #     self.info('Already up-to-date.')
-            # else:
-            #     if proc['stderr']:
-            #         if 'You are not currently on a branch' in proc['stderr'][0]:
-            #             self.info('Not on branch, Fetched.')
-            #     else:
-            #         self.info('\n'.join(proc['stdout']))
         else:
             self.obtain()
             self.update_repo()
@@ -260,7 +243,7 @@ class GitRepo(BaseRepo):
 
     def revision(self, cwd=None, rev='HEAD', short=False, user=None):
         """
-        Returns the long hash of a given identifier (hash, branch, tag, HEAD, etc)
+        Return long ref of a given identifier (ref, branch, tag, HEAD, etc)
 
         cwd
             The path to the Git repository
@@ -333,7 +316,8 @@ class GitRepo(BaseRepo):
 
         if not opts:
             opts = ''
-        cmd = 'git submodule update {0} {1}'.format('--init' if init else '', opts)
+        cmd = 'git submodule update {0} {1}'.format(
+            '--init' if init else '', opts)
         return _git_run(cmd, cwd=cwd, runas=user, identity=identity)
 
     def remotes_get(self, cwd=None, user=None):
