@@ -128,11 +128,13 @@ def expand_config(config):
                     ]
 
     config = dict(
-        (os.path.expandvars(directory), repo_data) for directory, repo_data in config.items()
+        (os.path.expandvars(directory), repo_data)
+        for directory, repo_data in config.items()
     )
 
     config = dict(
-        (os.path.expanduser(directory), repo_data) for directory, repo_data in config.items()
+        (os.path.expanduser(directory), repo_data) for
+        directory, repo_data in config.items()
     )
 
     return config
@@ -251,6 +253,7 @@ def load_configs(configs):
 
     configdict = {}
 
+    # rewrite this...
     for config in configs:
         fName, fExt = os.path.splitext(config)
         conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
@@ -285,32 +288,3 @@ def load_configs(configs):
     configdict = expand_config(configdict)
 
     return configdict
-
-
-def scan_repos(
-    path='~',
-    subrepos=False
-):
-    """Return repositories within directory.
-
-    :param path: path to search
-    :type path: string
-    :param subrepos: search for repos within repos
-    :type subrepos: bool
-    :returns: list of Repos from file system
-    :rtype: iter(:class:`Repo`)
-
-    """
-    pass
-
-
-def validate_schema(conf):
-    """Return True if valid vcspull schema.
-
-    :param conf: configuration
-    :type conf: string
-    :rtype: bool
-
-    """
-
-    return True

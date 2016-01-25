@@ -25,7 +25,7 @@ from .cli import (
     setup_logger
 )
 from .config import (
-    is_config_file, load_configs, scan_repos, validate_schema
+    is_config_file, load_configs
 )
 
 # Set default logging handler to avoid "No handler found" warnings.

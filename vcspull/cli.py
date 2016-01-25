@@ -10,20 +10,14 @@ from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
 import os
-import sys
-import fnmatch
-import glob
 import logging
-import re
 import argparse
 
-import kaptan
 import argcomplete
 
 from . import exc
 from .__about__ import __version__
-from ._compat import string_types
-from .util import expand_config, get_repos, update_dict, in_dir
+from .util import get_repos, in_dir
 from .config import find_configs, load_configs
 from .log import DebugLogFormatter
 from .repo import Repo
@@ -38,7 +32,6 @@ NO_REPOS_FOUND = """
 """
 
 config_dir = os.path.expanduser('~/.vcspull/')
-cwd_dir = os.getcwd() + '/'
 
 
 def setup_logger(log=None, level='INFO'):
