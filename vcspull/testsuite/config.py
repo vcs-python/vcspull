@@ -17,8 +17,7 @@ import logging
 import kaptan
 
 from .. import exc
-from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
-from ..util import expand_config, run, get_repos
+from ..util import expand_config
 
 from . import unittest
 from .helpers import (
@@ -270,9 +269,9 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
             prefix="repos1",
             dir=self.CONFIG_DIR, delete=False, suffix=".yaml"
         )
-        self.config_file1_filename, self.config_file1_fileext = os.path.splitext(
+        self.config_file1_filename = os.path.splitext(
             os.path.basename(self.config_file1.name)
-        )
+        )[0]
         self.config_file2 = tempfile.NamedTemporaryFile(
             prefix="repos2",
             dir=self.CONFIG_DIR, delete=False, suffix=".json"
