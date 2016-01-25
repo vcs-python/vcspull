@@ -161,33 +161,6 @@ class GitRepo(BaseRepo):
 
         return url, rev
 
-    def get_url(self, location):
-        url = run(
-            ['git', 'config', 'remote.origin.url'],
-            show_stdout=False, cwd=location)
-        return url.strip()
-
-    def get_refs(self, location):
-        """Return map of named refs (branches or tags) to commit hashes."""
-        output = run(
-            ['git', 'show-ref'],
-            show_stdout=False, cwd=location
-        )
-        rv = {}
-        for line in output:
-            commit, ref = line.split(' ', 1)
-            ref = ref.strip()
-            ref_name = None
-            if ref.startswith('refs/remotes/'):
-                ref_name = ref[len('refs/remotes/'):]
-            elif ref.startswith('refs/heads/'):
-                ref_name = ref[len('refs/heads/'):]
-            elif ref.startswith('refs/tags/'):
-                ref_name = ref[len('refs/tags/'):]
-            if ref_name is not None:
-                rv[ref_name] = commit.strip()
-        return rv
-
     def obtain(self, quiet=False):
         """Retrieve the repository, clone if doesn't exist.
 
@@ -230,17 +203,6 @@ class GitRepo(BaseRepo):
             self.obtain()
             self.update_repo()
 
-    def current_branch(self, cwd=None, user=None):
-        """Returns the current branch name, if on a branch.
-
-        """
-        if not cwd:
-            cwd = self['path']
-        cmd = r'git branch --list | grep "^*\ " | cut -d " " -f 2 | ' + \
-            'grep -v "(detached"'
-
-        return run(cmd, cwd=cwd, runas=user)
-
     def revision(self, cwd=None, rev='HEAD', short=False, user=None):
         """
         Return long ref of a given identifier (ref, branch, tag, HEAD, etc)
@@ -264,61 +226,6 @@ class GitRepo(BaseRepo):
 
         cmd = 'git rev-parse {0}{1}'.format('--short ' if short else '', rev)
         return run(cmd, cwd, runas=user)
-
-    def fetch(self, cwd=None, opts=None, user=None, identity=None):
-        """Perform a fetch on the given repository.
-
-        cwd
-            The path to the Git repository
-
-        opts : None
-            Any additional options to add to the command line
-
-        user : None
-            Run git as a user other than what the minion runs as
-
-        identity : None
-            A path to a private key to use over SSH
-
-        """
-
-        if not cwd:
-            cwd = self['path']
-
-        if not opts:
-            opts = ''
-        cmd = 'git fetch {0}'.format(opts)
-
-        return _git_run(cmd, cwd=cwd, runas=user, identity=identity)
-
-    def submodule(self, cwd, init=True, opts=None, user=None, identity=None):
-        """Initialize git submodules.
-
-        cwd
-            The path to the Git repository
-
-        init : True
-            Ensure that new submodules are initialized
-
-        opts : None
-            Any additional options to add to the command line
-
-        user : None
-            Run git as a user other than what the minion runs as
-
-        identity : None
-            A path to a private key to use over SSH
-
-        """
-
-        if not cwd:
-            cwd = self['path']
-
-        if not opts:
-            opts = ''
-        cmd = 'git submodule update {0} {1}'.format(
-            '--init' if init else '', opts)
-        return _git_run(cmd, cwd=cwd, runas=user, identity=identity)
 
     def remotes_get(self, cwd=None, user=None):
         """Get remotes like git remote -v.
