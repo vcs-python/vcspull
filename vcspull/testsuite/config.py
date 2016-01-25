@@ -112,11 +112,11 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
-class ExpandUserExpandVars(ConfigTestMixin):
+class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
     """Verify .expandvars and .expanduser works with configs."""
 
     def setUp(self):
-
+        ConfigTestCase.setUp(self)
         ConfigTestMixin.setUp(self)
 
         config_yaml = """
