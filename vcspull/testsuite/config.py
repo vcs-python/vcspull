@@ -167,7 +167,7 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         conf.import_config(self.config_json)
         self.config2 = conf.export('dict')
 
-    def testing_this(self):
+    def test_this(self):
         config1_expanded = expand_config(self.config1)
         config2_expanded = expand_config(self.config2)
 
