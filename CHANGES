@@ -2,7 +2,12 @@
 Changelog
 =========
 
-Here you can find the recent changes to vcspull.
+Here you can find the recent changes to vcspull
+
+CURRENT
+-------
+
+- [internal] - major internal cleanup of dead code, pep8 style updates.
 
 0.2.2
 -----
