@@ -10,11 +10,9 @@ from __future__ import absolute_import, division, print_function, \
     with_statement, unicode_literals
 
 import logging
-import os
 import time
 
-import colorama
-from colorama import init, Fore, Back, Style
+from colorama import Fore, Style
 
 LEVEL_COLORS = {
     'DEBUG': Fore.BLUE,  # Blue
@@ -150,5 +148,3 @@ class RepoFilter(logging.Filter):
     def filter(self, record):
         """Only return a record if a repo_vcs object."""
         return True if 'repo_vcs' in record.__dict__ else False
-
-
