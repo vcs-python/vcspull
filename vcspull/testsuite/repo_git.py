@@ -41,7 +41,7 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
         os.mkdir(repo_dir)
         run([
             'git', 'init', git_repo['name']
-            ], cwd=repo_dir)
+        ], cwd=repo_dir)
         git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
         git_repo.obtain(quiet=True)
 
@@ -50,10 +50,10 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
         run(['touch', testfile], cwd=os.path.join(repo_dir, repo_name))
         run([
             'git', 'add', testfile
-            ], cwd=os.path.join(repo_dir, repo_name))
+        ], cwd=os.path.join(repo_dir, repo_name))
         run([
             'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
-            ], cwd=os.path.join(repo_dir, repo_name))
+        ], cwd=os.path.join(repo_dir, repo_name))
         git_repo.update_repo()
 
         test_repo_revision = run(
@@ -69,6 +69,7 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
 
 
 class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
+
     def test_remotes(self):
         repo_dir, git_repo = self.create_git_repo(create_repo=True)
 
@@ -152,13 +153,17 @@ class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
         )
 
 
-class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase, unittest.TestCase):
+class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
+                                     unittest.TestCase):
     """Need to imitate git remote not found.
 
-    |isobar-frontend| (git)  Repo directory for isobar-frontend (git) does not exist @ /home/tony/study/standards-and-practices/html/isobar-frontend
+    |isobar-frontend| (git)  Repo directory for isobar-frontend (git) does \
+        not exist @ /home/tony/study/std/html/isobar-frontend
     |isobar-frontend| (git)  Cloning.
-    |isobar-frontend| (git)  git clone --progress https://github.com/isobar-idev/code-standards/ /home/tony/study/standards-and-practices/html/isobar-frontend
-    Cloning into '/home/tony/study/standards-and-practices/html/isobar-frontend'...
+    |isobar-frontend| (git)  git clone --progress \
+        https://github.com/isobar-idev/code-standards/ /\
+        home/tony/study/std/html/isobar-frontend
+    Cloning into '/home/tony/study/std/html/isobar-frontend'...
     ERROR: Repository not found.
     ad from remote repository.
 
@@ -179,13 +184,16 @@ class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase, unittest.Tes
         error_output = 'ERROR: hello mock subprocess stderr'
 
         with self.assertRaisesRegexp(exc.VCSPullException, error_output):
-            with mock.patch("vcspull.repo.base.subprocess.Popen") as mock_subprocess:
+            with mock.patch(
+                "vcspull.repo.base.subprocess.Popen"
+            ) as mock_subprocess:
                 mock_subprocess.return_value = mock.Mock(
                     stdout=StringIO('hello mock subprocess stdout'),
                     stderr=StringIO(error_output)
                 )
 
-                response = git_repo.obtain()
+                git_repo.obtain()
+
 
 def suite():
     suite = unittest.TestSuite()

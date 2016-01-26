@@ -101,7 +101,7 @@ def import_string(import_name, silent=False):
                    `None` is returned instead.
     :return: imported object
     """
-    #XXX: py3 review needed
+    # XXX: py3 review needed
     assert isinstance(import_name, string_types)
     # force the import name to automatically convert to strings
     import_name = str(import_name)
