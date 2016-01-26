@@ -56,7 +56,8 @@ class RepoSVN(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
         tempFile = tempfile.NamedTemporaryFile(dir=svn_checkout_dest)
 
-        run(['svn', 'add', '--non-interactive', tempFile.name], cwd=svn_checkout_dest)
+        run(['svn', 'add', '--non-interactive', tempFile.name],
+            cwd=svn_checkout_dest)
         run(
             ['svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']],
             cwd=svn_checkout_dest

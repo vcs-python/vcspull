@@ -12,7 +12,7 @@ windows:
   panes:
   - focus: true
   - pane
-  - if command -v entr > /dev/null; then ls vcspull/*.py *.py | entr ./run-tests.py; else ./run-tests.py; echo "\nInstall entr(1) to automatically run tests on file change.\n See http://entrproject.org/"; fi
+  - if command -v entr > /dev/null; then find . -type f -not -path '*/\.*' | grep -i '.*[.]py$' | entr -c ./run-tests.py; else ./run-tests.py; echo "\nInstall entr(1) to automatically run tests on file change.\n See http://entrproject.org/"; fi 
 - window_name: docs
   layout: main-horizontal
   options:
@@ -24,4 +24,4 @@ windows:
   - focus: true
   - pane
   - echo 'docs built to <http://0.0.0.0:8002/_build/html>'; python -m SimpleHTTPServer 8002
-  - if command -v entr > /dev/null; then ls *.rst *.py ../CHANGES ../README.rst ../TODO | entr make html; else make html; echo "\nInstall entr(1) to automatically rebuild documentation when files change. \nSee http://entrproject.org/"; fi
+  - if command -v entr > /dev/null; then find . -type f -not -path '*/\.*' | grep -i '.*[.]py$' | entr -c ./run-tests.py; else ./run-tests.py; echo "\nInstall entr(1) to automatically run tests on file change.\n See http://entrproject.org/"; fi

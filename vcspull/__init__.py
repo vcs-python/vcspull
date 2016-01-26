@@ -15,7 +15,7 @@ from __future__ import (
 )
 
 from .util import (
-    expand_config, get_repos, mkdir_p, run, scan, which, update_dict, in_dir
+    expand_config, get_repos, mkdir_p, run, which, update_dict, in_dir
 )
 from .log import (
     LogFormatter, DebugLogFormatter, RepoLogFormatter, RepoFilter
@@ -25,7 +25,7 @@ from .cli import (
     setup_logger
 )
 from .config import (
-    is_config_file, load_configs, scan_repos, validate_schema
+    is_config_file, load_configs
 )
 
 # Set default logging handler to avoid "No handler found" warnings.

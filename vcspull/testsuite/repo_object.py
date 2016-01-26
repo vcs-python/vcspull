@@ -14,7 +14,7 @@ import unittest
 import kaptan
 
 from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
-from ..util import expand_config, get_repos, run
+from ..util import expand_config, get_repos
 from .helpers import ConfigTestCase, RepoTestMixin
 
 
@@ -22,7 +22,7 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
 
     def test_filter_dir(self):
         """``get_repos`` filter by dir"""
-        config = self.config_dict_expanded
+        self.config_dict_expanded
 
         repo_list = get_repos(
             self.config_dict_expanded,
@@ -33,13 +33,13 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         repo_key = '{TMP_DIR}/github_projects/'.format(
             TMP_DIR=self.TMP_DIR,
         )
-        exected_repo = self.config_dict_expanded[repo_key]['kaptan']
+        self.config_dict_expanded[repo_key]['kaptan']
         for r in repo_list:
             self.assertEqual(r['name'], 'kaptan')
 
     def test_filter_name(self):
         """``get_repos`` filter by name"""
-        config = self.config_dict_expanded
+        self.config_dict_expanded
 
         repo_list = get_repos(
             self.config_dict_expanded,
@@ -50,13 +50,13 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         repo_key = '{TMP_DIR}'.format(
             TMP_DIR=self.TMP_DIR,
         )
-        exected_repo = self.config_dict_expanded[repo_key]['.vim']
+        self.config_dict_expanded[repo_key]['.vim']
         for r in repo_list:
             self.assertEqual(r['name'], '.vim')
 
     def test_filter_vcs(self):
         """``get_repos`` filter by vcs"""
-        config = self.config_dict_expanded
+        self.config_dict_expanded
 
         repo_list = get_repos(
             self.config_dict_expanded,
@@ -67,7 +67,7 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         repo_key = '{TMP_DIR}/study/'.format(
             TMP_DIR=self.TMP_DIR,
         )
-        exected_repo = self.config_dict_expanded[repo_key]['linux']
+        self.config_dict_expanded[repo_key]['linux']
         for r in repo_list:
             self.assertEqual(r['name'], 'linux')
 
@@ -80,18 +80,9 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         super(ConfigToObjectTest, self).setUp()
 
-        SAMPLECONFIG_LIST = [
-            {
-                'name': None,
-                'cwd': None,
-                'url': None,
-                'remotes': []
-            }
-        ]
-
     def test_to_dictlist(self):
         """``get_repos`` pulls the repos in dict format from the config."""
-        config = self.config_dict_expanded
+        self.config_dict_expanded
 
         repo_list = get_repos(self.config_dict_expanded)
 
@@ -170,7 +161,8 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
                     self.assertIn('url', remote)
 
 
-class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin, unittest.TestCase):
+class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
+                                unittest.TestCase):
 
     """Ensure that directories in pull are made recursively."""
 

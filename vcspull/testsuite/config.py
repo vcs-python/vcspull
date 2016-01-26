@@ -17,8 +17,7 @@ import logging
 import kaptan
 
 from .. import exc
-from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
-from ..util import expand_config, run, get_repos
+from ..util import expand_config
 
 from . import unittest
 from .helpers import (
@@ -84,7 +83,8 @@ class ConfigImportExportTest(ConfigTestCase):
             buf.write('wat')
 
         for r, d, f in os.walk(self.TMP_DIR):
-            for filela in (x for x in f if x.endswith(('.json', 'yaml')) and x.startswith('.vcspull')):
+            for filela in (x for x in f if x.endswith(('.json', 'yaml'))and
+                           x.startswith('.vcspull')):
                 configs.append(os.path.join(self.TMP_DIR, filela))
 
         files = 0
@@ -113,11 +113,11 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
-class ExpandUserExpandVars(ConfigTestMixin):
+class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
     """Verify .expandvars and .expanduser works with configs."""
 
     def setUp(self):
-
+        ConfigTestCase.setUp(self)
         ConfigTestMixin.setUp(self)
 
         config_yaml = """
@@ -167,12 +167,9 @@ class ExpandUserExpandVars(ConfigTestMixin):
         conf.import_config(self.config_json)
         self.config2 = conf.export('dict')
 
-    def testing_this(self):
+    def test_this(self):
         config1_expanded = expand_config(self.config1)
         config2_expanded = expand_config(self.config2)
-
-        homepath = os.environ.get('HOME')
-        user = os.environ.get('USER')
 
         paths = [path for path, v in config1_expanded.items()]
         self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
@@ -250,7 +247,7 @@ class FindConfigsHome(ConfigTestCase, unittest.TestCase):
             with self.assertRaises(exc.MultipleRootConfigs):
                 env.set("HOME", self.TMP_DIR)
                 self.assertEqual(os.environ.get("HOME"), self.TMP_DIR)
-                configs = config.find_home_configs()
+                config.find_home_configs()
         os.remove(self.config_file2_path)
 
 
@@ -270,16 +267,17 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
             prefix="repos1",
             dir=self.CONFIG_DIR, delete=False, suffix=".yaml"
         )
-        self.config_file1_filename, self.config_file1_fileext = os.path.splitext(
+        self.config_file1_filename = os.path.splitext(
             os.path.basename(self.config_file1.name)
-        )
+        )[0]
         self.config_file2 = tempfile.NamedTemporaryFile(
             prefix="repos2",
             dir=self.CONFIG_DIR, delete=False, suffix=".json"
         )
-        self.config_file2_filename, self.config_file2_fileext = os.path.splitext(
-            os.path.basename(self.config_file2.name)
-        )
+        self.config_file2_filename, self.config_file2_fileext = \
+            os.path.splitext(
+                os.path.basename(self.config_file2.name)
+            )
 
     def test_path_string(self):
         """path as a string."""
@@ -446,7 +444,9 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
             self.assertIn(self.config_file1.name, configs)
             self.assertIn(self.config_file2.name, configs)
 
-            self.config_file3_path = os.path.join(self.TMP_DIR, '.vcspull.json')
+            self.config_file3_path = os.path.join(
+                self.TMP_DIR, '.vcspull.json'
+            )
             self.config_file3 = open(self.config_file3_path, 'a').close()
 
             results = config.find_configs(
@@ -463,7 +463,6 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
             os.remove(self.config_file3_path)
 
 
-
 class LoadConfigs(RepoIntegrationTest):
 
     def test_load(self):
@@ -473,7 +472,7 @@ class LoadConfigs(RepoIntegrationTest):
         )
 
         try:
-            configdicts = config.load_configs(configs)
+            config.load_configs(configs)
         except Exception as e:
             self.fail(e)
 
@@ -567,7 +566,7 @@ class LoadConfigsDuplicate(RepoIntegrationDuplicateTest):
         )
 
         with self.assertRaises(Exception):
-            configdict = config.load_configs(configs)
+            config.load_configs(configs)
 
     @unittest.skip("Not implemented")
     def test_duplicate_path_same_vcs(self):
