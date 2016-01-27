@@ -16,14 +16,12 @@ import logging
 import tempfile
 import shutil
 import uuid
-import re
 
 import kaptan
 
 from . import unittest
 from ..repo import create_repo
 from ..util import run, expand_config
-from .._compat import string_types
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +63,7 @@ class EnvironmentVarGuard(object):
         for unset in self._unset:
             del self._environ[unset]
 
+
 class ConfigTestMixin(unittest.TestCase):
 
     """Contains the fresh config dict/yaml's to test against.
@@ -79,7 +78,6 @@ class ConfigTestMixin(unittest.TestCase):
         if os.path.isdir(self.TMP_DIR):
             shutil.rmtree(self.TMP_DIR)
         logger.debug('wiped %s' % self.TMP_DIR)
-
 
     def _createConfigDirectory(self):
         """Create TMP_DIR for TestCase."""
@@ -308,7 +306,6 @@ class RepoTestMixin(object):
                 ], cwd=os.path.join(repo_path, repo_name))
 
         return os.path.join(repo_path, repo_name), mercurial_repo
-
 
 
 class RepoIntegrationTest(RepoTestMixin, ConfigTestCase, unittest.TestCase):
