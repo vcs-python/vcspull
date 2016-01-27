@@ -290,12 +290,18 @@ class GitRepo(BaseRepo):
             Run git as a user other than what the minion runs as
 
         """
+
+        # See #14, only use http/https prefix on remotes
+        # However, git+ssh:// is works fine as remote url
+        if url.startswith('git+http'):
+            url = url.replace('git+', '')
         if not cwd:
             cwd = self['path']
         if self.remote_get(cwd, name):
             cmd = 'git remote rm {0}'.format(name)
             _git_run(cmd, cwd=cwd, runas=user)
         cmd = 'git remote add {0} {1}'.format(name, url)
+
         _git_run(cmd, cwd=cwd, runas=user)
         return self.remote_get(cwd=cwd, remote=name, user=None)
 

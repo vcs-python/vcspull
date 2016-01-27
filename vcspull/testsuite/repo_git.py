@@ -91,6 +91,49 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
         git_repo.obtain(quiet=True)
         self.assertIn('myrepo', git_repo.remotes_get())
 
+    def test_remotes_vcs_prefix(self):
+        repo_dir, git_repo = self.create_git_repo(create_repo=True)
+
+        git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
+
+        remote_url = 'https://localhost/my/git/repo.git'
+        remote_vcs_url = 'git+' + remote_url
+
+        git_repo = Repo(**{
+            'url': 'git+file://' + git_checkout_dest,
+            'cwd': os.path.dirname(repo_dir),
+            'name': os.path.basename(os.path.normpath(repo_dir)),
+            'remotes': [{
+                'remote_name': 'myrepo',
+                'url': remote_vcs_url
+            }]
+        })
+
+        git_repo.obtain(quiet=True)
+        self.assertIn((remote_url, remote_url,),
+                      git_repo.remotes_get().values())
+
+    def test_remotes_preserves_git_ssh(self):
+        # Regression test for #14
+        repo_dir, git_repo = self.create_git_repo(create_repo=True)
+
+        git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
+        remote_url = 'git+ssh://git@github.com/tony/AlgoXY.git'
+
+        git_repo = Repo(**{
+            'url': 'git+file://' + git_checkout_dest,
+            'cwd': os.path.dirname(repo_dir),
+            'name': os.path.basename(os.path.normpath(repo_dir)),
+            'remotes': [{
+                'remote_name': 'myrepo',
+                'url': remote_url
+            }]
+        })
+
+        git_repo.obtain(quiet=True)
+        self.assertIn((remote_url, remote_url,),
+                      git_repo.remotes_get().values())
+
 
 class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
