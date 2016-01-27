@@ -13,10 +13,7 @@ Python API
 
 .. automodule:: vcspull.repo
 
-    .. autoclass:: Repo
-        :members:
-        :inherited-members:
-        :show-inheritance:
+    .. autofunction:: create_repo
 
     .. autoclass:: vcspull.repo.base.RepoLoggingAdapter
         :members:

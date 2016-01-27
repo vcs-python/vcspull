@@ -13,7 +13,7 @@ import unittest
 
 import kaptan
 
-from ..repo import BaseRepo, Repo, GitRepo, MercurialRepo, SubversionRepo
+from ..repo import BaseRepo, GitRepo, MercurialRepo, SubversionRepo, create_repo
 from ..util import expand_config, get_repos
 from .helpers import ConfigTestCase, RepoTestMixin
 
@@ -107,7 +107,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         """
 
-        git_repo = Repo(**{
+        git_repo = create_repo(**{
             'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709',
             'cwd': self.TMP_DIR,
             'name': 'myproject1'
@@ -118,7 +118,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         self.assertIsInstance(git_repo, GitRepo)
         self.assertIsInstance(git_repo, BaseRepo)
 
-        hg_repo = Repo(**{
+        hg_repo = create_repo(**{
             'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
             'cwd': self.TMP_DIR,
             'name': 'myproject2'
@@ -127,7 +127,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         self.assertIsInstance(hg_repo, MercurialRepo)
         self.assertIsInstance(hg_repo, BaseRepo)
 
-        svn_repo = Repo(**{
+        svn_repo = create_repo(**{
             'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
             'cwd': self.TMP_DIR,
             'name': 'myproject3'
@@ -140,7 +140,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         """:py:obj:`dict` objects into Repo objects."""
         repo_list = get_repos(self.config_dict_expanded)
         for repo_dict in repo_list:
-            r = Repo(**repo_dict)
+            r = create_repo(**repo_dict)
 
             self.assertIsInstance(r, BaseRepo)
             self.assertIn('name', r)
@@ -172,7 +172,7 @@ class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
     """
 
     def test_makes_recursive(self):
-        repo_dir, svn_repo = self.create_svn_repo(create_repo=True)
+        repo_dir, svn_repo = self.create_svn_repo(create_temp_repo=True)
         YAML_CONFIG = self.YAML_CONFIG.format(
             TMP_DIR=self.TMP_DIR,
             REPO_DIR=repo_dir
@@ -183,7 +183,7 @@ class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
         repos = expand_config(conf)
 
         for r in get_repos(repos):
-            repo = Repo(**r)
+            repo = create_repo(**r)
             repo.obtain()
 
 

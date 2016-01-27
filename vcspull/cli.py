@@ -20,7 +20,7 @@ from .__about__ import __version__
 from .util import get_repos, in_dir
 from .config import find_configs, load_configs
 from .log import DebugLogFormatter
-from .repo import Repo
+from .repo import create_repo
 
 log = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ def command_load(args):
     )
 
     for repo_dict in repos:
-        r = Repo(**repo_dict)
+        r = create_repo(**repo_dict)
         log.debug('%s' % r)
         r.update_repo()
 

@@ -18,7 +18,7 @@ from .helpers import RepoTestMixin, RepoIntegrationTest, ConfigTestCase
 
 from .. import exc
 from .._compat import StringIO
-from ..repo import Repo
+from ..repo import create_repo
 from ..util import run
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
         repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
         repo_name = 'my_git_project'
 
-        git_repo = Repo(**{
+        git_repo = create_repo(**{
             'url': 'git+file://' + os.path.join(repo_dir, repo_name),
             'cwd': self.TMP_DIR,
             'name': repo_name
@@ -71,11 +71,11 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
 class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
     def test_remotes(self):
-        repo_dir, git_repo = self.create_git_repo(create_repo=True)
+        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
         git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
 
-        git_repo = Repo(**{
+        git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
             'cwd': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
@@ -92,14 +92,14 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
         self.assertIn('myrepo', git_repo.remotes_get())
 
     def test_remotes_vcs_prefix(self):
-        repo_dir, git_repo = self.create_git_repo(create_repo=True)
+        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
         git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
 
         remote_url = 'https://localhost/my/git/repo.git'
         remote_vcs_url = 'git+' + remote_url
 
-        git_repo = Repo(**{
+        git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
             'cwd': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
@@ -115,12 +115,12 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
     def test_remotes_preserves_git_ssh(self):
         # Regression test for #14
-        repo_dir, git_repo = self.create_git_repo(create_repo=True)
+        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
         git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
         remote_url = 'git+ssh://git@github.com/tony/AlgoXY.git'
 
-        git_repo = Repo(**{
+        git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
             'cwd': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
@@ -142,7 +142,7 @@ class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
         git_checkout_dest = os.path.join(self.TMP_DIR, 'private_ssh_repo')
 
-        git_repo = Repo(**{
+        git_repo = create_repo(**{
             'url': 'git+ssh://github.com:' + git_checkout_dest,
             'cwd': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
@@ -155,14 +155,14 @@ class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
     def test_ls_remotes(self):
-        repo_dir, git_repo = self.create_git_repo(create_repo=True)
+        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
         remotes = git_repo.remotes_get()
 
         self.assertIn('origin', remotes)
 
     def test_get_remotes(self):
-        repo_dir, git_repo = self.create_git_repo(create_repo=True)
+        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
         self.assertIn(
             'origin',
@@ -170,7 +170,7 @@ class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
         )
 
     def test_set_remote(self):
-        repo_dir, git_repo = self.create_git_repo(create_repo=True)
+        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
         mynewremote = git_repo.remote_set(
             name='myrepo',
@@ -200,8 +200,8 @@ class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
                                      unittest.TestCase):
     """Need to imitate git remote not found.
 
-    |isobar-frontend| (git)  Repo directory for isobar-frontend (git) does \
-        not exist @ /home/tony/study/std/html/isobar-frontend
+    |isobar-frontend| (git)  create_repo directory for isobar-frontend (git) \
+        does not exist @ /home/tony/study/std/html/isobar-frontend
     |isobar-frontend| (git)  Cloning.
     |isobar-frontend| (git)  git clone --progress \
         https://github.com/isobar-idev/code-standards/ /\
@@ -219,7 +219,7 @@ class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
         repo_name = 'my_git_project'
 
         url = 'git+file://' + os.path.join(repo_dir, repo_name)
-        git_repo = Repo(**{
+        git_repo = create_repo(**{
             'url': url,
             'cwd': self.TMP_DIR,
             'name': repo_name

@@ -17,8 +17,8 @@ from .hg import MercurialRepo
 from .svn import SubversionRepo
 from .base import BaseRepo, RepoLoggingAdapter
 
-__all__ = ['GitRepo', 'MercurialRepo', 'SubversionRepo', 'BaseRepo', 'Repo',
-           'RepoLoggingAdapter']
+__all__ = ['GitRepo', 'MercurialRepo', 'SubversionRepo', 'BaseRepo',
+           'RepoLoggingAdapter', 'create_repo']
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,8 @@ logger.setLevel('INFO')
 logger.addHandler(channel)
 
 
-class Repo(object):
-
-    """Return an object with a base class of :class:`Repo` depending on url.
+def create_repo(url, *args, **kwargs):
+    """Return an object with a base class of :class:`BaseRepo` depending on url.
 
     Return instance of :class:`vcspull.repo.svn.SubversionRepo`,
     :class:`vcspull.repo.git.GitRepo` or :class:`vcspull.repo.hg.MercurialRepo`.
@@ -40,46 +39,43 @@ class Repo(object):
 
     Usage Example::
 
-        In [1]: from vcspull.repo import Repo
+        In [1]: from vcspull.repo import create_repo
 
-        In [2]: r = Repo(url='git+https://www.github.com/tony/vim-config', cwd='/tmp/',
-                    name='vim-config')
+        In [2]: r = create_repo(url='git+https://www.github.com/tony/myrepo', cwd='/tmp/',
+                    name='myrepo')
 
         In [3]: r.update_repo()
-        |vim-config| (git)  Repo directory for vim-config (git) does not exist @ /tmp/vim-config
-        |vim-config| (git)  Cloning.
-        |vim-config| (git)  git clone --progress https://www.github.com/tony/vim-config /tmp/vim-config
-        Cloning into '/tmp/vim-config'...
+        |myrepo| (git)  Repo directory for myrepo (git) does not exist @ /tmp/myrepo
+        |myrepo| (git)  Cloning.
+        |myrepo| (git)  git clone --progress https://www.github.com/tony/myrepo /tmp/myrepo
+        Cloning into '/tmp/myrepo'...
         Checking connectivity... done.
-        |vim-config| (git)  git fetch
-        |vim-config| (git)  git pull
+        |myrepo| (git)  git fetch
+        |myrepo| (git)  git pull
         Already up-to-date.
     """
-
-    def __new__(cls, url, **kwargs):
-
-        if url.startswith('git+'):
-            if 'vcs' not in kwargs:
-                kwargs['vcs'] = 'git'
-            return GitRepo(url, **kwargs)
-        if url.startswith('hg+'):
-            if 'vcs' not in kwargs:
-                kwargs['vcs'] = 'hg'
-            return MercurialRepo(url, **kwargs)
-        if url.startswith('svn+'):
-            if 'vcs' not in kwargs:
-                kwargs['vcs'] = 'svn'
-            return SubversionRepo(url, **kwargs)
-        else:
-            raise Exception(
-                'repo URL %s requires a vcs scheme. Prepend hg+,'
-                ' git+, svn+ to the repo URL. Examples:\n'
-                '\t %s\n'
-                '\t %s\n'
-                '\t %s\n' % (
-                    url,
-                    'git+https://github.com/freebsd/freebsd.git',
-                    'hg+https://bitbucket.org/birkenfeld/sphinx',
-                    'svn+http://svn.code.sf.net/p/docutils/code/trunk'
-                )
+    if url.startswith('git+'):
+        if 'vcs' not in kwargs:
+            kwargs['vcs'] = 'git'
+        return GitRepo(url, **kwargs)
+    if url.startswith('hg+'):
+        if 'vcs' not in kwargs:
+            kwargs['vcs'] = 'hg'
+        return MercurialRepo(url, **kwargs)
+    if url.startswith('svn+'):
+        if 'vcs' not in kwargs:
+            kwargs['vcs'] = 'svn'
+        return SubversionRepo(url, **kwargs)
+    else:
+        raise Exception(
+            'repo URL %s requires a vcs scheme. Prepend hg+,'
+            ' git+, svn+ to the repo URL. Examples:\n'
+            '\t %s\n'
+            '\t %s\n'
+            '\t %s\n' % (
+                url,
+                'git+https://github.com/freebsd/freebsd.git',
+                'hg+https://bitbucket.org/birkenfeld/sphinx',
+                'svn+http://svn.code.sf.net/p/docutils/code/trunk'
             )
+        )
