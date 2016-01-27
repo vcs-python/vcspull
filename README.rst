@@ -11,7 +11,7 @@ Configure via JSON / YAML config files.
 Above: Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
 
 Sync multiple git, mercurial and subversion repositories via a YAML /
-JSON file.
+JSON file. Keep projects update-to-date by fetching the latest changes.
 
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories
@@ -58,19 +58,19 @@ Python API Usage
 
 .. code-block:: python
 
-   In [1]: from vcspull.repo import Repo
+   In [1]: from vcspull.repo import create_repo
 
-   In [2]: r = Repo(url='git+https://www.github.com/tony/vim-config', cwd='/tmp/',
-            name='vim-config')
+   In [2]: r = create_repo(url='git+https://www.github.com/tony/myrepo', cwd='/tmp/',
+            name='myrepo')
 
    In [3]: r.update_repo()
-   |vim-config| (git)  Repo directory for vim-config (git) does not exist @ /tmp/vim-config
-   |vim-config| (git)  Cloning.
-   |vim-config| (git)  git clone --progress https://www.github.com/tony/vim-config /tmp/vim-config
-   Cloning into '/tmp/vim-config'...
+   |myrepo| (git)  Repo directory for myrepo (git) does not exist @ /tmp/myrepo
+   |myrepo| (git)  Cloning.
+   |myrepo| (git)  git clone --progress https://www.github.com/tony/myrepo /tmp/myrepo
+   Cloning into '/tmp/myrepo'...
    Checking connectivity... done.
-   |vim-config| (git)  git fetch
-   |vim-config| (git)  git pull
+   |myrepo| (git)  git fetch
+   |myrepo| (git)  git pull
    Already up-to-date.
 
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html

@@ -13,7 +13,7 @@ import logging
 
 from . import unittest
 from .helpers import ConfigTestCase
-from ..repo import Repo
+from ..repo import create_repo
 from ..util import run, which
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class RepoMercurial(ConfigTestCase, unittest.TestCase):
         )
         repo_name = 'my_mercurial_project'
 
-        mercurial_repo = Repo(**{
+        mercurial_repo = create_repo(**{
             'url': 'hg+file://' + os.path.join(repo_dir, repo_name),
             'cwd': self.TMP_DIR,
             'name': repo_name

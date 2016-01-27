@@ -16,7 +16,7 @@ import tempfile
 
 from . import unittest
 from .helpers import RepoTestMixin, ConfigTestCase
-from ..repo import Repo
+from ..repo import create_repo
 from ..util import run, which
 from ..exc import VCSPullException
 
@@ -38,7 +38,7 @@ class RepoSVN(RepoTestMixin, ConfigTestCase, unittest.TestCase):
         repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
         repo_name = 'my_svn_project'
 
-        svn_repo = Repo(**{
+        svn_repo = create_repo(**{
             'url': 'svn+file://' + os.path.join(repo_dir, repo_name),
             'cwd': self.TMP_DIR,
             'name': repo_name

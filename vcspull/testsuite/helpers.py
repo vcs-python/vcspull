@@ -16,14 +16,12 @@ import logging
 import tempfile
 import shutil
 import uuid
-import re
 
 import kaptan
 
 from . import unittest
-from ..repo import Repo
+from ..repo import create_repo
 from ..util import run, expand_config
-from .._compat import string_types
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +63,7 @@ class EnvironmentVarGuard(object):
         for unset in self._unset:
             del self._environ[unset]
 
+
 class ConfigTestMixin(unittest.TestCase):
 
     """Contains the fresh config dict/yaml's to test against.
@@ -79,7 +78,6 @@ class ConfigTestMixin(unittest.TestCase):
         if os.path.isdir(self.TMP_DIR):
             shutil.rmtree(self.TMP_DIR)
         logger.debug('wiped %s' % self.TMP_DIR)
-
 
     def _createConfigDirectory(self):
         """Create TMP_DIR for TestCase."""
@@ -192,13 +190,13 @@ class RepoTestMixin(object):
 
     """Mixin for create Repo's for test repository."""
 
-    def create_svn_repo(self, repo_name='my_svn_project', create_repo=False):
+    def create_svn_repo(self, repo_name='my_svn_project', create_temp_repo=False):
         """Create an svn repository for tests. Return SVN repo directory.
 
         :param repo_name:
         :type repo_name:
-        :param create_repo: If true, create repository
-        :type create_repo: bool
+        :param create_temp_repo: If true, create repository
+        :type create_temp_repo: bool
         :returns: directory of svn repository
         :rtype: string
 
@@ -206,13 +204,13 @@ class RepoTestMixin(object):
 
         repo_path = os.path.join(self.TMP_DIR, 'svnrepo_{0}'.format(uuid.uuid4()))
 
-        svn_repo = Repo(**{
+        svn_repo = create_repo(**{
             'url': 'svn+file://' + os.path.join(repo_path, repo_name),
             'cwd': self.TMP_DIR,
             'name': repo_name
         })
 
-        if create_repo:
+        if create_temp_repo:
             os.mkdir(repo_path)
             run([
                 'svnadmin', 'create', svn_repo['name']
@@ -223,13 +221,13 @@ class RepoTestMixin(object):
 
         return os.path.join(repo_path, repo_name), svn_repo
 
-    def create_git_repo(self, repo_name='test git repo', create_repo=False):
+    def create_git_repo(self, repo_name='test git repo', create_temp_repo=False):
         """Create an git repository for tests. Return directory.
 
         :param repo_name:
         :type repo_name:
-        :param create_repo: If true, create repository
-        :type create_repo: bool
+        :param create_temp_repo: If true, create repository
+        :type create_temp_repo: bool
         :returns: directory of svn repository
         :rtype: string
 
@@ -237,13 +235,13 @@ class RepoTestMixin(object):
 
         repo_path = os.path.join(self.TMP_DIR, 'gitrepo_{0}'.format(uuid.uuid4()))
 
-        git_repo = Repo(**{
+        git_repo = create_repo(**{
             'url': 'git+file://' + os.path.join(repo_path, repo_name),
             'cwd': self.TMP_DIR,
             'name': repo_name
         })
 
-        if create_repo:
+        if create_temp_repo:
             os.mkdir(repo_path)
             run([
                 'git', 'init', git_repo['name']
@@ -267,13 +265,13 @@ class RepoTestMixin(object):
 
         return os.path.join(repo_path, repo_name), git_repo
 
-    def create_mercurial_repo(self, repo_name='test hg repo', create_repo=False):
+    def create_mercurial_repo(self, repo_name='test hg repo', create_temp_repo=False):
         """Create an hg repository for tests. Return directory.
 
         :param repo_name:
         :type repo_name:
-        :param create_repo: If true, create repository
-        :type create_repo: bool
+        :param create_temp_repo: If true, create repository
+        :type create_temp_repo: bool
         :returns: directory of hg repository
         :rtype: string
 
@@ -281,13 +279,13 @@ class RepoTestMixin(object):
 
         repo_path = os.path.join(self.TMP_DIR, 'hgrepo_{0}'.format(uuid.uuid4()))
 
-        mercurial_repo = Repo(**{
+        mercurial_repo = create_repo(**{
             'url': 'hg+file://' + os.path.join(repo_path, repo_name),
             'cwd': self.TMP_DIR,
             'name': repo_name
         })
 
-        if create_repo:
+        if create_temp_repo:
             os.mkdir(repo_path)
             run([
                 'hg', 'init', mercurial_repo['name']], cwd=repo_path
@@ -308,7 +306,6 @@ class RepoTestMixin(object):
                 ], cwd=os.path.join(repo_path, repo_name))
 
         return os.path.join(repo_path, repo_name), mercurial_repo
-
 
 
 class RepoIntegrationTest(RepoTestMixin, ConfigTestCase, unittest.TestCase):
