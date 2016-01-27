@@ -107,6 +107,14 @@ def cli(log_level, repos):
     configs = find_configs(include_home=True)
     configs = load_configs(configs)
     for repo in repos:
+        dirmatch, repomatch = None, None
+        if any(repo.startswith(n) for n in ['./', '/', '~', '$HOME']):
+            dirmatch = repo
+            repo = None
+        elif any(repo.startswith(n) for n in ['http', 'git', 'svn']):
+            dirmatch = repo
+            repo = None
+
         repos = get_repos(
             configs,
             dirmatch=None,
