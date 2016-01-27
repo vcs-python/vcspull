@@ -11,7 +11,7 @@ Configure via JSON / YAML config files.
 Above: Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
 
 Sync multiple git, mercurial and subversion repositories via a YAML /
-JSON file.
+JSON file. Keep projects update-to-date by fetching the latest changes.
 
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories
