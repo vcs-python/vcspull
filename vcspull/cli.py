@@ -7,13 +7,12 @@ vcspull.cli
 """
 
 from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+    with_statement
 
 import os
 import logging
-import argparse
 
-import argcomplete
+import click
 
 from . import exc
 from .__about__ import __version__
@@ -53,9 +52,6 @@ def setup_logger(log=None, level='INFO'):
 
 def get_parser():
     """Return :py:class:`argparse.ArgumentParser` instance for CLI."""
-
-    main_parser = argparse.ArgumentParser()
-
     main_parser.add_argument(
         '-c', '--config',
         dest='config',
@@ -101,27 +97,26 @@ def get_parser():
     return main_parser
 
 
-def main():
-    """Main CLI application."""
-
-    parser = get_parser()
-
-    argcomplete.autocomplete(parser, always_complete_options=False)
-
-    args = parser.parse_args()
-
+@click.command()
+@click.option('--log_level', default='INFO', help='log level you want')
+@click.argument('repos', nargs=-1)
+def cli(log_level, repos):
     setup_logger(
-        level=args.log_level.upper() if 'log_level' in args else 'INFO'
+        level=log_level.upper()
     )
-
-    try:
-        if not args.config or args.config and args.callback is command_load:
-            command_load(args)
-        else:
-            parser.print_help()
-    except KeyboardInterrupt:
-        pass
-
+    configs = find_configs(include_home=True)
+    configs = load_configs(configs)
+    for repo in repos:
+        repos = get_repos(
+            configs,
+            dirmatch=None,
+            repomatch=None,
+            namematch=repo
+        )
+        for repo_dict in repos:
+            r = create_repo(**repo_dict)
+            log.debug('%s' % r)
+            r.update_repo()
 
 def command_load(args):
     """Load YAML and JSON configs and begin creating / updating repos."""
@@ -147,7 +142,7 @@ def command_load(args):
         raise exc.NoConfigsFound(NO_REPOS_FOUND)
 
 
-class ConfigFileCompleter(argcomplete.completers.FilesCompleter):
+class ConfigFileCompleter(object):
 
     """argcomplete completer for vcspull files."""
 

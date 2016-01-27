@@ -2,3 +2,4 @@ kaptan
 pyyaml
 argcomplete
 colorama
+click==6.2

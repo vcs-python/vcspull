@@ -16,8 +16,7 @@ import os
 def run():
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, base)
-    import vcspull
-    vcspull.cli.main()
+    import vcspull.cli
 
 if __name__ == '__main__':
     exit = run()
