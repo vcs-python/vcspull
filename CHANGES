@@ -7,12 +7,15 @@ Here you can find the recent changes to vcspull
 CURRENT
 -------
 
-- [internal] - major internal cleanup of dead code, pep8 style updates.
+- [internal]: major internal cleanup of dead code, pep8 style updates.
+- [git] [ tests]: fix git+https remotes `#14`_, add regression tests.
+
+.. _#14: https://github.com/tony/vcspull/issues/14
 
 0.2.2
 -----
 
-- [internal] - devendorize colorama
+- [internal]: devendorize colorama
 
 0.2.1
 -----
