@@ -7,6 +7,8 @@ Here you can find the recent changes to vcspull
 CURRENT
 -------
 
+- [api][internal]: Refactor :class:`vcspull.repo.Repo` factory class
+  into :func:`vcspull.repo.create_repo`.
 - [internal]: major internal cleanup of dead code, pep8 style updates.
 - [git] [ tests]: fix git+https remotes `#14`_, add regression tests.
 
