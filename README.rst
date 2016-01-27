@@ -1,5 +1,5 @@
-``vcspull`` - manage your git, mercurial and svn repositories via CLI.
-Configure via JSON / YAML config files.
+``vcspull`` - Keep all your code in sync via one command. Configure with
+JSON / YAML.
 
 |pypi| |docs| |build-status| |coverage| |license|
 
