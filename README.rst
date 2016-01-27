@@ -50,9 +50,6 @@ Use `fnmatch`_:
     # any repo starting with "fla"
     $ vcspull "fla*"
     
-    # inside of a directory with "co" anywhere, on github.
-    $ vcspull -d "*co*" -r "*github.com*" "fla*"
-
 Python API Usage
 ----------------
 
