@@ -68,7 +68,7 @@ class AliasedGroup(click.Group):
 @click.option('--log_level', default='INFO',
               help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
 @click.version_option(version=__version__, message='%(prog)s %(version)s')
-def cli(log_level, version):
+def cli(log_level):
     setup_logger(
         level=log_level.upper()
     )
