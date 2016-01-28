@@ -58,10 +58,12 @@ def cli(log_level, repos, version):
     setup_logger(
         level=log_level.upper()
     )
-    configs = load_configs(find_config_files(include_home=True))
+
     if version:
         print('vcspull %s' % __version__)
         return
+
+    configs = load_configs(find_config_files(include_home=True))
     for repo in repos:
         dirmatch, vcsurlmatch = None, None
         if any(repo.startswith(n) for n in ['./', '/', '~', '$HOME']):
