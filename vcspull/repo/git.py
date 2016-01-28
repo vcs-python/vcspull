@@ -9,12 +9,9 @@ From https://github.com/saltstack/salt (Apache License):
 - :py:meth:`~._git_ssh_helper`
 - :py:meth:`~._git_run`
 - :py:meth:`GitRepo.revision`
-- :py:meth:`GitRepo.submodule`
 - :py:meth:`GitRepo.remote`
 - :py:meth:`GitRepo.remote_get`
 - :py:meth:`GitRepo.remote_set`
-- :py:meth:`GitRepo.fetch`
-- :py:meth:`GitRepo.current_branch`
 - :py:meth:`GitRepo.reset`
 
 From pip (MIT Licnese):
