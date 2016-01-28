@@ -280,6 +280,14 @@ class GitRepo(BaseRepo):
 
     @staticmethod
     def chomp_protocol(url):
+        """Return clean VCS url from RFC-style url
+
+        :param url: url
+        :type url: string
+        :return type: string
+        :returns: url as VCS software would accept it
+        :seealso: #14
+        """
         if '+' in url:
             url = url.split('+', 1)[1]
         scheme, netloc, path, query, frag = urlparse.urlsplit(url)
@@ -309,10 +317,8 @@ class GitRepo(BaseRepo):
 
         """
 
-        # See #14, only use http/https prefix on remotes
-        # However, git+ssh:// is works fine as remote url
-
         url = self.chomp_protocol(url)
+
         if not cwd:
             cwd = self['path']
         if self.remote_get(cwd, name):
