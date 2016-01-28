@@ -120,22 +120,23 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         ConfigTestCase.setUp(self)
         ConfigTestMixin.setUp(self)
 
-        config_yaml = """
+        path_ = """
         '~/study/':
             sphinx: hg+file://{hg_repo_path}
             docutils: svn+file://{svn_repo_path}
             linux: git+file://{git_repo_path}
         '${HOME}/github_projects/':
             kaptan:
-                repo: git+file://{git_repo_path}
+                url: git+file://{git_repo_path}
                 remotes:
                     test_remote: git+file://{git_repo_path}
         '~':
             .vim:
-                repo: git+file://{git_repo_path}
+                url: git+file://{git_repo_path}
             .tmux:
-                repo: git+file://{git_repo_path}
+                url: git+file://{git_repo_path}
         """
+        config_yaml = path_
 
         config_json = """
         {
@@ -146,7 +147,7 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
           },
           "${HOME}/github_projects/": {
             "kaptan": {
-              "repo": "git+file://${git_repo_path}",
+              "url": "git+file://${git_repo_path}",
               "remotes": {
                 "test_remote": "git+file://${git_repo_path}"
               }
@@ -486,7 +487,7 @@ class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
         config_yaml3 = """
         {TMP_DIR}/srv/www/test/:
             subRepoDiffVCS:
-                repo: svn+file://${svn_repo_path}
+                url: svn+file://${svn_repo_path}
             subRepoSameVCS: git+file://${git_repo_path}
             vcsOn1: svn+file://${svn_repo_path}
         """
@@ -494,7 +495,7 @@ class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
         config_yaml4 = """
         {TMP_DIR}/srv/www/test/:
             subRepoDiffVCS:
-                repo: git+file://${git_repo_path}
+                url: git+file://${git_repo_path}
             subRepoSameVCS: git+file://${git_repo_path}
             vcsOn2: svn+file://${svn_repo_path}
         """

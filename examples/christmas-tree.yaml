@@ -5,13 +5,13 @@
     docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
 ~/github_projects/:
     kaptan:
-        repo: git+https://github.com/emre/kaptan
+        url: git+https://github.com/emre/kaptan
         remotes:
             upstream: git+https://github.com/emre/kaptan
             marksteve: git+https://github.com/marksteve/kaptan.git
             tony: git+git@github.com:tony/kaptan.git
 ~:
     .vim:
-        repo: git+git@github.com:tony/vim-config.git
+        url: git+git@github.com:tony/vim-config.git
     .tmux:
-        repo: git+git@github.com:tony/tmux-config.git
+        url: git+git@github.com:tony/tmux-config.git

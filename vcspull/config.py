@@ -68,13 +68,13 @@ def expand_config(config):
 
             to
 
-            repo_name: { repo: 'http://myrepo.com/repo.git' }
+            repo_name: { url: 'http://myrepo.com/repo.git' }
 
             also assures the repo is a :py:class:`dict`.
             '''
 
             if isinstance(repo_data, string_types):
-                config[directory][repo] = {'repo': repo_data}
+                config[directory][repo] = {'url': repo_data}
 
             '''
             ``shell_command_after``: if str, turn to list.
@@ -226,14 +226,14 @@ def load_configs(configs):
                         if repo_name in configdict[path]:
                             if newconfigdict[path][repo_name] != configdict[path][repo_name]:
                                 print('same path + repo for %s' % repo_name)
-                                if newconfigdict[path][repo_name]['repo'] != configdict[path][repo_name]['repo']:
+                                if newconfigdict[path][repo_name]['url'] != configdict[path][repo_name]['url']:
                                     msg = (
                                         'same path + repo, different vcs (%s)\n'
                                         '%s\n%s' %
                                         (
                                             repo_name,
-                                            configdict[path][repo_name]['repo'],
-                                            newconfigdict[path][repo_name]['repo']
+                                            configdict[path][repo_name]['url'],
+                                            newconfigdict[path][repo_name]['url']
                                         )
                                     )
                                     raise Exception(msg)

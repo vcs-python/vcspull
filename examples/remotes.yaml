@@ -1,6 +1,6 @@
 ~/workspace/:
   kaptan:
-    repo: git+https://github.com/emre/kaptan
+    url: git+https://github.com/emre/kaptan
     remotes:
       upstream: git+https://github.com/emre/kaptan
       marksteve: git+https://github.com/marksteve/kaptan.git

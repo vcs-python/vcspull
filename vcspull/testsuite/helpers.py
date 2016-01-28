@@ -93,16 +93,16 @@ class ConfigTestMixin(unittest.TestCase):
             docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
         {TMP_DIR}/github_projects/:
             kaptan:
-                repo: git+git@github.com:tony/kaptan.git
+                url: git+git@github.com:tony/kaptan.git
                 remotes:
                     upstream: git+https://github.com/emre/kaptan
                     marksteve: git+https://github.com/marksteve/kaptan.git
         {TMP_DIR}:
             .vim:
-                repo: git+git@github.com:tony/vim-config.git
+                url: git+git@github.com:tony/vim-config.git
                 shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
             .tmux:
-                repo: git+git@github.com:tony/tmux-config.git
+                url: git+git@github.com:tony/tmux-config.git
                 shell_command_after:
                     - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
         """
@@ -116,7 +116,7 @@ class ConfigTestMixin(unittest.TestCase):
             },
             '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR): {
                 'kaptan': {
-                    'repo': 'git+git@github.com:tony/kaptan.git',
+                    'url': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
                         'upstream': 'git+https://github.com/emre/kaptan',
                         'marksteve': 'git+https://github.com/marksteve/kaptan.git'
@@ -125,11 +125,11 @@ class ConfigTestMixin(unittest.TestCase):
             },
             '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR): {
                 '.vim': {
-                    'repo': 'git+git@github.com:tony/vim-config.git',
+                    'url': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
                 },
                 '.tmux': {
-                    'repo': 'git+git@github.com:tony/tmux-config.git',
+                    'url': 'git+git@github.com:tony/tmux-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
                 }
             }
@@ -139,14 +139,14 @@ class ConfigTestMixin(unittest.TestCase):
 
         config_dict_expanded = {
             '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR): {
-                'linux': {'repo': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
-                'freebsd': {'repo': 'git+https://github.com/freebsd/freebsd.git', },
-                'sphinx': {'repo': 'hg+https://bitbucket.org/birkenfeld/sphinx', },
-                'docutils': {'repo': 'svn+http://svn.code.sf.net/p/docutils/code/trunk', },
+                'linux': {'url': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git', },
+                'freebsd': {'url': 'git+https://github.com/freebsd/freebsd.git', },
+                'sphinx': {'url': 'hg+https://bitbucket.org/birkenfeld/sphinx', },
+                'docutils': {'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk', },
             },
             '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR): {
                 'kaptan': {
-                    'repo': 'git+git@github.com:tony/kaptan.git',
+                    'url': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
                         'upstream': 'git+https://github.com/emre/kaptan',
                         'marksteve': 'git+https://github.com/marksteve/kaptan.git'
@@ -155,11 +155,11 @@ class ConfigTestMixin(unittest.TestCase):
             },
             '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR): {
                 '.vim': {
-                    'repo': 'git+git@github.com:tony/vim-config.git',
+                    'url': 'git+git@github.com:tony/vim-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
                 },
                 '.tmux': {
-                    'repo': 'git+git@github.com:tony/tmux-config.git',
+                    'url': 'git+git@github.com:tony/tmux-config.git',
                     'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
                 }
             }
@@ -340,13 +340,13 @@ class RepoIntegrationTest(RepoTestMixin, ConfigTestCase, unittest.TestCase):
             docutils: svn+file://{svn_repo_path}
         {TMP_DIR}/github_projects/deeper/:
             kaptan:
-                repo: git+file://{git_repo_path}
+                url: git+file://{git_repo_path}
                 remotes:
                     test_remote: git+file://{git_repo_path}
         {TMP_DIR}:
             samereponame: git+file://{git_repo_path}
             .tmux:
-                repo: git+file://{git_repo_path}
+                url: git+file://{git_repo_path}
         """
 
         config_json = """
@@ -357,7 +357,7 @@ class RepoIntegrationTest(RepoTestMixin, ConfigTestCase, unittest.TestCase):
           },
           "${TMP_DIR}/another_directory/": {
             "anotherkaptan": {
-              "repo": "git+file://${git_repo_path}",
+              "url": "git+file://${git_repo_path}",
               "remotes": {
                 "test_remote": "git+file://${git_repo_path}"
               }
@@ -366,12 +366,12 @@ class RepoIntegrationTest(RepoTestMixin, ConfigTestCase, unittest.TestCase):
           "${TMP_DIR}": {
             "samereponame": "git+file://${git_repo_path}",
             ".vim": {
-              "repo": "git+file://${git_repo_path}"
+              "url": "git+file://${git_repo_path}"
             }
           },
           "${TMP_DIR}/srv/www/": {
             "test": {
-              "repo": "git+file://${git_repo_path}"
+              "url": "git+file://${git_repo_path}"
             }
           }
         }

@@ -168,7 +168,7 @@ class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
 
     YAML_CONFIG = """
     {TMP_DIR}/study/python:
-        my_repo: svn+file://{REPO_DIR}
+        my_url: svn+file://{REPO_DIR}
     """
 
     def test_makes_recursive(self):

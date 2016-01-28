@@ -65,13 +65,13 @@ def expand_config(config):
 
             to
 
-            repo_name: { repo: 'http://myrepo.com/repo.git' }
+            repo_name: { url: 'http://myrepo.com/repo.git' }
 
             also assures the repo is a :py:class:`dict`.
             '''
 
             if isinstance(repo_data, string_types):
-                config[directory][repo] = {'repo': repo_data}
+                config[directory][repo] = {'url': repo_data}
 
             '''
             ``shell_command_after``: if str, turn to list.
@@ -115,14 +115,14 @@ def lookup_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
         for repo, repo_data in repos.items():
             if dirmatch and not fnmatch.fnmatch(directory, dirmatch):
                 continue
-            if vcsurlmatch and not fnmatch.fnmatch(repo_data['repo'], vcsurlmatch):
+            if vcsurlmatch and not fnmatch.fnmatch(repo_data['url'], vcsurlmatch):
                 continue
             if namematch and not fnmatch.fnmatch(repo, namematch):
                 continue
             repo_dict = {
                 'name': repo,
                 'cwd': directory,
-                'url': repo_data['repo'],
+                'url': repo_data['url'],
             }
 
             if 'remotes' in repo_data:
