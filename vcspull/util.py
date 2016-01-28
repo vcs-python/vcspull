@@ -122,7 +122,8 @@ def lookup_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
             repo_dict = {
                 'name': repo,
                 'cwd': directory,
-                'url': repo_data['url'],
+                # Work with old format of repo url key, 'repo'
+                'url': repo_data.get('url', repo_data.get('repo'))
             }
 
             if 'remotes' in repo_data:
