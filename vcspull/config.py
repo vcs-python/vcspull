@@ -156,7 +156,7 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     return any(filename.endswith(e) for e in extensions)
 
 
-def find_home_configs(filetype=['json', 'yaml']):
+def find_home_config_files(filetype=['json', 'yaml']):
     """Return configs of ``.vcspull.{yaml,json}`` in user's home directory.
 
     """
@@ -188,7 +188,7 @@ def find_home_configs(filetype=['json', 'yaml']):
     return configs
 
 
-def find_configs(
+def find_config_files(
     path=['~/.vcspull'],
     match=['*'],
     filetype=['json', 'yaml'],
@@ -217,21 +217,21 @@ def find_configs(
     configs = []
 
     if include_home is True:
-        configs.extend(find_home_configs())
+        configs.extend(find_home_config_files())
 
     if isinstance(path, list):
         for p in path:
-            configs.extend(find_configs(p, match, filetype))
+            configs.extend(find_config_files(p, match, filetype))
             return configs
     else:
         path = os.path.expanduser(path)
         if isinstance(match, list):
             for m in match:
-                configs.extend(find_configs(path, m, filetype))
+                configs.extend(find_config_files(path, m, filetype))
         else:
             if isinstance(filetype, list):
                 for f in filetype:
-                    configs.extend(find_configs(path, match, f))
+                    configs.extend(find_config_files(path, match, f))
             else:
                 match = os.path.join(path, match)
                 match += ".{filetype}".format(filetype=filetype)

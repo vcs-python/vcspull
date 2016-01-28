@@ -17,7 +17,7 @@ import click
 from . import exc
 from .__about__ import __version__
 from .util import get_repos, in_dir
-from .config import find_configs, load_configs
+from .config import find_config_files, load_configs
 from .log import DebugLogFormatter
 from .repo import create_repo
 
@@ -104,7 +104,7 @@ def cli(log_level, repos):
     setup_logger(
         level=log_level.upper()
     )
-    configs = find_configs(include_home=True)
+    configs = find_config_files(include_home=True)
     configs = load_configs(configs)
     for repo in repos:
         dirmatch, repomatch = None, None
@@ -129,7 +129,7 @@ def cli(log_level, repos):
 def command_load(args):
     """Load YAML and JSON configs and begin creating / updating repos."""
     if not args.config or args.config == ['*']:
-        configs = find_configs(include_home=True)
+        configs = find_config_files(include_home=True)
     else:
         configs = [args.config]
 
