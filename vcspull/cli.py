@@ -49,12 +49,26 @@ def setup_logger(log=None, level='INFO'):
         log.addHandler(channel)
 
 
-@click.command()
+class AliasedGroup(click.Group):
+
+    def get_command(self, ctx, cmd_name):
+        rv = click.Group.get_command(self, ctx, cmd_name)
+        if rv is not None:
+            return rv
+        matches = [x for x in self.list_commands(ctx)
+                   if x.startswith(cmd_name)]
+        if not matches:
+            return None
+        elif len(matches) == 1:
+            return click.Group.get_command(self, ctx, matches[0])
+        ctx.fail('Too many matches: %s' % ', '.join(sorted(matches)))
+
+
+@click.command(cls=AliasedGroup)
 @click.option('--log_level', default='INFO',
               help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
 @click.option('--version', is_flag=True, help='Print version info')
-@click.argument('repos', nargs=-1)
-def cli(log_level, repos, version):
+def cli(log_level, version):
     setup_logger(
         level=log_level.upper()
     )
@@ -63,6 +77,10 @@ def cli(log_level, repos, version):
         print('vcspull %s' % __version__)
         return
 
+
+@click.command(name='update')
+@click.argument('repos', nargs=-1)
+def update(repos):
     configs = load_configs(find_config_files(include_home=True))
     for repo in repos:
         dirmatch, vcsurlmatch = None, None
@@ -83,3 +101,5 @@ def cli(log_level, repos, version):
             r = create_repo(**repo_dict)
             log.debug('%s' % r)
             r.update_repo()
+
+cli.add_command(update)
