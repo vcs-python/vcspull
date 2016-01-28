@@ -15,7 +15,7 @@ import logging
 import click
 
 from .__about__ import __version__
-from .util import get_repos
+from .util import lookup_repos
 from .config import find_config_files, load_configs
 from .log import DebugLogFormatter
 from .repo import create_repo
@@ -89,7 +89,7 @@ def update(repos):
             vcsurlmatch = repo
             repo = None
 
-        repos = get_repos(
+        repos = lookup_repos(
             configs,
             dirmatch=dirmatch,
             vcsurlmatch=vcsurlmatch,

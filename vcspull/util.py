@@ -95,7 +95,7 @@ def expand_config(config):
     return config
 
 
-def get_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
+def lookup_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
     :param config: the expanded repo config in :py:class:`dict` format.
