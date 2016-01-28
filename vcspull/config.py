@@ -26,48 +26,6 @@ from ._compat import string_types
 log = logging.getLogger(__name__)
 
 
-def get_repos(config, dirmatch=None, repomatch=None, namematch=None):
-    """Return a :py:obj:`list` list of repos from (expanded) config file.
-
-    :param config: the expanded repo config in :py:class:`dict` format.
-    :type config: dict
-    :param dirmatch: array of fnmatch's for directory
-    :type dirmatch: str or None
-    :param repomatch: array of fnmatch's for vcs url
-    :type repomatch: str or None
-    :param namematch: array of fnmatch's for project name
-    :type namematch: str or None
-    :rtype: list
-    :todo: optimize performance, tests.
-
-    """
-    repo_list = []
-    for directory, repos in config.items():
-        for repo, repo_data in repos.items():
-            if dirmatch and not fnmatch.fnmatch(directory, dirmatch):
-                continue
-            if repomatch and not fnmatch.fnmatch(repo_data['repo'], repomatch):
-                continue
-            if namematch and not fnmatch.fnmatch(repo, namematch):
-                continue
-            repo_dict = {
-                'name': repo,
-                'cwd': directory,
-                'url': repo_data['repo'],
-            }
-
-            if 'remotes' in repo_data:
-                repo_dict['remotes'] = []
-                for remote_name, url in repo_data['remotes'].items():
-                    remote_dict = {
-                        'remote_name': remote_name,
-                        'url': url
-                    }
-                    repo_dict['remotes'].append(remote_dict)
-            repo_list.append(repo_dict)
-    return repo_list
-
-
 def in_dir(
     config_dir=os.path.expanduser('~/.vcspull'),
     extensions=['.yml', '.yaml', '.json']

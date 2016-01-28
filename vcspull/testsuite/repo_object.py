@@ -60,7 +60,7 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
 
         repo_list = get_repos(
             self.config_dict_expanded,
-            repomatch="*kernel.org*"
+            vcsurlmatch="*kernel.org*"
         )
 
         self.assertEqual(len(repo_list), 1)

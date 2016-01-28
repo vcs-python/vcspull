@@ -21,7 +21,6 @@ from .log import (
     LogFormatter, DebugLogFormatter, RepoLogFormatter, RepoFilter
 )
 from .cli import (
-    ConfigFileCompleter, command_load, find_config_files, get_parser,
     setup_logger
 )
 from .config import (
