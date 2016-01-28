@@ -32,6 +32,7 @@ import logging
 import tempfile
 import subprocess
 
+from .._compat import urlparse
 from .base import BaseRepo
 from ..util import run
 from .. import exc
@@ -277,6 +278,23 @@ class GitRepo(BaseRepo):
         except exc.VCSPullException:
             return None
 
+    @staticmethod
+    def chomp_protocol(url):
+        if '+' in url:
+            url = url.split('+', 1)[1]
+        scheme, netloc, path, query, frag = urlparse.urlsplit(url)
+        rev = None
+        if '@' in path:
+            path, rev = path.rsplit('@', 1)
+        url = urlparse.urlunsplit((scheme, netloc, path, query, ''))
+        if url.startswith('ssh://git@github.com/'):
+            url = url.replace('ssh://', 'git+ssh://')
+        elif '://' not in url:
+            assert 'file:' not in url
+            url = url.replace('git+', 'git+ssh://')
+            url = url.replace('ssh://', '')
+        return url
+
     def remote_set(self, cwd=None, name='origin', url=None, user=None):
         """Set remote with name and URL like git remote add <remote_name> <remote_url>.
 
@@ -293,8 +311,8 @@ class GitRepo(BaseRepo):
 
         # See #14, only use http/https prefix on remotes
         # However, git+ssh:// is works fine as remote url
-        if url.startswith('git+http'):
-            url = url.replace('git+', '')
+
+        url = self.chomp_protocol(url)
         if not cwd:
             cwd = self['path']
         if self.remote_get(cwd, name):
