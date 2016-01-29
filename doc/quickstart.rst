@@ -54,17 +54,17 @@ Now run the command, to pull all the repositories in your
 
 .. code-block:: bash
 
-    $ vcspull
+    $ vcspull up
 
 You can also use `fnmatch`_ to pull repositories from your config in
 various fashions, e.g.:
 
 .. code-block:: bash
    
-   $ vcspull django
-   $ vcspull django\*
+   $ vcspull up django
+   $ vcspull up django\*
    # or
-   $ vcspull "django*"
+   $ vcspull up "django*"
    
 Filter by vcs URL
 
@@ -74,10 +74,10 @@ repos by the vcs url.
 .. code-block:: bash
    
    # pull / update repositories I have with github in the repo url
-   $ vcspull "https://github.com/yourusername/*"
+   $ vcspull up "git+https://github.com/yourusername/*"
 
    # pull / update repositories I have with bitbucket in the repo url
-   $ vcspull "https://*bitbucket*"
+   $ vcspull up "git+https://*bitbucket*"
    
 Filter by the path of the repo on your local machine:
 
@@ -87,10 +87,10 @@ for patterns of where the project is on your system[
 .. code-block:: bash
    
    # pull all the repos I have inside of ~/study/python
-   $ vcspull "$HOME/study/python"
+   $ vcspull up "$HOME/study/python"
 
    # pull all the repos I have in directories on my config with "python"
-   $ vcspull ~/*python*"
+   $ vcspull up ~/*python*"
    
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _flask: http://flask.pocoo.org/
