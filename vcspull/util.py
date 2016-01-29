@@ -115,7 +115,7 @@ def lookup_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
         for repo, repo_data in repos.items():
             if dirmatch and not fnmatch.fnmatch(directory, dirmatch):
                 continue
-            if vcsurlmatch and not fnmatch.fnmatch(repo_data['url'], vcsurlmatch):
+            if vcsurlmatch and not fnmatch.fnmatch(repo_data.get('url', repo_data.get('repo')), vcsurlmatch):
                 continue
             if namematch and not fnmatch.fnmatch(repo, namematch):
                 continue
