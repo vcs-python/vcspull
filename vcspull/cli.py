@@ -22,13 +22,6 @@ from .repo import create_repo
 
 log = logging.getLogger(__name__)
 
-NO_REPOS_FOUND = """
-    No repositories found.
-
-    Check out the documentation at http://vcspull.rtfd.org for
-    examples.
-"""
-
 config_dir = os.path.expanduser('~/.vcspull/')
 
 
