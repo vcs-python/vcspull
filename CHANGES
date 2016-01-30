@@ -7,10 +7,23 @@ Here you can find the recent changes to vcspull
 CURRENT
 -------
 
+Breaking Changes:
+
+- [cli]: The command to update repositories is now ``vcspull u``, 
+  ``vcspull up`` or ``vcspull update``::
+
+      $ vcspull up neovim
+      $ vcspull up neovim vim django
+- [cli] vcspull will use the beginning part of the argument to determine
+  if its searching by vcs URL, repository name or system path.
+- [config] ``repo`` (the longform for the vcs url) is now ``url``.
 - [api][internal]: Refactor :class:`vcspull.repo.Repo` factory class
   into :func:`vcspull.repo.create_repo`.
+
+Other:
+
 - [internal]: major internal cleanup of dead code, pep8 style updates.
-- [git] [ tests]: fix git+https remotes `#14`_, add regression tests.
+- [git] [tests]: fix git+https remotes `#14`_, add regression tests.
 
 .. _#14: https://github.com/tony/vcspull/issues/14
 
