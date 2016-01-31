@@ -14,7 +14,8 @@ import unittest
 import kaptan
 
 from ..repo import BaseRepo, GitRepo, MercurialRepo, SubversionRepo, create_repo
-from ..util import expand_config, lookup_repos
+from ..util import lookup_repos
+from ..config import expand_config
 from .helpers import ConfigTestCase, RepoTestMixin
 
 

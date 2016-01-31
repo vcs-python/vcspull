@@ -21,7 +21,8 @@ import kaptan
 
 from . import unittest
 from ..repo import create_repo
-from ..util import run, expand_config
+from ..config import expand_config
+from ..util import run
 
 logger = logging.getLogger(__name__)
 

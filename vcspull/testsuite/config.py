@@ -18,7 +18,7 @@ from testfixtures import compare
 import kaptan
 
 from .. import exc
-from ..util import expand_config, flatten_config
+from ..config import expand_config, flatten_config
 
 from . import unittest
 from .helpers import (
