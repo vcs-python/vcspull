@@ -14,10 +14,11 @@ import os
 import copy
 import logging
 
+from testfixtures import compare
 import kaptan
 
 from .. import exc
-from ..util import expand_config
+from ..util import expand_config, flatten_config
 
 from . import unittest
 from .helpers import (
@@ -113,6 +114,59 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
         self.assertDictEqual(config, self.config_dict_expanded)
 
 
+class ConfigFlattenTest(ConfigTestCase, unittest.TestCase):
+
+    """Expand configuration into its flattened / list form."""
+
+    def get_flattened_config(self):
+        return [
+            {'name': 'linux', 'url': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR)},
+            {'name': 'freebsd', 'url': 'git+https://github.com/freebsd/freebsd.git',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR)},
+            {'name': 'sphinx', 'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR)},
+            {'name': 'docutils', 'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR)},
+            {
+                'name': 'kaptan',
+                'cwd': '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
+                'url': 'git+git@github.com:tony/kaptan.git',
+                'remotes': {
+                    'upstream': 'git+https://github.com/emre/kaptan',
+                    'marksteve': 'git+https://github.com/marksteve/kaptan.git'
+                }
+            },
+            {
+                'name': '.vim',
+                'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
+                'url': 'git+git@github.com:tony/vim-config.git',
+                'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
+            },
+            {
+                'name': '.tmux',
+                'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
+                'url': 'git+git@github.com:tony/tmux-config.git',
+                'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
+            }
+        ]
+
+    def test_flatten_config(self):
+        self.maxDiff = None
+
+        config = expand_config(self.config_dict)
+        config = flatten_config(config)
+
+        self.assertIsInstance(config, list)
+        self.assertEqual(len(config), len(self.get_flattened_config()))
+        compare(
+            sorted(config, key=lambda k: k['name']),
+            sorted(self.get_flattened_config(), key=lambda k: k['name'])
+        )
+
+    def assertListDictEqual(self, conf1, conf2):
+        self.assertCountEqual(conf1, conf2)
+
 class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
     """Verify .expandvars and .expanduser works with configs."""
 
@@ -183,6 +237,7 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
 
 
 class InDirTest(ConfigTestCase):
+
     def setUp(self):
 
         ConfigTestCase.setUp(self)
@@ -579,6 +634,7 @@ def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ConfigExpandTest))
     suite.addTest(unittest.makeSuite(ConfigFormatTest))
+    suite.addTest(unittest.makeSuite(ConfigFlattenTest))
     suite.addTest(unittest.makeSuite(ConfigImportExportTest))
     suite.addTest(unittest.makeSuite(ExpandUserExpandVars))
     suite.addTest(unittest.makeSuite(RepoIntegrationTest))

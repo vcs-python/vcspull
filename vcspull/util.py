@@ -95,6 +95,23 @@ def expand_config(config):
     return config
 
 
+def flatten_config(config):
+    """Return config flattened into a list of dictionary.
+
+    :param config: expanded config
+    :type config: dict
+    :rtype: list of dict
+    """
+
+    repos = []
+    for repocwd, reponode in config.items():
+        for reponame, repo in reponode.items():
+            repo['name'] = reponame
+            repo['cwd'] = repocwd
+            repos.append(repo)
+    return repos
+
+
 def lookup_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
