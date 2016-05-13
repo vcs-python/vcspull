@@ -76,7 +76,7 @@ def update(repos):
         if any(repo.startswith(n) for n in ['./', '/', '~', '$HOME']):
             dirmatch = repo
             repo = None
-        elif any(repo.startswith(n) for n in ['http', 'git', 'svn']):
+        elif any(repo.startswith(n) for n in ['http', 'git', 'svn', 'hg']):
             vcsurlmatch = repo
             repo = None
 
