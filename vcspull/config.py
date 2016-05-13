@@ -13,7 +13,6 @@ from __future__ import (
 )
 
 import os
-import fnmatch
 import glob
 import logging
 
@@ -108,17 +107,13 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     :rtype: bool
 
     """
-
     extensions = [extensions] if isinstance(
         extensions, string_types) else extensions
     return any(filename.endswith(e) for e in extensions)
 
 
 def find_home_config_files(filetype=['json', 'yaml']):
-    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory.
-
-    """
-
+    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
     configs = []
 
     yaml_config = os.path.expanduser('~/.vcspull.yaml')
@@ -171,7 +166,6 @@ def find_config_files(
     :rtype: list
 
     """
-
     configs = []
 
     if include_home is True:
@@ -208,7 +202,6 @@ def load_configs(configs):
     :rtype: iter(dict)
 
     """
-
     configdict = {}
 
     # rewrite this...
@@ -228,12 +221,13 @@ def load_configs(configs):
                                 print('same path + repo for %s' % repo_name)
                                 if newconfigdict[path][repo_name]['url'] != configdict[path][repo_name]['url']:
                                     msg = (
-                                        'same path + repo, different vcs (%s)\n'
+                                        'same path + repo, diffvcs (%s)\n'
                                         '%s\n%s' %
                                         (
                                             repo_name,
                                             configdict[path][repo_name]['url'],
-                                            newconfigdict[path][repo_name]['url']
+                                            newconfigdict[path][
+                                                repo_name]['url']
                                         )
                                     )
                                     raise Exception(msg)
@@ -247,54 +241,6 @@ def load_configs(configs):
 
     return configdict
 
-def expand_config(config):
-    """Return expanded configuration.
-
-    end-user configuration permit inline configuration shortcuts, expand to
-    identical format for parsing.
-
-    :param config: the repo config in :py:class:`dict` format.
-    :type config: dict
-    :rtype: dict
-
-    """
-    for directory, repos in config.items():
-        for repo, repo_data in repos.items():
-
-            '''
-            repo_name: http://myrepo.com/repo.git
-
-            to
-
-            repo_name: { url: 'http://myrepo.com/repo.git' }
-
-            also assures the repo is a :py:class:`dict`.
-            '''
-
-            if isinstance(repo_data, string_types):
-                config[directory][repo] = {'url': repo_data}
-
-            '''
-            ``shell_command_after``: if str, turn to list.
-            '''
-            if 'shell_command_after' in repo_data:
-                if isinstance(repo_data['shell_command_after'], string_types):
-                    repo_data['shell_command_after'] = [
-                        repo_data['shell_command_after']
-                    ]
-
-    config = dict(
-        (os.path.expandvars(directory), repo_data) for
-        directory, repo_data in config.items()
-    )
-
-    config = dict(
-        (os.path.expanduser(directory), repo_data) for
-        directory, repo_data in config.items()
-    )
-
-    return config
-
 
 def flatten_config(config):
     """Return config flattened into a list of dictionary.
@@ -303,7 +249,6 @@ def flatten_config(config):
     :type config: dict
     :rtype: list of dict
     """
-
     repos = []
     for repocwd, reponode in config.items():
         for reponame, repo in reponode.items():
@@ -311,6 +256,3 @@ def flatten_config(config):
             repo['cwd'] = repocwd
             repos.append(repo)
     return repos
-
-
-
