@@ -1,5 +1,5 @@
 kaptan
 pyyaml
 colorama
-click==6.2
-testfixtures==4.7.0
+click==6.6 # Updated from 6.2
+testfixtures==4.9.1 # Updated from 4.7.0
