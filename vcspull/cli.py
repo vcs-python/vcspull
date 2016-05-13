@@ -80,12 +80,15 @@ def update(repos):
             vcsurlmatch = repo
             repo = None
 
+        # collect the repos from the config files
         repos = lookup_repos(
             configs,
             dirmatch=dirmatch,
             vcsurlmatch=vcsurlmatch,
             namematch=repo
         )
+
+        # turn them into :class:`Repo` objects and clone/update them
         for repo_dict in repos:
             r = create_repo(**repo_dict)
             log.debug('%s' % r)
