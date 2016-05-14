@@ -74,6 +74,7 @@ def expand_config(config):
 
             if isinstance(repo_data, string_types):
                 config[directory][repo] = {'url': repo_data}
+                repo_data = config[directory][repo]
 
             '''
             ``shell_command_after``: if str, turn to list.
@@ -83,6 +84,13 @@ def expand_config(config):
                     repo_data['shell_command_after'] = [
                         repo_data['shell_command_after']
                     ]
+
+            if 'name' not in repo_data:
+                repo_data['name'] = repo
+            if 'cwd' not in repo_data:
+                repo_data['cwd'] = directory
+            if 'full_path' not in repo_data:
+                repo_data['full_path'] = os.path.join(repo_data['cwd'], repo_data['name'])
 
     config = dict(
         (os.path.expandvars(directory), repo_data)
@@ -193,8 +201,33 @@ def find_config_files(
     return configs
 
 
+def _check_duplicate_repo(repo1, repo2):
+    """Return if repos are a duplicate path or url.
+
+    :param repo1: repo
+    :type repo1: :py:`dict`
+    :param repo2: repo
+    :type repo2: :py:`dict`
+    :rtype: bool
+    """
+    if repo1 != repo2:
+        print('same path + repo for %s' % repo1)
+        if repo1['url'] != repo2['url']:
+            msg = (
+                'same path + repo, diffvcs (%s)\n'
+                '%s\n' %
+                (
+                    repo1['url'],
+                    repo2['url'],
+                )
+            )
+            raise Exception(msg)
+
+
 def load_configs(configs):
     """Return repos from a directory and fnmatch. Not recursive.
+
+    :todo: Validate scheme, check for duplciate destinations, VCS urls
 
     :param configs: paths to config file
     :type path: list
@@ -203,8 +236,6 @@ def load_configs(configs):
 
     """
     configdict = {}
-
-    # rewrite this...
     for config in configs:
         fName, fExt = os.path.splitext(config)
         conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
@@ -232,10 +263,6 @@ def load_configs(configs):
                                     )
                                     raise Exception(msg)
         configdict = update_dict(configdict, newconfigdict)
-        # configdict.update(conf.export('dict'))
-
-    # if configs load and validate_schema, then load.
-    # configs = [config for config in configs if validate_schema(config)]
 
     configdict = expand_config(configdict)
 

@@ -14,8 +14,9 @@ import os
 import copy
 import logging
 
-from testfixtures import compare
 import kaptan
+
+from testfixtures import compare
 
 from .. import exc
 from ..config import expand_config, flatten_config
@@ -120,17 +121,34 @@ class ConfigFlattenTest(ConfigTestCase, unittest.TestCase):
 
     def get_flattened_config(self):
         return [
-            {'name': 'linux', 'url': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR)},
-            {'name': 'freebsd', 'url': 'git+https://github.com/freebsd/freebsd.git',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR)},
-            {'name': 'sphinx', 'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR)},
-            {'name': 'docutils', 'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR)},
+            {
+                'name': 'linux',
+                'url': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux')
+            },
+            {
+                'name': 'freebsd',
+                'url': 'git+https://github.com/freebsd/freebsd.git',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd')
+            },
+            {
+                'name': 'sphinx',
+                'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'),
+            },
+            {
+                'name': 'docutils',
+                'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'docutils'),
+            },
             {
                 'name': 'kaptan',
                 'cwd': '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR), 'kaptan'),
                 'url': 'git+git@github.com:tony/kaptan.git',
                 'remotes': {
                     'upstream': 'git+https://github.com/emre/kaptan',
@@ -140,12 +158,14 @@ class ConfigFlattenTest(ConfigTestCase, unittest.TestCase):
             {
                 'name': '.vim',
                 'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'),
                 'url': 'git+git@github.com:tony/vim-config.git',
                 'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
             },
             {
                 'name': '.tmux',
                 'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'),
                 'url': 'git+git@github.com:tony/tmux-config.git',
                 'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
             }
