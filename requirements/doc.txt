@@ -1,4 +1,4 @@
--r ../requirements.pip
+-r ./base.txt
 sphinx
 sphinx-argparse>=0.1.4
 sphinx_rtd_theme

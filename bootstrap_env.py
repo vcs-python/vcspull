@@ -7,7 +7,6 @@ from __future__ import (
 import os
 import sys
 import subprocess
-import platform
 
 
 def warning(*objs):
@@ -22,7 +21,7 @@ PY2 = sys.version_info[0] == 2
 if PY2:
     from urllib import urlretrieve
 else:
-    from urllib.request import urlretrieve
+    from urllib.request import urlretrieve  # noqa
 
 
 def has_module(module_name):
@@ -81,11 +80,15 @@ python_bin = os.path.join(env_dir, 'bin', 'python')
 virtualenv_bin = which('virtualenv', throw=False)
 virtualenv_exists = os.path.exists(env_dir) and os.path.isfile(python_bin)
 entr_bin = which('entr', throw=False)
-sphinx_requirements_filepath = os.path.join(project_dir, 'doc', 'requirements.pip')
+nvim_bin = which('nvim', throw=False)
+dev_reqs_fpath = os.path.join(project_dir, 'requirements', 'dev.txt')
+test_reqs_fpath = os.path.join(project_dir, 'requirements', 'test.txt')
+test27_reqs_fpath = os.path.join(project_dir, 'requirements', 'test-py27.txt')
+sphinx_reqs_fpath = os.path.join(project_dir, 'requirements', 'doc.txt')
 
 
 try:
-    import virtualenv
+    import virtualenv # noqa
 except ImportError:
     message = (
         'Virtualenv is required for this bootstrap to run.\n'
@@ -96,7 +99,7 @@ except ImportError:
 
 
 try:
-    import pip
+    import pip # noqa
 except ImportError:
     message = (
         'pip is required for this bootstrap to run.\n'
@@ -127,14 +130,39 @@ def main():
         )
         print(message)
 
-    if not os.path.isfile(os.path.join(env_dir, 'bin', 'mock')):
+    # neovim requires this to be installed in the virtualenv 05/13/2016
+    if nvim_bin:
+        try:
+            import neovim # noqa
+        except ImportError:
+            subprocess.check_call(
+                [pip_bin, 'install', 'neovim']
+            )
+
+    try:
+        import testfixtures  # noqa
+        import mock # noqa
+    except ImportError:
         subprocess.check_call(
-            [pip_bin, 'install', 'mock']
+            [pip_bin, 'install', '-r', test_reqs_fpath]
+        )
+
+    if sys.version_info < (2, 7):
+        try:
+            import unittest2  # noqa
+        except ImportError:
+            subprocess.check_call(
+                [pip_bin, 'install', '-r', test27_reqs_fpath]
+            )
+
+    if not os.path.isfile(os.path.join(env_dir, 'bin', 'flake8')):
+        subprocess.check_call(
+            [pip_bin, 'install', '-r', dev_reqs_fpath]
         )
 
     if not os.path.isfile(os.path.join(env_dir, 'bin', 'sphinx-quickstart')):
         subprocess.check_call(
-            [pip_bin, 'install', '-r', sphinx_requirements_filepath]
+            [pip_bin, 'install', '-r', sphinx_reqs_fpath]
         )
 
     if os.path.exists(os.path.join(env_dir, 'build')):
