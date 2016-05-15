@@ -101,7 +101,6 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
 
     def test_expand_shell_command_after(self):
         """Expand shell commands from string to list."""
-
         self.maxDiff = None
 
         config = expand_config(self.config_dict)
@@ -110,6 +109,7 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
 
 
 class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
+
     """Verify .expandvars and .expanduser works with configs."""
 
     def setUp(self):
@@ -169,7 +169,11 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         config2_expanded = expand_config(self.config2)
 
         paths = pydash.collections.pluck(config1_expanded, 'cwd')
-        self.assertIn(os.path.expanduser(os.path.expandvars('${HOME}/github_projects/')), paths)
+        self.assertIn(
+            os.path.expanduser(
+                os.path.expandvars('${HOME}/github_projects/')
+            ), paths
+        )
         self.assertIn(os.path.expanduser('~/study/'), paths)
         self.assertIn(os.path.expanduser('~'), paths)
 
@@ -554,7 +558,6 @@ class LoadConfigsDuplicate(RepoIntegrationDuplicateTest):
 
     def test_duplicate_path_diff_vcs(self):
         """Duplicate path + name with different repo URL / remotes raises."""
-
         configs = config.find_config_files(
             path=self.CONFIG_DIR,
             match="repoduplicate[1-2]"
@@ -587,4 +590,3 @@ def suite():
     suite.addTest(unittest.makeSuite(LoadConfigsDuplicate))
 
     return suite
-

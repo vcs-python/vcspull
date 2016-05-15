@@ -32,9 +32,6 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         )
 
         self.assertEqual(len(repo_list), 1)
-        repo_key = '{TMP_DIR}/github_projects/'.format(
-            TMP_DIR=self.TMP_DIR,
-        )
         for r in repo_list:
             self.assertEqual(r['name'], 'kaptan')
 
@@ -48,9 +45,6 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         )
 
         self.assertEqual(len(repo_list), 1)
-        repo_key = '{TMP_DIR}'.format(
-            TMP_DIR=self.TMP_DIR,
-        )
         for r in repo_list:
             self.assertEqual(r['name'], '.vim')
 
@@ -64,9 +58,6 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         )
 
         self.assertEqual(len(repo_list), 1)
-        repo_key = '{TMP_DIR}/study/'.format(
-            TMP_DIR=self.TMP_DIR,
-        )
         for r in repo_list:
             self.assertEqual(r['name'], 'linux')
 
@@ -107,7 +98,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         """
 
         git_repo = create_repo(**{
-            'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709',
+            'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
             'cwd': self.TMP_DIR,
             'name': 'myproject1'
         })

@@ -109,7 +109,7 @@ def import_string(import_name, silent=False):
             return __import__(import_name)
         # __import__ is not able to handle unicode strings in the fromlist
         # if the module is a package
-        if PY2 and isinstance(obj, unicode):
+        if PY2 and isinstance(obj, string_types):
             obj = obj.encode('utf-8')
         try:
             return getattr(__import__(module, None, None, [obj]), obj)

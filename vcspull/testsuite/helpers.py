@@ -28,10 +28,11 @@ logger = logging.getLogger(__name__)
 
 class EnvironmentVarGuard(object):
 
-    """Class to help protect the environment variable properly.  Can be used as
-    a context manager.
-      Vendorize to fix issue with Anaconda Python 2 not
-      including test module, see #121.
+    """Class to help protect the environment variable properly.
+
+    May be used as context manager.
+    Vendorize to fix issue with Anaconda Python 2 not
+    including test module, see #121.
     """
 
     def __init__(self):
@@ -84,7 +85,7 @@ class ConfigTestMixin(unittest.TestCase):
 
         config_yaml = """
         {TMP_DIR}/study/:
-            linux: git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+            linux: git+git://git.kernel.org/linux/torvalds/linux.git
             freebsd: git+https://github.com/freebsd/freebsd.git
             sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
             docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
@@ -93,20 +94,20 @@ class ConfigTestMixin(unittest.TestCase):
                 url: git+git@github.com:tony/kaptan.git
                 remotes:
                     upstream: git+https://github.com/emre/kaptan
-                    marksteve: git+https://github.com/marksteve/kaptan.git
+                    ms: git+https://github.com/ms/kaptan.git
         {TMP_DIR}:
             .vim:
                 url: git+git@github.com:tony/vim-config.git
-                shell_command_after: ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc
+                shell_command_after: ln -sf /home/u/.vim/.vimrc /home/u/.vimrc
             .tmux:
                 url: git+git@github.com:tony/tmux-config.git
                 shell_command_after:
-                    - ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf
+                    - ln -sf /home/u/.tmux/.tmux.conf /home/u/.tmux.conf
         """
 
         config_dict = {
             '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR): {
-                'linux': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
+                'linux': 'git+git://git.kernel.org/linux/torvalds/linux.git',
                 'freebsd': 'git+https://github.com/freebsd/freebsd.git',
                 'sphinx': 'hg+https://bitbucket.org/birkenfeld/sphinx',
                 'docutils': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
@@ -116,18 +117,21 @@ class ConfigTestMixin(unittest.TestCase):
                     'url': 'git+git@github.com:tony/kaptan.git',
                     'remotes': {
                         'upstream': 'git+https://github.com/emre/kaptan',
-                        'marksteve': 'git+https://github.com/marksteve/kaptan.git'
+                        'ms': 'git+https://github.com/ms/kaptan.git'
                     }
                 }
             },
             '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR): {
                 '.vim': {
                     'url': 'git+git@github.com:tony/vim-config.git',
-                    'shell_command_after': 'ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc'
+                    'shell_command_after':
+                    'ln -sf /home/u/.vim/.vimrc /home/u/.vimrc'
                 },
                 '.tmux': {
                     'url': 'git+git@github.com:tony/tmux-config.git',
-                    'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
+                    'shell_command_after': [
+                        'ln -sf /home/u/.tmux/.tmux.conf /home/u/.tmux.conf'
+                    ]
                 }
             }
         }
@@ -138,50 +142,72 @@ class ConfigTestMixin(unittest.TestCase):
             {
                 'name': 'linux',
                 'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux'),
-                'url': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
+                'full_path': os.path.join(
+                    '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux'
+                ),
+                'url': 'git+git://git.kernel.org/linux/torvalds/linux.git',
             },
             {
                 'name': 'freebsd',
                 'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd'),
+                'full_path': os.path.join(
+                    '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd'
+                ),
                 'url': 'git+https://github.com/freebsd/freebsd.git',
             },
             {
                 'name': 'sphinx',
                 'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'),
+                'full_path': os.path.join(
+                    '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'
+                ),
                 'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
             },
             {
                 'name': 'docutils',
                 'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'docutils'),
+                'full_path': os.path.join(
+                    '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                    'docutils'
+                ),
                 'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
             },
             {
                 'name': 'kaptan',
                 'url': 'git+git@github.com:tony/kaptan.git',
-                'cwd': '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR), 'kaptan'),
+                'cwd': '{TMP_DIR}/github_projects/'.format(
+                    TMP_DIR=self.TMP_DIR
+                ),
+                'full_path': os.path.join(
+                    '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
+                    'kaptan'
+                ),
                 'remotes': {
                     'upstream': 'git+https://github.com/emre/kaptan',
-                    'marksteve': 'git+https://github.com/marksteve/kaptan.git'
+                    'ms': 'git+https://github.com/ms/kaptan.git'
                 }
             },
             {
                 'name': '.vim',
                 'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'),
+                'full_path': os.path.join(
+                    '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'
+                ),
                 'url': 'git+git@github.com:tony/vim-config.git',
-                'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
+                'shell_command_after': [
+                    'ln -sf /home/u/.vim/.vimrc /home/u/.vimrc'
+                ]
             },
             {
                 'name': '.tmux',
                 'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'),
+                'full_path': os.path.join(
+                    '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'
+                ),
                 'url': 'git+git@github.com:tony/tmux-config.git',
-                'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
+                'shell_command_after': [
+                    'ln -sf /home/u/.tmux/.tmux.conf /home/u/.tmux.conf'
+                ]
             }
         ]
 
@@ -207,7 +233,9 @@ class RepoTestMixin(object):
 
     """Mixin for create Repo's for test repository."""
 
-    def create_svn_repo(self, repo_name='my_svn_project', create_temp_repo=False):
+    def create_svn_repo(
+        self, repo_name='my_svn_project', create_temp_repo=False
+    ):
         """Create an svn repository for tests. Return SVN repo directory.
 
         :param repo_name:
@@ -218,8 +246,9 @@ class RepoTestMixin(object):
         :rtype: string
 
         """
-
-        repo_path = os.path.join(self.TMP_DIR, 'svnrepo_{0}'.format(uuid.uuid4()))
+        repo_path = os.path.join(
+            self.TMP_DIR, 'svnrepo_{0}'.format(uuid.uuid4())
+        )
 
         svn_repo = create_repo(**{
             'url': 'svn+file://' + os.path.join(repo_path, repo_name),
@@ -229,16 +258,17 @@ class RepoTestMixin(object):
 
         if create_temp_repo:
             os.mkdir(repo_path)
-            run([
-                'svnadmin', 'create', svn_repo['name']
-                ], cwd=repo_path)
+            run(['svnadmin', 'create', svn_repo['name']],
+                cwd=repo_path)
             self.assertTrue(os.path.exists(repo_path))
 
             svn_repo.obtain()
 
         return os.path.join(repo_path, repo_name), svn_repo
 
-    def create_git_repo(self, repo_name='test git repo', create_temp_repo=False):
+    def create_git_repo(
+        self, repo_name='test git repo', create_temp_repo=False
+    ):
         """Create an git repository for tests. Return directory.
 
         :param repo_name:
@@ -249,8 +279,9 @@ class RepoTestMixin(object):
         :rtype: string
 
         """
-
-        repo_path = os.path.join(self.TMP_DIR, 'gitrepo_{0}'.format(uuid.uuid4()))
+        repo_path = os.path.join(
+            self.TMP_DIR, 'gitrepo_{0}'.format(uuid.uuid4())
+        )
 
         git_repo = create_repo(**{
             'url': 'git+file://' + os.path.join(repo_path, repo_name),
@@ -260,29 +291,27 @@ class RepoTestMixin(object):
 
         if create_temp_repo:
             os.mkdir(repo_path)
-            run([
-                'git', 'init', git_repo['name']
-                ], cwd=repo_path)
+            run(['git', 'init', git_repo['name']],
+                cwd=repo_path)
             self.assertTrue(os.path.exists(repo_path))
 
             git_repo.obtain(quiet=True)
 
             testfile_filename = 'testfile.test'
 
-            run([
-                'touch', testfile_filename
-                ], cwd=os.path.join(repo_path, repo_name))
-            run([
-                'git', 'add', testfile_filename
-                ], cwd=os.path.join(repo_path, repo_name))
-            run([
-                'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
-                ], cwd=os.path.join(repo_path, repo_name))
+            run(['touch', testfile_filename],
+                cwd=os.path.join(repo_path, repo_name))
+            run(['git', 'add', testfile_filename],
+                cwd=os.path.join(repo_path, repo_name))
+            run(['git', 'commit', '-m', 'test file for %s' % git_repo['name']],
+                cwd=os.path.join(repo_path, repo_name))
             git_repo.update_repo()
 
         return os.path.join(repo_path, repo_name), git_repo
 
-    def create_mercurial_repo(self, repo_name='test hg repo', create_temp_repo=False):
+    def create_mercurial_repo(
+        self, repo_name='test hg repo', create_temp_repo=False
+    ):
         """Create an hg repository for tests. Return directory.
 
         :param repo_name:
@@ -293,8 +322,9 @@ class RepoTestMixin(object):
         :rtype: string
 
         """
-
-        repo_path = os.path.join(self.TMP_DIR, 'hgrepo_{0}'.format(uuid.uuid4()))
+        repo_path = os.path.join(
+            self.TMP_DIR, 'hgrepo_{0}'.format(uuid.uuid4())
+        )
 
         mercurial_repo = create_repo(**{
             'url': 'hg+file://' + os.path.join(repo_path, repo_name),
@@ -312,15 +342,13 @@ class RepoTestMixin(object):
 
             testfile_filename = 'testfile.test'
 
-            run([
-                'touch', testfile_filename
-                ], cwd=os.path.join(repo_path, repo_name))
-            run([
-                'hg', 'add', testfile_filename
-                ], cwd=os.path.join(repo_path, repo_name))
-            run([
-                'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
-                ], cwd=os.path.join(repo_path, repo_name))
+            run(['touch', testfile_filename],
+                cwd=os.path.join(repo_path, repo_name))
+            run(['hg', 'add', testfile_filename],
+                cwd=os.path.join(repo_path, repo_name))
+            run(['hg', 'commit',
+                '-m', 'a test file for %s' % mercurial_repo['name']],
+                cwd=os.path.join(repo_path, repo_name))
 
         return os.path.join(repo_path, repo_name), mercurial_repo
 
@@ -450,4 +478,3 @@ def assertConfigList(list1, list2):
         sorted(list1, key=lambda x: sorted(x.get('full_path'))),
         sorted(list2, key=lambda x: sorted(x.get('full_path')))
     )
-

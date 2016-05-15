@@ -197,7 +197,8 @@ class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
 class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
                                      unittest.TestCase):
-    """Need to imitate git remote not found.
+
+    r"""Need to imitate git remote not found.
 
     |isobar-frontend| (git)  create_repo directory for isobar-frontend (git) \
         does not exist @ /home/tony/study/std/html/isobar-frontend
@@ -245,4 +246,3 @@ def suite():
     suite.addTest(unittest.makeSuite(TestRemoteGit))
     suite.addTest(unittest.makeSuite(ErrorInStdErrorRaisesException))
     return suite
-
