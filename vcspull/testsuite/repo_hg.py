@@ -5,16 +5,16 @@ vcspull.testsuite.repo_git
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
 import logging
+import os
+import unittest
 
-from . import unittest
-from .helpers import ConfigTestCase
 from ..repo import create_repo
 from ..util import run, which
+from .helpers import ConfigTestCase
 
 logger = logging.getLogger(__name__)
 

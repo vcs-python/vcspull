@@ -5,30 +5,25 @@ vcspull.testsuite.helpers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import (
-    absolute_import, division, print_function, with_statement, unicode_literals
-)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
-import sys
 import copy
 import logging
-import tempfile
+import os
 import shutil
+import tempfile
+import unittest
 import uuid
 
 import kaptan
 from testfixtures import compare
 
-from . import unittest
-from ..repo import create_repo
 from ..config import expand_config
+from ..repo import create_repo
 from ..util import run
 
 logger = logging.getLogger(__name__)
-
-if sys.version_info <= (2, 7,):
-    import unittest2 as unittest
 
 
 class EnvironmentVarGuard(object):
@@ -455,3 +450,4 @@ def assertConfigList(list1, list2):
         sorted(list1, key=lambda x: sorted(x.get('full_path'))),
         sorted(list2, key=lambda x: sorted(x.get('full_path')))
     )
+

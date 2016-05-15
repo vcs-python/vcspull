@@ -5,20 +5,18 @@ vcspull.testsuite.repo_git
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import (
-    absolute_import, division, print_function, with_statement, unicode_literals
-)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
 import logging
+import os
 import tempfile
+import unittest
 
-
-from . import unittest
-from .helpers import RepoTestMixin, ConfigTestCase
+from ..exc import VCSPullException
 from ..repo import create_repo
 from ..util import run, which
-from ..exc import VCSPullException
+from .helpers import ConfigTestCase, RepoTestMixin
 
 logger = logging.getLogger(__name__)
 
@@ -75,3 +73,4 @@ def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(RepoSVN))
     return suite
+

@@ -5,28 +5,22 @@ vcspull.testsuite.config
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import (
-    absolute_import, division, print_function, with_statement, unicode_literals
-)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import tempfile
-import os
 import copy
 import logging
+import os
+import tempfile
+import unittest
 
 import kaptan
 import pydash
 
-from .. import exc
+from .. import config, exc
 from ..config import expand_config
-
-from . import unittest
-from .helpers import (
-    ConfigTestMixin, ConfigTestCase, RepoIntegrationTest, EnvironmentVarGuard,
-    assertConfigList
-)
-
-from .. import config
+from .helpers import (ConfigTestCase, ConfigTestMixin, EnvironmentVarGuard,
+                      RepoIntegrationTest, assertConfigList)
 
 logger = logging.getLogger(__name__)
 
@@ -593,3 +587,4 @@ def suite():
     suite.addTest(unittest.makeSuite(LoadConfigsDuplicate))
 
     return suite
+

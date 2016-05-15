@@ -14,21 +14,16 @@ iter_suites, main and suite are from Werkzeug, license BSD.
 Homepage at: http://werkzeug.pocoo.org/
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
 import logging
+import pkgutil
 import sys
-
-try:
-    import unittest2 as unittest
-except ImportError:  # Python 2.7
-    import unittest
+import unittest
 
 from .. import log
-from .._compat import string_types, PY2, reraise
-
-import pkgutil
+from .._compat import PY2, reraise, string_types
 
 logger = logging.getLogger()
 
@@ -224,11 +219,13 @@ class BetterLoader(unittest.TestLoader):
 
 
 def suite():
+
     """A testsuite that has all the Flask tests.  You can use this
     function to integrate the Flask tests into your own testsuite
     in case you want to test that monkeypatches to Flask do not
     break it.
     """
+
     suite = unittest.TestSuite()
     for other_suite in iter_suites(__name__):
         suite.addTest(other_suite)
@@ -236,7 +233,9 @@ def suite():
 
 
 def main():
+
     """Runs the testsuite as command line application."""
+
     try:
         unittest.main(testLoader=BetterLoader(), defaultTest='suite')
     except Exception:

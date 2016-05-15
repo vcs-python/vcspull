@@ -5,17 +5,18 @@ vcspull.testsuite.repo_object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
 import os
 import unittest
 
 import kaptan
 
-from ..repo import BaseRepo, GitRepo, MercurialRepo, SubversionRepo, create_repo
-from ..util import lookup_repos
 from ..config import expand_config
+from ..repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
+                    create_repo)
+from ..util import lookup_repos
 from .helpers import ConfigTestCase, RepoTestMixin
 
 
