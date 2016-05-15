@@ -17,14 +17,13 @@ import logging
 import kaptan
 import pydash
 
-from testfixtures import compare
-
 from .. import exc
 from ..config import expand_config
 
 from . import unittest
 from .helpers import (
-    ConfigTestMixin, ConfigTestCase, RepoIntegrationTest, EnvironmentVarGuard
+    ConfigTestMixin, ConfigTestCase, RepoIntegrationTest, EnvironmentVarGuard,
+    assertConfigList
 )
 
 from .. import config
@@ -113,10 +112,7 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
 
         config = expand_config(self.config_dict)
 
-        compare(
-            sorted(config, key=lambda x:sorted(x.get('full_path'))),
-            sorted(self.config_dict_expanded, key=lambda x:sorted(x.get('full_path')))
-        )
+        assertConfigList(config, self.config_dict_expanded)
 
 
 class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):

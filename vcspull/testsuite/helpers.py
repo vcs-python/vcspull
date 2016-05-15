@@ -193,10 +193,7 @@ class ConfigTestMixin(unittest.TestCase):
         self.config_dict = config_dict
 
         cdict = copy.deepcopy(config_dict)
-        compare(
-            sorted(expand_config(cdict), key=lambda x:sorted(x.get('full_path'))),
-            sorted(config_dict_expanded, key=lambda x:sorted(x.get('full_path')))
-        )
+        assertConfigList(expand_config(cdict), config_dict_expanded)
 
         self.config_dict_expanded = config_dict_expanded
         self.config_yaml = config_yaml
@@ -209,6 +206,7 @@ class ConfigTestCase(ConfigTestMixin, unittest.TestCase):
     def setUp(self):
         self._createConfigDirectory()
         self._seedConfigExampleMixin()
+
 
 class RepoTestMixin(object):
 
@@ -442,3 +440,18 @@ class RepoIntegrationTest(RepoTestMixin, ConfigTestCase, unittest.TestCase):
             buf.write(self.config_json)
 
         self.assertTrue(os.path.exists(self.config2_file))
+
+
+def assertConfigList(list1, list2):
+    """Assert content of two unordered dicts (sorted by full_path).
+
+    :param list1: List of configs
+    :type list1: List of :py:`dict`
+    :param list2: List of configs
+    :type list2: List of :py:`dict`
+    :raises: Exception
+    """
+    compare(
+        sorted(list1, key=lambda x: sorted(x.get('full_path'))),
+        sorted(list2, key=lambda x: sorted(x.get('full_path')))
+    )
