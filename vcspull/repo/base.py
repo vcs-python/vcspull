@@ -5,18 +5,18 @@ vcspull.repo.base
 ~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
 import collections
-import os
-import sys
-import subprocess
 import logging
+import os
+import subprocess
+import sys
 
 from .. import exc
+from .._compat import console_to_str, text_type, urlparse
 from ..util import mkdir_p
-from .._compat import urlparse, text_type, console_to_str
 
 logger = logging.getLogger(__name__)
 

@@ -6,16 +6,15 @@ vcspull.util
 
 """
 
-from __future__ import (
-    absolute_import, division, print_function, with_statement, unicode_literals
-)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import subprocess
 import collections
-import os
 import errno
-import logging
 import fnmatch
+import logging
+import os
+import subprocess
 
 from . import exc
 from ._compat import string_types
@@ -230,3 +229,4 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     extensions = [extensions] if isinstance(
         extensions, string_types) else extensions
     return any(filename.endswith(e) for e in extensions)
+

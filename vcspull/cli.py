@@ -6,19 +6,19 @@ vcspull.cli
 
 """
 
-from __future__ import absolute_import, division, print_function, \
-    with_statement
+from __future__ import (absolute_import, division, print_function,
+                        with_statement)
 
-import os
 import logging
+import os
 
 import click
 
 from .__about__ import __version__
-from .util import lookup_repos
 from .config import find_config_files, load_configs
 from .log import DebugLogFormatter
 from .repo import create_repo
+from .util import lookup_repos
 
 log = logging.getLogger(__name__)
 

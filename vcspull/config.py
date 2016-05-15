@@ -8,20 +8,19 @@ A lot of these items are todo.
 
 """
 
-from __future__ import (
-    absolute_import, division, print_function, with_statement, unicode_literals
-)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
 import glob
 import logging
+import os
 
 import kaptan
 import pydash
 
 from . import exc
-from .util import update_dict
 from ._compat import string_types
+from .util import update_dict
 
 log = logging.getLogger(__name__)
 
@@ -255,3 +254,4 @@ def load_configs(configs):
         configlist.extend(newconfigs)
 
     return configlist
+

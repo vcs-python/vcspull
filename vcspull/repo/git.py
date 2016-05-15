@@ -21,18 +21,18 @@ From pip (MIT Licnese):
 - :py:meth:`GitRepo.get_revision`
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
 import logging
-import tempfile
+import os
 import subprocess
+import tempfile
 
-from .._compat import urlparse
-from .base import BaseRepo
-from ..util import run
 from .. import exc
+from .._compat import urlparse
+from ..util import run
+from .base import BaseRepo
 
 logger = logging.getLogger(__name__)
 
