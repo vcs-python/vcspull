@@ -139,67 +139,61 @@ class ConfigTestMixin(unittest.TestCase):
 
         config_yaml = config_yaml.format(TMP_DIR=self.TMP_DIR)
 
-        config_dict_expanded = {
-            '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR): {
-                'linux': {
-                    'name': 'linux',
-                    'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                    'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux'),
-                    'url': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
-                },
-                'freebsd': {
-                    'name': 'freebsd',
-                    'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                    'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd'),
-                    'url': 'git+https://github.com/freebsd/freebsd.git',
-                },
-                'sphinx': {
-                    'name': 'sphinx',
-                    'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                    'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'),
-                    'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
-                },
-                'docutils': {
-                    'name': 'docutils',
-                    'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                    'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'docutils'),
-                    'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
-                },
+        config_dict_expanded = [
+            {
+                'name': 'linux',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux'),
+                'url': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
             },
-            '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR): {
-                'kaptan': {
-                    'name': 'kaptan',
-                    'url': 'git+git@github.com:tony/kaptan.git',
-                    'cwd': '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
-                    'full_path': os.path.join('{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR), 'kaptan'),
-                    'remotes': {
-                        'upstream': 'git+https://github.com/emre/kaptan',
-                        'marksteve': 'git+https://github.com/marksteve/kaptan.git'
-                    }
+            {
+                'name': 'freebsd',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd'),
+                'url': 'git+https://github.com/freebsd/freebsd.git',
+            },
+            {
+                'name': 'sphinx',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'),
+                'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
+            },
+            {
+                'name': 'docutils',
+                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'docutils'),
+                'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
+            },
+            {
+                'name': 'kaptan',
+                'url': 'git+git@github.com:tony/kaptan.git',
+                'cwd': '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR), 'kaptan'),
+                'remotes': {
+                    'upstream': 'git+https://github.com/emre/kaptan',
+                    'marksteve': 'git+https://github.com/marksteve/kaptan.git'
                 }
             },
-            '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR): {
-                '.vim': {
-                    'name': '.vim',
-                    'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                    'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'),
-                    'url': 'git+git@github.com:tony/vim-config.git',
-                    'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
-                },
-                '.tmux': {
-                    'name': '.tmux',
-                    'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                    'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'),
-                    'url': 'git+git@github.com:tony/tmux-config.git',
-                    'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
-                }
+            {
+                'name': '.vim',
+                'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'),
+                'url': 'git+git@github.com:tony/vim-config.git',
+                'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
+            },
+            {
+                'name': '.tmux',
+                'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
+                'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'),
+                'url': 'git+git@github.com:tony/tmux-config.git',
+                'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
             }
-        }
+        ]
 
         self.config_dict = config_dict
 
         cdict = copy.deepcopy(config_dict)
-        compare(expand_config(cdict), config_dict_expanded)
+        compare(sorted(expand_config(cdict)), sorted(config_dict_expanded))
 
         self.config_dict_expanded = config_dict_expanded
         self.config_yaml = config_yaml

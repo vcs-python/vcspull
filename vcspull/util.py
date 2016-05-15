@@ -62,33 +62,32 @@ def lookup_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
 
     """
     repo_list = []
-    for directory, repos in config.items():
-        for repo, repo_data in repos.items():
-            if dirmatch and not fnmatch.fnmatch(directory, dirmatch):
-                continue
-            if vcsurlmatch and not fnmatch.fnmatch(
-                repo_data.get('url', repo_data.get('repo')),
-                vcsurlmatch
-            ):
-                continue
-            if namematch and not fnmatch.fnmatch(repo, namematch):
-                continue
-            repo_dict = {
-                'name': repo,
-                'cwd': directory,
-                # Work with old format of repo url key, 'repo'
-                'url': repo_data.get('url', repo_data.get('repo'))
-            }
+    for repo_data in config:
+        if dirmatch and not fnmatch.fnmatch(repo_data['cwd'], dirmatch):
+            continue
+        if vcsurlmatch and not fnmatch.fnmatch(
+            repo_data.get('url', repo_data.get('repo')),
+            vcsurlmatch
+        ):
+            continue
+        if namematch and not fnmatch.fnmatch(repo_data.get('name'), namematch):
+            continue
+        repo_dict = {
+            'name': repo_data['name'],
+            'cwd': repo_data['cwd'],
+            # Work with old format of repo url key, 'repo'
+            'url': repo_data.get('url', repo_data.get('repo'))
+        }
 
-            if 'remotes' in repo_data:
-                repo_dict['remotes'] = []
-                for remote_name, url in repo_data['remotes'].items():
-                    remote_dict = {
-                        'remote_name': remote_name,
-                        'url': url
-                    }
-                    repo_dict['remotes'].append(remote_dict)
-            repo_list.append(repo_dict)
+        if 'remotes' in repo_data:
+            repo_dict['remotes'] = []
+            for remote_name, url in repo_data['remotes'].items():
+                remote_dict = {
+                    'remote_name': remote_name,
+                    'url': repo_data['url']
+                }
+                repo_dict['remotes'].append(remote_dict)
+        repo_list.append(repo_dict)
     return repo_list
 
 

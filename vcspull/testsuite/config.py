@@ -15,11 +15,12 @@ import copy
 import logging
 
 import kaptan
+import pydash
 
 from testfixtures import compare
 
 from .. import exc
-from ..config import expand_config, flatten_config
+from ..config import expand_config
 
 from . import unittest
 from .helpers import (
@@ -112,80 +113,8 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
 
         config = expand_config(self.config_dict)
 
-        self.assertDictEqual(config, self.config_dict_expanded)
+        compare(sorted(config), sorted(self.config_dict_expanded))
 
-
-class ConfigFlattenTest(ConfigTestCase, unittest.TestCase):
-
-    """Expand configuration into its flattened / list form."""
-
-    def get_flattened_config(self):
-        return [
-            {
-                'name': 'linux',
-                'url': 'git+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux')
-            },
-            {
-                'name': 'freebsd',
-                'url': 'git+https://github.com/freebsd/freebsd.git',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd')
-            },
-            {
-                'name': 'sphinx',
-                'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'),
-            },
-            {
-                'name': 'docutils',
-                'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'docutils'),
-            },
-            {
-                'name': 'kaptan',
-                'cwd': '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR), 'kaptan'),
-                'url': 'git+git@github.com:tony/kaptan.git',
-                'remotes': {
-                    'upstream': 'git+https://github.com/emre/kaptan',
-                    'marksteve': 'git+https://github.com/marksteve/kaptan.git'
-                }
-            },
-            {
-                'name': '.vim',
-                'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'),
-                'url': 'git+git@github.com:tony/vim-config.git',
-                'shell_command_after': ['ln -sf /home/tony/.vim/.vimrc /home/tony/.vimrc']
-            },
-            {
-                'name': '.tmux',
-                'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join('{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'),
-                'url': 'git+git@github.com:tony/tmux-config.git',
-                'shell_command_after': ['ln -sf /home/tony/.tmux/.tmux.conf /home/tony/.tmux.conf']
-            }
-        ]
-
-    def test_flatten_config(self):
-        self.maxDiff = None
-
-        config = expand_config(self.config_dict)
-        config = flatten_config(config)
-
-        self.assertIsInstance(config, list)
-        self.assertEqual(len(config), len(self.get_flattened_config()))
-        compare(
-            sorted(config, key=lambda k: k['name']),
-            sorted(self.get_flattened_config(), key=lambda k: k['name'])
-        )
-
-    def assertListDictEqual(self, conf1, conf2):
-        self.assertCountEqual(conf1, conf2)
 
 class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
     """Verify .expandvars and .expanduser works with configs."""
@@ -246,12 +175,12 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         config1_expanded = expand_config(self.config1)
         config2_expanded = expand_config(self.config2)
 
-        paths = [path for path, v in config1_expanded.items()]
-        self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
+        paths = pydash.collections.pluck(config1_expanded, 'cwd')
+        self.assertIn(os.path.expanduser(os.path.expandvars('${HOME}/github_projects/')), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)
         self.assertIn(os.path.expanduser('~'), paths)
 
-        paths = [path for path, v in config2_expanded.items()]
+        paths = pydash.collections.pluck(config2_expanded, 'cwd')
         self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)
 
@@ -547,10 +476,7 @@ class LoadConfigs(RepoIntegrationTest):
             path=self.CONFIG_DIR
         )
 
-        try:
-            config.load_configs(configs)
-        except Exception as e:
-            self.fail(e)
+        config.load_configs(configs)
 
 
 class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
@@ -641,6 +567,8 @@ class LoadConfigsDuplicate(RepoIntegrationDuplicateTest):
             match="repoduplicate[1-2]"
         )
 
+        self.assertIn(self.config3_file, configs)
+        self.assertIn(self.config4_file, configs)
         with self.assertRaises(Exception):
             config.load_configs(configs)
 
@@ -654,7 +582,6 @@ def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ConfigExpandTest))
     suite.addTest(unittest.makeSuite(ConfigFormatTest))
-    suite.addTest(unittest.makeSuite(ConfigFlattenTest))
     suite.addTest(unittest.makeSuite(ConfigImportExportTest))
     suite.addTest(unittest.makeSuite(ExpandUserExpandVars))
     suite.addTest(unittest.makeSuite(RepoIntegrationTest))

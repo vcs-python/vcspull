@@ -34,7 +34,6 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         repo_key = '{TMP_DIR}/github_projects/'.format(
             TMP_DIR=self.TMP_DIR,
         )
-        self.config_dict_expanded[repo_key]['kaptan']
         for r in repo_list:
             self.assertEqual(r['name'], 'kaptan')
 
@@ -51,7 +50,6 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         repo_key = '{TMP_DIR}'.format(
             TMP_DIR=self.TMP_DIR,
         )
-        self.config_dict_expanded[repo_key]['.vim']
         for r in repo_list:
             self.assertEqual(r['name'], '.vim')
 
@@ -68,7 +66,6 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
         repo_key = '{TMP_DIR}/study/'.format(
             TMP_DIR=self.TMP_DIR,
         )
-        self.config_dict_expanded[repo_key]['linux']
         for r in repo_list:
             self.assertEqual(r['name'], 'linux')
 

@@ -17,6 +17,7 @@ import glob
 import logging
 
 import kaptan
+import pydash
 
 from . import exc
 from .util import update_dict
@@ -48,6 +49,16 @@ def in_dir(
     return configs
 
 
+def expand_dir(_dir):
+    """Return path with environmental variables and tilde ~ expanded.
+
+    :param dir:
+    :type dir: string
+    :rtype; string
+    """
+    return os.path.expanduser(os.path.expandvars(_dir))
+
+
 def expand_config(config):
     """Return expanded configuration.
 
@@ -56,11 +67,14 @@ def expand_config(config):
 
     :param config: the repo config in :py:class:`dict` format.
     :type config: dict
-    :rtype: dict
+    :rtype: list
 
     """
+    configs = []
     for directory, repos in config.items():
         for repo, repo_data in repos.items():
+
+            conf = {}
 
             '''
             repo_name: http://myrepo.com/repo.git
@@ -73,36 +87,30 @@ def expand_config(config):
             '''
 
             if isinstance(repo_data, string_types):
-                config[directory][repo] = {'url': repo_data}
-                repo_data = config[directory][repo]
+                conf['url'] = expand_dir(repo_data)
+            else:
+                conf = update_dict(conf, repo_data)
 
             '''
             ``shell_command_after``: if str, turn to list.
             '''
-            if 'shell_command_after' in repo_data:
-                if isinstance(repo_data['shell_command_after'], string_types):
-                    repo_data['shell_command_after'] = [
-                        repo_data['shell_command_after']
+            if 'shell_command_after' in conf:
+                if isinstance(conf['shell_command_after'], string_types):
+                    conf['shell_command_after'] = [
+                        conf['shell_command_after']
                     ]
 
-            if 'name' not in repo_data:
-                repo_data['name'] = repo
-            if 'cwd' not in repo_data:
-                repo_data['cwd'] = directory
-            if 'full_path' not in repo_data:
-                repo_data['full_path'] = os.path.join(repo_data['cwd'], repo_data['name'])
+            if 'name' not in conf:
+                conf['name'] = repo
+            if 'cwd' not in conf:
+                conf['cwd'] = expand_dir(directory)
+            if 'full_path' not in conf:
+                conf['full_path'] = expand_dir(
+                    os.path.join(conf['cwd'], conf['name'])
+                )
+            configs.append(conf)
 
-    config = dict(
-        (os.path.expandvars(directory), repo_data)
-        for directory, repo_data in config.items()
-    )
-
-    config = dict(
-        (os.path.expanduser(directory), repo_data) for
-        directory, repo_data in config.items()
-    )
-
-    return config
+    return configs
 
 
 def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
@@ -201,29 +209,6 @@ def find_config_files(
     return configs
 
 
-def _check_duplicate_repo(repo1, repo2):
-    """Return if repos are a duplicate path or url.
-
-    :param repo1: repo
-    :type repo1: :py:`dict`
-    :param repo2: repo
-    :type repo2: :py:`dict`
-    :rtype: bool
-    """
-    if repo1 != repo2:
-        print('same path + repo for %s' % repo1)
-        if repo1['url'] != repo2['url']:
-            msg = (
-                'same path + repo, diffvcs (%s)\n'
-                '%s\n' %
-                (
-                    repo1['url'],
-                    repo2['url'],
-                )
-            )
-            raise Exception(msg)
-
-
 def load_configs(configs):
     """Return repos from a directory and fnmatch. Not recursive.
 
@@ -232,54 +217,41 @@ def load_configs(configs):
     :param configs: paths to config file
     :type path: list
     :returns: expanded config dict item
-    :rtype: iter(dict)
+    :rtype: list of dict
 
     """
-    configdict = {}
+    configlist = []
     for config in configs:
         fName, fExt = os.path.splitext(config)
         conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
         conf.import_config(config)
 
-        newconfigdict = expand_config(conf.export('dict'))
+        newconfigs = expand_config(conf.export('dict'))
 
-        if configdict:
-            for path in newconfigdict:
-                if path in configdict:
-                    for repo_name in newconfigdict[path]:
-                        if repo_name in configdict[path]:
-                            if newconfigdict[path][repo_name] != configdict[path][repo_name]:
-                                print('same path + repo for %s' % repo_name)
-                                if newconfigdict[path][repo_name]['url'] != configdict[path][repo_name]['url']:
-                                    msg = (
-                                        'same path + repo, diffvcs (%s)\n'
-                                        '%s\n%s' %
-                                        (
-                                            repo_name,
-                                            configdict[path][repo_name]['url'],
-                                            newconfigdict[path][
-                                                repo_name]['url']
-                                        )
-                                    )
-                                    raise Exception(msg)
-        configdict = update_dict(configdict, newconfigdict)
+        if configlist:
+            curpaths = pydash.collections.pluck(configlist, 'full_path')
+            newpaths = pydash.collections.pluck(newconfigs, 'full_path')
+            path_duplicates = pydash.arrays.intersection(curpaths, newpaths)
+            path_dupe_repos = []
+            dupes = []
+            for p in path_duplicates:
+                path_dupe_repos.append(
+                    pydash.collections.find(newconfigs, {'full_path': p})
+                )
 
-    configdict = expand_config(configdict)
+            if path_dupe_repos:
+                for n in path_dupe_repos:
+                    currepo = pydash.collections.find_where(
+                        configlist, {'full_path': n['full_path']}
+                    )
+                    if n['url'] != currepo['url']:
+                        dupes += (n, currepo,)
 
-    return configdict
+            if dupes:
+                msg = (
+                    'repos with same path + different VCS detected!', dupes
+                )
+                raise Exception(msg)
+        configlist.extend(newconfigs)
 
-
-def flatten_config(config):
-    """Return config flattened into a list of dictionary.
-
-    :param config: expanded config
-    :type config: dict
-    :rtype: list of dict
-    """
-    repos = []
-    for repocwd, reponode in config.items():
-        for reponame, repo in reponode.items():
-            repo['name'] = reponame
-            repo['cwd'] = repocwd
-            repos.append(repo)
-    return repos
+    return configlist
