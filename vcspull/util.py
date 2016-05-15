@@ -205,7 +205,6 @@ def update_dict(d, u):
     :rtype: dict
 
     """
-
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
             r = update_dict(d.get(k, {}), v)
@@ -225,8 +224,6 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     :rtype: bool
 
     """
-
     extensions = [extensions] if isinstance(
         extensions, string_types) else extensions
     return any(filename.endswith(e) for e in extensions)
-

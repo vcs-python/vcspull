@@ -254,4 +254,3 @@ def load_configs(configs):
         configlist.extend(newconfigs)
 
     return configlist
-

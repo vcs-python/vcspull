@@ -53,15 +53,14 @@ class RepoMercurial(ConfigTestCase, unittest.TestCase):
 
         testfile = 'testfile.test'
 
-        run([
-            'touch', testfile
-            ], cwd=os.path.join(repo_dir, repo_name))
-        run([
-            'hg', 'add', testfile
-            ], cwd=os.path.join(repo_dir, repo_name))
-        run([
-            'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
-            ], cwd=os.path.join(repo_dir, repo_name))
+        run(['touch', testfile],
+            cwd=os.path.join(repo_dir, repo_name)
+            )
+        run(['hg', 'add', testfile],
+            cwd=os.path.join(repo_dir, repo_name)
+            )
+        run(['hg', 'commit', '-m', 'test file %s' % mercurial_repo['name']],
+            cwd=os.path.join(repo_dir, repo_name))
 
         mercurial_repo.update_repo()
 

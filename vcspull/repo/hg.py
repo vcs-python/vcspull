@@ -55,7 +55,7 @@ class MercurialRepo(BaseRepo):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.hg')):
 
-            process = self.run(
+            self.run(
                 ['hg', 'update'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
