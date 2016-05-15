@@ -113,7 +113,10 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
 
         config = expand_config(self.config_dict)
 
-        compare(sorted(config), sorted(self.config_dict_expanded))
+        compare(
+            sorted(config, key=lambda x:sorted(x.get('full_path'))),
+            sorted(self.config_dict_expanded, key=lambda x:sorted(x.get('full_path')))
+        )
 
 
 class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):

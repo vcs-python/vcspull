@@ -193,7 +193,10 @@ class ConfigTestMixin(unittest.TestCase):
         self.config_dict = config_dict
 
         cdict = copy.deepcopy(config_dict)
-        compare(sorted(expand_config(cdict)), sorted(config_dict_expanded))
+        compare(
+            sorted(expand_config(cdict), key=lambda x:sorted(x.get('full_path'))),
+            sorted(config_dict_expanded, key=lambda x:sorted(x.get('full_path')))
+        )
 
         self.config_dict_expanded = config_dict_expanded
         self.config_yaml = config_yaml
