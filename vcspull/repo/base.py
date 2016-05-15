@@ -153,6 +153,9 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         else:
             self.info('%s' % (process.stdout.read()))
 
+        process.stderr.close()
+        process.stdout.close()
+
         return process
 
 
