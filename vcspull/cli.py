@@ -69,8 +69,11 @@ def cli(log_level):
 
 @click.command(name='update')
 @click.argument('repo_terms', nargs=-1)
-def update(repo_terms):
+@click.option('--run-async', '-a', is_flag=True,
+              help='Run repo syncing concurrently (experimental)')
+def update(repo_terms, run_async):
     configs = load_configs(find_config_files(include_home=True))
+    found_repos = []
     for repo_term in repo_terms:
         repo_dir, vcs_url, name = None, None, None
         if any(repo_term.startswith(n) for n in ['./', '/', '~', '$HOME']):
@@ -82,19 +85,27 @@ def update(repo_terms):
             name = repo_term
 
         # collect the repos from the config files
-        found_repos = filter_repos(
+        found_repos.extend(filter_repos(
             configs,
             repo_dir=repo_dir,
             vcs_url=vcs_url,
             name=name
-        )
+        ))
 
-        # turn them into :class:`Repo` objects and clone/update them
-        for repo_dict in found_repos:
-            if 'url' not in repo_dict:  # normalize vcs/repo key
-                repo_dict['url'] = repo_dict['repo']
-            r = create_repo(**repo_dict)
-            log.debug('%s' % r)
-            r.update_repo()
+    # turn them into :class:`Repo` objects and clone/update them
+    if run_async:
+        from multiprocessing import Pool
+        p = Pool(5)
+        p.map_async(update_repo, found_repos).get()
+    else:
+        list(map(update_repo, found_repos))
+
+
+def update_repo(repo_dict):
+    if 'url' not in repo_dict:  # normalize vcs/repo key
+        repo_dict['url'] = repo_dict['repo']
+    r = create_repo(**repo_dict)
+    log.debug('%s' % r)
+    r.update_repo()
 
 cli.add_command(update)
