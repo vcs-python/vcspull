@@ -15,7 +15,6 @@ import tempfile
 import unittest
 
 import kaptan
-import pydash
 
 from .. import config, exc
 from ..config import expand_config
@@ -168,7 +167,7 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         config1_expanded = expand_config(self.config1)
         config2_expanded = expand_config(self.config2)
 
-        paths = pydash.collections.pluck(config1_expanded, 'parent_dir')
+        paths = [r['parent_dir'] for r in config1_expanded]
         self.assertIn(
             os.path.expanduser(
                 os.path.expandvars('${HOME}/github_projects/')
@@ -177,7 +176,7 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         self.assertIn(os.path.expanduser('~/study/'), paths)
         self.assertIn(os.path.expanduser('~'), paths)
 
-        paths = pydash.collections.pluck(config2_expanded, 'parent_dir')
+        paths = [r['parent_dir'] for r in config2_expanded]
         self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)
 
