@@ -93,6 +93,7 @@ def update(repo_terms):
         for repo_dict in found_repos:
             if 'url' not in repo_dict:  # normalize vcs/repo key
                 repo_dict['url'] = repo_dict['repo']
+            print(repo_dict)
             r = create_repo(**repo_dict)
             log.debug('%s' % r)
             r.update_repo()

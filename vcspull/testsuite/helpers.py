@@ -182,10 +182,16 @@ class ConfigTestMixin(unittest.TestCase):
                     '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
                     'kaptan'
                 ),
-                'remotes': {
-                    'upstream': 'git+https://github.com/emre/kaptan',
-                    'ms': 'git+https://github.com/ms/kaptan.git'
-                }
+                'remotes': [
+                    {
+                        'remote_name': 'upstream',
+                        'url': 'git+https://github.com/emre/kaptan',
+                    },
+                    {
+                        'remote_name': 'ms',
+                        'url': 'git+https://github.com/ms/kaptan.git'
+                    }
+                ]
             },
             {
                 'name': '.vim',

@@ -106,6 +106,14 @@ def expand_config(config):
                 conf['repo_dir'] = expand_dir(
                     os.path.join(conf['parent_dir'], conf['name'])
                 )
+            if 'remotes' in conf:
+                remotes = []
+                for remote_name, url in conf['remotes'].items():
+                    remotes.append({
+                        'remote_name': remote_name,
+                        'url': url
+                    })
+                conf['remotes'] = remotes
             configs.append(conf)
 
     return configs
