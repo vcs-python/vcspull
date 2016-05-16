@@ -18,7 +18,7 @@ from .__about__ import __version__
 from .config import find_config_files, load_configs
 from .log import DebugLogFormatter
 from .repo import create_repo
-from .util import lookup_repos
+from .util import filter_repos
 
 log = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def update(repos):
             repo = None
 
         # collect the repos from the config files
-        repos = lookup_repos(
+        repos = filter_repos(
             configs,
             dirmatch=dirmatch,
             vcsurlmatch=vcsurlmatch,

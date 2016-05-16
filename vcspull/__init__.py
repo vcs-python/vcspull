@@ -19,7 +19,7 @@ import logging
 from .cli import setup_logger
 from .config import expand_config, is_config_file, load_configs
 from .log import DebugLogFormatter, LogFormatter, RepoFilter, RepoLogFormatter
-from .util import in_dir, lookup_repos, mkdir_p, run, update_dict, which
+from .util import in_dir, filter_repos, mkdir_p, run, update_dict, which
 
 try:  # Python 2.7+
     from logging import NullHandler

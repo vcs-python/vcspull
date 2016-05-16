@@ -16,17 +16,17 @@ import kaptan
 from ..config import expand_config
 from ..repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
                     create_repo)
-from ..util import lookup_repos
+from ..util import filter_repos
 from .helpers import ConfigTestCase, RepoTestMixin
 
 
 class GetReposTest(ConfigTestCase, unittest.TestCase):
 
     def test_filter_dir(self):
-        """``lookup_repos`` filter by dir"""
+        """``filter_repos`` filter by dir"""
         self.config_dict_expanded
 
-        repo_list = lookup_repos(
+        repo_list = filter_repos(
             self.config_dict_expanded,
             dirmatch="*github_project*"
         )
@@ -36,10 +36,10 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
             self.assertEqual(r['name'], 'kaptan')
 
     def test_filter_name(self):
-        """``lookup_repos`` filter by name"""
+        """``filter_repos`` filter by name"""
         self.config_dict_expanded
 
-        repo_list = lookup_repos(
+        repo_list = filter_repos(
             self.config_dict_expanded,
             namematch=".vim"
         )
@@ -49,10 +49,10 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
             self.assertEqual(r['name'], '.vim')
 
     def test_filter_vcs(self):
-        """``lookup_repos`` filter by vcs"""
+        """``filter_repos`` filter by vcs"""
         self.config_dict_expanded
 
-        repo_list = lookup_repos(
+        repo_list = filter_repos(
             self.config_dict_expanded,
             vcsurlmatch="*kernel.org*"
         )
@@ -71,10 +71,10 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         super(ConfigToObjectTest, self).setUp()
 
     def test_to_dictlist(self):
-        """``lookup_repos`` pulls the repos in dict format from the config."""
+        """``filter_repos`` pulls the repos in dict format from the config."""
         self.config_dict_expanded
 
-        repo_list = lookup_repos(self.config_dict_expanded)
+        repo_list = filter_repos(self.config_dict_expanded)
 
         for r in repo_list:
             self.assertIsInstance(r, dict)
@@ -128,7 +128,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
     def test_to_repo_objects(self):
         """:py:obj:`dict` objects into Repo objects."""
-        repo_list = lookup_repos(self.config_dict_expanded)
+        repo_list = filter_repos(self.config_dict_expanded)
         for repo_dict in repo_list:
             r = create_repo(**repo_dict)
 
@@ -172,7 +172,7 @@ class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
         conf = conf.export('dict')
         repos = expand_config(conf)
 
-        for r in lookup_repos(repos):
+        for r in filter_repos(repos):
             repo = create_repo(**r)
             repo.obtain()
 

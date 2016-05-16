@@ -45,7 +45,7 @@ def in_dir(
     return configs
 
 
-def lookup_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
+def filter_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
     :param config: the expanded repo config in :py:class:`dict` format.
