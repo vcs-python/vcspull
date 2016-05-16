@@ -9,6 +9,7 @@ CURRENT
 
 Breaking Changes:
 
+- [cli] [internal]: command line arg parsing now uses `click`_ library.
 - [cli]: The command to update repositories is now ``vcspull u``, 
   ``vcspull up`` or ``vcspull update``::
 
@@ -24,6 +25,7 @@ Breaking Changes:
 - [internal] [dev] Add ``Makefile`` for ``watch_test`` (re-running
   tests on file change), ``watch_flake`` (re-running flake8 check
   on changes)
+- [internal] [dev] Move ``.tmuxp.yaml`` commands to use Makefile
 - [internal] [dev] split up requirements into ``requirements/``
   folder.
 - Drop Python 2.6 support
@@ -33,13 +35,11 @@ Breaking Changes:
   :py:mod:`multiprocessing`.
 - [api][internal]: Refactor :class:`vcspull.repo.Repo` factory class
   into :func:`vcspull.repo.create_repo`.
-
-Other:
-
 - [internal]: major internal cleanup of dead code, pep8 style updates.
 - [git] [tests]: fix git+https remotes `#14`_, add regression tests.
 
 .. _#14: https://github.com/tony/vcspull/issues/14
+.. _click: https://github.com/pallets/click
 
 0.2.2
 -----
