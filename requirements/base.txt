@@ -2,4 +2,3 @@ kaptan
 pyyaml
 colorama
 click==6.6 # Updated from 6.2
-pydash==3.4.3
