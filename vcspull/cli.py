@@ -10,7 +10,6 @@ from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
 import logging
-import os
 
 import click
 
@@ -25,8 +24,6 @@ MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
 MAX_ASYNC = 8  # maximum processes to open:w
 
 log = logging.getLogger(__name__)
-
-config_dir = os.path.expanduser('~/.vcspull/')  # remove dupes of this
 
 
 def setup_logger(log=None, level='INFO'):

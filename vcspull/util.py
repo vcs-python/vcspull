@@ -19,11 +19,13 @@ import subprocess
 from . import exc
 from ._compat import string_types
 
+CONFIG_DIR = os.path.expanduser('~/.vcspull/')  # remove dupes of this
+
 logger = logging.getLogger(__name__)
 
 
 def in_dir(
-    config_dir=os.path.expanduser('~/.vcspull'),
+    config_dir=CONFIG_DIR,
     extensions=['.yml', '.yaml', '.json']
 ):
     """Return a list of configs in ``config_dir``.

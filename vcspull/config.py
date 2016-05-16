@@ -19,13 +19,13 @@ import kaptan
 
 from . import exc
 from ._compat import string_types
-from .util import update_dict
+from .util import update_dict, CONFIG_DIR
 
 log = logging.getLogger(__name__)
 
 
 def in_dir(
-    config_dir=os.path.expanduser('~/.vcspull'),
+    config_dir=CONFIG_DIR,
     extensions=['.yml', '.yaml', '.json']
 ):
     """Return a list of configs in ``config_dir``.
