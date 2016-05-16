@@ -113,7 +113,9 @@ def expand_config(config):
                         'remote_name': remote_name,
                         'url': url
                     })
-                conf['remotes'] = remotes
+                conf['remotes'] = sorted(
+                    remotes, key=lambda x: sorted(x.get('remote_name'))
+                )
             configs.append(conf)
 
     return configs
