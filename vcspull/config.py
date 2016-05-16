@@ -8,68 +8,24 @@ A lot of these items are todo.
 
 """
 
-from __future__ import (
-    absolute_import, division, print_function, with_statement, unicode_literals
-)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
-import fnmatch
 import glob
 import logging
+import os
 
 import kaptan
 
 from . import exc
-from .util import update_dict
 from ._compat import string_types
+from .util import update_dict, CONFIG_DIR
 
 log = logging.getLogger(__name__)
 
 
-def get_repos(config, dirmatch=None, repomatch=None, namematch=None):
-    """Return a :py:obj:`list` list of repos from (expanded) config file.
-
-    :param config: the expanded repo config in :py:class:`dict` format.
-    :type config: dict
-    :param dirmatch: array of fnmatch's for directory
-    :type dirmatch: str or None
-    :param repomatch: array of fnmatch's for vcs url
-    :type repomatch: str or None
-    :param namematch: array of fnmatch's for project name
-    :type namematch: str or None
-    :rtype: list
-    :todo: optimize performance, tests.
-
-    """
-    repo_list = []
-    for directory, repos in config.items():
-        for repo, repo_data in repos.items():
-            if dirmatch and not fnmatch.fnmatch(directory, dirmatch):
-                continue
-            if repomatch and not fnmatch.fnmatch(repo_data['repo'], repomatch):
-                continue
-            if namematch and not fnmatch.fnmatch(repo, namematch):
-                continue
-            repo_dict = {
-                'name': repo,
-                'cwd': directory,
-                'url': repo_data['repo'],
-            }
-
-            if 'remotes' in repo_data:
-                repo_dict['remotes'] = []
-                for remote_name, url in repo_data['remotes'].items():
-                    remote_dict = {
-                        'remote_name': remote_name,
-                        'url': url
-                    }
-                    repo_dict['remotes'].append(remote_dict)
-            repo_list.append(repo_dict)
-    return repo_list
-
-
 def in_dir(
-    config_dir=os.path.expanduser('~/.vcspull'),
+    config_dir=CONFIG_DIR,
     extensions=['.yml', '.yaml', '.json']
 ):
     """Return a list of configs in ``config_dir``.
@@ -91,6 +47,16 @@ def in_dir(
     return configs
 
 
+def expand_dir(_dir):
+    """Return path with environmental variables and tilde ~ expanded.
+
+    :param dir:
+    :type dir: string
+    :rtype; string
+    """
+    return os.path.expanduser(os.path.expandvars(_dir))
+
+
 def expand_config(config):
     """Return expanded configuration.
 
@@ -99,45 +65,60 @@ def expand_config(config):
 
     :param config: the repo config in :py:class:`dict` format.
     :type config: dict
-    :rtype: dict
+    :rtype: list
 
     """
+    configs = []
     for directory, repos in config.items():
         for repo, repo_data in repos.items():
+
+            conf = {}
 
             '''
             repo_name: http://myrepo.com/repo.git
 
             to
 
-            repo_name: { repo: 'http://myrepo.com/repo.git' }
+            repo_name: { url: 'http://myrepo.com/repo.git' }
 
             also assures the repo is a :py:class:`dict`.
             '''
 
             if isinstance(repo_data, string_types):
-                config[directory][repo] = {'repo': repo_data}
+                conf['url'] = expand_dir(repo_data)
+            else:
+                conf = update_dict(conf, repo_data)
 
             '''
             ``shell_command_after``: if str, turn to list.
             '''
-            if 'shell_command_after' in repo_data:
-                if isinstance(repo_data['shell_command_after'], string_types):
-                    repo_data['shell_command_after'] = [
-                        repo_data['shell_command_after']
+            if 'shell_command_after' in conf:
+                if isinstance(conf['shell_command_after'], string_types):
+                    conf['shell_command_after'] = [
+                        conf['shell_command_after']
                     ]
 
-    config = dict(
-        (os.path.expandvars(directory), repo_data)
-        for directory, repo_data in config.items()
-    )
+            if 'name' not in conf:
+                conf['name'] = repo
+            if 'parent_dir' not in conf:
+                conf['parent_dir'] = expand_dir(directory)
+            if 'repo_dir' not in conf:
+                conf['repo_dir'] = expand_dir(
+                    os.path.join(conf['parent_dir'], conf['name'])
+                )
+            if 'remotes' in conf:
+                remotes = []
+                for remote_name, url in conf['remotes'].items():
+                    remotes.append({
+                        'remote_name': remote_name,
+                        'url': url
+                    })
+                conf['remotes'] = sorted(
+                    remotes, key=lambda x: sorted(x.get('remote_name'))
+                )
+            configs.append(conf)
 
-    config = dict(
-        (os.path.expanduser(directory), repo_data) for
-        directory, repo_data in config.items()
-    )
-
-    return config
+    return configs
 
 
 def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
@@ -150,17 +131,13 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     :rtype: bool
 
     """
-
     extensions = [extensions] if isinstance(
         extensions, string_types) else extensions
     return any(filename.endswith(e) for e in extensions)
 
 
-def find_home_configs(filetype=['json', 'yaml']):
-    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory.
-
-    """
-
+def find_home_config_files(filetype=['json', 'yaml']):
+    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
     configs = []
 
     yaml_config = os.path.expanduser('~/.vcspull.yaml')
@@ -188,7 +165,7 @@ def find_home_configs(filetype=['json', 'yaml']):
     return configs
 
 
-def find_configs(
+def find_config_files(
     path=['~/.vcspull'],
     match=['*'],
     filetype=['json', 'yaml'],
@@ -213,25 +190,24 @@ def find_configs(
     :rtype: list
 
     """
-
     configs = []
 
     if include_home is True:
-        configs.extend(find_home_configs())
+        configs.extend(find_home_config_files())
 
     if isinstance(path, list):
         for p in path:
-            configs.extend(find_configs(p, match, filetype))
+            configs.extend(find_config_files(p, match, filetype))
             return configs
     else:
         path = os.path.expanduser(path)
         if isinstance(match, list):
             for m in match:
-                configs.extend(find_configs(path, m, filetype))
+                configs.extend(find_config_files(path, m, filetype))
         else:
             if isinstance(filetype, list):
                 for f in filetype:
-                    configs.extend(find_configs(path, match, f))
+                    configs.extend(find_config_files(path, match, f))
             else:
                 match = os.path.join(path, match)
                 match += ".{filetype}".format(filetype=filetype)
@@ -244,47 +220,71 @@ def find_configs(
 def load_configs(configs):
     """Return repos from a directory and fnmatch. Not recursive.
 
+    :todo: Validate scheme, check for duplciate destinations, VCS urls
+
     :param configs: paths to config file
     :type path: list
     :returns: expanded config dict item
-    :rtype: iter(dict)
+    :rtype: list of dict
 
     """
-
-    configdict = {}
-
-    # rewrite this...
+    configlist = []
     for config in configs:
         fName, fExt = os.path.splitext(config)
         conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
         conf.import_config(config)
 
-        newconfigdict = expand_config(conf.export('dict'))
+        newconfigs = expand_config(conf.export('dict'))
 
-        if configdict:
-            for path in newconfigdict:
-                if path in configdict:
-                    for repo_name in newconfigdict[path]:
-                        if repo_name in configdict[path]:
-                            if newconfigdict[path][repo_name] != configdict[path][repo_name]:
-                                print('same path + repo for %s' % repo_name)
-                                if newconfigdict[path][repo_name]['repo'] != configdict[path][repo_name]['repo']:
-                                    msg = (
-                                        'same path + repo, different vcs (%s)\n'
-                                        '%s\n%s' %
-                                        (
-                                            repo_name,
-                                            configdict[path][repo_name]['repo'],
-                                            newconfigdict[path][repo_name]['repo']
-                                        )
-                                    )
-                                    raise Exception(msg)
-        configdict = update_dict(configdict, newconfigdict)
-        # configdict.update(conf.export('dict'))
+        if not configlist:
+            configlist.extend(newconfigs)
+            continue
 
-    # if configs load and validate_schema, then load.
-    # configs = [config for config in configs if validate_schema(config)]
+        dupes = find_dupes(configlist, newconfigs)
 
-    configdict = expand_config(configdict)
+        if dupes:
+            msg = (
+                'repos with same path + different VCS detected!', dupes
+            )
+            raise Exception(msg)
+        configlist.extend(newconfigs)
 
-    return configdict
+    return configlist
+
+
+def find_dupes(repos1, repos2):
+    """Return duplicate repos dict if repo_dir same and vcs different.
+
+    :param repos1: list of repo expanded dicts
+    :type repos1: list of :py:dict
+    :param repos2: list of repo expanded dicts
+    :type repos2: list of :py:dict
+    :rtype: list of dicts or None
+    :returns: Duplicate lists
+    """
+    dupes = []
+    path_dupe_repos = []
+
+    curpaths = [r['repo_dir'] for r in repos1]
+    newpaths = [r['repo_dir'] for r in repos2]
+    path_duplicates = list(set(curpaths).intersection(newpaths))
+
+    if not path_duplicates:
+        return None
+
+    path_dupe_repos.extend(
+        [r for r in repos2 if
+            any(r['repo_dir'] == p for p in path_duplicates)]
+    )
+
+    if not path_dupe_repos:
+        return None
+
+    for n in path_dupe_repos:
+        currepo = next(
+            (r for r in repos1
+                if r['repo_dir'] == n['repo_dir']), None
+        )
+        if n['url'] != currepo['url']:
+            dupes += (n, currepo,)
+    return dupes

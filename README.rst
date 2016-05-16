@@ -35,7 +35,7 @@ Clone and update your repositories at any time:
 
 .. code-block:: bash
     
-    $ vcspull
+    $ vcspull up
     
 Have a lot of projects? Use arguments to clone / update what you need.
 
@@ -48,11 +48,23 @@ Use `fnmatch`_:
 .. code-block:: bash
 
     # any repo starting with "fla"
-    $ vcspull "fla*"
-    
-    # inside of a directory with "co" anywhere, on github.
-    $ vcspull -d "*co*" -r "*github.com*" "fla*"
+    $ vcspull up "fla*"
+    # any repo with django in the name
+    $ vcspull up "*django*"
 
+    # search by vcs + url
+    # since urls are in this format <vcs>+<protocol>://<url>
+    $ vcspull up "git+*"
+
+    # any git repo with python in the vcspull
+    $ vcspull up "git+*python*
+
+    # any git repo with django in the vcs url
+    $ vcspull up "git+*django*
+
+    # all repositories in your ~/code directory
+    vcspull up "$HOME/code/*"
+    
 Python API Usage
 ----------------
 

@@ -1,5 +1,6 @@
 .venv
 .venv3
+*.lprof
 *.pyc
 *.tar.gz
 *.egg-info

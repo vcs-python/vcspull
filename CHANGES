@@ -7,12 +7,39 @@ Here you can find the recent changes to vcspull
 CURRENT
 -------
 
+Breaking Changes:
+
+- [cli] [internal]: command line arg parsing now uses `click`_ library.
+- [cli]: The command to update repositories is now ``vcspull u``, 
+  ``vcspull up`` or ``vcspull update``::
+
+      $ vcspull up neovim
+      $ vcspull up neovim vim django
+- [cli] vcspull will use the beginning part of the argument to determine
+  if its searching by vcs URL, repository name or system path.
+- [config] ``repo`` (the longform for the vcs url) is now ``url``.
+- [config] [internal] repos are now passed around in a list of
+  :py:`dict`. :class:`vcspull.config.expand_config` has been
+  simplified.
+- [internal] flake8 and sort imports
+- [internal] [dev] Add ``Makefile`` for ``watch_test`` (re-running
+  tests on file change), ``watch_flake`` (re-running flake8 check
+  on changes)
+- [internal] [dev] Move ``.tmuxp.yaml`` commands to use Makefile
+- [internal] [dev] split up requirements into ``requirements/``
+  folder.
+- Drop Python 2.6 support
+- [internal] ``find_config`` renamed to ``find_config_files``.
+- Rename ``get_repos`` to ``filter_repos``, simplify argument signature.
+- [cli] Experimental support for concurrently synchroniznig repos via
+  :py:mod:`multiprocessing`.
 - [api][internal]: Refactor :class:`vcspull.repo.Repo` factory class
   into :func:`vcspull.repo.create_repo`.
 - [internal]: major internal cleanup of dead code, pep8 style updates.
-- [git] [ tests]: fix git+https remotes `#14`_, add regression tests.
+- [git] [tests]: fix git+https remotes `#14`_, add regression tests.
 
 .. _#14: https://github.com/tony/vcspull/issues/14
+.. _click: https://github.com/pallets/click
 
 0.2.2
 -----

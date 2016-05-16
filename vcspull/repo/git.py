@@ -9,12 +9,9 @@ From https://github.com/saltstack/salt (Apache License):
 - :py:meth:`~._git_ssh_helper`
 - :py:meth:`~._git_run`
 - :py:meth:`GitRepo.revision`
-- :py:meth:`GitRepo.submodule`
 - :py:meth:`GitRepo.remote`
 - :py:meth:`GitRepo.remote_get`
 - :py:meth:`GitRepo.remote_set`
-- :py:meth:`GitRepo.fetch`
-- :py:meth:`GitRepo.current_branch`
 - :py:meth:`GitRepo.reset`
 
 From pip (MIT Licnese):
@@ -24,17 +21,18 @@ From pip (MIT Licnese):
 - :py:meth:`GitRepo.get_revision`
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
 import logging
-import tempfile
+import os
 import subprocess
+import tempfile
 
-from .base import BaseRepo
-from ..util import run
 from .. import exc
+from .._compat import urlparse
+from ..util import run
+from .base import BaseRepo
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +275,31 @@ class GitRepo(BaseRepo):
         except exc.VCSPullException:
             return None
 
+    @staticmethod
+    def chomp_protocol(url):
+        """Return clean VCS url from RFC-style url
+
+        :param url: url
+        :type url: string
+        :return type: string
+        :returns: url as VCS software would accept it
+        :seealso: #14
+        """
+        if '+' in url:
+            url = url.split('+', 1)[1]
+        scheme, netloc, path, query, frag = urlparse.urlsplit(url)
+        rev = None
+        if '@' in path:
+            path, rev = path.rsplit('@', 1)
+        url = urlparse.urlunsplit((scheme, netloc, path, query, ''))
+        if url.startswith('ssh://git@github.com/'):
+            url = url.replace('ssh://', 'git+ssh://')
+        elif '://' not in url:
+            assert 'file:' not in url
+            url = url.replace('git+', 'git+ssh://')
+            url = url.replace('ssh://', '')
+        return url
+
     def remote_set(self, cwd=None, name='origin', url=None, user=None):
         """Set remote with name and URL like git remote add <remote_name> <remote_url>.
 
@@ -291,10 +314,8 @@ class GitRepo(BaseRepo):
 
         """
 
-        # See #14, only use http/https prefix on remotes
-        # However, git+ssh:// is works fine as remote url
-        if url.startswith('git+http'):
-            url = url.replace('git+', '')
+        url = self.chomp_protocol(url)
+
         if not cwd:
             cwd = self['path']
         if self.remote_get(cwd, name):

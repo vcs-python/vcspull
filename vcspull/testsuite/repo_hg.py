@@ -5,16 +5,16 @@ vcspull.testsuite.repo_git
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
 import logging
+import os
+import unittest
 
-from . import unittest
-from .helpers import ConfigTestCase
 from ..repo import create_repo
 from ..util import run, which
+from .helpers import ConfigTestCase
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class RepoMercurial(ConfigTestCase, unittest.TestCase):
 
         mercurial_repo = create_repo(**{
             'url': 'hg+file://' + os.path.join(repo_dir, repo_name),
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
 
@@ -53,15 +53,14 @@ class RepoMercurial(ConfigTestCase, unittest.TestCase):
 
         testfile = 'testfile.test'
 
-        run([
-            'touch', testfile
-            ], cwd=os.path.join(repo_dir, repo_name))
-        run([
-            'hg', 'add', testfile
-            ], cwd=os.path.join(repo_dir, repo_name))
-        run([
-            'hg', 'commit', '-m', 'a test file for %s' % mercurial_repo['name']
-            ], cwd=os.path.join(repo_dir, repo_name))
+        run(['touch', testfile],
+            cwd=os.path.join(repo_dir, repo_name)
+            )
+        run(['hg', 'add', testfile],
+            cwd=os.path.join(repo_dir, repo_name)
+            )
+        run(['hg', 'commit', '-m', 'test file %s' % mercurial_repo['name']],
+            cwd=os.path.join(repo_dir, repo_name))
 
         mercurial_repo.update_repo()
 

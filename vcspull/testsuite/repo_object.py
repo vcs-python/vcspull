@@ -5,69 +5,59 @@ vcspull.testsuite.repo_object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
 import os
 import unittest
 
 import kaptan
 
-from ..repo import BaseRepo, GitRepo, MercurialRepo, SubversionRepo, create_repo
-from ..util import expand_config, get_repos
+from ..config import expand_config
+from ..repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
+                    create_repo)
+from ..util import filter_repos
 from .helpers import ConfigTestCase, RepoTestMixin
 
 
 class GetReposTest(ConfigTestCase, unittest.TestCase):
 
     def test_filter_dir(self):
-        """``get_repos`` filter by dir"""
+        """``filter_repos`` filter by dir"""
         self.config_dict_expanded
 
-        repo_list = get_repos(
+        repo_list = filter_repos(
             self.config_dict_expanded,
-            dirmatch="*github_project*"
+            repo_dir="*github_project*"
         )
 
         self.assertEqual(len(repo_list), 1)
-        repo_key = '{TMP_DIR}/github_projects/'.format(
-            TMP_DIR=self.TMP_DIR,
-        )
-        self.config_dict_expanded[repo_key]['kaptan']
         for r in repo_list:
             self.assertEqual(r['name'], 'kaptan')
 
     def test_filter_name(self):
-        """``get_repos`` filter by name"""
+        """``filter_repos`` filter by name"""
         self.config_dict_expanded
 
-        repo_list = get_repos(
+        repo_list = filter_repos(
             self.config_dict_expanded,
-            namematch=".vim"
+            name=".vim"
         )
 
         self.assertEqual(len(repo_list), 1)
-        repo_key = '{TMP_DIR}'.format(
-            TMP_DIR=self.TMP_DIR,
-        )
-        self.config_dict_expanded[repo_key]['.vim']
         for r in repo_list:
             self.assertEqual(r['name'], '.vim')
 
     def test_filter_vcs(self):
-        """``get_repos`` filter by vcs"""
+        """``filter_repos`` filter by vcs remote url"""
         self.config_dict_expanded
 
-        repo_list = get_repos(
+        repo_list = filter_repos(
             self.config_dict_expanded,
-            repomatch="*kernel.org*"
+            vcs_url="*kernel.org*"
         )
 
         self.assertEqual(len(repo_list), 1)
-        repo_key = '{TMP_DIR}/study/'.format(
-            TMP_DIR=self.TMP_DIR,
-        )
-        self.config_dict_expanded[repo_key]['linux']
         for r in repo_list:
             self.assertEqual(r['name'], 'linux')
 
@@ -81,15 +71,15 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         super(ConfigToObjectTest, self).setUp()
 
     def test_to_dictlist(self):
-        """``get_repos`` pulls the repos in dict format from the config."""
+        """``filter_repos`` pulls the repos in dict format from the config."""
         self.config_dict_expanded
 
-        repo_list = get_repos(self.config_dict_expanded)
+        repo_list = filter_repos(self.config_dict_expanded)
 
         for r in repo_list:
             self.assertIsInstance(r, dict)
             self.assertIn('name', r)
-            self.assertIn('cwd', r)
+            self.assertIn('parent_dir', r)
             self.assertIn('url', r)
 
             if 'remotes' in r:
@@ -108,8 +98,8 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         """
 
         git_repo = create_repo(**{
-            'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b0d3255bfef95601890afd80709',
-            'cwd': self.TMP_DIR,
+            'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
+            'parent_dir': self.TMP_DIR,
             'name': 'myproject1'
         })
 
@@ -120,7 +110,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         hg_repo = create_repo(**{
             'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': 'myproject2'
         })
 
@@ -129,7 +119,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         svn_repo = create_repo(**{
             'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': 'myproject3'
         })
 
@@ -138,20 +128,20 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
     def test_to_repo_objects(self):
         """:py:obj:`dict` objects into Repo objects."""
-        repo_list = get_repos(self.config_dict_expanded)
+        repo_list = filter_repos(self.config_dict_expanded)
         for repo_dict in repo_list:
             r = create_repo(**repo_dict)
 
             self.assertIsInstance(r, BaseRepo)
             self.assertIn('name', r)
             self.assertEqual(r['name'], repo_dict['name'])
-            self.assertIn('cwd', r)
-            self.assertEqual(r['cwd'], repo_dict['cwd'])
+            self.assertIn('parent_dir', r)
+            self.assertEqual(r['parent_dir'], repo_dict['parent_dir'])
             self.assertIn('url', r)
             self.assertEqual(r['url'], repo_dict['url'])
 
             self.assertEqual(r['path'], os.path.join(
-                r['cwd'], r['name']))
+                r['parent_dir'], r['name']))
 
             if 'remotes' in repo_dict:
                 self.assertIsInstance(r['remotes'], list)
@@ -168,7 +158,7 @@ class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
 
     YAML_CONFIG = """
     {TMP_DIR}/study/python:
-        my_repo: svn+file://{REPO_DIR}
+        my_url: svn+file://{REPO_DIR}
     """
 
     def test_makes_recursive(self):
@@ -182,7 +172,7 @@ class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
         conf = conf.export('dict')
         repos = expand_config(conf)
 
-        for r in get_repos(repos):
+        for r in filter_repos(repos):
             repo = create_repo(**r)
             repo.obtain()
 

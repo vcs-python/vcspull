@@ -6,32 +6,24 @@ vcspull.cli
 
 """
 
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        with_statement)
 
-import os
 import logging
-import argparse
 
-import argcomplete
+import click
 
-from . import exc
 from .__about__ import __version__
-from .util import get_repos, in_dir
-from .config import find_configs, load_configs
+from .config import find_config_files, load_configs
 from .log import DebugLogFormatter
 from .repo import create_repo
+from .util import filter_repos
+
+
+MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
+MAX_ASYNC = 8  # maximum processes to open:w
 
 log = logging.getLogger(__name__)
-
-NO_REPOS_FOUND = """
-    No repositories found.
-
-    Check out the documentation at http://vcspull.rtfd.org for
-    examples.
-"""
-
-config_dir = os.path.expanduser('~/.vcspull/')
 
 
 def setup_logger(log=None, level='INFO'):
@@ -51,113 +43,80 @@ def setup_logger(log=None, level='INFO'):
         log.addHandler(channel)
 
 
-def get_parser():
-    """Return :py:class:`argparse.ArgumentParser` instance for CLI."""
+class AliasedGroup(click.Group):
 
-    main_parser = argparse.ArgumentParser()
-
-    main_parser.add_argument(
-        '-c', '--config',
-        dest='config',
-        type=str,
-        nargs='?',
-        help='Pull the latest repositories from config(s)'
-    ).completer = ConfigFileCompleter(
-        allowednames=('.yaml', '.json'), directories=False
-    )
-
-    main_parser.add_argument(
-        '-d', '--dirmatch',
-        dest='dirmatch',
-        type=str,
-        nargs='?',
-        help='Pull only from the directories. Accepts fnmatch(1)'
-             'by commands'
-    )
-
-    main_parser.add_argument(
-        '-r', '--repomatch',
-        dest='repomatch',
-        type=str,
-        nargs='?',
-        help='Pull only from the repository urls. Accepts fnmatch(1)'
-    )
-
-    main_parser.add_argument(
-        dest='namematch',
-        type=str,
-        nargs='?',
-        help='Pull only from project name. Accepts fnmatch(1)'
-    )
-
-    main_parser.set_defaults(callback=command_load)
-
-    main_parser.add_argument(
-        '-v', '--version', action='version',
-        version='vcspull %s' % __version__,
-        help='Prints the vcspull version',
-    )
-
-    return main_parser
+    def get_command(self, ctx, cmd_name):
+        rv = click.Group.get_command(self, ctx, cmd_name)
+        if rv is not None:
+            return rv
+        matches = [x for x in self.list_commands(ctx)
+                   if x.startswith(cmd_name)]
+        if not matches:
+            return None
+        elif len(matches) == 1:
+            return click.Group.get_command(self, ctx, matches[0])
+        ctx.fail('Too many matches: %s' % ', '.join(sorted(matches)))
 
 
-def main():
-    """Main CLI application."""
-
-    parser = get_parser()
-
-    argcomplete.autocomplete(parser, always_complete_options=False)
-
-    args = parser.parse_args()
-
+@click.command(cls=AliasedGroup)
+@click.option('--log_level', default='INFO',
+              help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+@click.version_option(version=__version__, message='%(prog)s %(version)s')
+def cli(log_level):
     setup_logger(
-        level=args.log_level.upper() if 'log_level' in args else 'INFO'
+        level=log_level.upper()
     )
 
-    try:
-        if not args.config or args.config and args.callback is command_load:
-            command_load(args)
-        else:
-            parser.print_help()
-    except KeyboardInterrupt:
-        pass
 
+@click.command(name='update')
+@click.argument('repo_terms', nargs=-1)
+@click.option('--run-async', '-a', is_flag=True,
+              help='Run repo syncing concurrently (experimental)')
+def update(repo_terms, run_async):
+    configs = load_configs(find_config_files(include_home=True))
+    found_repos = []
 
-def command_load(args):
-    """Load YAML and JSON configs and begin creating / updating repos."""
-    if not args.config or args.config == ['*']:
-        configs = find_configs(include_home=True)
+    if repo_terms:
+        for repo_term in repo_terms:
+            repo_dir, vcs_url, name = None, None, None
+            if any(repo_term.startswith(n) for n in ['./', '/', '~', '$HOME']):
+                repo_dir = repo_term
+            elif any(
+                repo_term.startswith(n) for n in ['http', 'git', 'svn', 'hg']
+            ):
+                vcs_url = repo_term
+            else:
+                name = repo_term
+
+            # collect the repos from the config files
+            found_repos.extend(filter_repos(
+                configs,
+                repo_dir=repo_dir,
+                vcs_url=vcs_url,
+                name=name
+            ))
     else:
-        configs = [args.config]
+        found_repos = configs
 
-    configs = load_configs(configs)
-    repos = get_repos(
-        configs,
-        dirmatch=args.dirmatch,
-        repomatch=args.repomatch,
-        namematch=args.namematch
-    )
-
-    for repo_dict in repos:
-        r = create_repo(**repo_dict)
-        log.debug('%s' % r)
-        r.update_repo()
-
-    if len(repos) == 0:
-        raise exc.NoConfigsFound(NO_REPOS_FOUND)
+    found_repos_n = len(found_repos)
+    # turn them into :class:`Repo` objects and clone/update them
+    if run_async and found_repos_n >= MIN_ASYNC:
+        from multiprocessing import Pool
+        p = Pool(clamp(found_repos_n, MIN_ASYNC, MAX_ASYNC))
+        p.map_async(update_repo, found_repos).get()
+    else:
+        list(map(update_repo, found_repos))
 
 
-class ConfigFileCompleter(argcomplete.completers.FilesCompleter):
+def clamp(n, _min, _max):
+    return max(_min, min(n, _max))
 
-    """argcomplete completer for vcspull files."""
 
-    def __call__(self, prefix, **kwargs):
+def update_repo(repo_dict):
+    if 'url' not in repo_dict:  # normalize vcs/repo key
+        repo_dict['url'] = repo_dict['repo']
+    r = create_repo(**repo_dict)
+    log.debug('%s' % r)
+    r.update_repo()
 
-        completion = argcomplete.completers.FilesCompleter.__call__(
-            self, prefix, **kwargs
-        )
-
-        completion += [os.path.join(config_dir, c)
-                       for c in in_dir(config_dir)]
-
-        return completion
+cli.add_command(update)

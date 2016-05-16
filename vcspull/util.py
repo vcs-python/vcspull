@@ -6,25 +6,26 @@ vcspull.util
 
 """
 
-from __future__ import (
-    absolute_import, division, print_function, with_statement, unicode_literals
-)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import subprocess
 import collections
-import os
 import errno
-import logging
 import fnmatch
+import logging
+import os
+import subprocess
 
 from . import exc
 from ._compat import string_types
+
+CONFIG_DIR = os.path.expanduser('~/.vcspull/')  # remove dupes of this
 
 logger = logging.getLogger(__name__)
 
 
 def in_dir(
-    config_dir=os.path.expanduser('~/.vcspull'),
+    config_dir=CONFIG_DIR,
     extensions=['.yml', '.yaml', '.json']
 ):
     """Return a list of configs in ``config_dir``.
@@ -46,94 +47,45 @@ def in_dir(
     return configs
 
 
-def expand_config(config):
-    """Return expanded configuration.
-
-    end-user configuration permit inline configuration shortcuts, expand to
-    identical format for parsing.
-
-    :param config: the repo config in :py:class:`dict` format.
-    :type config: dict
-    :rtype: dict
-
-    """
-    for directory, repos in config.items():
-        for repo, repo_data in repos.items():
-
-            '''
-            repo_name: http://myrepo.com/repo.git
-
-            to
-
-            repo_name: { repo: 'http://myrepo.com/repo.git' }
-
-            also assures the repo is a :py:class:`dict`.
-            '''
-
-            if isinstance(repo_data, string_types):
-                config[directory][repo] = {'repo': repo_data}
-
-            '''
-            ``shell_command_after``: if str, turn to list.
-            '''
-            if 'shell_command_after' in repo_data:
-                if isinstance(repo_data['shell_command_after'], string_types):
-                    repo_data['shell_command_after'] = [
-                        repo_data['shell_command_after']
-                    ]
-
-    config = dict(
-        (os.path.expandvars(directory), repo_data) for
-        directory, repo_data in config.items()
-    )
-
-    config = dict(
-        (os.path.expanduser(directory), repo_data) for
-        directory, repo_data in config.items()
-    )
-
-    return config
-
-
-def get_repos(config, dirmatch=None, repomatch=None, namematch=None):
+def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
+
+    repo_dir, vcs_url and name all support fnmatch.
 
     :param config: the expanded repo config in :py:class:`dict` format.
     :type config: dict
-    :param dirmatch: array of fnmatch's for directory
-    :type dirmatch: str or None
-    :param repomatch: array of fnmatch's for vcs url
-    :type repomatch: str or None
-    :param namematch: array of fnmatch's for project name
-    :type namematch: str or None
+    :param repo_dir: directory of checkout location, fnmatch pattern supported
+    :type repo_dir: str or None
+    :param vcs_url: url of vcs remote, fn match pattern supported
+    :type vcs_url: str or None
+    :param name: project name, fnmatch pattern supported
+    :type name: str or None
     :rtype: list
-    :todo: optimize performance, tests.
 
     """
     repo_list = []
-    for directory, repos in config.items():
-        for repo, repo_data in repos.items():
-            if dirmatch and not fnmatch.fnmatch(directory, dirmatch):
-                continue
-            if repomatch and not fnmatch.fnmatch(repo_data['repo'], repomatch):
-                continue
-            if namematch and not fnmatch.fnmatch(repo, namematch):
-                continue
-            repo_dict = {
-                'name': repo,
-                'cwd': directory,
-                'url': repo_data['repo'],
-            }
 
-            if 'remotes' in repo_data:
-                repo_dict['remotes'] = []
-                for remote_name, url in repo_data['remotes'].items():
-                    remote_dict = {
-                        'remote_name': remote_name,
-                        'url': url
-                    }
-                    repo_dict['remotes'].append(remote_dict)
-            repo_list.append(repo_dict)
+    if repo_dir:
+        repo_list.extend(
+            [r for r in config if fnmatch.fnmatch(r['parent_dir'], repo_dir)]
+        )
+
+    if vcs_url:
+        repo_list.extend(
+            r for r in config if fnmatch.fnmatch(
+                r.get('url', r.get('repo')),
+                vcs_url
+            )
+        )
+
+    if name:
+        repo_list.extend(
+            [r for r in config if fnmatch.fnmatch(
+                r.get('name'),
+                name
+            )]
+        )
+
     return repo_list
 
 
@@ -252,7 +204,6 @@ def update_dict(d, u):
     :rtype: dict
 
     """
-
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
             r = update_dict(d.get(k, {}), v)
@@ -272,7 +223,6 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     :rtype: bool
 
     """
-
     extensions = [extensions] if isinstance(
         extensions, string_types) else extensions
     return any(filename.endswith(e) for e in extensions)

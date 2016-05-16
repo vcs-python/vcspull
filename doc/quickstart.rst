@@ -54,46 +54,44 @@ Now run the command, to pull all the repositories in your
 
 .. code-block:: bash
 
-    $ vcspull
+    $ vcspull up
 
 You can also use `fnmatch`_ to pull repositories from your config in
 various fashions, e.g.:
 
 .. code-block:: bash
    
-   $ vcspull django
-   $ vcspull django\*
+   $ vcspull up django
+   $ vcspull up django\*
    # or
-   $ vcspull "django*"
+   $ vcspull up "django*"
    
-Filter by vcs URL:
+Filter by vcs URL
+
+Any repo beginning with ``http``, ``https`` or ``git`` will be look up
+repos by the vcs url.
 
 .. code-block:: bash
    
    # pull / update repositories I have with github in the repo url
-   $ vcspull -r "*github*"
+   $ vcspull up "git+https://github.com/yourusername/*"
 
    # pull / update repositories I have with bitbucket in the repo url
-   $ vcspull -r "*bitbucket*"
+   $ vcspull up "git+https://*bitbucket*"
    
 Filter by the path of the repo on your local machine:
+
+Any repo beginning with ``/``, ``./``, ``~`` or ``$HOME`` will scan
+for patterns of where the project is on your system[
 
 .. code-block:: bash
    
    # pull all the repos I have inside of ~/study/python
-   $ vcspull -d "$HOME/study/python"
+   $ vcspull up "$HOME/study/python"
 
    # pull all the repos I have in directories on my config with "python"
-   $ vcspull -d "*python*"
+   $ vcspull up ~/*python*"
    
-Mix them all:
-
-.. code-block:: bash
-   
-    # Repos with "python" in the name of the directory, on github.com,
-    # with sql* in the name.
-    $ vcspull -d "*python*" -r "*github.com*" "sql*"
-
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _flask: http://flask.pocoo.org/
 .. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html

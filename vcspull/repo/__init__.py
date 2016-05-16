@@ -5,17 +5,16 @@ vcspull.repo
 ~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
 import logging
 
-from ..log import RepoLogFormatter, RepoFilter
-
+from ..log import RepoFilter, RepoLogFormatter
+from .base import BaseRepo, RepoLoggingAdapter
 from .git import GitRepo
 from .hg import MercurialRepo
 from .svn import SubversionRepo
-from .base import BaseRepo, RepoLoggingAdapter
 
 __all__ = ['GitRepo', 'MercurialRepo', 'SubversionRepo', 'BaseRepo',
            'RepoLoggingAdapter', 'create_repo']
@@ -31,23 +30,27 @@ logger.addHandler(channel)
 
 
 def create_repo(url, *args, **kwargs):
-    """Return an object with a base class of :class:`BaseRepo` depending on url.
+    r"""Return object with base class :class:`BaseRepo` depending on url.
 
     Return instance of :class:`vcspull.repo.svn.SubversionRepo`,
-    :class:`vcspull.repo.git.GitRepo` or :class:`vcspull.repo.hg.MercurialRepo`.
+    :class:`vcspull.repo.git.GitRepo` or
+    :class:`vcspull.repo.hg.MercurialRepo`.
     The object returned is a child of :class:`vcspull.repo.base.BaseRepo`.
 
     Usage Example::
 
         In [1]: from vcspull.repo import create_repo
 
-        In [2]: r = create_repo(url='git+https://www.github.com/tony/myrepo', cwd='/tmp/',
+        In [2]: r = create_repo(url='git+https://www.github.com/you/myrepo',
+                    cwd='/tmp/',
                     name='myrepo')
 
         In [3]: r.update_repo()
-        |myrepo| (git)  Repo directory for myrepo (git) does not exist @ /tmp/myrepo
+        |myrepo| (git)  Repo directory for myrepo (git) does not exist @ \
+            /tmp/myrepo
         |myrepo| (git)  Cloning.
-        |myrepo| (git)  git clone --progress https://www.github.com/tony/myrepo /tmp/myrepo
+        |myrepo| (git)  git clone --progress https://www.github.com/tony/myrepo
+            /tmp/myrepo
         Cloning into '/tmp/myrepo'...
         Checking connectivity... done.
         |myrepo| (git)  git fetch

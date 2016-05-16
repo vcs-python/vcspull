@@ -10,13 +10,11 @@ about = {}
 with open("vcspull/__about__.py") as fp:
     exec(fp.read(), about)
 
-with open('requirements.pip') as f:
+with open('requirements/base.txt') as f:
     install_reqs = [line for line in f.read().split('\n') if line]
-    tests_reqs = []
 
-if sys.version_info < (2, 7):
-    install_reqs += ['argparse']
-    tests_reqs += ['unittest2', 'mock']
+with open('requirements/test.txt') as f:
+    tests_reqs = [line for line in f.read().split('\n') if line]
 
 readme = open('README.rst').read()
 history = open('CHANGES').read().replace('.. :changelog:', '')
@@ -42,7 +40,7 @@ setup(
               'vcspull.repo',
     ],
     scripts=['pkg/vcspull.bash', 'pkg/vcspull.zsh', 'pkg/vcspull.tcsh'],
-    entry_points=dict(console_scripts=['vcspull=vcspull:cli.main']),
+    entry_points=dict(console_scripts=['vcspull=vcspull:cli.cli']),
     classifiers=[
         'Development Status :: 4 - Beta',
         "License :: OSI Approved :: BSD License",

@@ -1,13 +1,13 @@
 language: python
 sudo: false
 python:
-  - 2.6
   - 2.7
   - 3.3
   - 3.4
   - 3.5
 before_install:
   - export PIP_USE_MIRRORS=true
+  - pip install -U pip setuptools
   - pip install coveralls
   - git config --global user.name 'travis-ci'
   - git config --global user.email 'travis@nowhere.edu'

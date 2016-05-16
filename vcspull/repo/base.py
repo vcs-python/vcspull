@@ -5,18 +5,18 @@ vcspull.repo.base
 ~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
 import collections
-import os
-import sys
-import subprocess
 import logging
+import os
+import subprocess
+import sys
 
 from .. import exc
+from .._compat import console_to_str, text_type, urlparse
 from ..util import mkdir_p
-from .._compat import urlparse, text_type, console_to_str
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,6 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
         Both :class:`Repo` and :py:class:`logging.LogRecord` use ``name``.
 
         """
-
         prefixed_dict = {}
         for key, v in self.attributes.items():
             prefixed_dict['repo_' + key] = v
@@ -48,7 +47,7 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
         return msg, kwargs
 
     def _show_progress(self):
-        """Should we display download progress?"""
+        """Should we display download progress."""
         return sys.stdout.isatty()
 
     def start_progress(self, msg=True):
@@ -74,29 +73,31 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
                 sys.stdout.write('...' + self.in_progress + msg + '\n')
                 sys.stdout.flush()
             else:
-                # These erase any messages shown with show_progress (besides .'s)
+                # Erase any messages shown with show_progress (besides .'s)
                 self.show_progress('')
                 self.show_progress('')
                 sys.stdout.write(msg)
-                #sys.stdout.write(msg + '\n')
                 sys.stdout.flush()
         self.in_progress = None
         self.in_progress_hanging = False
 
     def show_progress(self, message=None):
-        """If we are in a progress scope, and no log messages have been
-        shown, write out another '.'"""
+        """If in progress scope with no log messages shown yet, append '.'."""
         if self.in_progress_hanging:
             if message is None:
                 # sys.stdout.write('.')
                 sys.stdout.flush()
             else:
                 if self.last_message:
-                    padding = ' ' * max(0, len(self.last_message) - len(message))
+                    padding = ' ' * max(
+                        0, len(self.last_message) - len(message)
+                    )
                 else:
                     padding = ''
-                sys.stdout.write('\r%s%s%s' %
-                                (' ' * self.indent, message, padding))
+                sys.stdout.write(
+                    '\r%s%s%s' %
+                    (' ' * self.indent, message, padding)
+                )
                 sys.stdout.flush()
                 self.last_message = message
 
@@ -110,12 +111,12 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     """
 
-    def __init__(self, url, cwd, *args, **kwargs):
+    def __init__(self, url, parent_dir, *args, **kwargs):
         self.attributes = kwargs
         self.attributes['url'] = url
-        self.attributes['cwd'] = cwd
+        self.attributes['parent_dir'] = parent_dir
 
-        self['path'] = os.path.join(self['cwd'], self['name'])
+        self['path'] = os.path.join(self['parent_dir'], self['name'])
 
         # Register more schemes with urlparse for various version control
         # systems
@@ -145,21 +146,25 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
                 if err == '' and process.poll() is not None:
                     break
                 elif 'ERROR' in err:
-                    raise exc.VCSPullException(err + console_to_str(process.stderr.read()))
-                if err != '':
+                    raise exc.VCSPullException(
+                        err + console_to_str(process.stderr.read())
+                    )
+                else:
                     self.show_progress("%s" % err)
 
             self.end_progress('%s' % (console_to_str(process.stdout.read())))
         else:
             self.info('%s' % (process.stdout.read()))
 
-        return process
+        process.stderr.close()
+        process.stdout.close()
 
+        return process
 
     def check_destination(self, *args, **kwargs):
         """Assure destination path exists. If not, create directories."""
-        if not os.path.exists(self['cwd']):
-            mkdir_p(self['cwd'])
+        if not os.path.exists(self['parent_dir']):
+            mkdir_p(self['parent_dir'])
         else:
             if not os.path.exists(self['path']):
                 self.info('Repo directory for %s (%s) does not exist @ %s' % (

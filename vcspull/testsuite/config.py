@@ -5,26 +5,21 @@ vcspull.testsuite.config
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import (
-    absolute_import, division, print_function, with_statement, unicode_literals
-)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import tempfile
-import os
 import copy
 import logging
+import os
+import tempfile
+import unittest
 
 import kaptan
 
-from .. import exc
-from ..util import expand_config
-
-from . import unittest
-from .helpers import (
-    ConfigTestMixin, ConfigTestCase, RepoIntegrationTest, EnvironmentVarGuard
-)
-
-from .. import config
+from .. import config, exc
+from ..config import expand_config
+from .helpers import (ConfigTestCase, ConfigTestMixin, EnvironmentVarGuard,
+                      RepoIntegrationTest, assertConfigList)
 
 logger = logging.getLogger(__name__)
 
@@ -105,37 +100,38 @@ class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
 
     def test_expand_shell_command_after(self):
         """Expand shell commands from string to list."""
-
         self.maxDiff = None
 
         config = expand_config(self.config_dict)
 
-        self.assertDictEqual(config, self.config_dict_expanded)
+        assertConfigList(config, self.config_dict_expanded)
 
 
 class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
+
     """Verify .expandvars and .expanduser works with configs."""
 
     def setUp(self):
         ConfigTestCase.setUp(self)
         ConfigTestMixin.setUp(self)
 
-        config_yaml = """
+        path_ = """
         '~/study/':
             sphinx: hg+file://{hg_repo_path}
             docutils: svn+file://{svn_repo_path}
             linux: git+file://{git_repo_path}
         '${HOME}/github_projects/':
             kaptan:
-                repo: git+file://{git_repo_path}
+                url: git+file://{git_repo_path}
                 remotes:
                     test_remote: git+file://{git_repo_path}
         '~':
             .vim:
-                repo: git+file://{git_repo_path}
+                url: git+file://{git_repo_path}
             .tmux:
-                repo: git+file://{git_repo_path}
+                url: git+file://{git_repo_path}
         """
+        config_yaml = path_
 
         config_json = """
         {
@@ -146,7 +142,7 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
           },
           "${HOME}/github_projects/": {
             "kaptan": {
-              "repo": "git+file://${git_repo_path}",
+              "url": "git+file://${git_repo_path}",
               "remotes": {
                 "test_remote": "git+file://${git_repo_path}"
               }
@@ -171,17 +167,22 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         config1_expanded = expand_config(self.config1)
         config2_expanded = expand_config(self.config2)
 
-        paths = [path for path, v in config1_expanded.items()]
-        self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
+        paths = [r['parent_dir'] for r in config1_expanded]
+        self.assertIn(
+            os.path.expanduser(
+                os.path.expandvars('${HOME}/github_projects/')
+            ), paths
+        )
         self.assertIn(os.path.expanduser('~/study/'), paths)
         self.assertIn(os.path.expanduser('~'), paths)
 
-        paths = [path for path, v in config2_expanded.items()]
+        paths = [r['parent_dir'] for r in config2_expanded]
         self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)
 
 
 class InDirTest(ConfigTestCase):
+
     def setUp(self):
 
         ConfigTestCase.setUp(self)
@@ -218,7 +219,7 @@ class InDirTest(ConfigTestCase):
 
 class FindConfigsHome(ConfigTestCase, unittest.TestCase):
 
-    """Test find_configs in home directory."""
+    """Test find_config_files in home directory."""
 
     def tearDown(self):
         ConfigTestCase.tearDown(self)
@@ -229,13 +230,13 @@ class FindConfigsHome(ConfigTestCase, unittest.TestCase):
         self.config_file1_path = os.path.join(self.TMP_DIR, '.vcspull.yaml')
         self.config_file1 = open(self.config_file1_path, 'a').close()
 
-    def test_find_configs(self):
+    def test_find_config_files(self):
 
         with EnvironmentVarGuard() as env:
             env.set("HOME", self.TMP_DIR)
             self.assertEqual(os.environ.get("HOME"), self.TMP_DIR)
             expectedIn = os.path.join(self.TMP_DIR, '.vcspull.yaml')
-            results = config.find_home_configs()
+            results = config.find_home_config_files()
 
             self.assertIn(expectedIn, results)
 
@@ -247,13 +248,13 @@ class FindConfigsHome(ConfigTestCase, unittest.TestCase):
             with self.assertRaises(exc.MultipleRootConfigs):
                 env.set("HOME", self.TMP_DIR)
                 self.assertEqual(os.environ.get("HOME"), self.TMP_DIR)
-                config.find_home_configs()
+                config.find_home_config_files()
         os.remove(self.config_file2_path)
 
 
 class FindConfigs(ConfigTestCase, unittest.TestCase):
 
-    """Test find_configs."""
+    """Test find_config_files."""
 
     def setUp(self):
         ConfigTestCase.setUp(self)
@@ -281,19 +282,19 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
 
     def test_path_string(self):
         """path as a string."""
-        configs = config.find_configs(path=self.CONFIG_DIR)
+        configs = config.find_config_files(path=self.CONFIG_DIR)
 
         self.assertIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
     def test_path_list(self):
-        configs = config.find_configs(path=[self.CONFIG_DIR])
+        configs = config.find_config_files(path=[self.CONFIG_DIR])
 
         self.assertIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
     def test_match_string(self):
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match=self.config_file1_filename
         )
@@ -301,7 +302,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file1.name, configs)
         self.assertNotIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match=self.config_file2_filename
         )
@@ -309,7 +310,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertNotIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match='randomstring'
         )
@@ -317,7 +318,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertNotIn(self.config_file1.name, configs)
         self.assertNotIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match='*'
         )
@@ -325,7 +326,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match='repos*'
         )
@@ -333,7 +334,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match='repos[1-9]*'
         )
@@ -346,7 +347,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file2.name, configs)
 
     def test_match_list(self):
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match=[self.config_file1_filename, self.config_file2_filename]
         )
@@ -354,7 +355,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match=[self.config_file1_filename]
         )
@@ -369,7 +370,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         )
 
     def test_filetype_string(self):
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match=self.config_file1_filename,
             filetype='yaml',
@@ -378,7 +379,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file1.name, configs)
         self.assertNotIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match=self.config_file1_filename,
             filetype='json',
@@ -387,7 +388,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertNotIn(self.config_file1.name, configs)
         self.assertNotIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match='repos*',
             filetype='json',
@@ -396,7 +397,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertNotIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match='repos*',
             filetype='*',
@@ -406,7 +407,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file2.name, configs)
 
     def test_filetype_list(self):
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match=['repos*'],
             filetype=['*'],
@@ -415,7 +416,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             match=['repos*'],
             filetype=['json', 'yaml'],
@@ -424,7 +425,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
         self.assertIn(self.config_file1.name, configs)
         self.assertIn(self.config_file2.name, configs)
 
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=[self.CONFIG_DIR],
             filetype=['json', 'yaml'],
         )
@@ -435,7 +436,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
     def test_include_home_configs(self):
         with EnvironmentVarGuard() as env:
             env.set("HOME", self.TMP_DIR)
-            configs = config.find_configs(
+            configs = config.find_config_files(
                 path=[self.CONFIG_DIR],
                 match='*',
                 include_home=True
@@ -449,7 +450,7 @@ class FindConfigs(ConfigTestCase, unittest.TestCase):
             )
             self.config_file3 = open(self.config_file3_path, 'a').close()
 
-            results = config.find_configs(
+            results = config.find_config_files(
                 path=[self.CONFIG_DIR],
                 match='*',
                 include_home=True
@@ -467,14 +468,11 @@ class LoadConfigs(RepoIntegrationTest):
 
     def test_load(self):
         """Load a list of file into dict."""
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=self.CONFIG_DIR
         )
 
-        try:
-            config.load_configs(configs)
-        except Exception as e:
-            self.fail(e)
+        config.load_configs(configs)
 
 
 class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
@@ -486,7 +484,7 @@ class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
         config_yaml3 = """
         {TMP_DIR}/srv/www/test/:
             subRepoDiffVCS:
-                repo: svn+file://${svn_repo_path}
+                url: svn+file://${svn_repo_path}
             subRepoSameVCS: git+file://${git_repo_path}
             vcsOn1: svn+file://${svn_repo_path}
         """
@@ -494,7 +492,7 @@ class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
         config_yaml4 = """
         {TMP_DIR}/srv/www/test/:
             subRepoDiffVCS:
-                repo: git+file://${git_repo_path}
+                url: git+file://${git_repo_path}
             subRepoSameVCS: git+file://${git_repo_path}
             vcsOn2: svn+file://${svn_repo_path}
         """
@@ -559,12 +557,13 @@ class LoadConfigsDuplicate(RepoIntegrationDuplicateTest):
 
     def test_duplicate_path_diff_vcs(self):
         """Duplicate path + name with different repo URL / remotes raises."""
-
-        configs = config.find_configs(
+        configs = config.find_config_files(
             path=self.CONFIG_DIR,
             match="repoduplicate[1-2]"
         )
 
+        self.assertIn(self.config3_file, configs)
+        self.assertIn(self.config4_file, configs)
         with self.assertRaises(Exception):
             config.load_configs(configs)
 

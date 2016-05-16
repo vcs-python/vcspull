@@ -5,21 +5,20 @@ vcspull.testsuite.repo_git
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, division, print_function, \
-    with_statement, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals, with_statement)
 
-import os
 import logging
+import os
 import unittest
 
 import mock
-
-from .helpers import RepoTestMixin, RepoIntegrationTest, ConfigTestCase
 
 from .. import exc
 from .._compat import StringIO
 from ..repo import create_repo
 from ..util import run
+from .helpers import ConfigTestCase, RepoIntegrationTest, RepoTestMixin
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + os.path.join(repo_dir, repo_name),
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
 
@@ -77,7 +76,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
-            'cwd': os.path.dirname(repo_dir),
+            'parent_dir': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
             'remotes': [
                 {
@@ -101,7 +100,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
-            'cwd': os.path.dirname(repo_dir),
+            'parent_dir': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
             'remotes': [{
                 'remote_name': 'myrepo',
@@ -122,7 +121,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
-            'cwd': os.path.dirname(repo_dir),
+            'parent_dir': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
             'remotes': [{
                 'remote_name': 'myrepo',
@@ -144,7 +143,7 @@ class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+ssh://github.com:' + git_checkout_dest,
-            'cwd': os.path.dirname(repo_dir),
+            'parent_dir': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
         })
 
@@ -198,7 +197,8 @@ class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
 class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
                                      unittest.TestCase):
-    """Need to imitate git remote not found.
+
+    r"""Need to imitate git remote not found.
 
     |isobar-frontend| (git)  create_repo directory for isobar-frontend (git) \
         does not exist @ /home/tony/study/std/html/isobar-frontend
@@ -221,7 +221,7 @@ class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
         url = 'git+file://' + os.path.join(repo_dir, repo_name)
         git_repo = create_repo(**{
             'url': url,
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
         error_output = 'ERROR: hello mock subprocess stderr'
