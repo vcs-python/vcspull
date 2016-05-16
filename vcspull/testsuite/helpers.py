@@ -141,7 +141,7 @@ class ConfigTestMixin(unittest.TestCase):
         config_dict_expanded = [
             {
                 'name': 'linux',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
                 'full_path': os.path.join(
                     '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux'
                 ),
@@ -149,7 +149,7 @@ class ConfigTestMixin(unittest.TestCase):
             },
             {
                 'name': 'freebsd',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
                 'full_path': os.path.join(
                     '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd'
                 ),
@@ -157,7 +157,7 @@ class ConfigTestMixin(unittest.TestCase):
             },
             {
                 'name': 'sphinx',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
                 'full_path': os.path.join(
                     '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'
                 ),
@@ -165,7 +165,7 @@ class ConfigTestMixin(unittest.TestCase):
             },
             {
                 'name': 'docutils',
-                'cwd': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
+                'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
                 'full_path': os.path.join(
                     '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
                     'docutils'
@@ -175,7 +175,7 @@ class ConfigTestMixin(unittest.TestCase):
             {
                 'name': 'kaptan',
                 'url': 'git+git@github.com:tony/kaptan.git',
-                'cwd': '{TMP_DIR}/github_projects/'.format(
+                'parent_dir': '{TMP_DIR}/github_projects/'.format(
                     TMP_DIR=self.TMP_DIR
                 ),
                 'full_path': os.path.join(
@@ -189,7 +189,7 @@ class ConfigTestMixin(unittest.TestCase):
             },
             {
                 'name': '.vim',
-                'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
+                'parent_dir': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
                 'full_path': os.path.join(
                     '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'
                 ),
@@ -200,7 +200,7 @@ class ConfigTestMixin(unittest.TestCase):
             },
             {
                 'name': '.tmux',
-                'cwd': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
+                'parent_dir': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
                 'full_path': os.path.join(
                     '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'
                 ),
@@ -252,7 +252,7 @@ class RepoTestMixin(object):
 
         svn_repo = create_repo(**{
             'url': 'svn+file://' + os.path.join(repo_path, repo_name),
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
 
@@ -285,7 +285,7 @@ class RepoTestMixin(object):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + os.path.join(repo_path, repo_name),
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
 
@@ -328,7 +328,7 @@ class RepoTestMixin(object):
 
         mercurial_repo = create_repo(**{
             'url': 'hg+file://' + os.path.join(repo_path, repo_name),
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
 

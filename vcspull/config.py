@@ -101,11 +101,11 @@ def expand_config(config):
 
             if 'name' not in conf:
                 conf['name'] = repo
-            if 'cwd' not in conf:
-                conf['cwd'] = expand_dir(directory)
+            if 'parent_dir' not in conf:
+                conf['parent_dir'] = expand_dir(directory)
             if 'full_path' not in conf:
                 conf['full_path'] = expand_dir(
-                    os.path.join(conf['cwd'], conf['name'])
+                    os.path.join(conf['parent_dir'], conf['name'])
                 )
             configs.append(conf)
 

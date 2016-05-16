@@ -33,7 +33,7 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + os.path.join(repo_dir, repo_name),
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
 
@@ -76,7 +76,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
-            'cwd': os.path.dirname(repo_dir),
+            'parent_dir': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
             'remotes': [
                 {
@@ -100,7 +100,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
-            'cwd': os.path.dirname(repo_dir),
+            'parent_dir': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
             'remotes': [{
                 'remote_name': 'myrepo',
@@ -121,7 +121,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+file://' + git_checkout_dest,
-            'cwd': os.path.dirname(repo_dir),
+            'parent_dir': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
             'remotes': [{
                 'remote_name': 'myrepo',
@@ -143,7 +143,7 @@ class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+ssh://github.com:' + git_checkout_dest,
-            'cwd': os.path.dirname(repo_dir),
+            'parent_dir': os.path.dirname(repo_dir),
             'name': os.path.basename(os.path.normpath(repo_dir)),
         })
 
@@ -221,7 +221,7 @@ class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
         url = 'git+file://' + os.path.join(repo_dir, repo_name)
         git_repo = create_repo(**{
             'url': url,
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
         error_output = 'ERROR: hello mock subprocess stderr'

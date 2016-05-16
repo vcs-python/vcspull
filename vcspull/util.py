@@ -63,7 +63,7 @@ def filter_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
 
     if dirmatch:
         repo_list.extend(
-            [r for r in config if fnmatch.fnmatch(r['cwd'], dirmatch)]
+            [r for r in config if fnmatch.fnmatch(r['parent_dir'], dirmatch)]
         )
 
     if vcsurlmatch:

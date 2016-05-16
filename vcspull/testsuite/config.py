@@ -168,7 +168,7 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         config1_expanded = expand_config(self.config1)
         config2_expanded = expand_config(self.config2)
 
-        paths = pydash.collections.pluck(config1_expanded, 'cwd')
+        paths = pydash.collections.pluck(config1_expanded, 'parent_dir')
         self.assertIn(
             os.path.expanduser(
                 os.path.expandvars('${HOME}/github_projects/')
@@ -177,7 +177,7 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         self.assertIn(os.path.expanduser('~/study/'), paths)
         self.assertIn(os.path.expanduser('~'), paths)
 
-        paths = pydash.collections.pluck(config2_expanded, 'cwd')
+        paths = pydash.collections.pluck(config2_expanded, 'parent_dir')
         self.assertIn(os.path.expandvars('${HOME}/github_projects/'), paths)
         self.assertIn(os.path.expanduser('~/study/'), paths)
 

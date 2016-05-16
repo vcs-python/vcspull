@@ -38,7 +38,7 @@ class RepoSVN(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
         svn_repo = create_repo(**{
             'url': 'svn+file://' + os.path.join(repo_dir, repo_name),
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': repo_name
         })
 

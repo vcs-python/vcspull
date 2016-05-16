@@ -79,7 +79,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
         for r in repo_list:
             self.assertIsInstance(r, dict)
             self.assertIn('name', r)
-            self.assertIn('cwd', r)
+            self.assertIn('parent_dir', r)
             self.assertIn('url', r)
 
             if 'remotes' in r:
@@ -99,7 +99,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         git_repo = create_repo(**{
             'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': 'myproject1'
         })
 
@@ -110,7 +110,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         hg_repo = create_repo(**{
             'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': 'myproject2'
         })
 
@@ -119,7 +119,7 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
 
         svn_repo = create_repo(**{
             'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
-            'cwd': self.TMP_DIR,
+            'parent_dir': self.TMP_DIR,
             'name': 'myproject3'
         })
 
@@ -135,13 +135,13 @@ class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
             self.assertIsInstance(r, BaseRepo)
             self.assertIn('name', r)
             self.assertEqual(r['name'], repo_dict['name'])
-            self.assertIn('cwd', r)
-            self.assertEqual(r['cwd'], repo_dict['cwd'])
+            self.assertIn('parent_dir', r)
+            self.assertEqual(r['parent_dir'], repo_dict['parent_dir'])
             self.assertIn('url', r)
             self.assertEqual(r['url'], repo_dict['url'])
 
             self.assertEqual(r['path'], os.path.join(
-                r['cwd'], r['name']))
+                r['parent_dir'], r['name']))
 
             if 'remotes' in repo_dict:
                 self.assertIsInstance(r['remotes'], list)
