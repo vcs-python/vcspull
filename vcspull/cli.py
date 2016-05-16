@@ -20,9 +20,13 @@ from .log import DebugLogFormatter
 from .repo import create_repo
 from .util import filter_repos
 
+
+MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
+MAX_ASYNC = 8  # maximum processes to open:w
+
 log = logging.getLogger(__name__)
 
-config_dir = os.path.expanduser('~/.vcspull/')
+config_dir = os.path.expanduser('~/.vcspull/') # remove dupes of this
 
 
 def setup_logger(log=None, level='INFO'):
@@ -92,13 +96,18 @@ def update(repo_terms, run_async):
             name=name
         ))
 
+    found_repos_n = len(found_repos)
     # turn them into :class:`Repo` objects and clone/update them
-    if run_async:
+    if run_async and found_repos_n >= MIN_ASYNC:
         from multiprocessing import Pool
-        p = Pool(5)
+        p = Pool(clamp(found_repos_n, MIN_ASYNC, MAX_ASYNC))
         p.map_async(update_repo, found_repos).get()
     else:
         list(map(update_repo, found_repos))
+
+
+def clamp(n, _min, _max):
+    return max(_min, min(n, _max))
 
 
 def update_repo(repo_dict):
