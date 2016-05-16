@@ -466,7 +466,7 @@ class RepoIntegrationTest(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
 
 def assertConfigList(list1, list2):
-    """Assert content of two unordered dicts (sorted by full_path).
+    """Assert content of two unordered dicts (sorted by repo_dir value).
 
     :param list1: List of configs
     :type list1: List of :py:`dict`
