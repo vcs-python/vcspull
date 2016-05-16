@@ -68,28 +68,31 @@ def cli(log_level):
 
 
 @click.command(name='update')
-@click.argument('repos', nargs=-1)
-def update(repos):
+@click.argument('repo_terms', nargs=-1)
+def update(repo_terms):
     configs = load_configs(find_config_files(include_home=True))
-    for repo in repos:
-        dirmatch, vcsurlmatch = None, None
-        if any(repo.startswith(n) for n in ['./', '/', '~', '$HOME']):
-            dirmatch = repo
-            repo = None
-        elif any(repo.startswith(n) for n in ['http', 'git', 'svn', 'hg']):
-            vcsurlmatch = repo
-            repo = None
+    for repo_term in repo_terms:
+        repo_dir, vcs_url, name = None, None, None
+        if any(repo_term.startswith(n) for n in ['./', '/', '~', '$HOME']):
+            repo_dir = repo_term
+        elif any(repo_term.startswith(n) for n
+                 in ['http', 'git', 'svn', 'hg']):
+            vcs_url = repo_term
+        else:
+            name = repo_term
 
         # collect the repos from the config files
-        repos = filter_repos(
+        found_repos = filter_repos(
             configs,
-            dirmatch=dirmatch,
-            vcsurlmatch=vcsurlmatch,
-            namematch=repo
+            repo_dir=repo_dir,
+            vcs_url=vcs_url,
+            name=name
         )
 
         # turn them into :class:`Repo` objects and clone/update them
-        for repo_dict in repos:
+        for repo_dict in found_repos:
+            if 'url' not in repo_dict:  # normalize vcs/repo key
+                repo_dict['url'] = repo_dict['repo']
             r = create_repo(**repo_dict)
             log.debug('%s' % r)
             r.update_repo()
