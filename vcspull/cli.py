@@ -75,23 +75,28 @@ def cli(log_level):
 def update(repo_terms, run_async):
     configs = load_configs(find_config_files(include_home=True))
     found_repos = []
-    for repo_term in repo_terms:
-        repo_dir, vcs_url, name = None, None, None
-        if any(repo_term.startswith(n) for n in ['./', '/', '~', '$HOME']):
-            repo_dir = repo_term
-        elif any(repo_term.startswith(n) for n
-                 in ['http', 'git', 'svn', 'hg']):
-            vcs_url = repo_term
-        else:
-            name = repo_term
 
-        # collect the repos from the config files
-        found_repos.extend(filter_repos(
-            configs,
-            repo_dir=repo_dir,
-            vcs_url=vcs_url,
-            name=name
-        ))
+    if repo_terms:
+        for repo_term in repo_terms:
+            repo_dir, vcs_url, name = None, None, None
+            if any(repo_term.startswith(n) for n in ['./', '/', '~', '$HOME']):
+                repo_dir = repo_term
+            elif any(
+                repo_term.startswith(n) for n in ['http', 'git', 'svn', 'hg']
+            ):
+                vcs_url = repo_term
+            else:
+                name = repo_term
+
+            # collect the repos from the config files
+            found_repos.extend(filter_repos(
+                configs,
+                repo_dir=repo_dir,
+                vcs_url=vcs_url,
+                name=name
+            ))
+    else:
+        found_repos = configs
 
     found_repos_n = len(found_repos)
     # turn them into :class:`Repo` objects and clone/update them
