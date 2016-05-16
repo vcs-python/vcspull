@@ -60,7 +60,7 @@ Use `fnmatch`_:
     $ vcspull up "git+*python*
 
     # any git repo with django in the vcs url
-    $ vcspull up "git+*django*
+    $ vcspull up "git+*django*"
 
     # all repositories in your ~/code directory
     vcspull up "$HOME/code/*"
