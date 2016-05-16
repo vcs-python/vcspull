@@ -103,8 +103,8 @@ def expand_config(config):
                 conf['name'] = repo
             if 'parent_dir' not in conf:
                 conf['parent_dir'] = expand_dir(directory)
-            if 'full_path' not in conf:
-                conf['full_path'] = expand_dir(
+            if 'repo_dir' not in conf:
+                conf['repo_dir'] = expand_dir(
                     os.path.join(conf['parent_dir'], conf['name'])
                 )
             configs.append(conf)
@@ -228,20 +228,20 @@ def load_configs(configs):
         newconfigs = expand_config(conf.export('dict'))
 
         if configlist:
-            curpaths = pydash.collections.pluck(configlist, 'full_path')
-            newpaths = pydash.collections.pluck(newconfigs, 'full_path')
+            curpaths = pydash.collections.pluck(configlist, 'repo_dir')
+            newpaths = pydash.collections.pluck(newconfigs, 'repo_dir')
             path_duplicates = pydash.arrays.intersection(curpaths, newpaths)
             path_dupe_repos = []
             dupes = []
             for p in path_duplicates:
                 path_dupe_repos.append(
-                    pydash.collections.find(newconfigs, {'full_path': p})
+                    pydash.collections.find(newconfigs, {'repo_dir': p})
                 )
 
             if path_dupe_repos:
                 for n in path_dupe_repos:
                     currepo = pydash.collections.find_where(
-                        configlist, {'full_path': n['full_path']}
+                        configlist, {'repo_dir': n['repo_dir']}
                     )
                     if n['url'] != currepo['url']:
                         dupes += (n, currepo,)

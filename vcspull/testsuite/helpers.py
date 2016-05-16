@@ -142,7 +142,7 @@ class ConfigTestMixin(unittest.TestCase):
             {
                 'name': 'linux',
                 'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join(
+                'repo_dir': os.path.join(
                     '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux'
                 ),
                 'url': 'git+git://git.kernel.org/linux/torvalds/linux.git',
@@ -150,7 +150,7 @@ class ConfigTestMixin(unittest.TestCase):
             {
                 'name': 'freebsd',
                 'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join(
+                'repo_dir': os.path.join(
                     '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd'
                 ),
                 'url': 'git+https://github.com/freebsd/freebsd.git',
@@ -158,7 +158,7 @@ class ConfigTestMixin(unittest.TestCase):
             {
                 'name': 'sphinx',
                 'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join(
+                'repo_dir': os.path.join(
                     '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'
                 ),
                 'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
@@ -166,7 +166,7 @@ class ConfigTestMixin(unittest.TestCase):
             {
                 'name': 'docutils',
                 'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join(
+                'repo_dir': os.path.join(
                     '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
                     'docutils'
                 ),
@@ -178,7 +178,7 @@ class ConfigTestMixin(unittest.TestCase):
                 'parent_dir': '{TMP_DIR}/github_projects/'.format(
                     TMP_DIR=self.TMP_DIR
                 ),
-                'full_path': os.path.join(
+                'repo_dir': os.path.join(
                     '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
                     'kaptan'
                 ),
@@ -190,7 +190,7 @@ class ConfigTestMixin(unittest.TestCase):
             {
                 'name': '.vim',
                 'parent_dir': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join(
+                'repo_dir': os.path.join(
                     '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'
                 ),
                 'url': 'git+git@github.com:tony/vim-config.git',
@@ -201,7 +201,7 @@ class ConfigTestMixin(unittest.TestCase):
             {
                 'name': '.tmux',
                 'parent_dir': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                'full_path': os.path.join(
+                'repo_dir': os.path.join(
                     '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'
                 ),
                 'url': 'git+git@github.com:tony/tmux-config.git',
@@ -475,6 +475,6 @@ def assertConfigList(list1, list2):
     :raises: Exception
     """
     compare(
-        sorted(list1, key=lambda x: sorted(x.get('full_path'))),
-        sorted(list2, key=lambda x: sorted(x.get('full_path')))
+        sorted(list1, key=lambda x: sorted(x.get('repo_dir'))),
+        sorted(list2, key=lambda x: sorted(x.get('repo_dir')))
     )
