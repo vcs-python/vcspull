@@ -26,7 +26,7 @@ MAX_ASYNC = 8  # maximum processes to open:w
 
 log = logging.getLogger(__name__)
 
-config_dir = os.path.expanduser('~/.vcspull/') # remove dupes of this
+config_dir = os.path.expanduser('~/.vcspull/')  # remove dupes of this
 
 
 def setup_logger(log=None, level='INFO'):
