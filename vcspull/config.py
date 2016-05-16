@@ -16,7 +16,6 @@ import logging
 import os
 
 import kaptan
-import pydash
 
 from . import exc
 from ._compat import string_types
@@ -227,30 +226,55 @@ def load_configs(configs):
 
         newconfigs = expand_config(conf.export('dict'))
 
-        if configlist:
-            curpaths = pydash.collections.pluck(configlist, 'repo_dir')
-            newpaths = pydash.collections.pluck(newconfigs, 'repo_dir')
-            path_duplicates = pydash.arrays.intersection(curpaths, newpaths)
-            path_dupe_repos = []
-            dupes = []
-            for p in path_duplicates:
-                path_dupe_repos.append(
-                    pydash.collections.find(newconfigs, {'repo_dir': p})
-                )
+        if not configlist:
+            configlist.extend(newconfigs)
+            continue
 
-            if path_dupe_repos:
-                for n in path_dupe_repos:
-                    currepo = pydash.collections.find_where(
-                        configlist, {'repo_dir': n['repo_dir']}
-                    )
-                    if n['url'] != currepo['url']:
-                        dupes += (n, currepo,)
+        dupes = find_dupes(configlist, newconfigs)
 
-            if dupes:
-                msg = (
-                    'repos with same path + different VCS detected!', dupes
-                )
-                raise Exception(msg)
+        if dupes:
+            msg = (
+                'repos with same path + different VCS detected!', dupes
+            )
+            raise Exception(msg)
         configlist.extend(newconfigs)
 
     return configlist
+
+
+def find_dupes(repos1, repos2):
+    """Return duplicate repos dict if repo_dir same and vcs different.
+
+    :param repos1: list of repo expanded dicts
+    :type repos1: list of :py:dict
+    :param repos2: list of repo expanded dicts
+    :type repos2: list of :py:dict
+    :rtype: list of dicts or None
+    :returns: Duplicate lists
+    """
+    dupes = []
+    path_dupe_repos = []
+
+    curpaths = [r['repo_dir'] for r in repos1]
+    newpaths = [r['repo_dir'] for r in repos2]
+    path_duplicates = list(set(curpaths).intersection(newpaths))
+
+    if not path_duplicates:
+        return None
+
+    path_dupe_repos.extend(
+        [r for r in repos2 if
+            any(r['repo_dir'] == p for p in path_duplicates)]
+    )
+
+    if not path_dupe_repos:
+        return None
+
+    for n in path_dupe_repos:
+        currepo = next(
+            (r for r in repos1
+                if r['repo_dir'] == n['repo_dir']), None
+        )
+        if n['url'] != currepo['url']:
+            dupes += (n, currepo,)
+    return dupes
