@@ -149,7 +149,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
                     raise exc.VCSPullException(
                         err + console_to_str(process.stderr.read())
                     )
-                if err != '':
+                else:
                     self.show_progress("%s" % err)
 
             self.end_progress('%s' % (console_to_str(process.stdout.read())))
