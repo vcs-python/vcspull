@@ -1,4 +1,4 @@
-kaptan
-pyyaml
-colorama
+kaptan==0.5.8
+pyyaml==3.11
+colorama==0.3.7
 click==6.6 # Updated from 6.2
