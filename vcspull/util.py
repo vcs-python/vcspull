@@ -45,40 +45,42 @@ def in_dir(
     return configs
 
 
-def filter_repos(config, dirmatch=None, vcsurlmatch=None, namematch=None):
+def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
+
+    repo_dir, vcs_url and name all support fnmatch.
 
     :param config: the expanded repo config in :py:class:`dict` format.
     :type config: dict
-    :param dirmatch: array of fnmatch's for directory
-    :type dirmatch: str or None
-    :param vcsurlmatch: array of fnmatch's for vcs url
-    :type vcsurlmatch: str or None
-    :param namematch: array of fnmatch's for project name
-    :type namematch: str or None
+    :param repo_dir: directory of checkout location, fnmatch pattern supported
+    :type repo_dir: str or None
+    :param vcs_url: url of vcs remote, fn match pattern supported
+    :type vcs_url: str or None
+    :param name: project name, fnmatch pattern supported
+    :type name: str or None
     :rtype: list
 
     """
     repo_list = []
 
-    if dirmatch:
+    if repo_dir:
         repo_list.extend(
-            [r for r in config if fnmatch.fnmatch(r['parent_dir'], dirmatch)]
+            [r for r in config if fnmatch.fnmatch(r['parent_dir'], repo_dir)]
         )
 
-    if vcsurlmatch:
+    if vcs_url:
         repo_list.extend(
             r for r in config if fnmatch.fnmatch(
                 r.get('url', r.get('repo')),
-                vcsurlmatch
+                vcs_url
             )
         )
 
-    if namematch:
+    if name:
         repo_list.extend(
             [r for r in config if fnmatch.fnmatch(
                 r.get('name'),
-                namematch
+                name
             )]
         )
 

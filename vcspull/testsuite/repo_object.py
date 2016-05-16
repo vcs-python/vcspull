@@ -28,7 +28,7 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
 
         repo_list = filter_repos(
             self.config_dict_expanded,
-            dirmatch="*github_project*"
+            repo_dir="*github_project*"
         )
 
         self.assertEqual(len(repo_list), 1)
@@ -41,7 +41,7 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
 
         repo_list = filter_repos(
             self.config_dict_expanded,
-            namematch=".vim"
+            name=".vim"
         )
 
         self.assertEqual(len(repo_list), 1)
@@ -49,12 +49,12 @@ class GetReposTest(ConfigTestCase, unittest.TestCase):
             self.assertEqual(r['name'], '.vim')
 
     def test_filter_vcs(self):
-        """``filter_repos`` filter by vcs"""
+        """``filter_repos`` filter by vcs remote url"""
         self.config_dict_expanded
 
         repo_list = filter_repos(
             self.config_dict_expanded,
-            vcsurlmatch="*kernel.org*"
+            vcs_url="*kernel.org*"
         )
 
         self.assertEqual(len(repo_list), 1)
