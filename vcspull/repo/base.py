@@ -167,7 +167,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
             mkdir_p(self['parent_dir'])
         else:
             if not os.path.exists(self['path']):
-                self.info('Repo directory for %s (%s) does not exist @ %s' % (
+                self.debug('Repo directory for %s (%s) does not exist @ %s' % (
                     self['name'], self['vcs'], self['path']))
                 mkdir_p(self['path'])
 
