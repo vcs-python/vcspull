@@ -16,7 +16,7 @@ import unittest
 from ..exc import VCSPullException
 from ..repo import create_repo
 from ..util import run, which
-from .helpers import ConfigTestCase, RepoTestMixin
+from .helpers import ConfigTestCase, RepoTestMixin, stdouts
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,8 @@ def has_svn():
 @unittest.skipUnless(has_svn(), "requires SVN")
 class RepoSVN(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
-    def test_repo_svn(self):
+    @stdouts
+    def test_repo_svn(self, *args):
         repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
         repo_name = 'my_svn_project'
 

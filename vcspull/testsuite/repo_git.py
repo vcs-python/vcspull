@@ -18,7 +18,8 @@ from .. import exc
 from .._compat import StringIO
 from ..repo import create_repo
 from ..util import run
-from .helpers import ConfigTestCase, RepoIntegrationTest, RepoTestMixin
+from .helpers import (ConfigTestCase, RepoIntegrationTest, RepoTestMixin,
+                      mute)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
 
     """Integration level tests."""
 
+    @mute
     def test_repo_git_update(self):
         repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
         repo_name = 'my_git_project'
@@ -69,6 +71,7 @@ class RepoGit(RepoIntegrationTest, unittest.TestCase):
 
 class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
 
+    @mute
     def test_remotes(self):
         repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
@@ -90,6 +93,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
         git_repo.obtain(quiet=True)
         self.assertIn('myrepo', git_repo.remotes_get())
 
+    @mute
     def test_remotes_vcs_prefix(self):
         repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
@@ -112,6 +116,7 @@ class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
         self.assertIn((remote_url, remote_url,),
                       git_repo.remotes_get().values())
 
+    @mute
     def test_remotes_preserves_git_ssh(self):
         # Regression test for #14
         repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
@@ -153,6 +158,7 @@ class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
 class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
+    @mute
     def test_ls_remotes(self):
         repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
@@ -160,6 +166,7 @@ class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
 
         self.assertIn('origin', remotes)
 
+    @mute
     def test_get_remotes(self):
         repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
@@ -168,6 +175,7 @@ class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
             git_repo.remotes_get()
         )
 
+    @mute
     def test_set_remote(self):
         repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
