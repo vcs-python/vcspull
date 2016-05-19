@@ -34,6 +34,10 @@ if not logger.handlers:
     logger.addHandler(channel)
     logger.setLevel('INFO')
 
+    # suppress noisy output in repo base class
+    repo_logger = logging.getLogger('vcspull.repo')
+    repo_logger.setLevel('CRITICAL')
+
     # enable DEBUG message if channel is at testsuite + testsuite.* packages.
     testsuite_logger = logging.getLogger(__name__)
 
