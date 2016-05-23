@@ -20,83 +20,75 @@ from .helpers import (ConfigTestCase, ConfigTestMixin, EnvironmentVarGuard,
                       RepoIntegrationTest)
 
 
-class ConfigFormatTest(ConfigTestCase, unittest.TestCase):
-
+def test_dict_equals_yaml():
     """Verify that example YAML is returning expected dict format."""
+    config = kaptan.Kaptan(handler='yaml')
+    config.import_config(loadfixture('example1.yaml'))
 
-    def test_dict_equals_yaml(self):
-        config = kaptan.Kaptan(handler='yaml')
-        config.import_config(loadfixture('example1.yaml'))
-
-        assert fixtures.config_dict == config.export('dict')
+    assert fixtures.config_dict == config.export('dict')
 
 
-class ConfigImportExportTest(ConfigTestCase):
+def test_export_json(tmpdir):
+    json_config_file = str(tmpdir.join('.vcspull.json'))
 
-    def test_export_json(self):
-        TMP_DIR = self.TMP_DIR
-        json_config_file = os.path.join(TMP_DIR, '.vcspull.json')
+    config = kaptan.Kaptan()
+    config.import_config(fixtures.config_dict)
 
-        config = kaptan.Kaptan()
-        config.import_config(self.config_dict)
+    json_config_data = config.export('json', indent=2)
 
-        json_config_data = config.export('json', indent=2)
+    with open(json_config_file, 'w') as buf:
+        buf.write(json_config_data)
 
-        with open(json_config_file, 'w') as buf:
-            buf.write(json_config_data)
-
-        new_config = kaptan.Kaptan()
-        new_config_data = new_config.import_config(json_config_file).get()
-        assert self.config_dict == new_config_data
-
-    def test_export_yaml(self):
-        yaml_config_file = os.path.join(self.TMP_DIR, '.vcspull.yaml')
-
-        config = kaptan.Kaptan()
-        config.import_config(self.config_dict)
-
-        yaml_config_data = config.export('yaml', indent=2)
-
-        with open(yaml_config_file, 'w') as buf:
-            buf.write(yaml_config_data)
-
-        new_config = kaptan.Kaptan()
-        new_config_data = new_config.import_config(yaml_config_file).get()
-        assert self.config_dict == new_config_data
-
-    def test_scan_config(self):
-        configs = []
-
-        garbage_file = os.path.join(self.TMP_DIR, '.vcspull.psd')
-        with open(garbage_file, 'w') as buf:
-            buf.write('wat')
-
-        for r, d, f in os.walk(self.TMP_DIR):
-            for filela in (x for x in f if x.endswith(('.json', 'yaml'))and
-                           x.startswith('.vcspull')):
-                configs.append(os.path.join(self.TMP_DIR, filela))
-
-        files = 0
-        if os.path.exists(os.path.join(self.TMP_DIR, '.vcspull.json')):
-            files += 1
-            assert os.path.join(self.TMP_DIR, '.vcspull.json') in configs
-
-        if os.path.exists(os.path.join(self.TMP_DIR, '.vcspull.yaml')):
-            files += 1
-            assert os.path.join(self.TMP_DIR, '.vcspull.yaml') in configs
-
-        assert len(configs) == files
+    new_config = kaptan.Kaptan()
+    new_config_data = new_config.import_config(json_config_file).get()
+    assert fixtures.config_dict == new_config_data
 
 
-class ConfigExpandTest(ConfigTestCase, unittest.TestCase):
+def test_export_yaml(tmpdir):
+    yaml_config_file = str(tmpdir.join('.vcspull.yaml'))
 
+    config = kaptan.Kaptan()
+    config.import_config(fixtures.config_dict)
+
+    yaml_config_data = config.export('yaml', indent=2)
+
+    with open(yaml_config_file, 'w') as buf:
+        buf.write(yaml_config_data)
+
+    new_config = kaptan.Kaptan()
+    new_config_data = new_config.import_config(yaml_config_file).get()
+    assert fixtures.config_dict == new_config_data
+
+
+def test_scan_config(tmpdir):
+    configs = []
+
+    garbage_file = tmpdir.join('.vcspull.psd')
+    garbage_file.write('wat')
+
+    for r, d, f in os.walk(str(tmpdir)):
+        for filela in (x for x in f if x.endswith(('.json', 'yaml')) and
+                       x.startswith('.vcspull')):
+            configs.append(str(tmpdir.join(filela)))
+
+    files = 0
+    if os.path.exists(str(tmpdir.join('.vcspull.json'))):
+        files += 1
+        assert str(tmpdir.join('.vcspull.json')) in configs
+
+    if os.path.exists(str(tmpdir.join('.vcspull.yaml'))):
+        files += 1
+        assert str(tmpdir.join('.vcspull.json')) in configs
+
+    assert len(configs) == files
+
+
+def test_expand_shell_command_after():
     """Expand configuration into full form."""
+    # Expand shell commands from string to list."""
+    config = expand_config(fixtures.config_dict)
 
-    def test_expand_shell_command_after(self):
-        """Expand shell commands from string to list."""
-        config = expand_config(self.config_dict)
-
-        assert config, self.config_dict_expanded
+    assert config, fixtures.config_dict_expanded
 
 
 class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
