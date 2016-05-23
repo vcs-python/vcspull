@@ -99,41 +99,10 @@ class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
         ConfigTestCase.setUp(self)
         ConfigTestMixin.setUp(self)
 
-        path_ = """
-        '~/study/':
-            sphinx: hg+file://{hg_repo_path}
-            docutils: svn+file://{svn_repo_path}
-            linux: git+file://{git_repo_path}
-        '${HOME}/github_projects/':
-            kaptan:
-                url: git+file://{git_repo_path}
-                remotes:
-                    test_remote: git+file://{git_repo_path}
-        '~':
-            .vim:
-                url: git+file://{git_repo_path}
-            .tmux:
-                url: git+file://{git_repo_path}
-        """
+        path_ = loadfixture('expand.yaml')
         config_yaml = path_
 
-        config_json = """
-        {
-          "~/study/": {
-            "sphinx": "hg+file://${hg_repo_path}",
-            "docutils": "svn+file://${svn_repo_path}",
-            "linux": "git+file://${git_repo_path}"
-          },
-          "${HOME}/github_projects/": {
-            "kaptan": {
-              "url": "git+file://${git_repo_path}",
-              "remotes": {
-                "test_remote": "git+file://${git_repo_path}"
-              }
-            }
-          }
-        }
-        """
+        config_json = loadfixture("expand.json")
 
         self.config_yaml = copy.deepcopy(config_yaml)
 
@@ -453,21 +422,9 @@ class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
 
         super(RepoIntegrationDuplicateTest, self).setUp()
 
-        config_yaml3 = """
-        {TMP_DIR}/srv/www/test/:
-            subRepoDiffVCS:
-                url: svn+file://${svn_repo_path}
-            subRepoSameVCS: git+file://${git_repo_path}
-            vcsOn1: svn+file://${svn_repo_path}
-        """
+        config_yaml3 = loadfixture('repoduplicate1.yaml')
 
-        config_yaml4 = """
-        {TMP_DIR}/srv/www/test/:
-            subRepoDiffVCS:
-                url: git+file://${git_repo_path}
-            subRepoSameVCS: git+file://${git_repo_path}
-            vcsOn2: svn+file://${svn_repo_path}
-        """
+        config_yaml4 = loadfixture('repoduplicate2.yaml')
 
         config_yaml3 = config_yaml3.format(
             svn_repo_path=self.svn_repo_path,
