@@ -15,8 +15,9 @@ import kaptan
 
 from vcspull.config import expand_config
 from vcspull.repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
-                    create_repo)
+                          create_repo)
 from vcspull.util import filter_repos
+
 from .helpers import ConfigTestCase, RepoTestMixin
 
 
