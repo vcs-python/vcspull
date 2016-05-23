@@ -13,10 +13,10 @@ import unittest
 
 import kaptan
 
-from ..config import expand_config
-from ..repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
+from vcspull.config import expand_config
+from vcspull.repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
                     create_repo)
-from ..util import filter_repos
+from vcspull.util import filter_repos
 from .helpers import ConfigTestCase, RepoTestMixin
 
 

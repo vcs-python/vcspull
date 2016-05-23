@@ -14,10 +14,10 @@ import unittest
 
 import mock
 
-from .. import exc
-from .._compat import StringIO
-from ..repo import create_repo
-from ..util import run
+from vcspull import exc
+from vcspull._compat import StringIO
+from vcspull.repo import create_repo
+from vcspull.util import run
 from .helpers import (ConfigTestCase, RepoIntegrationTest, RepoTestMixin,
                       mute)
 

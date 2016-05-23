@@ -12,8 +12,8 @@ import logging
 import os
 import unittest
 
-from ..repo import create_repo
-from ..util import run, which
+from vcspull.repo import create_repo
+from vcspull.util import run, which
 from .helpers import ConfigTestCase
 
 logger = logging.getLogger(__name__)

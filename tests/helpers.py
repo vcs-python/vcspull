@@ -28,9 +28,9 @@ import kaptan
 
 from testfixtures import compare
 
-from ..config import expand_config
-from ..repo import create_repo
-from ..util import run
+from vcspull.config import expand_config
+from vcspull.repo import create_repo
+from vcspull.util import run
 
 logger = logging.getLogger(__name__)
 

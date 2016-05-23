@@ -16,8 +16,8 @@ import unittest
 
 import kaptan
 
-from .. import config, exc
-from ..config import expand_config
+from vcspull import config, exc
+from vcspull.config import expand_config
 from .helpers import (ConfigTestCase, ConfigTestMixin, EnvironmentVarGuard,
                       RepoIntegrationTest, assertConfigList)
 

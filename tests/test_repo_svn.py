@@ -13,9 +13,9 @@ import os
 import tempfile
 import unittest
 
-from ..exc import VCSPullException
-from ..repo import create_repo
-from ..util import run, which
+from vcspull.exc import VCSPullException
+from vcspull.repo import create_repo
+from vcspull.util import run, which
 from .helpers import ConfigTestCase, RepoTestMixin, stdouts
 
 logger = logging.getLogger(__name__)

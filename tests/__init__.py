@@ -22,8 +22,8 @@ import pkgutil
 import sys
 import unittest
 
-from .. import log
-from .._compat import PY2, reraise, string_types
+from vcspull import log
+from vcspull._compat import PY2, reraise, string_types
 
 logger = logging.getLogger()
 

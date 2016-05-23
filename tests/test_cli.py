@@ -7,7 +7,7 @@ import unittest
 
 from click.testing import CliRunner
 
-from ..cli import cli
+from vcspull.cli import cli
 
 
 class Cli(unittest.TestCase):
