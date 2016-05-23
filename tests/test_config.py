@@ -21,6 +21,9 @@ from vcspull.config import expand_config
 from .helpers import (ConfigTestCase, ConfigTestMixin, EnvironmentVarGuard,
                       RepoIntegrationTest, assertConfigList)
 
+from .fixtures._util import loadfixture
+from .fixtures import example as fixtures
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,11 +33,9 @@ class ConfigFormatTest(ConfigTestCase, unittest.TestCase):
 
     def test_dict_equals_yaml(self):
         config = kaptan.Kaptan(handler='yaml')
-        config.import_config(self.config_yaml)
+        config.import_config(loadfixture('example1.yaml'))
 
-        self.maxDiff = None
-
-        self.assertDictEqual(self.config_dict, config.export('dict'))
+        assert fixtures.config_dict == config.export('dict')
 
 
 class ConfigImportExportTest(ConfigTestCase):
@@ -53,7 +54,7 @@ class ConfigImportExportTest(ConfigTestCase):
 
         new_config = kaptan.Kaptan()
         new_config_data = new_config.import_config(json_config_file).get()
-        self.assertDictEqual(self.config_dict, new_config_data)
+        assert self.config_dict == new_config_data
 
     def test_export_yaml(self):
         yaml_config_file = os.path.join(self.TMP_DIR, '.vcspull.yaml')

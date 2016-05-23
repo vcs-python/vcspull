@@ -3,25 +3,17 @@
 from __future__ import (absolute_import, division, print_function,
                         with_statement)
 
-import unittest
+import pytest
 
 from click.testing import CliRunner
 
 from vcspull.cli import cli
 
 
-class Cli(unittest.TestCase):
-
-    @unittest.skip('Implement later')
-    def test_hi(self):
-        runner = CliRunner()
-        result = runner.invoke(cli, ['up', 'hi'])
-        self.assertEqual(result.exit_code, 0)
-        self.assertIn('Debug mode is on', result.output)
-        self.assertIn('Syncing', result.output)
-
-
-def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(Cli))
-    return suite
+@pytest.mark.skip(reason="todo")
+def test_command_line(self):
+    runner = CliRunner()
+    result = runner.invoke(cli, ['up', 'hi'])
+    assert result.exit_code == 0
+    assert 'Debug mode is on' in result.output
+    assert 'Syncing' in result.output
