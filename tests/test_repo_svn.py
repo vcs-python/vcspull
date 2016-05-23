@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Tests for vcspull.
-
-vcspull.testsuite.repo_git
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
+"""Tests for vcspull svn repos."""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
-import logging
 import os
 import tempfile
 import unittest
@@ -17,8 +11,6 @@ from vcspull.exc import VCSPullException
 from vcspull.repo import create_repo
 from vcspull.util import run, which
 from .helpers import ConfigTestCase, RepoTestMixin, stdouts
-
-logger = logging.getLogger(__name__)
 
 
 def has_svn():
@@ -68,9 +60,3 @@ class RepoSVN(RepoTestMixin, ConfigTestCase, unittest.TestCase):
             tempFile.name
         )
         self.assertEqual(svn_repo.get_revision(tempFile.name), 1)
-
-
-def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(RepoSVN))
-    return suite

@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tests for placing config dicts into :py:class:`Repo` objects.
-
-vcspull.testsuite.repo_object
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
+"""Tests for placing config dicts into :py:class:`Repo` objects."""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
@@ -176,11 +171,3 @@ class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
         for r in filter_repos(repos):
             repo = create_repo(**r)
             repo.obtain()
-
-
-def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(GetReposTest))
-    suite.addTest(unittest.makeSuite(ConfigToObjectTest))
-    suite.addTest(unittest.makeSuite(EnsureMakeDirsRecursively))
-    return suite

@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Tests for vcspull.
-
-vcspull.testsuite.repo_git
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
+"""Tests for vcspull git repos."""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
-import logging
 import os
 import unittest
 
@@ -20,8 +14,6 @@ from vcspull.repo import create_repo
 from vcspull.util import run
 from .helpers import (ConfigTestCase, RepoIntegrationTest, RepoTestMixin,
                       mute)
-
-logger = logging.getLogger(__name__)
 
 
 class RepoGit(RepoIntegrationTest, unittest.TestCase):
@@ -244,13 +236,3 @@ class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
                 )
 
                 git_repo.obtain()
-
-
-def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(GitRepoRemotes))
-    suite.addTest(unittest.makeSuite(GitRepoSSHUrl))
-    suite.addTest(unittest.makeSuite(RepoGit))
-    suite.addTest(unittest.makeSuite(TestRemoteGit))
-    suite.addTest(unittest.makeSuite(ErrorInStdErrorRaisesException))
-    return suite

@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Tests for vcspull.
-
-vcspull.testsuite.config
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
+"""Tests for vcspull config loading."""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
 import copy
-import logging
 import os
 import tempfile
 import unittest
@@ -24,8 +18,6 @@ from .fixtures import example as fixtures
 from .fixtures._util import loadfixture
 from .helpers import (ConfigTestCase, ConfigTestMixin, EnvironmentVarGuard,
                       RepoIntegrationTest)
-
-logger = logging.getLogger(__name__)
 
 
 class ConfigFormatTest(ConfigTestCase, unittest.TestCase):

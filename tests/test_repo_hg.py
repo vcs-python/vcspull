@@ -1,22 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Tests for vcspull.
-
-vcspull.testsuite.repo_git
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
+"""Tests for vcspull hg repos."""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
-import logging
 import os
 import unittest
 
 from vcspull.repo import create_repo
 from vcspull.util import run, which
 from .helpers import ConfigTestCase
-
-logger = logging.getLogger(__name__)
 
 
 def has_mercurial():
@@ -75,9 +67,3 @@ class RepoMercurial(ConfigTestCase, unittest.TestCase):
         )
 
         self.assertTrue(os.path.exists(mercurial_checkout_dest))
-
-
-def suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(RepoMercurial))
-    return suite
