@@ -16,8 +16,7 @@ from vcspull.config import expand_config
 
 from .fixtures import example as fixtures
 from .fixtures._util import loadfixture
-from .helpers import (ConfigTestCase, ConfigTestMixin, EnvironmentVarGuard,
-                      RepoIntegrationTest)
+from .helpers import ConfigTestCase, EnvironmentVarGuard, RepoIntegrationTest
 
 
 def test_dict_equals_yaml():
@@ -91,44 +90,32 @@ def test_expand_shell_command_after():
     assert config, fixtures.config_dict_expanded
 
 
-class ExpandUserExpandVars(ConfigTestCase, ConfigTestMixin):
+def test_expandenv_and_homevars():
+    """Assure ~ tildes and environment template vars expand."""
+    path_ = loadfixture('expand.yaml')
+    config_yaml = path_
 
-    """Verify .expandvars and .expanduser works with configs."""
+    config_json = loadfixture("expand.json")
+    conf = kaptan.Kaptan(handler='json')
+    conf.import_config(config_json)
+    config2 = conf.export('dict')
 
-    def setUp(self):
-        ConfigTestCase.setUp(self)
-        ConfigTestMixin.setUp(self)
+    conf = kaptan.Kaptan(handler='yaml')
+    conf.import_config(config_yaml)
+    config1 = conf.export('dict')
 
-        path_ = loadfixture('expand.yaml')
-        config_yaml = path_
+    config1_expanded = expand_config(config1)
+    config2_expanded = expand_config(config2)
 
-        config_json = loadfixture("expand.json")
+    paths = [r['parent_dir'] for r in config1_expanded]
+    assert os.path.expanduser(
+        os.path.expandvars('${HOME}/github_projects/')) in paths
+    assert os.path.expanduser('~/study/') in paths
+    assert os.path.expanduser('~') in paths
 
-        self.config_yaml = copy.deepcopy(config_yaml)
-
-        conf = kaptan.Kaptan(handler='yaml')
-        conf.import_config(self.config_yaml)
-        self.config1 = conf.export('dict')
-
-        self.config_json = copy.deepcopy(config_json)
-
-        conf = kaptan.Kaptan(handler='json')
-        conf.import_config(self.config_json)
-        self.config2 = conf.export('dict')
-
-    def test_this(self):
-        config1_expanded = expand_config(self.config1)
-        config2_expanded = expand_config(self.config2)
-
-        paths = [r['parent_dir'] for r in config1_expanded]
-        assert os.path.expanduser(
-            os.path.expandvars('${HOME}/github_projects/')) in paths
-        assert os.path.expanduser('~/study/') in paths
-        assert os.path.expanduser('~') in paths
-
-        paths = [r['parent_dir'] for r in config2_expanded]
-        assert os.path.expandvars('${HOME}/github_projects/') in paths
-        assert os.path.expanduser('~/study/') in paths
+    paths = [r['parent_dir'] for r in config2_expanded]
+    assert os.path.expandvars('${HOME}/github_projects/') in paths
+    assert os.path.expanduser('~/study/') in paths
 
 
 class InDirTest(ConfigTestCase):
