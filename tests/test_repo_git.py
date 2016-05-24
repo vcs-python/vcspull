@@ -14,64 +14,7 @@ from vcspull._compat import StringIO
 from vcspull.repo import create_repo
 from vcspull.util import run
 
-from .helpers import ConfigTestCase, RepoTestMixin, mute
-
-
-def test_repo_git_obtain_bare_repo(tmpdir):
-
-    repo_name = 'my_git_project'
-
-    # init bare repo
-    run([
-        'git', 'init', repo_name
-    ], cwd=str(tmpdir))
-
-    bare_repo_dir = tmpdir.join(repo_name)
-
-    git_repo = create_repo(**{
-        'url': 'git+file://' + str(bare_repo_dir),
-        'parent_dir': str(tmpdir),
-        'name': 'obtaining a bare repo'
-    })
-
-    git_repo.obtain(quiet=True)
-    assert git_repo.get_revision() == ['HEAD']
-
-
-def test_repo_git_obtain_full(tmpdir):
-    repo_name = 'my_git_project'
-
-    # init sophisticated repo
-    run([
-        'git', 'init', repo_name
-    ], cwd=str(tmpdir))
-    remote_repo_dir = str(tmpdir.join(repo_name))
-    testfile = 'testfile.test'
-
-    run(['touch', testfile], cwd=remote_repo_dir)
-    run([
-        'git', 'add', testfile
-    ], cwd=remote_repo_dir)
-    run([
-        'git', 'commit', '-m', 'a test file'
-    ], cwd=remote_repo_dir)
-
-    test_repo_revision = run(
-        ['git', 'rev-parse', 'HEAD'],
-        cwd=remote_repo_dir,
-    )['stdout']
-
-    # create a new repo with the repo as a remote
-    git_repo = create_repo(**{
-        'url': 'git+file://' + remote_repo_dir,
-        'parent_dir': str(tmpdir),
-        'name': 'myrepo'
-    })
-
-    git_repo.obtain(quiet=True)
-
-    assert git_repo.get_revision() == test_repo_revision
-    assert os.path.exists(str(tmpdir.join('myrepo')))
+from .helpers import ConfigTestCase, RepoTestMixin
 
 
 @pytest.fixture
@@ -96,7 +39,7 @@ def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
 def git_repo(git_repo_kwargs):
     """Create an git repository for tests. Return repo."""
     git_repo = create_repo(**git_repo_kwargs)
-
+    git_repo.obtain(quiet=True)
     return git_repo
 
 
@@ -118,6 +61,46 @@ def git_dummy_repo_dir(tmpdir_repoparent, scope='session'):
         cwd=repo_path)
 
     return repo_path
+
+
+def test_repo_git_obtain_bare_repo(tmpdir):
+    repo_name = 'my_git_project'
+
+    run([  # init bare repo
+        'git', 'init', repo_name
+    ], cwd=str(tmpdir))
+
+    bare_repo_dir = tmpdir.join(repo_name)
+
+    git_repo = create_repo(**{
+        'url': 'git+file://' + str(bare_repo_dir),
+        'parent_dir': str(tmpdir),
+        'name': 'obtaining a bare repo'
+    })
+
+    git_repo.obtain(quiet=True)
+    assert git_repo.get_revision() == ['HEAD']
+
+
+def test_repo_git_obtain_full(tmpdir, git_dummy_repo_dir):
+    remote_repo_dir = git_dummy_repo_dir
+
+    test_repo_revision = run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=remote_repo_dir,
+    )['stdout']
+
+    # create a new repo with the repo as a remote
+    git_repo = create_repo(**{
+        'url': 'git+file://' + remote_repo_dir,
+        'parent_dir': str(tmpdir),
+        'name': 'myrepo'
+    })
+
+    git_repo.obtain(quiet=True)
+
+    assert git_repo.get_revision() == test_repo_revision
+    assert os.path.exists(str(tmpdir.join('myrepo')))
 
 
 def test_remotes(git_repo_kwargs):
@@ -171,68 +154,41 @@ def test_remotes_preserves_git_ssh(git_repo_kwargs):
     assert (remote_url, remote_url,) in git_repo.remotes_get().values()
 
 
-class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
+def test_private_ssh_format(git_repo_kwargs):
+    git_repo_kwargs.update(**{
+        'url': 'git+ssh://github.com:' + '/tmp/omg/private_ssh_repo',
+    })
+    git_repo = create_repo(**git_repo_kwargs)
 
-    def test_private_ssh_format(self):
-        repo_dir, git_repo = self.create_git_repo()
-
-        git_checkout_dest = os.path.join(self.TMP_DIR, 'private_ssh_repo')
-
-        git_repo = create_repo(**{
-            'url': 'git+ssh://github.com:' + git_checkout_dest,
-            'parent_dir': os.path.dirname(repo_dir),
-            'name': os.path.basename(os.path.normpath(repo_dir)),
-        })
-
-        with self.assertRaisesRegexp(exc.VCSPullException, "is malformatted"):
-            git_repo.obtain(quiet=True)
+    with pytest.raises(exc.VCSPullException) as e:
+        git_repo.obtain(quiet=True)
+        assert e.match("is malformatted")
 
 
-class TestRemoteGit(RepoTestMixin, ConfigTestCase, unittest.TestCase):
+def test_ls_remotes(git_repo):
+    remotes = git_repo.remotes_get()
 
-    @mute
-    def test_ls_remotes(self):
-        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
+    assert 'origin' in remotes
 
-        remotes = git_repo.remotes_get()
 
-        self.assertIn('origin', remotes)
+def test_get_remotes(git_repo):
 
-    @mute
-    def test_get_remotes(self):
-        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
+    assert 'origin' in git_repo.remotes_get()
 
-        self.assertIn(
-            'origin',
-            git_repo.remotes_get()
-        )
 
-    @mute
-    def test_set_remote(self):
-        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
+def test_set_remote(git_repo):
+    mynewremote = git_repo.remote_set(
+        name='myrepo',
+        url='file:///'
+    )
 
-        mynewremote = git_repo.remote_set(
-            name='myrepo',
-            url='file:///'
-        )
+    assert 'file:///' in mynewremote, 'remote_set returns remote'
 
-        self.assertIn(
-            'file:///',
-            mynewremote,
-            msg='remote_set returns remote'
-        )
+    assert 'file:///' in git_repo.remote_get(remote='myrepo'), \
+        'remote_get returns remote'
 
-        self.assertIn(
-            'file:///',
-            git_repo.remote_get(remote='myrepo'),
-            msg='remote_get returns remote'
-        )
-
-        self.assertIn(
-            'myrepo',
-            git_repo.remotes_get(),
-            msg='.remotes_get() returns new remote'
-        )
+    assert 'myrepo' in git_repo.remotes_get(), \
+        '.remotes_get() returns new remote'
 
 
 class ErrorInStdErrorRaisesException(RepoTestMixin, ConfigTestCase,
