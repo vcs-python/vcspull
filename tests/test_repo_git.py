@@ -7,13 +7,14 @@ import os
 import unittest
 
 import mock
+import pytest
 
 from vcspull import exc
 from vcspull._compat import StringIO
 from vcspull.repo import create_repo
 from vcspull.util import run
-from .helpers import (ConfigTestCase, RepoIntegrationTest, RepoTestMixin,
-                      mute)
+
+from .helpers import ConfigTestCase, RepoTestMixin, mute
 
 
 def test_repo_git_obtain_bare_repo(tmpdir):
@@ -55,7 +56,6 @@ def test_repo_git_obtain_full(tmpdir):
         'git', 'commit', '-m', 'a test file'
     ], cwd=remote_repo_dir)
 
-
     test_repo_revision = run(
         ['git', 'rev-parse', 'HEAD'],
         cwd=remote_repo_dir,
@@ -74,74 +74,101 @@ def test_repo_git_obtain_full(tmpdir):
     assert os.path.exists(str(tmpdir.join('myrepo')))
 
 
-class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
+@pytest.fixture
+def tmpdir_repoparent(tmpdir_factory, scope='function'):
+    """Return temporary directory for repository checkout guaranteed unique."""
+    fn = tmpdir_factory.mktemp("repo")
+    return fn
 
-    @mute
-    def test_remotes(self):
-        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
-        git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
+@pytest.fixture
+def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
+    """Return kwargs for :func:`create_repo`."""
+    repo_name = 'repo_clone'
+    return {
+        'url': 'git+file://' + git_dummy_repo_dir,
+        'parent_dir': str(tmpdir_repoparent),
+        'name': repo_name
+    }
 
-        git_repo = create_repo(**{
-            'url': 'git+file://' + git_checkout_dest,
-            'parent_dir': os.path.dirname(repo_dir),
-            'name': os.path.basename(os.path.normpath(repo_dir)),
-            'remotes': [
-                {
-                    'remote_name': 'myrepo',
-                    'url': 'file:///'
-                }
-            ]
 
-        })
+@pytest.fixture
+def git_repo(git_repo_kwargs):
+    """Create an git repository for tests. Return repo."""
+    git_repo = create_repo(**git_repo_kwargs)
 
-        git_repo.obtain(quiet=True)
-        self.assertIn('myrepo', git_repo.remotes_get())
+    return git_repo
 
-    @mute
-    def test_remotes_vcs_prefix(self):
-        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
 
-        git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
+@pytest.fixture
+def git_dummy_repo_dir(tmpdir_repoparent, scope='session'):
+    """Create a git repo with 1 commit, used as a remote."""
+    name = 'dummyrepo'
+    repo_path = str(tmpdir_repoparent.join(name))
 
-        remote_url = 'https://localhost/my/git/repo.git'
-        remote_vcs_url = 'git+' + remote_url
+    run(['git', 'init', name], cwd=str(tmpdir_repoparent))
 
-        git_repo = create_repo(**{
-            'url': 'git+file://' + git_checkout_dest,
-            'parent_dir': os.path.dirname(repo_dir),
-            'name': os.path.basename(os.path.normpath(repo_dir)),
-            'remotes': [{
-                'remote_name': 'myrepo',
-                'url': remote_vcs_url
-            }]
-        })
+    testfile_filename = 'testfile.test'
 
-        git_repo.obtain(quiet=True)
-        self.assertIn((remote_url, remote_url,),
-                      git_repo.remotes_get().values())
+    run(['touch', testfile_filename],
+        cwd=repo_path)
+    run(['git', 'add', testfile_filename],
+        cwd=repo_path)
+    run(['git', 'commit', '-m', 'test file for %s' % name],
+        cwd=repo_path)
 
-    @mute
-    def test_remotes_preserves_git_ssh(self):
-        # Regression test for #14
-        repo_dir, git_repo = self.create_git_repo(create_temp_repo=True)
+    return repo_path
 
-        git_checkout_dest = os.path.join(self.TMP_DIR, 'dontmatta')
-        remote_url = 'git+ssh://git@github.com/tony/AlgoXY.git'
 
-        git_repo = create_repo(**{
-            'url': 'git+file://' + git_checkout_dest,
-            'parent_dir': os.path.dirname(repo_dir),
-            'name': os.path.basename(os.path.normpath(repo_dir)),
-            'remotes': [{
-                'remote_name': 'myrepo',
-                'url': remote_url
-            }]
-        })
+def test_remotes(git_repo_kwargs):
+    remote_name = 'myrepo'
+    git_repo_kwargs.update(**{
+        'remotes': [
+            {
+                'remote_name': remote_name,
+                'url': 'file:///'
+            }
+        ]
+    })
 
-        git_repo.obtain(quiet=True)
-        self.assertIn((remote_url, remote_url,),
-                      git_repo.remotes_get().values())
+    git_repo = create_repo(**git_repo_kwargs)
+    git_repo.obtain(quiet=True)
+    assert remote_name in git_repo.remotes_get()
+
+
+def test_remotes_vcs_prefix(git_repo_kwargs):
+    remote_url = 'https://localhost/my/git/repo.git'
+    remote_vcs_url = 'git+' + remote_url
+
+    git_repo_kwargs.update(**{
+        'remotes': [{
+            'remote_name': 'myrepo',
+            'url': remote_vcs_url
+        }]
+    })
+
+    git_repo = create_repo(**git_repo_kwargs)
+    git_repo.obtain(quiet=True)
+
+    assert (remote_url, remote_url,) in git_repo.remotes_get().values()
+
+
+def test_remotes_preserves_git_ssh(git_repo_kwargs):
+    # Regression test for #14
+    remote_url = 'git+ssh://git@github.com/tony/AlgoXY.git'
+
+    git_repo_kwargs.update(**{
+        'name': 'moo',
+        'remotes': [{
+            'remote_name': 'myrepo',
+            'url': remote_url
+        }]
+    })
+
+    git_repo = create_repo(**git_repo_kwargs)
+    git_repo.obtain(quiet=True)
+
+    assert (remote_url, remote_url,) in git_repo.remotes_get().values()
 
 
 class GitRepoSSHUrl(RepoTestMixin, ConfigTestCase, unittest.TestCase):
