@@ -3,7 +3,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
-import copy
 import os
 import tempfile
 import unittest
@@ -151,39 +150,29 @@ class InDirTest(ConfigTestCase):
         assert len(expected) == len(result)
 
 
-class FindConfigsHome(ConfigTestCase, unittest.TestCase):
-
+def test_find_config_files(tmpdir):
     """Test find_config_files in home directory."""
 
-    def tearDown(self):
-        ConfigTestCase.tearDown(self)
+    tmpdir.join('.vcspull.yaml').write('a')
+    with EnvironmentVarGuard() as env:
+        env.set("HOME", str(tmpdir))
+        os.environ.get("HOME") == str(tmpdir)
+        expectedIn = str(tmpdir.join('.vcspull.yaml'))
+        results = config.find_home_config_files()
 
-    def setUp(self):
-        self._createConfigDirectory()
+        assert expectedIn in results
 
-        self.config_file1_path = os.path.join(self.TMP_DIR, '.vcspull.yaml')
-        self.config_file1 = open(self.config_file1_path, 'a').close()
 
-    def test_find_config_files(self):
+def test_multiple_configs_raises_exception(tmpdir):
 
-        with EnvironmentVarGuard() as env:
-            env.set("HOME", self.TMP_DIR)
-            os.environ.get("HOME") == self.TMP_DIR
-            expectedIn = os.path.join(self.TMP_DIR, '.vcspull.yaml')
-            results = config.find_home_config_files()
+    tmpdir.join('.vcspull.json').write('a')
+    tmpdir.join('.vcspull.yaml').write('a')
+    with EnvironmentVarGuard() as env:
+        with pytest.raises(exc.MultipleRootConfigs):
+            env.set("HOME", str(tmpdir))
+            os.environ.get("HOME") == str(tmpdir)
 
-            assert expectedIn in results
-
-    def test_multiple_configs_raises_exception(self):
-        self.config_file2_path = os.path.join(self.TMP_DIR, '.vcspull.json')
-        self.config_file2 = open(self.config_file2_path, 'a').close()
-
-        with EnvironmentVarGuard() as env:
-            with pytest.raises(exc.MultipleRootConfigs):
-                env.set("HOME", self.TMP_DIR)
-                assert os.environ.get("HOME") == self.TMP_DIR
-                config.find_home_config_files()
-        os.remove(self.config_file2_path)
+            config.find_home_config_files()
 
 
 class FindConfigs(ConfigTestCase, unittest.TestCase):
@@ -404,31 +393,24 @@ class LoadConfigs(RepoIntegrationTest):
 
 
 class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
-
+    """zz sleep: need to turn this into a fixture."""
     def setUp(self):
 
         super(RepoIntegrationDuplicateTest, self).setUp()
 
-        config_yaml3 = loadfixture('repoduplicate1.yaml')
-
-        config_yaml4 = loadfixture('repoduplicate2.yaml')
-
-        config_yaml3 = config_yaml3.format(
+        config_yaml3 = loadfixture('repoduplicate1.yaml').format(
             svn_repo_path=self.svn_repo_path,
             hg_repo_path=self.hg_repo_path,
             git_repo_path=self.git_repo_path,
             TMP_DIR=self.TMP_DIR
         )
 
-        config_yaml4 = config_yaml4.format(
+        config_yaml4 = loadfixture('repoduplicate2.yaml').format(
             svn_repo_path=self.svn_repo_path,
             hg_repo_path=self.hg_repo_path,
             git_repo_path=self.git_repo_path,
             TMP_DIR=self.TMP_DIR
         )
-
-        config_yaml3 = copy.deepcopy(config_yaml3)
-        config_yaml4 = copy.deepcopy(config_yaml4)
 
         self.config3_name = 'repoduplicate1.yaml'
         self.config3_file = os.path.join(self.CONFIG_DIR, self.config3_name)
@@ -441,7 +423,8 @@ class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
         self.config3 = conf.export('dict')
 
         self.config4_name = 'repoduplicate2.yaml'
-        self.config4_file = os.path.join(self.CONFIG_DIR, self.config4_name)
+        self.config4_file = os.path.join(
+            self.CONFIG_DIR, 'repoduplicate2.yaml')
 
         with open(self.config4_file, 'w') as buf:
             buf.write(config_yaml4)

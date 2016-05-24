@@ -15,7 +15,6 @@ import copy
 import functools
 import inspect
 import io
-import logging
 import os
 import shutil
 import sys
@@ -32,7 +31,7 @@ from vcspull.config import expand_config
 from vcspull.repo import create_repo
 from vcspull.util import run
 
-logger = logging.getLogger(__name__)
+from .fixtures._util import loadfixture
 
 
 class EnvironmentVarGuard(object):
@@ -71,6 +70,120 @@ class EnvironmentVarGuard(object):
             del self._environ[unset]
 
 
+def get_config_dict(TMP_DIR):
+    return {
+        '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR): {
+            'linux': 'git+git://git.kernel.org/linux/torvalds/linux.git',
+            'freebsd': 'git+https://github.com/freebsd/freebsd.git',
+            'sphinx': 'hg+https://bitbucket.org/birkenfeld/sphinx',
+            'docutils': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
+        },
+        '{TMP_DIR}/github_projects/'.format(TMP_DIR=TMP_DIR): {
+            'kaptan': {
+                'url': 'git+git@github.com:tony/kaptan.git',
+                'remotes': {
+                    'upstream': 'git+https://github.com/emre/kaptan',
+                    'ms': 'git+https://github.com/ms/kaptan.git'
+                }
+            }
+        },
+        '{TMP_DIR}'.format(TMP_DIR=TMP_DIR): {
+            '.vim': {
+                'url': 'git+git@github.com:tony/vim-config.git',
+                'shell_command_after':
+                'ln -sf /home/u/.vim/.vimrc /home/u/.vimrc'
+            },
+            '.tmux': {
+                'url': 'git+git@github.com:tony/tmux-config.git',
+                'shell_command_after': [
+                    'ln -sf /home/u/.tmux/.tmux.conf /home/u/.tmux.conf'
+                ]
+            }
+        }
+    }
+
+
+def get_config_dict_expanded(TMP_DIR):
+    return [
+        {
+            'name': 'linux',
+            'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR),
+            'repo_dir': os.path.join(
+                '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR), 'linux'
+            ),
+            'url': 'git+git://git.kernel.org/linux/torvalds/linux.git',
+        },
+        {
+            'name': 'freebsd',
+            'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR),
+            'repo_dir': os.path.join(
+                '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR), 'freebsd'
+            ),
+            'url': 'git+https://github.com/freebsd/freebsd.git',
+        },
+        {
+            'name': 'sphinx',
+            'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR),
+            'repo_dir': os.path.join(
+                '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR), 'sphinx'
+            ),
+            'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
+        },
+        {
+            'name': 'docutils',
+            'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR),
+            'repo_dir': os.path.join(
+                '{TMP_DIR}/study/'.format(TMP_DIR=TMP_DIR),
+                'docutils'
+            ),
+            'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
+        },
+        {
+            'name': 'kaptan',
+            'url': 'git+git@github.com:tony/kaptan.git',
+            'parent_dir': '{TMP_DIR}/github_projects/'.format(
+                TMP_DIR=TMP_DIR
+            ),
+            'repo_dir': os.path.join(
+                '{TMP_DIR}/github_projects/'.format(TMP_DIR=TMP_DIR),
+                'kaptan'
+            ),
+            'remotes': [
+                {
+                    'remote_name': 'upstream',
+                    'url': 'git+https://github.com/emre/kaptan',
+                },
+                {
+                    'remote_name': 'ms',
+                    'url': 'git+https://github.com/ms/kaptan.git'
+                }
+            ]
+        },
+        {
+            'name': '.vim',
+            'parent_dir': '{TMP_DIR}'.format(TMP_DIR=TMP_DIR),
+            'repo_dir': os.path.join(
+                '{TMP_DIR}'.format(TMP_DIR=TMP_DIR), '.vim'
+            ),
+            'url': 'git+git@github.com:tony/vim-config.git',
+            'shell_command_after': [
+                'ln -sf /home/u/.vim/.vimrc /home/u/.vimrc'
+            ]
+        },
+        {
+            'name': '.tmux',
+            'parent_dir': '{TMP_DIR}'.format(TMP_DIR=TMP_DIR),
+            'repo_dir': os.path.join(
+                '{TMP_DIR}'.format(TMP_DIR=TMP_DIR), '.tmux'
+            ),
+            'url': 'git+git@github.com:tony/tmux-config.git',
+            'shell_command_after': [
+                'ln -sf /home/u/.tmux/.tmux.conf /home/u/.tmux.conf'
+            ]
+        }
+    ]
+
+
 class ConfigTestMixin(unittest.TestCase):
 
     """Contains the fresh config dict/yaml's to test against.
@@ -84,7 +197,6 @@ class ConfigTestMixin(unittest.TestCase):
         """Remove TMP_DIR."""
         if os.path.isdir(self.TMP_DIR):
             shutil.rmtree(self.TMP_DIR)
-        logger.debug('wiped %s' % self.TMP_DIR)
 
     def _createConfigDirectory(self):
         """Create TMP_DIR for TestCase."""
@@ -92,139 +204,12 @@ class ConfigTestMixin(unittest.TestCase):
 
     def _seedConfigExampleMixin(self):
 
-        config_yaml = """
-        {TMP_DIR}/study/:
-            linux: git+git://git.kernel.org/linux/torvalds/linux.git
-            freebsd: git+https://github.com/freebsd/freebsd.git
-            sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
-            docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
-        {TMP_DIR}/github_projects/:
-            kaptan:
-                url: git+git@github.com:tony/kaptan.git
-                remotes:
-                    upstream: git+https://github.com/emre/kaptan
-                    ms: git+https://github.com/ms/kaptan.git
-        {TMP_DIR}:
-            .vim:
-                url: git+git@github.com:tony/vim-config.git
-                shell_command_after: ln -sf /home/u/.vim/.vimrc /home/u/.vimrc
-            .tmux:
-                url: git+git@github.com:tony/tmux-config.git
-                shell_command_after:
-                    - ln -sf /home/u/.tmux/.tmux.conf /home/u/.tmux.conf
-        """
+        config_yaml = loadfixture('example2.yaml')
 
-        config_dict = {
-            '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR): {
-                'linux': 'git+git://git.kernel.org/linux/torvalds/linux.git',
-                'freebsd': 'git+https://github.com/freebsd/freebsd.git',
-                'sphinx': 'hg+https://bitbucket.org/birkenfeld/sphinx',
-                'docutils': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
-            },
-            '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR): {
-                'kaptan': {
-                    'url': 'git+git@github.com:tony/kaptan.git',
-                    'remotes': {
-                        'upstream': 'git+https://github.com/emre/kaptan',
-                        'ms': 'git+https://github.com/ms/kaptan.git'
-                    }
-                }
-            },
-            '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR): {
-                '.vim': {
-                    'url': 'git+git@github.com:tony/vim-config.git',
-                    'shell_command_after':
-                    'ln -sf /home/u/.vim/.vimrc /home/u/.vimrc'
-                },
-                '.tmux': {
-                    'url': 'git+git@github.com:tony/tmux-config.git',
-                    'shell_command_after': [
-                        'ln -sf /home/u/.tmux/.tmux.conf /home/u/.tmux.conf'
-                    ]
-                }
-            }
-        }
-
+        config_dict = get_config_dict(TMP_DIR=self.TMP_DIR)
         config_yaml = config_yaml.format(TMP_DIR=self.TMP_DIR)
 
-        config_dict_expanded = [
-            {
-                'name': 'linux',
-                'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'repo_dir': os.path.join(
-                    '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'linux'
-                ),
-                'url': 'git+git://git.kernel.org/linux/torvalds/linux.git',
-            },
-            {
-                'name': 'freebsd',
-                'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'repo_dir': os.path.join(
-                    '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'freebsd'
-                ),
-                'url': 'git+https://github.com/freebsd/freebsd.git',
-            },
-            {
-                'name': 'sphinx',
-                'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'repo_dir': os.path.join(
-                    '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR), 'sphinx'
-                ),
-                'url': 'hg+https://bitbucket.org/birkenfeld/sphinx',
-            },
-            {
-                'name': 'docutils',
-                'parent_dir': '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                'repo_dir': os.path.join(
-                    '{TMP_DIR}/study/'.format(TMP_DIR=self.TMP_DIR),
-                    'docutils'
-                ),
-                'url': 'svn+http://svn.code.sf.net/p/docutils/code/trunk',
-            },
-            {
-                'name': 'kaptan',
-                'url': 'git+git@github.com:tony/kaptan.git',
-                'parent_dir': '{TMP_DIR}/github_projects/'.format(
-                    TMP_DIR=self.TMP_DIR
-                ),
-                'repo_dir': os.path.join(
-                    '{TMP_DIR}/github_projects/'.format(TMP_DIR=self.TMP_DIR),
-                    'kaptan'
-                ),
-                'remotes': [
-                    {
-                        'remote_name': 'upstream',
-                        'url': 'git+https://github.com/emre/kaptan',
-                    },
-                    {
-                        'remote_name': 'ms',
-                        'url': 'git+https://github.com/ms/kaptan.git'
-                    }
-                ]
-            },
-            {
-                'name': '.vim',
-                'parent_dir': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                'repo_dir': os.path.join(
-                    '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.vim'
-                ),
-                'url': 'git+git@github.com:tony/vim-config.git',
-                'shell_command_after': [
-                    'ln -sf /home/u/.vim/.vimrc /home/u/.vimrc'
-                ]
-            },
-            {
-                'name': '.tmux',
-                'parent_dir': '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR),
-                'repo_dir': os.path.join(
-                    '{TMP_DIR}'.format(TMP_DIR=self.TMP_DIR), '.tmux'
-                ),
-                'url': 'git+git@github.com:tony/tmux-config.git',
-                'shell_command_after': [
-                    'ln -sf /home/u/.tmux/.tmux.conf /home/u/.tmux.conf'
-                ]
-            }
-        ]
+        config_dict_expanded = get_config_dict_expanded(TMP_DIR=self.TMP_DIR)
 
         self.config_dict = config_dict
 
