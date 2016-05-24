@@ -16,49 +16,62 @@ from .helpers import (ConfigTestCase, RepoIntegrationTest, RepoTestMixin,
                       mute)
 
 
-class RepoGit(RepoIntegrationTest, unittest.TestCase):
+def test_repo_git_obtain_bare_repo(tmpdir):
 
-    """Integration level tests."""
+    repo_name = 'my_git_project'
 
-    @mute
-    def test_repo_git_update(self):
-        repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
-        repo_name = 'my_git_project'
+    # init bare repo
+    run([
+        'git', 'init', repo_name
+    ], cwd=str(tmpdir))
 
-        git_repo = create_repo(**{
-            'url': 'git+file://' + os.path.join(repo_dir, repo_name),
-            'parent_dir': self.TMP_DIR,
-            'name': repo_name
-        })
+    bare_repo_dir = tmpdir.join(repo_name)
 
-        os.mkdir(repo_dir)
-        run([
-            'git', 'init', git_repo['name']
-        ], cwd=repo_dir)
-        git_checkout_dest = os.path.join(self.TMP_DIR, git_repo['name'])
-        git_repo.obtain(quiet=True)
+    git_repo = create_repo(**{
+        'url': 'git+file://' + str(bare_repo_dir),
+        'parent_dir': str(tmpdir),
+        'name': 'obtaining a bare repo'
+    })
 
-        testfile = 'testfile.test'
+    git_repo.obtain(quiet=True)
+    assert git_repo.get_revision() == ['HEAD']
 
-        run(['touch', testfile], cwd=os.path.join(repo_dir, repo_name))
-        run([
-            'git', 'add', testfile
-        ], cwd=os.path.join(repo_dir, repo_name))
-        run([
-            'git', 'commit', '-m', 'a test file for %s' % git_repo['name']
-        ], cwd=os.path.join(repo_dir, repo_name))
-        git_repo.update_repo()
 
-        test_repo_revision = run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=os.path.join(repo_dir, repo_name),
-        )['stdout']
+def test_repo_git_obtain_full(tmpdir):
+    repo_name = 'my_git_project'
 
-        self.assertEqual(
-            git_repo.get_revision(),
-            test_repo_revision
-        )
-        self.assertTrue(os.path.exists(git_checkout_dest))
+    # init sophisticated repo
+    run([
+        'git', 'init', repo_name
+    ], cwd=str(tmpdir))
+    remote_repo_dir = str(tmpdir.join(repo_name))
+    testfile = 'testfile.test'
+
+    run(['touch', testfile], cwd=remote_repo_dir)
+    run([
+        'git', 'add', testfile
+    ], cwd=remote_repo_dir)
+    run([
+        'git', 'commit', '-m', 'a test file'
+    ], cwd=remote_repo_dir)
+
+
+    test_repo_revision = run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=remote_repo_dir,
+    )['stdout']
+
+    # create a new repo with the repo as a remote
+    git_repo = create_repo(**{
+        'url': 'git+file://' + remote_repo_dir,
+        'parent_dir': str(tmpdir),
+        'name': 'myrepo'
+    })
+
+    git_repo.obtain(quiet=True)
+
+    assert git_repo.get_revision() == test_repo_revision
+    assert os.path.exists(str(tmpdir.join('myrepo')))
 
 
 class GitRepoRemotes(RepoIntegrationTest, unittest.TestCase):
