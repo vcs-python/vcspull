@@ -175,221 +175,236 @@ def test_multiple_configs_raises_exception(tmpdir):
             config.find_home_config_files()
 
 
-class FindConfigs(ConfigTestCase, unittest.TestCase):
+@pytest.fixture
+def config_dir(tmpdir):
+    _config_dir = tmpdir.join('.vcspull')
+    _config_dir.ensure(dir=True)
+    return _config_dir
 
-    """Test find_config_files."""
 
-    def setUp(self):
-        ConfigTestCase.setUp(self)
+@pytest.fixture
+def sample_yaml_config(config_dir):
+    config_file1 = config_dir.join('repos1.yaml')
+    config_file1.write('')
+    return config_file1
 
-        self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.vcspull')
 
-        os.makedirs(self.CONFIG_DIR)
-        assert os.path.exists(self.CONFIG_DIR)
+@pytest.fixture
+def sample_json_config(config_dir):
+    config_file2 = config_dir.join('repos2.json')
+    config_file2.write('')
+    return config_file2
 
-        self.config_file1 = tempfile.NamedTemporaryFile(
-            prefix="repos1",
-            dir=self.CONFIG_DIR, delete=False, suffix=".yaml"
-        )
-        self.config_file1_filename = os.path.splitext(
-            os.path.basename(self.config_file1.name)
-        )[0]
-        self.config_file2 = tempfile.NamedTemporaryFile(
-            prefix="repos2",
-            dir=self.CONFIG_DIR, delete=False, suffix=".json"
-        )
-        self.config_file2_filename, self.config_file2_fileext = \
-            os.path.splitext(
-                os.path.basename(self.config_file2.name)
-            )
 
-    def test_path_string(self):
-        """path as a string."""
-        configs = config.find_config_files(path=self.CONFIG_DIR)
+def test_find_config_path_string(
+    config_dir,
+    sample_yaml_config,
+    sample_json_config
+):
+    configs = config.find_config_files(path=str(config_dir))
 
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
 
-    def test_path_list(self):
-        configs = config.find_config_files(path=[self.CONFIG_DIR])
 
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
+def test_find_config_path_list(
+    config_dir,
+    sample_yaml_config,
+    sample_json_config
+):
+    configs = config.find_config_files(path=[str(config_dir)])
 
-    def test_match_string(self):
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+
+def test_find_config_match_string(
+    config_dir,
+    sample_yaml_config,
+    sample_json_config
+):
+    configs = config.find_config_files(
+        path=str(config_dir),
+        match=sample_yaml_config.purebasename
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) not in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match=sample_json_config.purebasename
+    )
+
+    assert str(sample_yaml_config) not in configs
+    assert str(sample_json_config) in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match='randomstring'
+    )
+
+    assert str(sample_yaml_config) not in configs
+    assert str(sample_json_config) not in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match='*'
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match='repos*'
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match='repos[1-9]*'
+    )
+
+    assert len([c for c in configs if str(sample_yaml_config) in c]) == 1
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+
+def test_find_config_match_list(
+    config_dir,
+    sample_yaml_config,
+    sample_json_config
+):
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match=[
+            sample_yaml_config.purebasename,
+            sample_json_config.purebasename
+        ]
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match=[sample_yaml_config.purebasename]
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert len([c for c in configs if str(sample_yaml_config) in c]) == 1
+    assert str(sample_json_config) not in configs
+    assert len([c for c in configs if str(sample_json_config) in c]) == 0
+
+
+def test_find_config_filetype_string(
+    config_dir,
+    sample_yaml_config,
+    sample_json_config
+):
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match=sample_yaml_config.purebasename,
+        filetype='yaml',
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) not in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match=sample_yaml_config.purebasename,
+        filetype='json',
+    )
+
+    assert str(sample_yaml_config) not in configs
+    assert str(sample_json_config) not in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match='repos*',
+        filetype='json',
+    )
+
+    assert str(sample_yaml_config) not in configs
+    assert str(sample_json_config) in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match='repos*',
+        filetype='*',
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+
+def test_find_config_filetype_list(
+    config_dir,
+    sample_yaml_config,
+    sample_json_config
+):
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match=['repos*'],
+        filetype=['*'],
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        match=['repos*'],
+        filetype=['json', 'yaml'],
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+    configs = config.find_config_files(
+        path=[str(config_dir)],
+        filetype=['json', 'yaml'],
+    )
+
+    assert str(sample_yaml_config) in configs
+    assert str(sample_json_config) in configs
+
+
+def test_find_config_include_home_configs(
+    tmpdir,
+    config_dir,
+    sample_yaml_config,
+    sample_json_config
+):
+    with EnvironmentVarGuard() as env:
+        env.set("HOME", str(tmpdir))
         configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match=self.config_file1_filename
+            path=[str(config_dir)],
+            match='*',
+            include_home=True
         )
 
-        assert self.config_file1.name in configs
-        assert self.config_file2.name not in configs
+        assert str(sample_yaml_config) in configs
+        assert str(sample_json_config) in configs
 
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match=self.config_file2_filename
+        config_file3 = tmpdir.join('.vcspull.json')
+        config_file3.write('')
+
+        results = config.find_config_files(
+            path=[str(config_dir)],
+            match='*',
+            include_home=True
         )
+        expectedIn = str(config_file3)
 
-        assert self.config_file1.name not in configs
-        assert self.config_file2.name in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match='randomstring'
-        )
-
-        assert self.config_file1.name not in configs
-        assert self.config_file2.name not in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match='*'
-        )
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match='repos*'
-        )
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match='repos[1-9]*'
-        )
-
-        assert len([c for c in configs if self.config_file1.name in c]) == 1
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
-
-    def test_match_list(self):
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match=[self.config_file1_filename, self.config_file2_filename]
-        )
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match=[self.config_file1_filename]
-        )
-
-        assert self.config_file1.name in configs
-        assert len([c for c in configs if self.config_file1.name in c]) == 1
-        assert self.config_file2.name not in configs
-        assert len([c for c in configs if self.config_file2.name in c]) == 0
-
-    def test_filetype_string(self):
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match=self.config_file1_filename,
-            filetype='yaml',
-        )
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name not in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match=self.config_file1_filename,
-            filetype='json',
-        )
-
-        assert self.config_file1.name not in configs
-        assert self.config_file2.name not in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match='repos*',
-            filetype='json',
-        )
-
-        assert self.config_file1.name not in configs
-        assert self.config_file2.name in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match='repos*',
-            filetype='*',
-        )
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
-
-    def test_filetype_list(self):
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match=['repos*'],
-            filetype=['*'],
-        )
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            match=['repos*'],
-            filetype=['json', 'yaml'],
-        )
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
-
-        configs = config.find_config_files(
-            path=[self.CONFIG_DIR],
-            filetype=['json', 'yaml'],
-        )
-
-        assert self.config_file1.name in configs
-        assert self.config_file2.name in configs
-
-    def test_include_home_configs(self):
-        with EnvironmentVarGuard() as env:
-            env.set("HOME", self.TMP_DIR)
-            configs = config.find_config_files(
-                path=[self.CONFIG_DIR],
-                match='*',
-                include_home=True
-            )
-
-            assert self.config_file1.name in configs
-            assert self.config_file2.name in configs
-
-            self.config_file3_path = os.path.join(
-                self.TMP_DIR, '.vcspull.json'
-            )
-            self.config_file3 = open(self.config_file3_path, 'a').close()
-
-            results = config.find_config_files(
-                path=[self.CONFIG_DIR],
-                match='*',
-                include_home=True
-            )
-            expectedIn = os.path.join(self.TMP_DIR, '.vcspull.json')
-
-            assert expectedIn in results
-            assert self.config_file1.name in results
-            assert self.config_file2.name in results
-
-            os.remove(self.config_file3_path)
-
-
-class LoadConfigs(RepoIntegrationTest):
-
-    def test_load(self):
-        """Load a list of file into dict."""
-        configs = config.find_config_files(
-            path=self.CONFIG_DIR
-        )
-
-        config.load_configs(configs)
+        assert expectedIn in results
+        assert str(sample_yaml_config) in results
+        assert str(sample_json_config) in results
 
 
 class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
