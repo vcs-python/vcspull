@@ -18,13 +18,6 @@ from .helpers import ConfigTestCase, RepoTestMixin
 
 
 @pytest.fixture
-def tmpdir_repoparent(tmpdir_factory, scope='function'):
-    """Return temporary directory for repository checkout guaranteed unique."""
-    fn = tmpdir_factory.mktemp("repo")
-    return fn
-
-
-@pytest.fixture
 def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
     """Return kwargs for :func:`create_repo`."""
     repo_name = 'repo_clone'

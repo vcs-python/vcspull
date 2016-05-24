@@ -4,66 +4,59 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
 import os
-import unittest
+import pytest
 
 from vcspull.repo import create_repo
 from vcspull.util import run, which
-from .helpers import ConfigTestCase
 
 
-def has_mercurial():
+def has_exe(exe):
     try:
-        which('hg')
+        which(exe)
         return True
     except Exception:
         return False
 
 
-@unittest.skipUnless(has_mercurial(), "requires Mercurial (hg)")
-class RepoMercurial(ConfigTestCase, unittest.TestCase):
+@pytest.fixture
+def hg_dummy_repo_dir(tmpdir_repoparent, scope='session'):
+    """Create a git repo with 1 commit, used as a remote."""
+    name = 'dummyrepo'
+    repo_path = str(tmpdir_repoparent.join(name))
 
-    def test_repo_mercurial(self):
-        repo_dir = os.path.join(
-            self.TMP_DIR, '.repo_dir'
-        )
-        repo_name = 'my_mercurial_project'
+    run(['hg', 'init', name], cwd=str(tmpdir_repoparent))
 
-        mercurial_repo = create_repo(**{
-            'url': 'hg+file://' + os.path.join(repo_dir, repo_name),
-            'parent_dir': self.TMP_DIR,
-            'name': repo_name
-        })
+    testfile_filename = 'testfile.test'
 
-        mercurial_checkout_dest = os.path.join(
-            self.TMP_DIR, mercurial_repo['name']
-        )
+    run(['touch', testfile_filename],
+        cwd=repo_path)
+    run(['hg', 'add', testfile_filename],
+        cwd=repo_path)
+    run(['hg', 'commit', '-m', 'test file for %s' % name],
+        cwd=repo_path)
 
-        os.mkdir(repo_dir)
-        run(['hg', 'init', mercurial_repo['name']], cwd=repo_dir)
+    return repo_path
 
-        mercurial_repo.obtain()
 
-        testfile = 'testfile.test'
+def test_repo_mercurial(tmpdir, hg_dummy_repo_dir):
+    repo_name = 'my_mercurial_project'
 
-        run(['touch', testfile],
-            cwd=os.path.join(repo_dir, repo_name)
-            )
-        run(['hg', 'add', testfile],
-            cwd=os.path.join(repo_dir, repo_name)
-            )
-        run(['hg', 'commit', '-m', 'test file %s' % mercurial_repo['name']],
-            cwd=os.path.join(repo_dir, repo_name))
+    mercurial_repo = create_repo(**{
+        'url': 'hg+file://' + hg_dummy_repo_dir,
+        'parent_dir': str(tmpdir),
+        'name': repo_name
+    })
 
-        mercurial_repo.update_repo()
+    run(['hg', 'init', mercurial_repo['name']],
+        cwd=str(tmpdir))
 
-        test_repo_revision = run(
-            ['hg', 'parents', '--template={rev}'],
-            cwd=os.path.join(repo_dir, repo_name),
-        )['stdout']
+    mercurial_repo.obtain()
+    mercurial_repo.update_repo()
 
-        self.assertEqual(
-            mercurial_repo.get_revision(),
-            test_repo_revision
-        )
+    test_repo_revision = run(
+        ['hg', 'parents', '--template={rev}'],
+        cwd=str(tmpdir.join(repo_name)),
+    )['stdout']
 
-        self.assertTrue(os.path.exists(mercurial_checkout_dest))
+    assert mercurial_repo.get_revision() == test_repo_revision
+    assert os.path.exists(str(tmpdir.join(repo_name)))
