@@ -1,4 +1,4 @@
-{TMP_DIR}/srv/www/test/:
+{TMP_DIR}/test/:
   subRepoDiffVCS:
     url: git+file://${git_repo_path}
   subRepoSameVCS: git+file://${git_repo_path}
