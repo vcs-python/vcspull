@@ -4,8 +4,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
 import os
-import tempfile
-import unittest
 
 import kaptan
 import pytest
@@ -15,7 +13,7 @@ from vcspull.config import expand_config
 
 from .fixtures import example as fixtures
 from .fixtures._util import loadfixture
-from .helpers import ConfigTestCase, EnvironmentVarGuard, RepoIntegrationTest
+from .helpers import EnvironmentVarGuard
 
 
 def test_dict_equals_yaml():
@@ -117,39 +115,6 @@ def test_expandenv_and_homevars():
     assert os.path.expanduser('~/study/') in paths
 
 
-class InDirTest(ConfigTestCase):
-
-    def setUp(self):
-
-        ConfigTestCase.setUp(self)
-
-        self.CONFIG_DIR = os.path.join(self.TMP_DIR, '.vcspull')
-
-        os.makedirs(self.CONFIG_DIR)
-        assert os.path.exists(self.CONFIG_DIR)
-
-        self.config_file1 = tempfile.NamedTemporaryFile(
-            dir=self.CONFIG_DIR, delete=False, suffix=".yaml"
-        )
-        self.config_file2 = tempfile.NamedTemporaryFile(
-            dir=self.CONFIG_DIR, delete=False, suffix=".json"
-        )
-
-    def tearDown(self):
-        os.remove(self.config_file1.name)
-        os.remove(self.config_file2.name)
-        ConfigTestCase.tearDown(self)
-
-    def test_in_dir(self):
-        expected = [
-            os.path.basename(self.config_file1.name),
-            os.path.basename(self.config_file2.name),
-        ]
-        result = config.in_dir(self.CONFIG_DIR)
-
-        assert len(expected) == len(result)
-
-
 def test_find_config_files(tmpdir):
     """Test find_config_files in home directory."""
 
@@ -194,6 +159,20 @@ def sample_json_config(config_dir):
     config_file2 = config_dir.join('repos2.json')
     config_file2.write('')
     return config_file2
+
+
+def test_in_dir(
+    config_dir,
+    sample_yaml_config,
+    sample_json_config
+):
+    expected = [
+        sample_yaml_config.purebasename,
+        sample_json_config.purebasename,
+    ]
+    result = config.in_dir(str(config_dir))
+
+    assert len(expected) == len(result)
 
 
 def test_find_config_path_string(
@@ -407,75 +386,53 @@ def test_find_config_include_home_configs(
         assert str(sample_json_config) in results
 
 
-class RepoIntegrationDuplicateTest(RepoIntegrationTest, unittest.TestCase):
-    """zz sleep: need to turn this into a fixture."""
-    def setUp(self):
+def test_merge_nested_dict(tmpdir, config_dir):
+    # remnants of RepoIntegrationTest"
+    config_yaml3 = loadfixture('repoduplicate1.yaml').format(
+        svn_repo_path='lol',
+        hg_repo_path='lol2',
+        git_repo_path='lol3',
+        TMP_DIR=str(tmpdir)
+    )
 
-        super(RepoIntegrationDuplicateTest, self).setUp()
+    config_yaml4 = loadfixture('repoduplicate2.yaml').format(
+        svn_repo_path='lol',
+        hg_repo_path='lol2',
+        git_repo_path='lol3',
+        TMP_DIR=str(tmpdir)
+    )
 
-        config_yaml3 = loadfixture('repoduplicate1.yaml').format(
-            svn_repo_path=self.svn_repo_path,
-            hg_repo_path=self.hg_repo_path,
-            git_repo_path=self.git_repo_path,
-            TMP_DIR=self.TMP_DIR
-        )
+    config3 = config_dir.join('repoduplicate1.yaml')
+    config3_file = str(config3)
 
-        config_yaml4 = loadfixture('repoduplicate2.yaml').format(
-            svn_repo_path=self.svn_repo_path,
-            hg_repo_path=self.hg_repo_path,
-            git_repo_path=self.git_repo_path,
-            TMP_DIR=self.TMP_DIR
-        )
+    config3.write(config_yaml3)
 
-        self.config3_name = 'repoduplicate1.yaml'
-        self.config3_file = os.path.join(self.CONFIG_DIR, self.config3_name)
+    conf = kaptan.Kaptan(handler='yaml').import_config(config3_file)
+    config3_dict = conf.export('dict')
 
-        with open(self.config3_file, 'w') as buf:
-            buf.write(config_yaml3)
+    config4 = config_dir.join('repoduplicate2.yaml')
+    config4_file = str(config4)
 
-        conf = kaptan.Kaptan(handler='yaml')
-        conf.import_config(self.config3_file)
-        self.config3 = conf.export('dict')
+    config4.write(config_yaml4)
 
-        self.config4_name = 'repoduplicate2.yaml'
-        self.config4_file = os.path.join(
-            self.CONFIG_DIR, 'repoduplicate2.yaml')
+    conf = kaptan.Kaptan(handler='yaml').import_config(config4_file)
+    config4_dict = conf.export('dict')
 
-        with open(self.config4_file, 'w') as buf:
-            buf.write(config_yaml4)
+    # validate export of multiple configs + nested dirs
+    assert 'vcsOn1' in \
+        config3_dict[os.path.join(str(tmpdir), 'srv/www/test/')]
+    assert 'vcsOn2' not in \
+        config3_dict[os.path.join(str(tmpdir), 'srv/www/test/')]
+    assert 'vcsOn2' in \
+        config4_dict[os.path.join(str(tmpdir), 'srv/www/test/')]
 
-        conf = kaptan.Kaptan(handler='yaml')
-        conf.import_config(self.config4_file)
-        self.config4 = conf.export('dict')
+    """Duplicate path + name with different repo URL / remotes raises."""
+    configs = config.find_config_files(
+        path=str(config_dir),
+        match="repoduplicate[1-2]"
+    )
 
-
-class LoadConfigsUpdateDepth(RepoIntegrationDuplicateTest):
-
-    def test_merge_nested_dict(self):
-
-        assert 'vcsOn1' in \
-            self.config3[os.path.join(self.TMP_DIR, 'srv/www/test/')]
-        assert 'vcsOn2' not in \
-            self.config3[os.path.join(self.TMP_DIR, 'srv/www/test/')]
-        assert 'vcsOn2' in \
-            self.config4[os.path.join(self.TMP_DIR, 'srv/www/test/')]
-
-
-class LoadConfigsDuplicate(RepoIntegrationDuplicateTest):
-
-    def test_duplicate_path_diff_vcs(self):
-        """Duplicate path + name with different repo URL / remotes raises."""
-        configs = config.find_config_files(
-            path=self.CONFIG_DIR,
-            match="repoduplicate[1-2]"
-        )
-
-        assert self.config3_file in configs
-        assert self.config4_file in configs
-        with pytest.raises(Exception):
-            config.load_configs(configs)
-
-    @unittest.skip("Not implemented")
-    def test_duplicate_path_same_vcs(self):
-        """Raise no warning if duplicate path same vcs."""
-        pass
+    assert config3_file in configs
+    assert config4_file in configs
+    with pytest.raises(Exception):
+        config.load_configs(configs)
