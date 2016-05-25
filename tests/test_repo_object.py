@@ -4,7 +4,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
 import os
-import unittest
 
 import kaptan
 
@@ -13,161 +12,143 @@ from vcspull.repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
                           create_repo)
 from vcspull.util import filter_repos
 
-from .helpers import ConfigTestCase, RepoTestMixin
+from .fixtures import example as fixtures
 
 
-class GetReposTest(ConfigTestCase, unittest.TestCase):
+def test_filter_dir():
+    """``filter_repos`` filter by dir"""
 
-    def test_filter_dir(self):
-        """``filter_repos`` filter by dir"""
-        self.config_dict_expanded
+    repo_list = filter_repos(
+        fixtures.config_dict_expanded,
+        repo_dir="*github_project*"
+    )
 
-        repo_list = filter_repos(
-            self.config_dict_expanded,
-            repo_dir="*github_project*"
-        )
-
-        self.assertEqual(len(repo_list), 1)
-        for r in repo_list:
-            self.assertEqual(r['name'], 'kaptan')
-
-    def test_filter_name(self):
-        """``filter_repos`` filter by name"""
-        self.config_dict_expanded
-
-        repo_list = filter_repos(
-            self.config_dict_expanded,
-            name=".vim"
-        )
-
-        self.assertEqual(len(repo_list), 1)
-        for r in repo_list:
-            self.assertEqual(r['name'], '.vim')
-
-    def test_filter_vcs(self):
-        """``filter_repos`` filter by vcs remote url"""
-        self.config_dict_expanded
-
-        repo_list = filter_repos(
-            self.config_dict_expanded,
-            vcs_url="*kernel.org*"
-        )
-
-        self.assertEqual(len(repo_list), 1)
-        for r in repo_list:
-            self.assertEqual(r['name'], 'linux')
+    assert len(repo_list) == 1
+    for r in repo_list:
+        assert r['name'] == 'kaptan'
 
 
-class ConfigToObjectTest(ConfigTestCase, unittest.TestCase):
+def test_filter_name():
+    """``filter_repos`` filter by name"""
+    repo_list = filter_repos(
+        fixtures.config_dict_expanded,
+        name=".vim"
+    )
 
-    """TestCase for converting config (dict) into Repo object."""
-
-    def setUp(self):
-
-        super(ConfigToObjectTest, self).setUp()
-
-    def test_to_dictlist(self):
-        """``filter_repos`` pulls the repos in dict format from the config."""
-        self.config_dict_expanded
-
-        repo_list = filter_repos(self.config_dict_expanded)
-
-        for r in repo_list:
-            self.assertIsInstance(r, dict)
-            self.assertIn('name', r)
-            self.assertIn('parent_dir', r)
-            self.assertIn('url', r)
-
-            if 'remotes' in r:
-                self.assertIsInstance(r['remotes'], list)
-                for remote in r['remotes']:
-                    self.assertIsInstance(remote, dict)
-                    self.assertIn('remote_name', remote)
-                    self.assertIn('url', remote)
-
-    def test_vcs_url_scheme_to_object(self):
-        """Test that ``url`` return a GitRepo/MercurialRepo/SubversionRepo.
-
-        :class:`GitRepo`, :class:`MercurialRepo` or :class:`SubversionRepo`
-        object based on the pip-style URL scheme.
-
-        """
-
-        git_repo = create_repo(**{
-            'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
-            'parent_dir': self.TMP_DIR,
-            'name': 'myproject1'
-        })
-
-        # TODO cwd and name if duplicated should give an error
-
-        self.assertIsInstance(git_repo, GitRepo)
-        self.assertIsInstance(git_repo, BaseRepo)
-
-        hg_repo = create_repo(**{
-            'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
-            'parent_dir': self.TMP_DIR,
-            'name': 'myproject2'
-        })
-
-        self.assertIsInstance(hg_repo, MercurialRepo)
-        self.assertIsInstance(hg_repo, BaseRepo)
-
-        svn_repo = create_repo(**{
-            'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
-            'parent_dir': self.TMP_DIR,
-            'name': 'myproject3'
-        })
-
-        self.assertIsInstance(svn_repo, SubversionRepo)
-        self.assertIsInstance(svn_repo, BaseRepo)
-
-    def test_to_repo_objects(self):
-        """:py:obj:`dict` objects into Repo objects."""
-        repo_list = filter_repos(self.config_dict_expanded)
-        for repo_dict in repo_list:
-            r = create_repo(**repo_dict)
-
-            self.assertIsInstance(r, BaseRepo)
-            self.assertIn('name', r)
-            self.assertEqual(r['name'], repo_dict['name'])
-            self.assertIn('parent_dir', r)
-            self.assertEqual(r['parent_dir'], repo_dict['parent_dir'])
-            self.assertIn('url', r)
-            self.assertEqual(r['url'], repo_dict['url'])
-
-            self.assertEqual(r['path'], os.path.join(
-                r['parent_dir'], r['name']))
-
-            if 'remotes' in repo_dict:
-                self.assertIsInstance(r['remotes'], list)
-                for remote in r['remotes']:
-                    self.assertIsInstance(remote, dict)
-                    self.assertIn('remote_name', remote)
-                    self.assertIn('url', remote)
+    assert len(repo_list) == 1
+    for r in repo_list:
+        assert r['name'] == '.vim'
 
 
-class EnsureMakeDirsRecursively(ConfigTestCase, RepoTestMixin,
-                                unittest.TestCase):
+def test_filter_vcs():
+    """``filter_repos`` filter by vcs remote url"""
+    repo_list = filter_repos(
+        fixtures.config_dict_expanded,
+        vcs_url="*kernel.org*"
+    )
 
+    assert len(repo_list) == 1
+    for r in repo_list:
+        assert r['name'] == 'linux'
+
+
+def test_to_dictlist():
+    """``filter_repos`` pulls the repos in dict format from the config."""
+    repo_list = filter_repos(fixtures.config_dict_expanded)
+
+    for r in repo_list:
+        assert isinstance(r, dict)
+        assert 'name' in r
+        assert 'parent_dir' in r
+        assert 'url' in r
+
+        if 'remotes' in r:
+            assert isinstance(r['remotes'], list)
+            for remote in r['remotes']:
+                assert isinstance(remote, dict)
+                assert 'remote_name' == remote
+                assert 'url' == remote
+
+
+def test_vcs_url_scheme_to_object(tmpdir):
+    """Test that ``url`` return a GitRepo/MercurialRepo/SubversionRepo.
+
+    :class:`GitRepo`, :class:`MercurialRepo` or :class:`SubversionRepo`
+    object based on the pip-style URL scheme.
+
+    """
+    git_repo = create_repo(**{
+        'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
+        'parent_dir': str(tmpdir),
+        'name': 'myproject1'
+    })
+
+    # TODO cwd and name if duplicated should give an error
+
+    assert isinstance(git_repo, GitRepo)
+    assert isinstance(git_repo, BaseRepo)
+
+    hg_repo = create_repo(**{
+        'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
+        'parent_dir': str(tmpdir),
+        'name': 'myproject2'
+    })
+
+    assert isinstance(hg_repo, MercurialRepo)
+    assert isinstance(hg_repo, BaseRepo)
+
+    svn_repo = create_repo(**{
+        'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
+        'parent_dir': str(tmpdir),
+        'name': 'myproject3'
+    })
+
+    assert isinstance(svn_repo, SubversionRepo)
+    assert isinstance(svn_repo, BaseRepo)
+
+
+def test_to_repo_objects(tmpdir):
+    """:py:obj:`dict` objects into Repo objects."""
+    repo_list = filter_repos(fixtures.config_dict_expanded)
+    for repo_dict in repo_list:
+        r = create_repo(**repo_dict)
+
+        assert isinstance(r, BaseRepo)
+        assert 'name' in r
+        assert r['name'] == repo_dict['name']
+        assert 'parent_dir' in r
+        assert r['parent_dir'] == repo_dict['parent_dir']
+        assert 'url' in r
+        assert r['url'] == repo_dict['url']
+
+        assert r['path'] == os.path.join(r['parent_dir'], r['name'])
+
+        if 'remotes' in repo_dict:
+            assert isinstance(r['remotes'], list)
+            for remote in r['remotes']:
+                assert isinstance(remote, dict)
+                assert 'remote_name' in remote
+                assert 'url' in remote
+
+
+def test_makes_recursive(tmpdir, git_dummy_repo_dir):
     """Ensure that directories in pull are made recursively."""
 
     YAML_CONFIG = """
-    {TMP_DIR}/study/python:
-        my_url: svn+file://{REPO_DIR}
+    {TMP_DIR}/study/myrepo:
+        my_url: git+file://{REPO_DIR}
     """
 
-    def test_makes_recursive(self):
-        repo_dir, svn_repo = self.create_svn_repo(create_temp_repo=True)
-        YAML_CONFIG = self.YAML_CONFIG.format(
-            TMP_DIR=self.TMP_DIR,
-            REPO_DIR=repo_dir
-        )
-        conf = kaptan.Kaptan(handler='yaml')
-        conf.import_config(YAML_CONFIG)
-        conf = conf.export('dict')
-        repos = expand_config(conf)
+    YAML_CONFIG = YAML_CONFIG.format(
+        TMP_DIR=str(tmpdir),
+        REPO_DIR=git_dummy_repo_dir
+    )
 
-        for r in filter_repos(repos):
-            repo = create_repo(**r)
-            repo.obtain()
+    conf = kaptan.Kaptan(handler='yaml')
+    conf.import_config(YAML_CONFIG)
+    conf = conf.export('dict')
+    repos = expand_config(conf)
+
+    for r in filter_repos(repos):
+        repo = create_repo(**r)
+        repo.obtain()

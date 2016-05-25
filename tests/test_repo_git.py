@@ -17,45 +17,6 @@ from vcspull.util import run
 from .helpers import ConfigTestCase, RepoTestMixin
 
 
-@pytest.fixture
-def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
-    """Return kwargs for :func:`create_repo`."""
-    repo_name = 'repo_clone'
-    return {
-        'url': 'git+file://' + git_dummy_repo_dir,
-        'parent_dir': str(tmpdir_repoparent),
-        'name': repo_name
-    }
-
-
-@pytest.fixture
-def git_repo(git_repo_kwargs):
-    """Create an git repository for tests. Return repo."""
-    git_repo = create_repo(**git_repo_kwargs)
-    git_repo.obtain(quiet=True)
-    return git_repo
-
-
-@pytest.fixture
-def git_dummy_repo_dir(tmpdir_repoparent, scope='session'):
-    """Create a git repo with 1 commit, used as a remote."""
-    name = 'dummyrepo'
-    repo_path = str(tmpdir_repoparent.join(name))
-
-    run(['git', 'init', name], cwd=str(tmpdir_repoparent))
-
-    testfile_filename = 'testfile.test'
-
-    run(['touch', testfile_filename],
-        cwd=repo_path)
-    run(['git', 'add', testfile_filename],
-        cwd=repo_path)
-    run(['git', 'commit', '-m', 'test file for %s' % name],
-        cwd=repo_path)
-
-    return repo_path
-
-
 def test_repo_git_obtain_bare_repo(tmpdir):
     repo_name = 'my_git_project'
 
