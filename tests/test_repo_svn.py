@@ -4,13 +4,12 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
 import os
-import tempfile
-import unittest
+
+import pytest
 
 from vcspull.exc import VCSPullException
 from vcspull.repo import create_repo
 from vcspull.util import run, which
-from .helpers import ConfigTestCase, RepoTestMixin, stdouts
 
 
 def has_svn():
@@ -21,42 +20,41 @@ def has_svn():
         return False
 
 
-@unittest.skipUnless(has_svn(), "requires SVN")
-class RepoSVN(RepoTestMixin, ConfigTestCase, unittest.TestCase):
+@pytest.fixture
+def svn_dummy_repo_dir(tmpdir_repoparent, scope='session'):
+    """Create a git repo with 1 commit, used as a remote."""
+    name = 'dummyrepo'
+    repo_path = str(tmpdir_repoparent.join(name))
 
-    @stdouts
-    def test_repo_svn(self, *args):
-        repo_dir = os.path.join(self.TMP_DIR, '.repo_dir')
-        repo_name = 'my_svn_project'
+    run(['svnadmin', 'create', name], cwd=str(tmpdir_repoparent))
 
-        svn_repo = create_repo(**{
-            'url': 'svn+file://' + os.path.join(repo_dir, repo_name),
-            'parent_dir': self.TMP_DIR,
-            'name': repo_name
-        })
+    testfile_filename = 'testfile.test'
 
-        svn_checkout_dest = os.path.join(self.TMP_DIR, svn_repo['name'])
+    run(['touch', testfile_filename],
+        cwd=repo_path)
 
-        os.mkdir(repo_dir)
+    run(['svn', 'add', '--non-interactive', testfile_filename],
+        cwd=repo_path)
+    run(
+        ['svn', 'commit', '-m', 'a test file for %s' % name],
+        cwd=repo_path
+    )
 
-        run(['svnadmin', 'create', svn_repo['name']], cwd=repo_dir)
+    return repo_path
 
-        svn_repo.obtain()
 
-        self.assertTrue(os.path.exists(svn_checkout_dest))
+def test_repo_svn(tmpdir, svn_dummy_repo_dir):
+    repo_name = 'my_svn_project'
 
-        tempFile = tempfile.NamedTemporaryFile(dir=svn_checkout_dest)
+    svn_repo = create_repo(**{
+        'url': 'svn+file://' + svn_dummy_repo_dir,
+        'parent_dir': str(tmpdir),
+        'name': repo_name
+    })
 
-        run(['svn', 'add', '--non-interactive', tempFile.name],
-            cwd=svn_checkout_dest)
-        run(
-            ['svn', 'commit', '-m', 'a test file for %s' % svn_repo['name']],
-            cwd=svn_checkout_dest
-        )
-        self.assertEqual(svn_repo.get_revision(), 0)
+    svn_repo.obtain()
+    svn_repo.update_repo()
 
-        self.assertEqual(
-            os.path.join(svn_checkout_dest, tempFile.name),
-            tempFile.name
-        )
-        self.assertEqual(svn_repo.get_revision(tempFile.name), 1)
+    assert svn_repo.get_revision() == 0
+
+    assert os.path.exists(str(tmpdir.join(repo_name)))
