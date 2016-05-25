@@ -147,7 +147,7 @@ run             .. code-block:: bash
 .. |license| image:: https://img.shields.io/github/license/tony/vcspull.svg
     :alt: License 
 
-.. |docs| image:: https://readthedocs.io/projects/vcspull/badge/?version=latest
+.. |docs| image:: https://readthedocs.org/projects/vcspull/badge/?version=latest
     :alt: Documentation Status
     :scale: 100%
     :target: https://readthedocs.io/projects/vcspull/
