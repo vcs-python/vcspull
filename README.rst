@@ -150,4 +150,4 @@ run             .. code-block:: bash
 .. |docs| image:: https://readthedocs.org/projects/vcspull/badge/?version=latest
     :alt: Documentation Status
     :scale: 100%
-    :target: https://readthedocs.io/projects/vcspull/
+    :target: https://readthedocs.org/projects/vcspull/
