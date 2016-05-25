@@ -7,15 +7,7 @@ import os
 import pytest
 
 from vcspull.repo import create_repo
-from vcspull.util import run, which
-
-
-def has_exe(exe):
-    try:
-        which(exe)
-        return True
-    except Exception:
-        return False
+from vcspull.util import run
 
 
 @pytest.fixture

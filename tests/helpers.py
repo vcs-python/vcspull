@@ -29,9 +29,17 @@ from testfixtures import compare
 
 from vcspull.config import expand_config
 from vcspull.repo import create_repo
-from vcspull.util import run
+from vcspull.util import run, which
 
 from .fixtures._util import loadfixture
+
+
+def has_exe(exe):
+    try:
+        which(exe)
+        return True
+    except Exception:
+        return False
 
 
 class EnvironmentVarGuard(object):
