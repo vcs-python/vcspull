@@ -7,17 +7,8 @@ import os
 
 import pytest
 
-from vcspull.exc import VCSPullException
 from vcspull.repo import create_repo
-from vcspull.util import run, which
-
-
-def has_svn():
-    try:
-        which('svn')
-        return True
-    except VCSPullException:
-        return False
+from vcspull.util import run
 
 
 @pytest.fixture
