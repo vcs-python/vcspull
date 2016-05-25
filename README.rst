@@ -1,5 +1,4 @@
-``vcspull`` - Keep all your code in sync via one command. Configure with
-JSON / YAML.
+``vcspull`` - vcs project manager
 
 |pypi| |docs| |build-status| |coverage| |license|
 
@@ -8,42 +7,34 @@ JSON / YAML.
     :width: 45%
     :align: center
 
-Above: Run ``svn update``, ``git pull``, ``hg pull && hg update`` en masse. 
-
-Sync multiple git, mercurial and subversion repositories via a YAML /
-JSON file. Keep projects update-to-date by fetching the latest changes.
-
-* supports svn, git, hg version control systems
-* automatically checkout fresh repositories
-* update to the latest repos with ``$ vcspull``
-* `Documentation`_, `API`_ and `Examples`_.
-* builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
-
-See the `Quickstart`_ to jump in. Or see an `example .vcspull.yaml`_.
-
-Command line Usage
-------------------
-
-Create a ``.vcspull.yaml``:
+add projects to ``~/.vcspull.yaml``
 
 .. code-block:: yaml
    
     ~/code/:
-        "flask": "git+https://github.com/mitsuhiko/flask.git"
+      flask: "git+https://github.com/mitsuhiko/flask.git"
+    ~/study/c:
+      awesome: 'git+git://git.naquadah.org/awesome.git'
+    ~/study/data-structures-algorithms/c:
+      libds: 'git+https://github.com/zhemao/libds.git'
+      algoxy: 
+        repo: 'git+https://github.com/liuxinyu95/AlgoXY.git'
+        remotes:
+          tony: 'git+ssh://git@github.com/tony/AlgoXY.git'
 
-Clone and update your repositories at any time:
+see the author's `.vcspull.yaml`_, more `examples`_.
+
+update your repos
+-----------------
 
 .. code-block:: bash
     
     $ vcspull up
-    
-Have a lot of projects? Use arguments to clone / update what you need.
 
-.. code-block:: bash
-    
-    $ vcspull flask
-    
-Use `fnmatch`_:
+filter through hundreds of repos
+--------------------------------
+
+supports `fnmatch`_ patterns
 
 .. code-block:: bash
 
@@ -64,9 +55,17 @@ Use `fnmatch`_:
 
     # all repositories in your ~/code directory
     vcspull up "$HOME/code/*"
+ 
+* supports svn, git, hg version control systems
+* automatically checkout fresh repositories
+* update to the latest repos with ``$ vcspull``
+* `Documentation`_, `API`_ and `Examples`_.
+* builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
+
+See the `Quickstart`_.
     
-Python API Usage
-----------------
+python API
+----------
 
 .. code-block:: python
 
@@ -86,7 +85,8 @@ Python API Usage
    Already up-to-date.
 
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
-.. _example .vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
+.. _.vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
+.. _examples: https://vcspull.readthedocs.io/en/latest/examples.html
 .. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
 More information 
@@ -98,8 +98,8 @@ VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
 Source          https://github.com/tony/vcspull
 Docs            http://vcspull.rtfd.org
-Changelog       http://vcspull.readthedocs.org/en/latest/history.html
-API             http://vcspull.readthedocs.org/en/latest/api.html
+Changelog       http://vcspull.readthedocs.io/en/latest/history.html
+API             http://vcspull.readthedocs.io/en/latest/api.html
 Issues          https://github.com/tony/vcspull/issues
 Travis          http://travis-ci.org/tony/vcspull
 Test Coverage   https://coveralls.io/r/tony/vcspull
@@ -125,10 +125,9 @@ run             .. code-block:: bash
 ==============  ==========================================================
 
 .. _BSD: http://opensource.org/licenses/BSD-3-Clause
-.. _Documentation: http://vcspull.readthedocs.org/en/latest/
-.. _API: http://vcspull.readthedocs.org/en/latest/api.html
-.. _Examples: http://vcspull.readthedocs.org/en/latest/examples.html
-.. _Quickstart: http://vcspull.readthedocs.org/en/latest/quickstart.html
+.. _Documentation: http://vcspull.readthedocs.io/en/latest/
+.. _API: http://vcspull.readthedocs.io/en/latest/api.html
+.. _Quickstart: http://vcspull.readthedocs.io/en/latest/quickstart.html
 .. _pip: http://www.pip-installer.org/en/latest/
 .. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _saltstack: http://www.saltstack.org
@@ -148,7 +147,7 @@ run             .. code-block:: bash
 .. |license| image:: https://img.shields.io/github/license/tony/vcspull.svg
     :alt: License 
 
-.. |docs| image:: https://readthedocs.org/projects/vcspull/badge/?version=latest
+.. |docs| image:: https://readthedocs.io/projects/vcspull/badge/?version=latest
     :alt: Documentation Status
     :scale: 100%
-    :target: https://readthedocs.org/projects/vcspull/
+    :target: https://readthedocs.io/projects/vcspull/
