@@ -139,20 +139,11 @@ def main():
             )
 
     try:
-        import testfixtures  # noqa
         import mock # noqa
     except ImportError:
         subprocess.check_call(
             [pip_bin, 'install', '-r', test_reqs_fpath]
         )
-
-    if sys.version_info < (2, 7):
-        try:
-            import unittest2  # noqa
-        except ImportError:
-            subprocess.check_call(
-                [pip_bin, 'install', '-r', test27_reqs_fpath]
-            )
 
     if not os.path.isfile(os.path.join(env_dir, 'bin', 'flake8')):
         subprocess.check_call(

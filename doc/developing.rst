@@ -7,8 +7,10 @@ Development
 Testing
 -------
 
-Tests are inside ``./vcspull/testsuite``. Tests are implemented using
-:py:mod:`unittest`.
+Our tests are inside ``tests/``. Tests are implemented using
+`pytest`_.
+
+.. _pytest: http://pytest.org/
 
 .. _install_dev_env:
 
@@ -55,7 +57,7 @@ folder with its own packages.
 
 .. code-block:: bash
 
-    $ ./run-tests.py
+    $ make test
 
 You probably didn't see anything but tests scroll by.
 
@@ -67,28 +69,24 @@ If you found a problem or are trying to write a test, you can file an
 Test runner options
 ~~~~~~~~~~~~~~~~~~~
 
-Testing specific TestSuites and TestCase.
+Test only a file:
 
 .. code-block:: bash
 
-    $ ./run-tests.py config
+    $ py.test tests/test_config.py
 
-will test the ``testsuite.config`` :py:class:`unittest.TestSuite`.
-
-.. code-block:: bash
-
-    $ ./run-tests.py config.ImportExportTest
-
-tests ``testsuite.config.ConfigFormatTest`` :py:class:`unittest.TestCase`.
-
-individual tests:
+will test the ``tests/test_config.py`` tests.
 
 .. code-block:: bash
 
-    $ ./run-tests.py config.ConfigFormatTest
+    $ py.test tests/test_config::test_export_json
+
+tests ``test_export_json`` inside of ``tests/test_config.py``.
 
 Multiple can be separated by spaces:
 
 .. code-block:: bash
 
-    $ ./run-tests.py repo_hg repo_git config.ConfigFormatTest
+    $ py.test tests/test_{window,pane}.py tests/test_config.py::test_export_json
+
+.. _issue on github: https://github.com/tony/vcspull/issues

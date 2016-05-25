@@ -9,7 +9,7 @@ vcspull
     :width: 100%
 
 .. include:: ../README.rst
-    :start-line: 10
+    :start-line: 9
                  
 .. toctree::
    :maxdepth: 2

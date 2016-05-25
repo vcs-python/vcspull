@@ -121,8 +121,8 @@ def run(
 
     try:
         proc = subprocess.Popen(cmd, **kwargs)
-    except (OSError, IOError) as exc:
-        raise exc.VCSPullException('Unable to run command: {0}'.format(exc))
+    except (OSError, IOError) as e:
+        raise exc.VCSPullException('Unable to run command: %s' % e)
 
     proc.wait()
 

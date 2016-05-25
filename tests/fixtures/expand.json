@@ -1,0 +1,15 @@
+{
+  "~/study/": {
+    "sphinx": "hg+file://${hg_repo_path}",
+    "docutils": "svn+file://${svn_repo_path}",
+    "linux": "git+file://${git_repo_path}"
+  },
+  "${HOME}/github_projects/": {
+    "kaptan": {
+      "url": "git+file://${git_repo_path}",
+      "remotes": {
+        "test_remote": "git+file://${git_repo_path}"
+      }
+    }
+  }
+}
