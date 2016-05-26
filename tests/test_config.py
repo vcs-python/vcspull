@@ -385,7 +385,7 @@ def test_find_config_include_home_configs(
 
 def test_merge_nested_dict(tmpdir, config_dir):
     config1 = config_dir.join('repoduplicate1.yaml')
-    config1.write(loadfixture(r'repoduplicate1.yaml'))
+    config1.write(loadfixture('repoduplicate1.yaml'))
 
     config2 = config_dir.join('repoduplicate2.yaml')
     config2.write(loadfixture('repoduplicate2.yaml'))
