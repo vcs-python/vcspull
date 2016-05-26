@@ -69,6 +69,12 @@ def extract_repos(config, cwd=os.getcwd()):
             else:
                 conf = update_dict(conf, repo_data)
 
+            if 'repo' in conf:
+                if 'url' not in conf:
+                    conf['url'] = conf.pop('repo')
+                else:
+                    conf.pop('repo', None)
+
             '''
             ``shell_command_after``: if str, turn to list.
             '''

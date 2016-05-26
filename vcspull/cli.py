@@ -14,6 +14,7 @@ import logging
 import click
 
 from .__about__ import __version__
+from .cli_defaultgroup import DefaultGroup
 from .config import find_config_files, load_configs, filter_repos
 from .log import DebugLogFormatter
 from .repo import create_repo
@@ -42,22 +43,7 @@ def setup_logger(log=None, level='INFO'):
         log.addHandler(channel)
 
 
-class AliasedGroup(click.Group):
-
-    def get_command(self, ctx, cmd_name):
-        rv = click.Group.get_command(self, ctx, cmd_name)
-        if rv is not None:
-            return rv
-        matches = [x for x in self.list_commands(ctx)
-                   if x.startswith(cmd_name)]
-        if not matches:
-            return None
-        elif len(matches) == 1:
-            return click.Group.get_command(self, ctx, matches[0])
-        ctx.fail('Too many matches: %s' % ', '.join(sorted(matches)))
-
-
-@click.command(cls=AliasedGroup)
+@click.group(cls=DefaultGroup, default_if_no_args=True)
 @click.option('--log_level', default='INFO',
               help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
 @click.version_option(version=__version__, message='%(prog)s %(version)s')
@@ -67,14 +53,13 @@ def cli(log_level):
     )
 
 
-@click.command(name='update')
+@cli.command(name='update', default=True)
 @click.argument('repo_terms', nargs=-1)
 @click.option('--run-async', '-a', is_flag=True,
               help='Run repo syncing concurrently (experimental)')
 @click.option('config', '-c', type=click.Path(exists=True),
               help='Specify config')
 def update(repo_terms, run_async, config):
-    print(config)
     if config:
         configs = load_configs([config])
     else:
