@@ -280,4 +280,4 @@ texinfo_documents = [
 #texinfo_no_detailmenu = false
 
 # example configuration for intersphinx: refer to the python standard library.
-intersphinx_mapping = {'http://docs.python.org/': None, 'pip': ('http://sphinx.readthedocs.org/en/latest/', None)}
+intersphinx_mapping = {'http://docs.python.org/': None, 'pip': ('http://sphinx.readthedocs.io/en/latest/', None)}
