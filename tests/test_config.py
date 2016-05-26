@@ -38,7 +38,7 @@ def sample_json_config(config_dir):
 
 
 def test_dict_equals_yaml():
-    """Verify that example YAML is returning expected dict format."""
+    # Verify that example YAML is returning expected dict format.
     config = kaptan.Kaptan(handler='yaml').import_config(
         loadfixture('example1.yaml'))
 
@@ -100,15 +100,14 @@ def test_scan_config(tmpdir):
 
 
 def test_expand_shell_command_after():
-    """Expand configuration into full form."""
-    # Expand shell commands from string to list."""
+    # Expand shell commands from string to list.
     config = expand_config(fixtures.config_dict)
 
     assert config, fixtures.config_dict_expanded
 
 
 def test_expandenv_and_homevars():
-    """Assure ~ tildes and environment template vars expand."""
+    # Assure ~ tildes and environment template vars expand.
 
     expanduser = os.path.expanduser
     expandvars = os.path.expandvars
@@ -136,7 +135,7 @@ def test_expandenv_and_homevars():
 
 
 def test_find_config_files(tmpdir):
-    """Test find_config_files in home directory."""
+    # Test find_config_files in home directory.
 
     tmpdir.join('.vcspull.yaml').write('')
     with EnvironmentVarGuard() as env:
@@ -418,7 +417,7 @@ def test_merge_nested_dict(tmpdir, config_dir):
     assert 'vcsOn2' not in config3_dict[str(tmpdir.join('test/')) + '/']
     assert 'vcsOn2' in config4_dict[str(tmpdir.join('test/')) + '/']
 
-    """Duplicate path + name with different repo URL / remotes raises."""
+    # Duplicate path + name with different repo URL / remotes raises.
     configs = config.find_config_files(
         path=str(config_dir),
         match="repoduplicate[1-2]"
