@@ -385,37 +385,22 @@ def test_find_config_include_home_configs(
 
 
 def test_merge_nested_dict(tmpdir, config_dir):
-    # remnants of RepoIntegrationTest", todo: remove this style of templating
-    config_yaml3 = loadfixture('repoduplicate1.yaml').format(
-        svn_repo_path='lol',
-        hg_repo_path='lol2',
-        git_repo_path='lol3',
-        TMP_DIR=str(tmpdir)
-    )
+    config1 = config_dir.join('repoduplicate1.yaml')
+    config1.write(loadfixture(r'repoduplicate1.yaml'))
 
-    config_yaml4 = loadfixture('repoduplicate2.yaml').format(
-        svn_repo_path='lol',
-        hg_repo_path='lol2',
-        git_repo_path='lol3',
-        TMP_DIR=str(tmpdir)
-    )
+    conf = kaptan.Kaptan(handler='yaml').import_config(str(config1))
+    config1_dict = conf.export('dict')
 
-    config3 = config_dir.join('repoduplicate1.yaml')
-    config3.write(config_yaml3)
+    config2 = config_dir.join('repoduplicate2.yaml')
+    config2.write(loadfixture('repoduplicate2.yaml'))
 
-    conf = kaptan.Kaptan(handler='yaml').import_config(str(config3))
-    config3_dict = conf.export('dict')
-
-    config4 = config_dir.join('repoduplicate2.yaml')
-    config4.write(config_yaml4)
-
-    conf = kaptan.Kaptan(handler='yaml').import_config(str(config4))
-    config4_dict = conf.export('dict')
+    conf = kaptan.Kaptan(handler='yaml').import_config(str(config2))
+    config2_dict = conf.export('dict')
 
     # validate export of multiple configs + nested dirs
-    assert 'vcsOn1' in config3_dict[str(tmpdir.join('test/')) + '/']
-    assert 'vcsOn2' not in config3_dict[str(tmpdir.join('test/')) + '/']
-    assert 'vcsOn2' in config4_dict[str(tmpdir.join('test/')) + '/']
+    assert 'vcsOn1' in config1_dict['/path/to/test/']
+    assert 'vcsOn2' not in config1_dict['/path/to/test/']
+    assert 'vcsOn2' in config2_dict['/path/to/test/']
 
     # Duplicate path + name with different repo URL / remotes raises.
     configs = config.find_config_files(
@@ -423,7 +408,7 @@ def test_merge_nested_dict(tmpdir, config_dir):
         match="repoduplicate[1-2]"
     )
 
-    assert str(config3) in configs
-    assert str(config4) in configs
+    assert str(config1) in configs
+    assert str(config2) in configs
     with pytest.raises(Exception):
         config.load_configs(configs)
