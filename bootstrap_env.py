@@ -87,7 +87,7 @@ sphinx_reqs_fpath = os.path.join(project_dir, 'requirements', 'doc.txt')
 
 
 try:
-    import virtualenv # noqa
+    import virtualenv  # noqa
 except ImportError:
     message = (
         'Virtualenv is required for this bootstrap to run.\n'
@@ -98,7 +98,7 @@ except ImportError:
 
 
 try:
-    import pip # noqa
+    import pip  # noqa
 except ImportError:
     message = (
         'pip is required for this bootstrap to run.\n'
@@ -132,14 +132,14 @@ def main():
     # neovim requires this to be installed in the virtualenv 05/13/2016
     if nvim_bin:
         try:
-            import neovim # noqa
+            import neovim  # noqa
         except ImportError:
             subprocess.check_call(
                 [pip_bin, 'install', 'neovim']
             )
 
     try:
-        import mock # noqa
+        import mock  # noqa
     except ImportError:
         subprocess.check_call(
             [pip_bin, 'install', '-r', test_reqs_fpath]
@@ -160,4 +160,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
