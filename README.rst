@@ -30,7 +30,8 @@ update your repos
     
     $ vcspull
 
-keep nested VCS repositories updated too:
+keep nested VCS repositories updated too, lets say you have a mercurial or
+svn project with a git dependency:
 
 ``external_deps.yaml`` in your project root, (can be anything):
 
