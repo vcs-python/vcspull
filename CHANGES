@@ -4,6 +4,7 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+- :release:`0.9.0 <2016-05-26>`
 - [cli] [internal]: command line arg parsing now uses `click`_ library.
 - [cli] vcspull will use the beginning part of the argument to determine
   if its searching by vcs URL, repository name or system path.
