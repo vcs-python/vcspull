@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Config utility functions for vcspull.
-
 vcspull.config
 ~~~~~~~~~~~~~~
 
@@ -8,9 +7,10 @@ A lot of these items are todo.
 
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import (absolute_import, print_function, unicode_literals,
+                        with_statement)
 
+import fnmatch
 import glob
 import logging
 import os
@@ -19,45 +19,24 @@ import kaptan
 
 from . import exc
 from ._compat import string_types
-from .util import update_dict, CONFIG_DIR
+from .util import CONFIG_DIR, update_dict
 
 log = logging.getLogger(__name__)
 
 
-def in_dir(
-    config_dir=CONFIG_DIR,
-    extensions=['.yml', '.yaml', '.json']
-):
-    """Return a list of configs in ``config_dir``.
-
-    :param config_dir: directory to search
-    :type config_dir: string
-    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list
-    :rtype: list
-
-    """
-    configs = []
-
-    for filename in os.listdir(config_dir):
-        if is_config_file(filename, extensions) and \
-           not filename.startswith('.'):
-            configs.append(filename)
-
-    return configs
-
-
-def expand_dir(_dir):
+def expand_dir(_dir, cwd=os.getcwd()):
     """Return path with environmental variables and tilde ~ expanded.
 
     :param dir:
     :type dir: string
     :rtype; string
     """
+    if not os.path.isabs(_dir):
+        _dir = os.path.normpath(os.path.join(cwd, _dir))
     return os.path.expanduser(os.path.expandvars(_dir))
 
 
-def expand_config(config):
+def extract_repos(config, cwd=os.getcwd()):
     """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
@@ -85,7 +64,7 @@ def expand_config(config):
             '''
 
             if isinstance(repo_data, string_types):
-                conf['url'] = expand_dir(repo_data)
+                conf['url'] = repo_data, cwd
             else:
                 conf = update_dict(conf, repo_data)
 
@@ -101,10 +80,11 @@ def expand_config(config):
             if 'name' not in conf:
                 conf['name'] = repo
             if 'parent_dir' not in conf:
-                conf['parent_dir'] = expand_dir(directory)
+                conf['parent_dir'] = expand_dir(directory, cwd)
+
             if 'repo_dir' not in conf:
                 conf['repo_dir'] = expand_dir(
-                    os.path.join(conf['parent_dir'], conf['name'])
+                    os.path.join(conf['parent_dir'], conf['name']), cwd
                 )
             if 'remotes' in conf:
                 remotes = []
@@ -119,21 +99,6 @@ def expand_config(config):
             configs.append(conf)
 
     return configs
-
-
-def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
-    """Return True if file has a valid config file type.
-
-    :param filename: filename to check (e.g. ``mysession.json``).
-    :type filename: string
-    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list or string
-    :rtype: bool
-
-    """
-    extensions = [extensions] if isinstance(
-        extensions, string_types) else extensions
-    return any(filename.endswith(e) for e in extensions)
 
 
 def find_home_config_files(filetype=['json', 'yaml']):
@@ -217,8 +182,8 @@ def find_config_files(
     return configs
 
 
-def load_configs(configs):
-    """Return repos from a directory and fnmatch. Not recursive.
+def load_configs(files, cwd=os.getcwd()):
+    """Return repos from a list of files.
 
     :todo: Validate scheme, check for duplciate destinations, VCS urls
 
@@ -226,33 +191,31 @@ def load_configs(configs):
     :type path: list
     :returns: expanded config dict item
     :rtype: list of dict
-
     """
-    configlist = []
-    for config in configs:
-        fName, fExt = os.path.splitext(config)
-        conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
-        conf.import_config(config)
+    repos = []
+    for f in files:
+        _, ext = os.path.splitext(f)
+        conf = kaptan.Kaptan(handler=ext.lstrip('.')).import_config(f)
 
-        newconfigs = expand_config(conf.export('dict'))
+        newrepos = extract_repos(conf.export('dict'), cwd)
 
-        if not configlist:
-            configlist.extend(newconfigs)
+        if not repos:
+            repos.extend(newrepos)
             continue
 
-        dupes = find_dupes(configlist, newconfigs)
+        dupes = detect_duplicate_repos(repos, newrepos)
 
         if dupes:
             msg = (
                 'repos with same path + different VCS detected!', dupes
             )
             raise Exception(msg)
-        configlist.extend(newconfigs)
+        repos.extend(newrepos)
 
-    return configlist
+    return repos
 
 
-def find_dupes(repos1, repos2):
+def detect_duplicate_repos(repos1, repos2):
     """Return duplicate repos dict if repo_dir same and vcs different.
 
     :param repos1: list of repo expanded dicts
@@ -288,3 +251,83 @@ def find_dupes(repos1, repos2):
         if n['url'] != currepo['url']:
             dupes += (n, currepo,)
     return dupes
+
+
+def in_dir(
+    config_dir=CONFIG_DIR,
+    extensions=['.yml', '.yaml', '.json']
+):
+    """Return a list of configs in ``config_dir``.
+
+    :param config_dir: directory to search
+    :type config_dir: string
+    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
+    :type extensions: list
+    :rtype: list
+
+    """
+    configs = []
+
+    for filename in os.listdir(config_dir):
+        if is_config_file(filename, extensions) and \
+           not filename.startswith('.'):
+            configs.append(filename)
+
+    return configs
+
+
+def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
+    """Return a :py:obj:`list` list of repos from (expanded) config file.
+
+    repo_dir, vcs_url and name all support fnmatch.
+
+    :param config: the expanded repo config in :py:class:`dict` format.
+    :type config: dict
+    :param repo_dir: directory of checkout location, fnmatch pattern supported
+    :type repo_dir: str or None
+    :param vcs_url: url of vcs remote, fn match pattern supported
+    :type vcs_url: str or None
+    :param name: project name, fnmatch pattern supported
+    :type name: str or None
+    :rtype: list
+
+    """
+    repo_list = []
+
+    if repo_dir:
+        repo_list.extend(
+            [r for r in config if fnmatch.fnmatch(r['parent_dir'], repo_dir)]
+        )
+
+    if vcs_url:
+        repo_list.extend(
+            r for r in config if fnmatch.fnmatch(
+                r.get('url', r.get('repo')),
+                vcs_url
+            )
+        )
+
+    if name:
+        repo_list.extend(
+            [r for r in config if fnmatch.fnmatch(
+                r.get('name'),
+                name
+            )]
+        )
+
+    return repo_list
+
+
+def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
+    """Return True if file has a valid config file type.
+
+    :param filename: filename to check (e.g. ``mysession.json``).
+    :type filename: string
+    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
+    :type extensions: list or string
+    :rtype: bool
+
+    """
+    extensions = [extensions] if isinstance(
+        extensions, string_types) else extensions
+    return any(filename.endswith(e) for e in extensions)

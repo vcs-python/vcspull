@@ -9,7 +9,7 @@ import kaptan
 import pytest
 
 from vcspull import config, exc
-from vcspull.config import expand_config
+from vcspull.config import extract_repos, expand_dir
 
 from .fixtures import example as fixtures
 from .fixtures._util import loadfixture
@@ -38,7 +38,7 @@ def sample_json_config(config_dir):
 
 
 def test_dict_equals_yaml():
-    """Verify that example YAML is returning expected dict format."""
+    # Verify that example YAML is returning expected dict format.
     config = kaptan.Kaptan(handler='yaml').import_config(
         loadfixture('example1.yaml'))
 
@@ -100,19 +100,14 @@ def test_scan_config(tmpdir):
 
 
 def test_expand_shell_command_after():
-    """Expand configuration into full form."""
-    # Expand shell commands from string to list."""
-    config = expand_config(fixtures.config_dict)
+    # Expand shell commands from string to list.
+    config = extract_repos(fixtures.config_dict)
 
     assert config, fixtures.config_dict_expanded
 
 
 def test_expandenv_and_homevars():
-    """Assure ~ tildes and environment template vars expand."""
-
-    expanduser = os.path.expanduser
-    expandvars = os.path.expandvars
-
+    # Assure ~ tildes and environment template vars expand.
     config_yaml = loadfixture('expand.yaml')
     config_json = loadfixture("expand.json")
 
@@ -122,21 +117,21 @@ def test_expandenv_and_homevars():
     config2 = kaptan.Kaptan(handler='json') \
         .import_config(config_json).export('dict')
 
-    config1_expanded = expand_config(config1)
-    config2_expanded = expand_config(config2)
+    config1_expanded = extract_repos(config1)
+    config2_expanded = extract_repos(config2)
 
     paths = [r['parent_dir'] for r in config1_expanded]
-    assert expanduser(expandvars('${HOME}/github_projects/')) in paths
-    assert expanduser('~/study/') in paths
-    assert expanduser('~') in paths
+    assert expand_dir('${HOME}/github_projects/') in paths
+    assert expand_dir('~/study/') in paths
+    assert expand_dir('~') in paths
 
     paths = [r['parent_dir'] for r in config2_expanded]
-    assert expandvars('${HOME}/github_projects/') in paths
-    assert expanduser('~/study/') in paths
+    assert expand_dir('${HOME}/github_projects/') in paths
+    assert expand_dir('~/study/') in paths
 
 
 def test_find_config_files(tmpdir):
-    """Test find_config_files in home directory."""
+    # Test find_config_files in home directory.
 
     tmpdir.join('.vcspull.yaml').write('')
     with EnvironmentVarGuard() as env:
@@ -149,7 +144,6 @@ def test_find_config_files(tmpdir):
 
 
 def test_multiple_configs_raises_exception(tmpdir):
-
     tmpdir.join('.vcspull.json').write('')
     tmpdir.join('.vcspull.yaml').write('')
     with EnvironmentVarGuard() as env:
@@ -386,45 +380,38 @@ def test_find_config_include_home_configs(
 
 
 def test_merge_nested_dict(tmpdir, config_dir):
-    # remnants of RepoIntegrationTest", todo: remove this style of templating
-    config_yaml3 = loadfixture('repoduplicate1.yaml').format(
-        svn_repo_path='lol',
-        hg_repo_path='lol2',
-        git_repo_path='lol3',
-        TMP_DIR=str(tmpdir)
-    )
+    config1 = config_dir.join('repoduplicate1.yaml')
+    config1.write(loadfixture('repoduplicate1.yaml'))
 
-    config_yaml4 = loadfixture('repoduplicate2.yaml').format(
-        svn_repo_path='lol',
-        hg_repo_path='lol2',
-        git_repo_path='lol3',
-        TMP_DIR=str(tmpdir)
-    )
+    config2 = config_dir.join('repoduplicate2.yaml')
+    config2.write(loadfixture('repoduplicate2.yaml'))
 
-    config3 = config_dir.join('repoduplicate1.yaml')
-    config3.write(config_yaml3)
-
-    conf = kaptan.Kaptan(handler='yaml').import_config(str(config3))
-    config3_dict = conf.export('dict')
-
-    config4 = config_dir.join('repoduplicate2.yaml')
-    config4.write(config_yaml4)
-
-    conf = kaptan.Kaptan(handler='yaml').import_config(str(config4))
-    config4_dict = conf.export('dict')
-
-    # validate export of multiple configs + nested dirs
-    assert 'vcsOn1' in config3_dict[str(tmpdir.join('test/')) + '/']
-    assert 'vcsOn2' not in config3_dict[str(tmpdir.join('test/')) + '/']
-    assert 'vcsOn2' in config4_dict[str(tmpdir.join('test/')) + '/']
-
-    """Duplicate path + name with different repo URL / remotes raises."""
+    # Duplicate path + name with different repo URL / remotes raises.
     configs = config.find_config_files(
         path=str(config_dir),
         match="repoduplicate[1-2]"
     )
 
-    assert str(config3) in configs
-    assert str(config4) in configs
+    assert str(config1) in configs
+    assert str(config2) in configs
     with pytest.raises(Exception):
         config.load_configs(configs)
+
+
+def test_relative_dir(tmpdir):
+    arbitrary_dir = tmpdir.join('moo')
+    arbitrary_dir.mkdir()
+
+    arbitrary_dir.join('rel.yaml').write("""
+./relativedir:
+  docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
+   """)
+
+    configs = config.find_config_files(
+        path=str(arbitrary_dir)
+    )
+    repos = config.load_configs(configs, str(arbitrary_dir))
+
+    assert str(arbitrary_dir.join('relativedir')) == repos[0]['parent_dir']
+    assert str(arbitrary_dir.join('relativedir', 'docutils')) == \
+        repos[0]['repo_dir']

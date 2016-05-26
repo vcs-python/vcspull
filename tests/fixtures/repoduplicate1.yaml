@@ -1,5 +1,5 @@
-{TMP_DIR}/test/:
+/path/to/test/:
   subRepoDiffVCS:
-    url: svn+file://${svn_repo_path}
-  subRepoSameVCS: git+file://${git_repo_path}
-  vcsOn1: svn+file://${svn_repo_path}
+    url: svn+file:///path/to/svnrepo
+  subRepoSameVCS: git+file://path/to/gitrepo
+  vcsOn1: svn+file:///path/to/another/svn

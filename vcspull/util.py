@@ -11,7 +11,6 @@ from __future__ import (absolute_import, division, print_function,
 
 import collections
 import errno
-import fnmatch
 import logging
 import os
 import subprocess
@@ -22,71 +21,6 @@ from ._compat import string_types
 CONFIG_DIR = os.path.expanduser('~/.vcspull/')  # remove dupes of this
 
 logger = logging.getLogger(__name__)
-
-
-def in_dir(
-    config_dir=CONFIG_DIR,
-    extensions=['.yml', '.yaml', '.json']
-):
-    """Return a list of configs in ``config_dir``.
-
-    :param config_dir: directory to search
-    :type config_dir: string
-    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list
-    :rtype: list
-
-    """
-    configs = []
-
-    for filename in os.listdir(config_dir):
-        if is_config_file(filename, extensions) and \
-           not filename.startswith('.'):
-            configs.append(filename)
-
-    return configs
-
-
-def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
-    """Return a :py:obj:`list` list of repos from (expanded) config file.
-
-    repo_dir, vcs_url and name all support fnmatch.
-
-    :param config: the expanded repo config in :py:class:`dict` format.
-    :type config: dict
-    :param repo_dir: directory of checkout location, fnmatch pattern supported
-    :type repo_dir: str or None
-    :param vcs_url: url of vcs remote, fn match pattern supported
-    :type vcs_url: str or None
-    :param name: project name, fnmatch pattern supported
-    :type name: str or None
-    :rtype: list
-
-    """
-    repo_list = []
-
-    if repo_dir:
-        repo_list.extend(
-            [r for r in config if fnmatch.fnmatch(r['parent_dir'], repo_dir)]
-        )
-
-    if vcs_url:
-        repo_list.extend(
-            r for r in config if fnmatch.fnmatch(
-                r.get('url', r.get('repo')),
-                vcs_url
-            )
-        )
-
-    if name:
-        repo_list.extend(
-            [r for r in config if fnmatch.fnmatch(
-                r.get('name'),
-                name
-            )]
-        )
-
-    return repo_list
 
 
 def run(
@@ -211,18 +145,3 @@ def update_dict(d, u):
         else:
             d[k] = u[k]
     return d
-
-
-def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
-    """Return True if file has a valid config file type.
-
-    :param filename: filename to check (e.g. ``mysession.json``).
-    :type filename: string
-    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list or string
-    :rtype: bool
-
-    """
-    extensions = [extensions] if isinstance(
-        extensions, string_types) else extensions
-    return any(filename.endswith(e) for e in extensions)

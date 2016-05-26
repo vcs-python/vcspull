@@ -14,10 +14,9 @@ import logging
 import click
 
 from .__about__ import __version__
-from .config import find_config_files, load_configs
+from .config import find_config_files, load_configs, filter_repos
 from .log import DebugLogFormatter
 from .repo import create_repo
-from .util import filter_repos
 
 
 MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
