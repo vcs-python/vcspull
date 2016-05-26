@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Config utility functions for vcspull.
-
 vcspull.config
 ~~~~~~~~~~~~~~
 
@@ -217,8 +216,8 @@ def find_config_files(
     return configs
 
 
-def load_configs(configs):
-    """Return repos from a directory and fnmatch. Not recursive.
+def load_configs(files):
+    """Return repos from a list of files.
 
     :todo: Validate scheme, check for duplciate destinations, VCS urls
 
@@ -226,33 +225,31 @@ def load_configs(configs):
     :type path: list
     :returns: expanded config dict item
     :rtype: list of dict
-
     """
-    configlist = []
-    for config in configs:
-        fName, fExt = os.path.splitext(config)
-        conf = kaptan.Kaptan(handler=fExt.lstrip('.'))
-        conf.import_config(config)
+    repos = []
+    for f in files:
+        _, ext = os.path.splitext(f)
+        conf = kaptan.Kaptan(handler=ext.lstrip('.')).import_config(f)
 
-        newconfigs = expand_config(conf.export('dict'))
+        newrepos = expand_config(conf.export('dict'))
 
-        if not configlist:
-            configlist.extend(newconfigs)
+        if not repos:
+            repos.extend(newrepos)
             continue
 
-        dupes = find_dupes(configlist, newconfigs)
+        dupes = detect_duplicate_repos(repos, newrepos)
 
         if dupes:
             msg = (
                 'repos with same path + different VCS detected!', dupes
             )
             raise Exception(msg)
-        configlist.extend(newconfigs)
+        repos.extend(newrepos)
 
-    return configlist
+    return repos
 
 
-def find_dupes(repos1, repos2):
+def detect_duplicate_repos(repos1, repos2):
     """Return duplicate repos dict if repo_dir same and vcs different.
 
     :param repos1: list of repo expanded dicts
