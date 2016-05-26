@@ -7,10 +7,9 @@ import os
 
 import kaptan
 
-from vcspull.config import expand_config
+from vcspull.config import extract_repos, filter_repos
 from vcspull.repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
                           create_repo)
-from vcspull.util import filter_repos
 
 from .fixtures import example as fixtures
 
@@ -147,7 +146,7 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
     conf = kaptan.Kaptan(handler='yaml')
     conf.import_config(YAML_CONFIG)
     conf = conf.export('dict')
-    repos = expand_config(conf)
+    repos = extract_repos(conf)
 
     for r in filter_repos(repos):
         repo = create_repo(**r)

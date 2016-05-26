@@ -9,7 +9,7 @@ import kaptan
 import pytest
 
 from vcspull import config, exc
-from vcspull.config import expand_config
+from vcspull.config import extract_repos
 
 from .fixtures import example as fixtures
 from .fixtures._util import loadfixture
@@ -101,7 +101,7 @@ def test_scan_config(tmpdir):
 
 def test_expand_shell_command_after():
     # Expand shell commands from string to list.
-    config = expand_config(fixtures.config_dict)
+    config = extract_repos(fixtures.config_dict)
 
     assert config, fixtures.config_dict_expanded
 
@@ -121,8 +121,8 @@ def test_expandenv_and_homevars():
     config2 = kaptan.Kaptan(handler='json') \
         .import_config(config_json).export('dict')
 
-    config1_expanded = expand_config(config1)
-    config2_expanded = expand_config(config2)
+    config1_expanded = extract_repos(config1)
+    config2_expanded = extract_repos(config2)
 
     paths = [r['parent_dir'] for r in config1_expanded]
     assert expanduser(expandvars('${HOME}/github_projects/')) in paths

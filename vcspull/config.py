@@ -13,6 +13,7 @@ from __future__ import (absolute_import, division, print_function,
 import glob
 import logging
 import os
+import fnmatch
 
 import kaptan
 
@@ -21,29 +22,6 @@ from ._compat import string_types
 from .util import update_dict, CONFIG_DIR
 
 log = logging.getLogger(__name__)
-
-
-def in_dir(
-    config_dir=CONFIG_DIR,
-    extensions=['.yml', '.yaml', '.json']
-):
-    """Return a list of configs in ``config_dir``.
-
-    :param config_dir: directory to search
-    :type config_dir: string
-    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list
-    :rtype: list
-
-    """
-    configs = []
-
-    for filename in os.listdir(config_dir):
-        if is_config_file(filename, extensions) and \
-           not filename.startswith('.'):
-            configs.append(filename)
-
-    return configs
 
 
 def expand_dir(_dir):
@@ -56,7 +34,7 @@ def expand_dir(_dir):
     return os.path.expanduser(os.path.expandvars(_dir))
 
 
-def expand_config(config):
+def extract_repos(config):
     """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
@@ -118,21 +96,6 @@ def expand_config(config):
             configs.append(conf)
 
     return configs
-
-
-def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
-    """Return True if file has a valid config file type.
-
-    :param filename: filename to check (e.g. ``mysession.json``).
-    :type filename: string
-    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list or string
-    :rtype: bool
-
-    """
-    extensions = [extensions] if isinstance(
-        extensions, string_types) else extensions
-    return any(filename.endswith(e) for e in extensions)
 
 
 def find_home_config_files(filetype=['json', 'yaml']):
@@ -231,7 +194,7 @@ def load_configs(files):
         _, ext = os.path.splitext(f)
         conf = kaptan.Kaptan(handler=ext.lstrip('.')).import_config(f)
 
-        newrepos = expand_config(conf.export('dict'))
+        newrepos = extract_repos(conf.export('dict'))
 
         if not repos:
             repos.extend(newrepos)
@@ -285,3 +248,83 @@ def detect_duplicate_repos(repos1, repos2):
         if n['url'] != currepo['url']:
             dupes += (n, currepo,)
     return dupes
+
+
+def in_dir(
+    config_dir=CONFIG_DIR,
+    extensions=['.yml', '.yaml', '.json']
+):
+    """Return a list of configs in ``config_dir``.
+
+    :param config_dir: directory to search
+    :type config_dir: string
+    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
+    :type extensions: list
+    :rtype: list
+
+    """
+    configs = []
+
+    for filename in os.listdir(config_dir):
+        if is_config_file(filename, extensions) and \
+           not filename.startswith('.'):
+            configs.append(filename)
+
+    return configs
+
+
+def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
+    """Return a :py:obj:`list` list of repos from (expanded) config file.
+
+    repo_dir, vcs_url and name all support fnmatch.
+
+    :param config: the expanded repo config in :py:class:`dict` format.
+    :type config: dict
+    :param repo_dir: directory of checkout location, fnmatch pattern supported
+    :type repo_dir: str or None
+    :param vcs_url: url of vcs remote, fn match pattern supported
+    :type vcs_url: str or None
+    :param name: project name, fnmatch pattern supported
+    :type name: str or None
+    :rtype: list
+
+    """
+    repo_list = []
+
+    if repo_dir:
+        repo_list.extend(
+            [r for r in config if fnmatch.fnmatch(r['parent_dir'], repo_dir)]
+        )
+
+    if vcs_url:
+        repo_list.extend(
+            r for r in config if fnmatch.fnmatch(
+                r.get('url', r.get('repo')),
+                vcs_url
+            )
+        )
+
+    if name:
+        repo_list.extend(
+            [r for r in config if fnmatch.fnmatch(
+                r.get('name'),
+                name
+            )]
+        )
+
+    return repo_list
+
+
+def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
+    """Return True if file has a valid config file type.
+
+    :param filename: filename to check (e.g. ``mysession.json``).
+    :type filename: string
+    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
+    :type extensions: list or string
+    :rtype: bool
+
+    """
+    extensions = [extensions] if isinstance(
+        extensions, string_types) else extensions
+    return any(filename.endswith(e) for e in extensions)

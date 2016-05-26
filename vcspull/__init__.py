@@ -17,9 +17,10 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 
 from .cli import setup_logger
-from .config import expand_config, is_config_file, load_configs
+from .config import (extract_repos, filter_repos, in_dir, is_config_file,
+                     load_configs)
 from .log import DebugLogFormatter, LogFormatter, RepoFilter, RepoLogFormatter
-from .util import in_dir, filter_repos, mkdir_p, run, update_dict, which
+from .util import mkdir_p, run, update_dict, which
 
 try:  # Python 2.7+
     from logging import NullHandler
@@ -29,4 +30,3 @@ except ImportError:
             pass
 
 logging.getLogger(__name__).addHandler(NullHandler())
-
