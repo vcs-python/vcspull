@@ -31,9 +31,10 @@ def expand_dir(_dir, cwd=os.getcwd()):
     :type dir: string
     :rtype; string
     """
+    _dir = os.path.expanduser(os.path.expandvars(_dir))
     if not os.path.isabs(_dir):
         _dir = os.path.normpath(os.path.join(cwd, _dir))
-    return os.path.expanduser(os.path.expandvars(_dir))
+    return _dir
 
 
 def extract_repos(config, cwd=os.getcwd()):
@@ -64,7 +65,7 @@ def extract_repos(config, cwd=os.getcwd()):
             '''
 
             if isinstance(repo_data, string_types):
-                conf['url'] = repo_data, cwd
+                conf['url'] = repo_data
             else:
                 conf = update_dict(conf, repo_data)
 

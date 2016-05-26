@@ -71,8 +71,14 @@ def cli(log_level):
 @click.argument('repo_terms', nargs=-1)
 @click.option('--run-async', '-a', is_flag=True,
               help='Run repo syncing concurrently (experimental)')
-def update(repo_terms, run_async):
-    configs = load_configs(find_config_files(include_home=True))
+@click.option('config', '-c', type=click.Path(exists=True),
+              help='Specify config')
+def update(repo_terms, run_async, config):
+    print(config)
+    if config:
+        configs = load_configs([config])
+    else:
+        configs = load_configs(find_config_files(include_home=True))
     found_repos = []
 
     if repo_terms:
@@ -112,8 +118,6 @@ def clamp(n, _min, _max):
 
 
 def update_repo(repo_dict):
-    if 'url' not in repo_dict:  # normalize vcs/repo key
-        repo_dict['url'] = repo_dict['repo']
     r = create_repo(**repo_dict)
     log.debug('%s' % r)
     r.update_repo()

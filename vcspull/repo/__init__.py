@@ -29,7 +29,7 @@ logger.setLevel('INFO')
 logger.addHandler(channel)
 
 
-def create_repo(url, *args, **kwargs):
+def create_repo(url, **kwargs):
     r"""Return object with base class :class:`BaseRepo` depending on url.
 
     Return instance of :class:`vcspull.repo.svn.SubversionRepo`,
