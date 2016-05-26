@@ -7,34 +7,36 @@ A lot of these items are todo.
 
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import (absolute_import, print_function, unicode_literals,
+                        with_statement)
 
+import fnmatch
 import glob
 import logging
 import os
-import fnmatch
 
 import kaptan
 
 from . import exc
 from ._compat import string_types
-from .util import update_dict, CONFIG_DIR
+from .util import CONFIG_DIR, update_dict
 
 log = logging.getLogger(__name__)
 
 
-def expand_dir(_dir):
+def expand_dir(_dir, cwd=os.getcwd()):
     """Return path with environmental variables and tilde ~ expanded.
 
     :param dir:
     :type dir: string
     :rtype; string
     """
+    if not os.path.isabs(_dir):
+        _dir = os.path.normpath(os.path.join(cwd, _dir))
     return os.path.expanduser(os.path.expandvars(_dir))
 
 
-def extract_repos(config):
+def extract_repos(config, cwd=os.getcwd()):
     """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
@@ -62,7 +64,7 @@ def extract_repos(config):
             '''
 
             if isinstance(repo_data, string_types):
-                conf['url'] = expand_dir(repo_data)
+                conf['url'] = repo_data, cwd
             else:
                 conf = update_dict(conf, repo_data)
 
@@ -78,10 +80,11 @@ def extract_repos(config):
             if 'name' not in conf:
                 conf['name'] = repo
             if 'parent_dir' not in conf:
-                conf['parent_dir'] = expand_dir(directory)
+                conf['parent_dir'] = expand_dir(directory, cwd)
+
             if 'repo_dir' not in conf:
                 conf['repo_dir'] = expand_dir(
-                    os.path.join(conf['parent_dir'], conf['name'])
+                    os.path.join(conf['parent_dir'], conf['name']), cwd
                 )
             if 'remotes' in conf:
                 remotes = []
@@ -179,7 +182,7 @@ def find_config_files(
     return configs
 
 
-def load_configs(files):
+def load_configs(files, cwd=os.getcwd()):
     """Return repos from a list of files.
 
     :todo: Validate scheme, check for duplciate destinations, VCS urls
@@ -194,7 +197,7 @@ def load_configs(files):
         _, ext = os.path.splitext(f)
         conf = kaptan.Kaptan(handler=ext.lstrip('.')).import_config(f)
 
-        newrepos = extract_repos(conf.export('dict'))
+        newrepos = extract_repos(conf.export('dict'), cwd)
 
         if not repos:
             repos.extend(newrepos)

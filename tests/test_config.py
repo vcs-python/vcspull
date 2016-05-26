@@ -9,7 +9,7 @@ import kaptan
 import pytest
 
 from vcspull import config, exc
-from vcspull.config import extract_repos
+from vcspull.config import extract_repos, expand_dir
 
 from .fixtures import example as fixtures
 from .fixtures._util import loadfixture
@@ -108,10 +108,6 @@ def test_expand_shell_command_after():
 
 def test_expandenv_and_homevars():
     # Assure ~ tildes and environment template vars expand.
-
-    expanduser = os.path.expanduser
-    expandvars = os.path.expandvars
-
     config_yaml = loadfixture('expand.yaml')
     config_json = loadfixture("expand.json")
 
@@ -125,13 +121,13 @@ def test_expandenv_and_homevars():
     config2_expanded = extract_repos(config2)
 
     paths = [r['parent_dir'] for r in config1_expanded]
-    assert expanduser(expandvars('${HOME}/github_projects/')) in paths
-    assert expanduser('~/study/') in paths
-    assert expanduser('~') in paths
+    assert expand_dir('${HOME}/github_projects/') in paths
+    assert expand_dir('~/study/') in paths
+    assert expand_dir('~') in paths
 
     paths = [r['parent_dir'] for r in config2_expanded]
-    assert expandvars('${HOME}/github_projects/') in paths
-    assert expanduser('~/study/') in paths
+    assert expand_dir('${HOME}/github_projects/') in paths
+    assert expand_dir('~/study/') in paths
 
 
 def test_find_config_files(tmpdir):
@@ -414,4 +410,8 @@ def test_relative_dir(tmpdir):
     configs = config.find_config_files(
         path=str(arbitrary_dir)
     )
-    repos = config.load_configs(configs)
+    repos = config.load_configs(configs, str(arbitrary_dir))
+
+    assert str(arbitrary_dir.join('relativedir')) == repos[0]['parent_dir']
+    assert str(arbitrary_dir.join('relativedir', 'docutils')) == \
+        repos[0]['repo_dir']
