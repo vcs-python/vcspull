@@ -25,11 +25,23 @@ add projects to ``~/.vcspull.yaml``
 see the author's `.vcspull.yaml`_, more `examples`_.
 
 update your repos
------------------
 
 .. code-block:: bash
     
-    $ vcspull up
+    $ vcspull
+
+keep nested VCS repositories updated too:
+
+``external_deps.yaml`` in your project root, (can be anything):
+
+.. code-block:: yaml
+
+   ./vendor/:
+     sdl2pp: 'git+https://github.com/libSDL2pp/libSDL2pp.git'
+
+update::
+
+    $ vcspull -c external_deps.yaml
 
 filter through hundreds of repos
 --------------------------------
@@ -39,22 +51,22 @@ supports `fnmatch`_ patterns
 .. code-block:: bash
 
     # any repo starting with "fla"
-    $ vcspull up "fla*"
+    $ vcspull "fla*"
     # any repo with django in the name
-    $ vcspull up "*django*"
+    $ vcspull "*django*"
 
     # search by vcs + url
     # since urls are in this format <vcs>+<protocol>://<url>
-    $ vcspull up "git+*"
+    $ vcspull "git+*"
 
     # any git repo with python in the vcspull
-    $ vcspull up "git+*python*
+    $ vcspull "git+*python*
 
     # any git repo with django in the vcs url
-    $ vcspull up "git+*django*"
+    $ vcspull "git+*django*"
 
     # all repositories in your ~/code directory
-    vcspull up "$HOME/code/*"
+    vcspull "$HOME/code/*"
  
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories

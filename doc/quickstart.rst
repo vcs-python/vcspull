@@ -54,17 +54,32 @@ Now run the command, to pull all the repositories in your
 
 .. code-block:: bash
 
-    $ vcspull up
+    $ vcspull
+
+Also, you can sync arbitrary projects, lets assume you have a mercurial
+repo but need a git dependency, in your project add ``.deps.yaml`` (can
+be any name):
+
+.. code-block:: yaml
+
+      ./vendor/:
+        sdl2pp: 'git+https://github.com/libSDL2pp/libSDL2pp.git'
+
+Use ``-c`` to specify a config.
+
+.. code-block:: bash
+
+   $ vcspull -c .deps.yaml
 
 You can also use `fnmatch`_ to pull repositories from your config in
 various fashions, e.g.:
 
 .. code-block:: bash
    
-   $ vcspull up django
-   $ vcspull up django\*
+   $ vcspull django
+   $ vcspull django\*
    # or
-   $ vcspull up "django*"
+   $ vcspull "django*"
    
 Filter by vcs URL
 
@@ -74,10 +89,10 @@ repos by the vcs url.
 .. code-block:: bash
    
    # pull / update repositories I have with github in the repo url
-   $ vcspull up "git+https://github.com/yourusername/*"
+   $ vcspull "git+https://github.com/yourusername/*"
 
    # pull / update repositories I have with bitbucket in the repo url
-   $ vcspull up "git+https://*bitbucket*"
+   $ vcspull "git+https://*bitbucket*"
    
 Filter by the path of the repo on your local machine:
 
@@ -87,10 +102,10 @@ for patterns of where the project is on your system[
 .. code-block:: bash
    
    # pull all the repos I have inside of ~/study/python
-   $ vcspull up "$HOME/study/python"
+   $ vcspull "$HOME/study/python"
 
    # pull all the repos I have in directories on my config with "python"
-   $ vcspull up ~/*python*"
+   $ vcspull ~/*python*"
    
 .. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _flask: http://flask.pocoo.org/
