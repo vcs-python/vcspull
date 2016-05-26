@@ -148,7 +148,6 @@ def test_find_config_files(tmpdir):
 
 
 def test_multiple_configs_raises_exception(tmpdir):
-
     tmpdir.join('.vcspull.json').write('')
     tmpdir.join('.vcspull.yaml').write('')
     with EnvironmentVarGuard() as env:
@@ -388,19 +387,8 @@ def test_merge_nested_dict(tmpdir, config_dir):
     config1 = config_dir.join('repoduplicate1.yaml')
     config1.write(loadfixture(r'repoduplicate1.yaml'))
 
-    conf = kaptan.Kaptan(handler='yaml').import_config(str(config1))
-    config1_dict = conf.export('dict')
-
     config2 = config_dir.join('repoduplicate2.yaml')
     config2.write(loadfixture('repoduplicate2.yaml'))
-
-    conf = kaptan.Kaptan(handler='yaml').import_config(str(config2))
-    config2_dict = conf.export('dict')
-
-    # validate export of multiple configs + nested dirs
-    assert 'vcsOn1' in config1_dict['/path/to/test/']
-    assert 'vcsOn2' not in config1_dict['/path/to/test/']
-    assert 'vcsOn2' in config2_dict['/path/to/test/']
 
     # Duplicate path + name with different repo URL / remotes raises.
     configs = config.find_config_files(
