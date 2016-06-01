@@ -53,7 +53,6 @@ setup(
         'vcspull',
         'vcspull.repo',
     ],
-    scripts=['pkg/vcspull.bash', 'pkg/vcspull.zsh', 'pkg/vcspull.tcsh'],
     entry_points=dict(console_scripts=['vcspull=vcspull:cli.cli']),
     classifiers=[
         'Development Status :: 4 - Beta',
