@@ -153,9 +153,9 @@ run             .. code-block:: bash
    :alt: Build Status
    :target: https://travis-ci.org/tony/vcspull
 
-.. |coverage| image:: https://img.shields.io/coveralls/tony/vcspull.svg
+.. |coverage| image:: https://codecov.io/gh/tony/vcspull/branch/master/graph/badge.svg
     :alt: Code Coverage
-    :target: https://coveralls.io/r/tony/vcspull?branch=master
+    :target: https://codecov.io/gh/tony/vcspull
     
 .. |license| image:: https://img.shields.io/github/license/tony/vcspull.svg
     :alt: License 
