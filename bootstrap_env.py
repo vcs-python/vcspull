@@ -139,7 +139,7 @@ def main():
             )
 
     try:
-        import mock  # noqa
+        import pytest  # noqa
     except ImportError:
         subprocess.check_call(
             [pip_bin, 'install', '-r', test_reqs_fpath]

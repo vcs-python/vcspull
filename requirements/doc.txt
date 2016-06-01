@@ -1,5 +1,4 @@
 -r ./base.txt
 sphinx
-sphinx-argparse>=0.1.4
 sphinx_rtd_theme
 releases==1.2.0
