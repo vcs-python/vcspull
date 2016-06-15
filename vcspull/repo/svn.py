@@ -38,12 +38,20 @@ class SubversionRepo(BaseRepo):
     def __init__(self, url, **kwargs):
         BaseRepo.__init__(self, url, **kwargs)
 
+    def _user_pw_args(self):
+        args = []
+        for param_name in ['username', 'password']:
+            if param_name in self.attributes:
+                args.extend(['--' + param_name, self.attributes[param_name]])
+        return args
+
     def obtain(self, quiet=None):
         self.check_destination()
 
         url, rev = self.get_url_rev()
 
         cmd = ['svn', 'checkout', '-q', url, '--non-interactive']
+        cmd.extend(self._user_pw_args())
         cmd.extend(get_rev_options(url, rev))
         cmd.append(self['path'])
 
@@ -124,7 +132,9 @@ class SubversionRepo(BaseRepo):
             url, rev = self.get_url_rev()
 
             cmd = ['svn', 'update']
+            cmd.extend(self._user_pw_args())
             cmd.extend(get_rev_options(url, rev))
+
             self.run(
                 cmd,
                 stdout=subprocess.PIPE,
