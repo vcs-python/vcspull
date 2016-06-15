@@ -49,7 +49,12 @@ class SubversionRepo(BaseRepo):
 
         :param password: password to use for checkout and update
         :type password: str or None
+
+        :param svn_trust_cert: trust the Subversion server site certificate (default False)
+        :type svn_trust_cert: bool
         """
+        if 'svn_trust_cert' not in kwargs:
+            kwargs['svn_trust_cert'] = False
         BaseRepo.__init__(self, url, **kwargs)
 
     def _user_pw_args(self):
@@ -65,6 +70,8 @@ class SubversionRepo(BaseRepo):
         url, rev = self.get_url_rev()
 
         cmd = ['svn', 'checkout', '-q', url, '--non-interactive']
+        if self.attributes['svn_trust_cert']:
+            cmd.append('--trust-server-cert')
         cmd.extend(self._user_pw_args())
         cmd.extend(get_rev_options(url, rev))
         cmd.append(self['path'])
