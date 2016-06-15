@@ -43,7 +43,7 @@ class SubversionRepo(BaseRepo):
 
         url, rev = self.get_url_rev()
 
-        cmd = ['svn', 'checkout', '-q', url]
+        cmd = ['svn', 'checkout', '-q', url, '--non-interactive']
         cmd.extend(get_rev_options(url, rev))
         cmd.append(self['path'])
 
