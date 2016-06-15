@@ -115,6 +115,7 @@ class GitRepo(BaseRepo):
             - ``git+https://github.com/tony/vcspull.git``
             - ``git+ssh://git@github.com:tony/vcspull.git``
         :type url: str
+
         :param remotes: list of remotes in dict format::
 
             [{
@@ -122,7 +123,12 @@ class GitRepo(BaseRepo):
             "url": "https://github.com/tony/vim-config.git"
             }]
         :type remotes: list
+
+        :param shallow: tell Git to clone with ``--depth 1`` (default False)
+        :type shallow: bool
         """
+        if 'shallow' not in kwargs:
+            kwargs['shallow'] = False
         BaseRepo.__init__(self, url, **kwargs)
 
         self['remotes'] = remotes
@@ -169,9 +175,15 @@ class GitRepo(BaseRepo):
         self.check_destination()
 
         url, rev = self.get_url_rev()
+
+        cmd = ['git', 'clone', '--progress']
+        if self.attributes['shallow']:
+            cmd.extend(['--depth', '1'])
+        cmd.extend([url, self['path']])
+
         self.info('Cloning.')
         self.run(
-            ['git', 'clone', '--progress', url, self['path']],
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=os.environ.copy(), cwd=self['path'],
