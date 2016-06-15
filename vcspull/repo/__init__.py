@@ -42,7 +42,7 @@ def create_repo(url, **kwargs):
         In [1]: from vcspull.repo import create_repo
 
         In [2]: r = create_repo(url='git+https://www.github.com/you/myrepo',
-                    cwd='/tmp/',
+                    parent_dir='/tmp/',
                     name='myrepo')
 
         In [3]: r.update_repo()
