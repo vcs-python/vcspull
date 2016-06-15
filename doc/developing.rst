@@ -41,7 +41,7 @@ Good! Now let's run this:
 
 .. code-block:: sh
 
-    $ pip install -e .
+    $ pip install -r requirements/test.txt -e .
 
 This has ``pip``, a python package manager install the python package
 in the current directory. ``-e`` means ``--editable``, which means you can
