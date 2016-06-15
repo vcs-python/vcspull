@@ -43,6 +43,12 @@ class SubversionRepo(BaseRepo):
             - ``svn+svn://svn.myproject.org/svn/MyProject``
             - ``svn+http://svn.myproject.org/svn/MyProject/trunk@2019``
         :type url: str
+
+        :param username: username to use for checkout and update
+        :type username: str or None
+
+        :param password: password to use for checkout and update
+        :type password: str or None
         """
         BaseRepo.__init__(self, url, **kwargs)
 
