@@ -44,11 +44,11 @@ class SubversionRepo(BaseRepo):
             - ``svn+http://svn.myproject.org/svn/MyProject/trunk@2019``
         :type url: str
 
-        :param username: username to use for checkout and update
-        :type username: str or None
+        :param svn_username: username to use for checkout and update
+        :type svn_username: str or None
 
-        :param password: password to use for checkout and update
-        :type password: str or None
+        :param svn_password: password to use for checkout and update
+        :type svn_password: str or None
 
         :param svn_trust_cert: trust the Subversion server site certificate (default False)
         :type svn_trust_cert: bool
@@ -59,9 +59,9 @@ class SubversionRepo(BaseRepo):
 
     def _user_pw_args(self):
         args = []
-        for param_name in ['username', 'password']:
+        for param_name in ['svn_username', 'svn_password']:
             if param_name in self.attributes:
-                args.extend(['--' + param_name, self.attributes[param_name]])
+                args.extend(['--' + param_name[4:], self.attributes[param_name]])
         return args
 
     def obtain(self, quiet=None):
