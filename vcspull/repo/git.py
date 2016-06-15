@@ -126,9 +126,14 @@ class GitRepo(BaseRepo):
 
         :param shallow: tell Git to clone with ``--depth 1`` (default False)
         :type shallow: bool
+
+        :param tls_verify: Should certificate for https be checked (default False)
+        :type tls_verify: bool
         """
         if 'shallow' not in kwargs:
             kwargs['shallow'] = False
+        if 'tls_verify' not in kwargs:
+            kwargs['tls_verify'] = False
         BaseRepo.__init__(self, url, **kwargs)
 
         self['remotes'] = remotes
@@ -179,6 +184,8 @@ class GitRepo(BaseRepo):
         cmd = ['git', 'clone', '--progress']
         if self.attributes['shallow']:
             cmd.extend(['--depth', '1'])
+        if self.attributes['tls_verify']:
+            cmd.extend(['-c', 'http.sslVerify=false'])
         cmd.extend([url, self['path']])
 
         self.info('Cloning.')
