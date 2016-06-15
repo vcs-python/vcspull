@@ -6,9 +6,14 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import pytest
 
+from vcspull import exc
 from vcspull.repo import create_repo
-from vcspull.util import run
+from vcspull.util import run, which
 
+try:
+  which('hg')
+except exc.VCSPullException:
+  pytestmark = pytest.mark.skip(reason="hg is not available")
 
 @pytest.fixture
 def hg_dummy_repo_dir(tmpdir_repoparent, scope='session'):
