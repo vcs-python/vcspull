@@ -139,7 +139,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         )
 
         if stream_stderr:
-            self.start_progress(' '.join(cmd))
+            self.start_progress(' '.join(["'%s'" % arg for arg in cmd]))
             while True:
 
                 err = console_to_str(process.stderr.read(128))
