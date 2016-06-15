@@ -42,10 +42,13 @@ class SubversionRepo(BaseRepo):
         self.check_destination()
 
         url, rev = self.get_url_rev()
-        get_rev_options(url, rev)
+
+        cmd = ['svn', 'checkout', '-q', url]
+        cmd.extend(get_rev_options(url, rev))
+        cmd.append(self['path'])
 
         self.run(
-            ['svn', 'checkout', '-q', url, self['path']],
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=os.environ.copy(),
@@ -120,8 +123,10 @@ class SubversionRepo(BaseRepo):
 
             url, rev = self.get_url_rev()
 
+            cmd = ['svn', 'update']
+            cmd.extend(get_rev_options(url, rev))
             self.run(
-                ['svn', 'update'],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=os.environ.copy(), cwd=self['path'],
