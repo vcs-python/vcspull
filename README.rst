@@ -84,7 +84,7 @@ python API
 
    In [1]: from vcspull.repo import create_repo
 
-   In [2]: r = create_repo(url='git+https://www.github.com/tony/myrepo', cwd='/tmp/',
+   In [2]: r = create_repo(url='git+https://www.github.com/tony/myrepo', parent_dir='/tmp/',
             name='myrepo')
 
    In [3]: r.update_repo()
