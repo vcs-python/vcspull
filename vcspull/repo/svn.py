@@ -36,6 +36,14 @@ class SubversionRepo(BaseRepo):
     schemes = ('svn')
 
     def __init__(self, url, **kwargs):
+        """A svn repository.
+
+        :param url: URL in pip vcs format:
+
+            - ``svn+svn://svn.myproject.org/svn/MyProject``
+            - ``svn+http://svn.myproject.org/svn/MyProject/trunk@2019``
+        :type url: str
+        """
         BaseRepo.__init__(self, url, **kwargs)
 
     def _user_pw_args(self):
