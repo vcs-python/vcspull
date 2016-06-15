@@ -36,4 +36,4 @@ YAML:
 .. literalinclude:: ../examples/code-scholar.yaml
     :language: yaml
 
-.. _pip vcs url: http://www.pip-installer.org/en/latest/logic.html#vcs-support
+.. _pip vcs url: https://pip.pypa.io/en/latest/reference/pip_install/#vcs-support
