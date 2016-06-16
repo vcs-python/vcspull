@@ -26,6 +26,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 import os
+import re
 import subprocess
 import tempfile
 
@@ -124,14 +125,24 @@ class GitRepo(BaseRepo):
             }]
         :type remotes: list
 
+        :param git_remote_name: name of the remote (default "origin")
+        :type git_remote_name: str
+
         :param git_shallow: tell Git to clone with ``--depth 1`` (default False)
         :type git_shallow: bool
+
+        :param git_submodules: Git submodules that shall be updated, all if empty
+        :type git_submodules: list
 
         :param tls_verify: Should certificate for https be checked (default False)
         :type tls_verify: bool
         """
+        if 'git_remote_name' not in kwargs:
+            kwargs['git_remote_name'] = "origin"
         if 'git_shallow' not in kwargs:
             kwargs['git_shallow'] = False
+        if 'git_submodules' not in kwargs:
+            kwargs['git_submodules'] = []
         if 'tls_verify' not in kwargs:
             kwargs['tls_verify'] = False
         BaseRepo.__init__(self, url, **kwargs)
@@ -179,7 +190,7 @@ class GitRepo(BaseRepo):
         """
         self.check_destination()
 
-        url, rev = self.get_url_rev()
+        url, _ = self.get_url_rev()
 
         cmd = ['git', 'clone', '--progress']
         if self.attributes['git_shallow']:
@@ -205,17 +216,158 @@ class GitRepo(BaseRepo):
                     url=r['url']
                 )
 
+        self.info('Initializing submodules.')
+        self.run(
+            ['git', 'submodule', 'init'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy(), cwd=self['path'],
+        )
+        cmd = ['git', 'submodule', 'update', '--recursive', '--init']
+        cmd.extend(self.attributes['git_submodules'])
+        self.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy(), cwd=self['path'],
+        )
+
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
 
-            self.run([
-                'git', 'fetch'
-            ], cwd=self['path'])
+            # Get requested revision or tag
+            url, git_tag = self.get_url_rev()
+            self.debug("git_tag: %s" % git_tag)
 
-            self.run([
-                'git', 'pull'
-            ], cwd=self['path'])
+            self.info("Updating to '%s'." % git_tag)
+
+            # Get head sha
+            process = self.run([
+                'git', 'rev-list', '--max-count=1', 'HEAD'
+            ], cwd=self['path'], log_stdout=False)
+            head_sha = process.stdout_data
+            error_code = process.returncode
+            self.debug("head_sha: %s" % head_sha)
+            if error_code:
+                self.error("Failed to get the hash for HEAD")
+                return
+
+            # If a remote ref is asked for, which can possibly move around,
+            # we must always do a fetch and checkout.
+            process = self.run([
+                'git', 'show-ref', git_tag
+            ], cwd=self['path'], log_stdout=False)
+            show_ref_output = process.stdout_data
+            self.debug("show_ref_output: %s" % show_ref_output)
+            is_remote_ref = "remotes" in show_ref_output
+            self.debug("is_remote_ref: %s" % is_remote_ref)
+
+            # Tag is in the form <remote>/<tag> (i.e. origin/master) we must strip
+            # the remote from the tag.
+            git_remote_name = self.attributes['git_remote_name']
+            if "refs/remotes/%s" % git_tag in show_ref_output:
+                m = re.match(r'^(?P<git_remote_name>[^/]+)/(?P<git_tag>.+)$', show_ref_output)
+                git_remote_name = m.group('git_remote_name')
+                git_tag = m.group('git_tag')
+
+            # This will fail if the tag does not exist (it probably has not been fetched
+            # yet).
+            process = self.run([
+                'git', 'rev-list', '--max-count=1', git_tag
+            ], cwd=self['path'], log_stdout=False)
+            tag_sha = process.stdout_data
+            error_code = process.returncode
+            self.debug("tag_sha: %s" % tag_sha)
+
+            # Is the hash checkout out what we want?
+            if error_code or is_remote_ref or tag_sha != head_sha:
+                process = self.run([
+                    'git', 'fetch'
+                ], cwd=self['path'])
+                if process.returncode:
+                    self.error("Failed to fetch repository '%s'" % url)
+                    return
+
+                if is_remote_ref:
+                    # Check if stash is needed
+                    process = self.run([
+                        'git', 'status', '--porcelain'
+                    ], cwd=self['path'])
+                    if process.returncode:
+                        self.error("Failed to get the status")
+                        return
+                    need_stash = len(process.stdout_data) > 0
+
+                    # If not in clean state, stash changes in order to be able to be able to
+                    # perform git pull --rebase
+                    if need_stash:
+                        git_stash_save_options = '--quiet' # If Git < 1.7.6, uses --quiet --all
+                        process = self.run([
+                            'git', 'stash', 'save', git_stash_save_options
+                        ], cwd=self['path'])
+
+                        if process.returncode:
+                            self.error("Failed to stash changes")
+
+                    # Pull changes from the remote branch
+                    process = self.run([
+                        'git', 'rebase', git_remote_name + '/' + git_tag
+                    ], cwd=self['path'], log_stdout=False)
+                    if process.returncode:
+                        # Rebase failed: Restore previous state.
+                        self.run([
+                            'git', 'rebase', '--abort'
+                        ], cwd=self['path'])
+                        if need_stash:
+                            self.run([
+                                'git', 'stash', 'pop', '--index', '--quiet'
+                            ], cwd=self['path'])
+
+                        self.error("\nFailed to rebase in: '%s'.\nYou will have to resolve the conflicts manually" % self['path'])
+                        return
+
+                    if need_stash:
+                        process = self.run([
+                            'git', 'stash', 'pop', '--index', '--quiet'
+                        ], cwd=self['path'])
+
+                        if process.returncode:
+                            # Stash pop --index failed: Try again dropping the index
+                            self.run([
+                                'git', 'reset', '--hard', '--quiet'
+                            ], cwd=self['path'])
+                            process = self.run([
+                                'git', 'stash', 'pop', '--quiet'
+                            ], cwd=self['path'])
+
+                            if process.returncode:
+                                # Stash pop failed: Restore previous state.
+                                self.run([
+                                    'git', 'reset', '--hard', '--quiet', head_sha
+                                ], cwd=self['path'])
+                                self.run([
+                                    'git', 'stash', 'pop', '--index', '--quiet'
+                                ], cwd=self['path'])
+                                self.error("\nFailed to rebase in: '%s'.\n"
+                                           "You will have to resolve the conflicts manually" % self['path'])
+                                return
+
+                else:
+                    process = self.run([
+                        'git', 'checkout', git_tag
+                    ], cwd=self['path'])
+                    if process.returncode:
+                        self.error("Failed to checkout tag: '%s'" % git_tag)
+                        return
+
+                cmd = ['git', 'submodule', 'update', '--recursive', '--init']
+                cmd.extend(self.attributes['git_submodules'])
+                self.run(
+                    cmd, cwd=self['path'],
+                )
+            else:
+                self.info("Already up-to-date.")
         else:
             self.obtain()
             self.update_repo()
