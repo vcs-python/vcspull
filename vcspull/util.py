@@ -13,14 +13,26 @@ import collections
 import errno
 import logging
 import os
+import re
 import subprocess
 
 from . import exc
-from ._compat import string_types
+from ._compat import string_types, console_to_str, PY2
 
 CONFIG_DIR = os.path.expanduser('~/.vcspull/')  # remove dupes of this
 
 logger = logging.getLogger(__name__)
+
+
+def remove_tracebacks(output):
+    pattern = (r'(?:\W+File "(?:.*)", line (?:.*)\W+(?:.*)\W+\^\W+)?'
+               r'Syntax(?:Error|Warning): (?:.*)')
+    output = re.sub(pattern, '', output)
+    if PY2:
+        return output
+    # compileall.compile_dir() prints different messages to stdout
+    # in Python 3
+    return re.sub(r"\*\*\* Error compiling (?:.*)", '', output)
 
 
 def run(
@@ -28,21 +40,15 @@ def run(
     cwd=None,
     stdin=None,
     stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
     shell=False,
     env=(),
     timeout=None
 ):
-    """Return output of command. Based off salt's _run."""
-    ret = {}
-
     if isinstance(cmd, string_types):
         cmd = cmd.split(' ')
     if isinstance(cmd, list):
         cmd[0] = which(cmd[0])
-
-    # kwargs['stdin'] = subprocess.PIPE if 'stdin' not in kwargs else
-    # kwargs['stdin']
 
     kwargs = {
         'cwd': cwd,
@@ -59,21 +65,15 @@ def run(
         raise exc.VCSPullException('Unable to run command: %s' % e)
 
     proc.wait()
+    all_output = []
+    while True:
+        line = console_to_str(proc.stdout.readline())
+        if not line:
+            break
+        line = line.rstrip()
+        all_output.append(line + '\n')
 
-    stdout, stderr = proc.stdout.read(), proc.stderr.read()
-    proc.stdout.close()
-    proc.stderr.close()
-
-    stdout = stdout.decode().split('\n')
-    ret['stdout'] = list(filter(None, stdout))  # filter empty values
-
-    stderr = stderr.decode().split('\n')
-    ret['stderr'] = list(filter(None, stderr))  # filter empty values
-
-    ret['pid'] = proc.pid
-    ret['retcode'] = proc.returncode
-
-    return ret
+    return remove_tracebacks(''.join(all_output)).rstrip()
 
 
 def which(exe=None):
