@@ -79,9 +79,6 @@ def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
     commands don't return proper retcodes, so this can't replace 'cmd.run_all'.
 
     """
-    if cwd is None:
-        cwd = self['cwd']
-
     env = os.environ.copy()
 
     if identity:
@@ -130,13 +127,15 @@ class GitRepo(BaseRepo):
         :param git_remote_name: name of the remote (default "origin")
         :type git_remote_name: str
 
-        :param git_shallow: tell Git to clone with ``--depth 1`` (default False)
+        :param git_shallow: clone with ``--depth 1`` (default False)
         :type git_shallow: bool
 
-        :param git_submodules: Git submodules that shall be updated, all if empty
+        :param git_submodules: Git submodules that shall be updated, all if
+            empty
         :type git_submodules: list
 
-        :param tls_verify: Should certificate for https be checked (default False)
+        :param tls_verify: Should certificate for https be checked (default
+            False)
         :type tls_verify: bool
         """
         if 'git_remote_name' not in kwargs:
@@ -258,16 +257,17 @@ class GitRepo(BaseRepo):
             is_remote_ref = "remotes" in show_ref_output
             self.debug("is_remote_ref: %s" % is_remote_ref)
 
-            # Tag is in the form <remote>/<tag> (i.e. origin/master) we must strip
-            # the remote from the tag.
+            # Tag is in the form <remote>/<tag> (i.e. origin/master) we must
+            # strip the remote from the tag.
             git_remote_name = self.attributes['git_remote_name']
             if "refs/remotes/%s" % git_tag in show_ref_output:
-                m = re.match(r'^(?P<git_remote_name>[^/]+)/(?P<git_tag>.+)$', show_ref_output)
+                m = re.match(r'^(?P<git_remote_name>[^/]+)/(?P<git_tag>.+)$',
+                             show_ref_output)
                 git_remote_name = m.group('git_remote_name')
                 git_tag = m.group('git_tag')
 
-            # This will fail if the tag does not exist (it probably has not been fetched
-            # yet).
+            # This will fail if the tag does not exist (it probably has not
+            # been fetched yet).
             process = self.run([
                 'git', 'rev-list', '--max-count=1', git_tag
             ], cwd=self['path'], log_stdout=False)
@@ -294,10 +294,11 @@ class GitRepo(BaseRepo):
                         return
                     need_stash = len(process.stdout_data) > 0
 
-                    # If not in clean state, stash changes in order to be able to be able to
-                    # perform git pull --rebase
+                    # If not in clean state, stash changes in order to be able
+                    # to be able to perform git pull --rebase
                     if need_stash:
-                        git_stash_save_options = '--quiet' # If Git < 1.7.6, uses --quiet --all
+                        # If Git < 1.7.6, uses --quiet --all
+                        git_stash_save_options = '--quiet'
                         process = self.run([
                             'git', 'stash', 'save', git_stash_save_options
                         ], cwd=self['path'])
@@ -319,7 +320,10 @@ class GitRepo(BaseRepo):
                                 'git', 'stash', 'pop', '--index', '--quiet'
                             ], cwd=self['path'])
 
-                        self.error("\nFailed to rebase in: '%s'.\nYou will have to resolve the conflicts manually" % self['path'])
+                        self.error(
+                            "\nFailed to rebase in: '%s'.\n"
+                            "You will have to resolve the conflicts manually" %
+                            self['path'])
                         return
 
                     if need_stash:
@@ -328,7 +332,8 @@ class GitRepo(BaseRepo):
                         ], cwd=self['path'])
 
                         if process.returncode:
-                            # Stash pop --index failed: Try again dropping the index
+                            # Stash pop --index failed: Try again dropping the
+                            # index
                             self.run([
                                 'git', 'reset', '--hard', '--quiet'
                             ], cwd=self['path'])
@@ -339,13 +344,15 @@ class GitRepo(BaseRepo):
                             if process.returncode:
                                 # Stash pop failed: Restore previous state.
                                 self.run([
-                                    'git', 'reset', '--hard', '--quiet', head_sha
+                                    'git', 'reset', '--hard', '--quiet',
+                                    head_sha
                                 ], cwd=self['path'])
                                 self.run([
                                     'git', 'stash', 'pop', '--index', '--quiet'
                                 ], cwd=self['path'])
                                 self.error("\nFailed to rebase in: '%s'.\n"
-                                           "You will have to resolve the conflicts manually" % self['path'])
+                                           "You will have to resolve the "
+                                           "conflicts manually" % self['path'])
                                 return
 
                 else:

@@ -50,7 +50,8 @@ class SubversionRepo(BaseRepo):
         :param svn_password: password to use for checkout and update
         :type svn_password: str or None
 
-        :param svn_trust_cert: trust the Subversion server site certificate (default False)
+        :param svn_trust_cert: trust the Subversion server site certificate
+            (default False)
         :type svn_trust_cert: bool
         """
         if 'svn_trust_cert' not in kwargs:
@@ -61,7 +62,8 @@ class SubversionRepo(BaseRepo):
         args = []
         for param_name in ['svn_username', 'svn_password']:
             if param_name in self.attributes:
-                args.extend(['--' + param_name[4:], self.attributes[param_name]])
+                args.extend(['--' + param_name[4:],
+                             self.attributes[param_name]])
         return args
 
     def obtain(self, quiet=None):

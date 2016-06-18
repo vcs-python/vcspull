@@ -11,9 +11,10 @@ from vcspull.repo import create_repo
 from vcspull.util import run, which
 
 try:
-  which('hg')
+    which('hg')
 except exc.VCSPullException:
-  pytestmark = pytest.mark.skip(reason="hg is not available")
+    pytestmark = pytest.mark.skip(reason="hg is not available")
+
 
 @pytest.fixture
 def hg_dummy_repo_dir(tmpdir_repoparent, scope='session'):
