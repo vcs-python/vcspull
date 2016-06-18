@@ -23,7 +23,6 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import os
 import re
-import subprocess
 
 from .._compat import urlparse
 from ..util import run
@@ -78,12 +77,7 @@ class SubversionRepo(BaseRepo):
         cmd.extend(get_rev_options(url, rev))
         cmd.append(self['path'])
 
-        self.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(),
-        )
+        self.run(cmd)
 
     def get_revision_file(self, location=None):
         """Return revision for a file."""
@@ -93,9 +87,7 @@ class SubversionRepo(BaseRepo):
         else:
             cwd = self['path']
 
-        current_rev = run(
-            ['svn', 'info', cwd],
-        )
+        current_rev = run(['svn', 'info', cwd])
         infos = current_rev['stdout']
 
         _INI_RE = re.compile(r"^([^:]+):\s+(\S.*)$", re.M)
@@ -158,13 +150,7 @@ class SubversionRepo(BaseRepo):
             cmd.extend(self._user_pw_args())
             cmd.extend(get_rev_options(url, rev))
 
-            self.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(), cwd=self['path'],
-            )
-
+            self.run(cmd)
         else:
             self.obtain()
             self.update_repo()

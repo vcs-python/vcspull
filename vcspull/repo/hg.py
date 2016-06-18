@@ -16,7 +16,6 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 import os
-import subprocess
 
 from ..util import run
 from .base import BaseRepo
@@ -36,38 +35,19 @@ class MercurialRepo(BaseRepo):
 
         url, rev = self.get_url_and_revision()
 
-        self.run([
-            'hg', 'clone', '--noupdate', '-q', url, self['path']])
-
-        self.run([
-            'hg', 'update', '-q'
-        ], cwd=self['path'])
+        self.run(['hg', 'clone', '--noupdate', '-q', url, self['path']])
+        self.run(['hg', 'update', '-q'])
 
     def get_revision(self):
-        current_rev = run(
-            ['hg', 'parents', '--template={rev}'],
-            cwd=self['path'],
-        )
+        current_rev = run(['hg', 'parents', '--template={rev}'])
 
         return current_rev['stdout']
 
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.hg')):
-
-            self.run(
-                ['hg', 'update'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(), cwd=self['path']
-            )
-
-            self.run(
-                ['hg', 'pull', '-u'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(), cwd=self['path']
-            )
+            self.run(['hg', 'update'],)
+            self.run(['hg', 'pull', '-u'])
 
         else:
             self.obtain()
