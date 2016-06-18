@@ -88,20 +88,12 @@ def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
             'GIT_SSH': helper
         })
 
-    result = run(cmd,
-                 cwd=cwd,
-                 env=env,
-                 **kwargs)
+    result = run(cmd, cwd=cwd, env=env, **kwargs)
 
     if identity:
         os.unlink(helper)
 
-    retcode = result['retcode']
-
-    if retcode == 0:
-        return result['stdout']
-    else:
-        raise exc.VCSPullException(result['stderr'])
+    return result
 
 
 class GitRepo(BaseRepo):
@@ -151,11 +143,11 @@ class GitRepo(BaseRepo):
         self['remotes'] = remotes
 
     def get_revision(self):
-        current_rev = run(
-            ['git', 'rev-parse', 'HEAD'], cwd=self['path']
+        current_rev = self.run(
+            ['git', 'rev-parse', 'HEAD'], stream_stderr=False
         )
 
-        return current_rev['stdout']
+        return current_rev
 
     def get_url_and_revision(self):
         """
@@ -417,7 +409,8 @@ class GitRepo(BaseRepo):
         try:
             cmd = 'git remote show -n {0}'.format(remote)
             ret = _git_run(cmd, cwd=cwd, runas=user)
-            lines = ret
+            lines = ret.split('\n')
+            print(lines)
             remote_fetch_url = lines[1].replace('Fetch URL: ', '').strip()
             remote_push_url = lines[2].replace('Push  URL: ', '').strip()
             if remote_fetch_url != remote and remote_push_url != remote:
@@ -427,6 +420,25 @@ class GitRepo(BaseRepo):
                 return None
         except exc.VCSPullException:
             return None
+
+    def remote_set(self, url, cwd=None, name='origin'):
+        """Set remote with name and URL like git remote add.
+
+        :param url: defines the remote URL
+        :type url: string
+        :param name: defines the remote name.
+        :type name: str
+        """
+
+        url = self.chomp_protocol(url)
+
+        if not cwd:
+            cwd = self['path']
+        if self.remote_get(cwd, name):
+            self.run(['git', 'remote', 'rm', 'name'])
+
+        self.run(['git', 'remote', 'add', name, url])
+        return self.remote_get(cwd=cwd, remote=name)
 
     @staticmethod
     def chomp_protocol(url):
@@ -452,26 +464,6 @@ class GitRepo(BaseRepo):
             url = url.replace('git+', 'git+ssh://')
             url = url.replace('ssh://', '')
         return url
-
-    def remote_set(self, url, cwd=None, name='origin'):
-        """Set remote with name and URL like git remote add.
-
-        :param url: defines the remote URL
-        :type url: string
-        :param name: defines the remote name.
-        :type name: str
-        """
-
-        url = self.chomp_protocol(url)
-
-        if not cwd:
-            cwd = self['path']
-        if self.remote_get(cwd, name):
-            self.run(['git', 'remote', 'rm', 'name'])
-        cmd = 'git remote add {0} {1}'.format(name, url)
-
-        self.run(['git', 'remote', 'add', name, url])
-        return self.remote_get(cwd=cwd, remote=name)
 
     def reset(self, cwd=None, opts=None):
         """Reset the repository checkout.

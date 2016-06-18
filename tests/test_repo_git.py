@@ -30,7 +30,7 @@ def test_repo_git_obtain_bare_repo(tmpdir):
     })
 
     git_repo.obtain(quiet=True)
-    assert git_repo.get_revision() == ['HEAD']
+    assert git_repo.get_revision() == 'HEAD'
 
 
 def test_repo_git_obtain_full(tmpdir, git_dummy_repo_dir):
@@ -39,7 +39,7 @@ def test_repo_git_obtain_full(tmpdir, git_dummy_repo_dir):
     test_repo_revision = run(
         ['git', 'rev-parse', 'HEAD'],
         cwd=remote_repo_dir,
-    )['stdout']
+    )
 
     # create a new repo with the repo as a remote
     git_repo = create_repo(**{

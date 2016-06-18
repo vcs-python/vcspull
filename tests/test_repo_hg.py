@@ -54,7 +54,7 @@ def test_repo_mercurial(tmpdir, hg_dummy_repo_dir):
     test_repo_revision = run(
         ['hg', 'parents', '--template={rev}'],
         cwd=str(tmpdir.join(repo_name)),
-    )['stdout']
+    )
 
     assert mercurial_repo.get_revision() == test_repo_revision
     assert os.path.exists(str(tmpdir.join(repo_name)))

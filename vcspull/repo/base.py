@@ -16,7 +16,7 @@ import sys
 
 from .. import exc
 from .._compat import console_to_str, text_type, urlparse
-from ..util import mkdir_p
+from ..util import mkdir_p, remove_tracebacks
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +135,9 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         if cwd is None:
             cwd = self.get('path', None)
 
+        if not stream_stderr and not stderr:
+            stderr = subprocess.STDOUT
+
         process = subprocess.Popen(
             cmd,
             stdout=stdout,
@@ -159,8 +162,19 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
             process.stdout_data = console_to_str(process.stdout.read())
             self.end_progress('%s' % process.stdout_data if log_stdout else '')
         else:
-            process.stdout_data = process.stdout.read()
-            self.info('%s' % process.stdout_data)
+            process.wait()
+            all_output = []
+            while True:
+                line = console_to_str(process.stdout.readline())
+                if not line:
+                    break
+                line = line.rstrip()
+                all_output.append(line + '\n')
+
+            if log_stdout:
+                self.info('%s' % ''.join(all_output))
+
+            return remove_tracebacks(''.join(all_output)).rstrip()
 
         process.stderr.close()
         process.stdout.close()

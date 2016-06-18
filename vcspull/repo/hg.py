@@ -17,7 +17,6 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import os
 
-from ..util import run
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)
@@ -39,9 +38,8 @@ class MercurialRepo(BaseRepo):
         self.run(['hg', 'update', '-q'])
 
     def get_revision(self):
-        current_rev = run(['hg', 'parents', '--template={rev}'])
-
-        return current_rev['stdout']
+        return self.run(
+            ['hg', 'parents', '--template={rev}'], stream_stderr=False)
 
     def update_repo(self):
         self.check_destination()
