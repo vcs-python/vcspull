@@ -152,8 +152,7 @@ class GitRepo(BaseRepo):
 
     def get_revision(self):
         current_rev = run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=self['path']
+            ['git', 'rev-parse', 'HEAD'], cwd=self['path']
         )
 
         return current_rev['stdout']
@@ -389,17 +388,17 @@ class GitRepo(BaseRepo):
             Run git as a user other than what the minion runs as
 
         """
+        remotes = {}
 
         if not cwd:
             cwd = self['path']
 
-        cmd = ['git', 'remote']
-        ret = run(cmd, cwd=cwd)['stdout']
-        res = dict()
+        cmd = self.run(['git', 'remote'], cwd=cwd)
+        ret = filter(None, cmd.stdout_data.split('\n'))
+
         for remote_name in ret:
-            remote = remote_name.strip()
-            res[remote] = self.remote_get(cwd, remote, user=user)
-        return res
+            remotes[remote_name] = self.remote_get(cwd, remote_name)
+        return remotes
 
     def remote_get(self, cwd=None, remote='origin', user=None):
         """Get the fetch and push URL for a specified remote name.
@@ -454,18 +453,13 @@ class GitRepo(BaseRepo):
             url = url.replace('ssh://', '')
         return url
 
-    def remote_set(self, cwd=None, name='origin', url=None, user=None):
-        """Set remote with name and URL like git remote add <remote_name> <remote_url>.
+    def remote_set(self, url, cwd=None, name='origin'):
+        """Set remote with name and URL like git remote add.
 
-        remote_name : origin
-            defines the remote name
-
-        remote_url : None
-            defines the remote URL; should not be None!
-
-        user : None
-            Run git as a user other than what the minion runs as
-
+        :param url: defines the remote URL
+        :type url: string
+        :param name: defines the remote name.
+        :type name: str
         """
 
         url = self.chomp_protocol(url)
@@ -473,25 +467,19 @@ class GitRepo(BaseRepo):
         if not cwd:
             cwd = self['path']
         if self.remote_get(cwd, name):
-            cmd = 'git remote rm {0}'.format(name)
-            _git_run(cmd, cwd=cwd, runas=user)
+            self.run(['git', 'remote', 'rm', 'name'])
         cmd = 'git remote add {0} {1}'.format(name, url)
 
-        _git_run(cmd, cwd=cwd, runas=user)
-        return self.remote_get(cwd=cwd, remote=name, user=None)
+        self.run(['git', 'remote', 'add', name, url])
+        return self.remote_get(cwd=cwd, remote=name)
 
-    def reset(self, cwd=None, opts=None, user=None):
+    def reset(self, cwd=None, opts=None):
         """Reset the repository checkout.
 
-        cwd
-            The path to the Git repository
-
-        opts : None
-            Any additional options to add to the command line
-
-        user : None
-            Run git as a user other than what the minion runs as
-
+        :param cwd: The path to the Git repository
+        :type cwd: string
+        :param opts: Any additional options to add to the command line
+        :type opts: string
         """
 
         if not cwd:
@@ -499,4 +487,4 @@ class GitRepo(BaseRepo):
 
         if not opts:
             opts = ''
-        return _git_run('git reset {0}'.format(opts), cwd=cwd, runas=user)
+        return _git_run('git reset {0}'.format(opts), cwd=cwd)
