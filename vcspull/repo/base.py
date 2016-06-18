@@ -129,13 +129,17 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def run(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        env=os.environ.copy(), cwd=None, stream_stderr=True, log_stdout=True, *args, **kwargs
+        env=os.environ.copy(), cwd=None, stream_stderr=True, log_stdout=True,
+        *args, **kwargs
     ):
+        if cwd is None:
+            cwd = self.get('path', None)
+
         process = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(), cwd=cwd
+            stdout=stdout,
+            stderr=stderr,
+            env=env, cwd=cwd
         )
 
         if stream_stderr:
@@ -178,7 +182,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
     def __repr__(self):
         return "%s(%r)" % (self.__class__, self.__dict__)
 
-    def get_url_rev(self):
+    def get_url_and_revision(self):
         """Return repo URL and revision by parsing :attr:`~.url`."""
         error_message = (
             "Sorry, '%s' is a malformed VCS url. "
