@@ -16,7 +16,7 @@ From https://github.com/saltstack/salt (Apache License):
 
 From pip (MIT Licnese):
 
-- :py:meth:`GitRepo.get_url_rev`
+- :py:meth:`GitRepo.get_url_and_revision`
 - :py:meth:`GitRepo.get_url`
 - :py:meth:`GitRepo.get_revision`
 
@@ -27,7 +27,6 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import os
 import re
-import subprocess
 import tempfile
 
 from .. import exc
@@ -80,14 +79,17 @@ def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
     commands don't return proper retcodes, so this can't replace 'cmd.run_all'.
 
     """
-    env = {}
+    if cwd is None:
+        cwd = self['cwd']
+
+    env = os.environ.copy()
 
     if identity:
         helper = _git_ssh_helper(identity)
 
-        env = {
+        env.update({
             'GIT_SSH': helper
-        }
+        })
 
     result = run(cmd,
                  cwd=cwd,
@@ -157,17 +159,18 @@ class GitRepo(BaseRepo):
 
         return current_rev['stdout']
 
-    def get_url_rev(self):
+    def get_url_and_revision(self):
         """
         Prefixes stub URLs like 'user@hostname:user/repo.git' with 'ssh://'.
         That's required because although they use SSH they sometimes doesn't
         work with a ssh:// scheme (e.g. Github). But we need a scheme for
         parsing. Hence we remove it again afterwards and return it as a stub.
         """
+        self.debug("get_url_and_revision for %s" % self['url'])
         if '://' not in self['url']:
             assert 'file:' not in self['url']
             self.url = self.url.replace('git+', 'git+ssh://')
-            url, rev = super(GitRepo, self).get_url_rev()
+            url, rev = super(GitRepo, self).get_url_and_revision()
             url = url.replace('ssh://', '')
         elif 'github.com:' in self['url']:
             raise exc.VCSPullException(
@@ -177,7 +180,7 @@ class GitRepo(BaseRepo):
                 )
             )
         else:
-            url, rev = super(GitRepo, self).get_url_rev()
+            url, rev = super(GitRepo, self).get_url_and_revision()
 
         return url, rev
 
@@ -190,7 +193,7 @@ class GitRepo(BaseRepo):
         """
         self.check_destination()
 
-        url, _ = self.get_url_rev()
+        url, _ = self.get_url_and_revision()
 
         cmd = ['git', 'clone', '--progress']
         if self.attributes['git_shallow']:
@@ -200,12 +203,7 @@ class GitRepo(BaseRepo):
         cmd.extend([url, self['path']])
 
         self.info('Cloning.')
-        self.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(), cwd=self['path'],
-        )
+        self.run(cmd)
 
         if self['remotes']:
             for r in self['remotes']:
@@ -217,27 +215,24 @@ class GitRepo(BaseRepo):
                 )
 
         self.info('Initializing submodules.')
-        self.run(
-            ['git', 'submodule', 'init'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(), cwd=self['path'],
-        )
+        self.run(['git', 'submodule', 'init'],)
         cmd = ['git', 'submodule', 'update', '--recursive', '--init']
         cmd.extend(self.attributes['git_submodules'])
-        self.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(), cwd=self['path'],
-        )
+        self.run(cmd,)
 
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.git')):
 
             # Get requested revision or tag
-            url, git_tag = self.get_url_rev()
+            url, git_tag = self.get_url_and_revision()
+            if not git_tag:
+                self.debug("No git revision set, defaulting to origin/master")
+                symref = self.run(['git', 'symbolic-ref', '--short', 'HEAD'])
+                if symref.stdout_data:
+                    git_tag = symref.stdout_data.rstrip()
+                else:
+                    git_tag = 'origin/master'
             self.debug("git_tag: %s" % git_tag)
 
             self.info("Updating to '%s'." % git_tag)
