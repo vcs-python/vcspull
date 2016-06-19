@@ -11,7 +11,7 @@ The follow are from saltstack/salt (Apache license):
 
 The following are pypa/pip (MIT license):
 
-- :py:meth:`SubversionRepo.get_url_and_revision`
+- :py:meth:`SubversionRepo.get_url_and_revision_from_pip_url`
 - :py:meth:`SubversionRepo.get_url`
 - :py:meth:`SubversionRepo.get_revision`
 - :py:meth:`~.get_rev_options`
@@ -68,7 +68,7 @@ class SubversionRepo(BaseRepo):
     def obtain(self, quiet=None):
         self.check_destination()
 
-        url, rev = self.get_url_and_revision()
+        url, rev = self.get_url_and_revision_from_pip_url()
 
         cmd = ['svn', 'checkout', '-q', url, '--non-interactive']
         if self.attributes['svn_trust_cert']:
@@ -132,9 +132,9 @@ class SubversionRepo(BaseRepo):
             revision = max(revision, localrev)
         return revision
 
-    def get_url_and_revision(self):
+    def get_url_and_revision_from_pip_url(self):
         # hotfix the URL scheme after removing svn+ from svn+ssh:// readd it
-        url, rev = super(SubversionRepo, self).get_url_and_revision()
+        url, rev = super(SubversionRepo, self).get_url_and_revision_from_pip_url()
         if url.startswith('ssh://'):
             url = 'svn+' + url
         return url, rev
@@ -144,7 +144,7 @@ class SubversionRepo(BaseRepo):
         if os.path.isdir(os.path.join(self['path'], '.svn')):
             dest = self['path'] if not dest else dest
 
-            url, rev = self.get_url_and_revision()
+            url, rev = self.get_url_and_revision_from_pip_url()
 
             cmd = ['svn', 'update']
             cmd.extend(self._user_pw_args())

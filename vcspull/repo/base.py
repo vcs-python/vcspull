@@ -218,7 +218,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
     def __repr__(self):
         return "%s(%r)" % (self.__class__, self.__dict__)
 
-    def get_url_and_revision(self):
+    def get_url_and_revision_from_pip_url(self):
         """Return repo URL and revision by parsing :attr:`~.url`."""
         error_message = (
             "Sorry, '%s' is a malformed VCS url. "

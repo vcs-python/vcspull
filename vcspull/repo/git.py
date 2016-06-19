@@ -14,7 +14,7 @@ From https://github.com/saltstack/salt (Apache License):
 
 From pip (MIT Licnese):
 
-- :py:meth:`GitRepo.get_url_and_revision` (get_url_rev)
+- :py:meth:`GitRepo.get_url_and_revision_from_pip_url` (get_url_rev)
 - :py:meth:`GitRepo.get_url`
 - :py:meth:`GitRepo.get_revision`
 
@@ -87,18 +87,18 @@ class GitRepo(BaseRepo):
         except exc.VCSPullSubprocessException:
             return 'initial'
 
-    def get_url_and_revision(self):
+    def get_url_and_revision_from_pip_url(self):
         """
         Prefixes stub URLs like 'user@hostname:user/repo.git' with 'ssh://'.
         That's required because although they use SSH they sometimes doesn't
         work with a ssh:// scheme (e.g. Github). But we need a scheme for
         parsing. Hence we remove it again afterwards and return it as a stub.
         """
-        self.debug("get_url_and_revision for %s" % self['url'])
+        self.debug("get_url_and_revision_from_pip_url for %s" % self['url'])
         if '://' not in self['url']:
             assert 'file:' not in self['url']
             self.url = self.url.replace('git+', 'git+ssh://')
-            url, rev = super(GitRepo, self).get_url_and_revision()
+            url, rev = super(GitRepo, self).get_url_and_revision_from_pip_url()
             url = url.replace('ssh://', '')
         elif 'github.com:' in self['url']:
             raise exc.VCSPullException(
@@ -108,7 +108,7 @@ class GitRepo(BaseRepo):
                 )
             )
         else:
-            url, rev = super(GitRepo, self).get_url_and_revision()
+            url, rev = super(GitRepo, self).get_url_and_revision_from_pip_url()
 
         return url, rev
 
@@ -121,7 +121,7 @@ class GitRepo(BaseRepo):
         """
         self.check_destination()
 
-        url, _ = self.get_url_and_revision()
+        url, _ = self.get_url_and_revision_from_pip_url()
 
         cmd = ['git', 'clone', '--progress']
         if self.attributes['git_shallow']:
@@ -157,7 +157,7 @@ class GitRepo(BaseRepo):
             return
 
         # Get requested revision or tag
-        url, git_tag = self.get_url_and_revision()
+        url, git_tag = self.get_url_and_revision_from_pip_url()
         if not git_tag:
             self.debug("No git revision set, defaulting to origin/master")
             symref = self.run(['git', 'symbolic-ref', '--short', 'HEAD'])

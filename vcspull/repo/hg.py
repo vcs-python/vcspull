@@ -6,7 +6,7 @@ vcspull.repo.hg
 
 The following is from pypa/pip (MIT license):
 
-- :py:meth:`MercurialRepo.get_url_and_revision`
+- :py:meth:`MercurialRepo.get_url_and_revision_from_pip_url`
 - :py:meth:`MercurialRepo.get_url`
 - :py:meth:`MercurialRepo.get_revision`
 
@@ -32,7 +32,7 @@ class MercurialRepo(BaseRepo):
     def obtain(self):
         self.check_destination()
 
-        url, rev = self.get_url_and_revision()
+        url, rev = self.get_url_and_revision_from_pip_url()
 
         self.run_buffered(
             ['hg', 'clone', '--noupdate', '-q', url, self['path']])
