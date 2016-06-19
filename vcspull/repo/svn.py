@@ -36,16 +36,48 @@ class SubversionRepo(BaseRepo):
     schemes = ('svn')
 
     def __init__(self, url, **kwargs):
+        """A svn repository.
+
+        :param url: URL in pip vcs format:
+
+            - ``svn+svn://svn.myproject.org/svn/MyProject``
+            - ``svn+http://svn.myproject.org/svn/MyProject/trunk@2019``
+        :type url: str
+
+        :param svn_username: username to use for checkout and update
+        :type svn_username: str or None
+
+        :param svn_password: password to use for checkout and update
+        :type svn_password: str or None
+
+        :param svn_trust_cert: trust the Subversion server site certificate (default False)
+        :type svn_trust_cert: bool
+        """
+        if 'svn_trust_cert' not in kwargs:
+            kwargs['svn_trust_cert'] = False
         BaseRepo.__init__(self, url, **kwargs)
+
+    def _user_pw_args(self):
+        args = []
+        for param_name in ['svn_username', 'svn_password']:
+            if param_name in self.attributes:
+                args.extend(['--' + param_name[4:], self.attributes[param_name]])
+        return args
 
     def obtain(self, quiet=None):
         self.check_destination()
 
         url, rev = self.get_url_rev()
-        get_rev_options(url, rev)
+
+        cmd = ['svn', 'checkout', '-q', url, '--non-interactive']
+        if self.attributes['svn_trust_cert']:
+            cmd.append('--trust-server-cert')
+        cmd.extend(self._user_pw_args())
+        cmd.extend(get_rev_options(url, rev))
+        cmd.append(self['path'])
 
         self.run(
-            ['svn', 'checkout', '-q', url, self['path']],
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=os.environ.copy(),
@@ -120,8 +152,12 @@ class SubversionRepo(BaseRepo):
 
             url, rev = self.get_url_rev()
 
+            cmd = ['svn', 'update']
+            cmd.extend(self._user_pw_args())
+            cmd.extend(get_rev_options(url, rev))
+
             self.run(
-                ['svn', 'update'],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=os.environ.copy(), cwd=self['path'],

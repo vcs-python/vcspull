@@ -129,7 +129,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def run(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        env=os.environ.copy(), cwd=None, stream_stderr=True, *args, **kwargs
+        env=os.environ.copy(), cwd=None, stream_stderr=True, log_stdout=True, *args, **kwargs
     ):
         process = subprocess.Popen(
             cmd,
@@ -139,7 +139,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         )
 
         if stream_stderr:
-            self.start_progress(' '.join(cmd))
+            self.start_progress(' '.join(["'%s'" % arg for arg in cmd]))
             while True:
 
                 err = console_to_str(process.stderr.read(128))
@@ -152,9 +152,11 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
                 else:
                     self.show_progress("%s" % err)
 
-            self.end_progress('%s' % (console_to_str(process.stdout.read())))
+            process.stdout_data = console_to_str(process.stdout.read())
+            self.end_progress('%s' % process.stdout_data if log_stdout else '')
         else:
-            self.info('%s' % (process.stdout.read()))
+            process.stdout_data = process.stdout.read()
+            self.info('%s' % process.stdout_data)
 
         process.stderr.close()
         process.stdout.close()
