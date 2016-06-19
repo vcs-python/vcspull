@@ -16,9 +16,4 @@ from __future__ import absolute_import, print_function, unicode_literals
 import logging
 from logging import NullHandler
 
-from .cli import setup_logger
-from .config import extract_repos, filter_repos, is_config_file, load_configs
-from .log import DebugLogFormatter, LogFormatter, RepoFilter, RepoLogFormatter
-from .util import mkdir_p, run, update_dict, which
-
 logging.getLogger(__name__).addHandler(NullHandler())
