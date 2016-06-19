@@ -14,7 +14,12 @@ from vcspull.repo import create_repo
 from vcspull.util import run
 
 
-def test_repo_git_obtain_bare_repo(tmpdir):
+def test_repo_git_obtain_initial_commit_repo(tmpdir):
+    """initial commit repos return 'initial'.
+
+    note: this behaviors differently from git(1)'s use of the word "bare".
+    running `git rev-parse --is-bare-repository` would return false.
+    """
     repo_name = 'my_git_project'
 
     run([  # init bare repo
@@ -30,7 +35,7 @@ def test_repo_git_obtain_bare_repo(tmpdir):
     })
 
     git_repo.obtain(quiet=True)
-    assert git_repo.get_revision() == 'HEAD'
+    assert git_repo.get_revision() == 'initial'
 
 
 def test_repo_git_obtain_full(tmpdir, git_dummy_repo_dir):
@@ -67,7 +72,7 @@ def test_remotes(git_repo_kwargs):
 
     git_repo = create_repo(**git_repo_kwargs)
     git_repo.obtain(quiet=True)
-    assert remote_name in git_repo.remotes_get()
+    assert remote_name in git_repo.remotes_get
 
 
 def test_remotes_vcs_prefix(git_repo_kwargs):
@@ -84,7 +89,7 @@ def test_remotes_vcs_prefix(git_repo_kwargs):
     git_repo = create_repo(**git_repo_kwargs)
     git_repo.obtain(quiet=True)
 
-    assert (remote_url, remote_url,) in git_repo.remotes_get().values()
+    assert (remote_url, remote_url,) in git_repo.remotes_get.values()
 
 
 def test_remotes_preserves_git_ssh(git_repo_kwargs):
@@ -102,7 +107,7 @@ def test_remotes_preserves_git_ssh(git_repo_kwargs):
     git_repo = create_repo(**git_repo_kwargs)
     git_repo.obtain(quiet=True)
 
-    assert (remote_url, remote_url,) in git_repo.remotes_get().values()
+    assert (remote_url, remote_url,) in git_repo.remotes_get.values()
 
 
 def test_private_ssh_format(git_repo_kwargs):
@@ -117,14 +122,14 @@ def test_private_ssh_format(git_repo_kwargs):
 
 
 def test_ls_remotes(git_repo):
-    remotes = git_repo.remotes_get()
+    remotes = git_repo.remotes_get
 
     assert 'origin' in remotes
 
 
 def test_get_remotes(git_repo):
 
-    assert 'origin' in git_repo.remotes_get()
+    assert 'origin' in git_repo.remotes_get
 
 
 def test_set_remote(git_repo):
@@ -138,7 +143,7 @@ def test_set_remote(git_repo):
     assert 'file:///' in git_repo.remote_get(remote='myrepo'), \
         'remote_get returns remote'
 
-    assert 'myrepo' in git_repo.remotes_get(), \
+    assert 'myrepo' in git_repo.remotes_get, \
         '.remotes_get() returns new remote'
 
 

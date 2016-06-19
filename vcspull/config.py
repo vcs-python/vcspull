@@ -27,8 +27,10 @@ log = logging.getLogger(__name__)
 def expand_dir(_dir, cwd=os.getcwd()):
     """Return path with environmental variables and tilde ~ expanded.
 
-    :param dir:
-    :type dir: string
+    :param _dir:
+    :type _dir: string
+    :param cwd: current working dir (for deciphering relative _dir paths)
+    :type cwd: string
     :rtype; string
     """
     _dir = os.path.expanduser(os.path.expandvars(_dir))
@@ -45,6 +47,8 @@ def extract_repos(config, cwd=os.getcwd()):
 
     :param config: the repo config in :py:class:`dict` format.
     :type config: dict
+    :param cwd: current working dir (for deciphering relative paths)
+    :type cwd: string
     :rtype: list
 
     """
@@ -194,8 +198,10 @@ def load_configs(files, cwd=os.getcwd()):
 
     :todo: Validate scheme, check for duplciate destinations, VCS urls
 
-    :param configs: paths to config file
-    :type path: list
+    :param files: paths to config file
+    :type files: list
+    :param cwd: current path (pass down for :func:`extract_repos`
+    :type cwd: str
     :returns: expanded config dict item
     :rtype: list of dict
     """

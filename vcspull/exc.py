@@ -20,13 +20,17 @@ class VCSPullException(Exception):
 
 
 class VCSPullSubprocessException(VCSPullException, CalledProcessError):
-    """Non-zero return code."""
+    """This exception is raised on non-zero Base.run, util.run return codes."""
 
     def __init__(self, returncode, cmd, output):
         CalledProcessError.__init__(self,
                                     returncode=returncode,
                                     cmd=cmd,
                                     output=output)
+
+    def __str__(self):
+        return "Command '%s' returned non-zero exit status %d: \n%s" % (
+            self.cmd, self.returncode, self.output)
 
 
 class NoConfigsFound(VCSPullException):
