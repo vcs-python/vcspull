@@ -38,11 +38,11 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
         Both :class:`Repo` and :py:class:`logging.LogRecord` use ``name``.
 
         """
-        prefixed_dict = {}
-        for key, v in self.attributes.items():
-            prefixed_dict['repo_' + key] = v
-
-        kwargs["extra"] = prefixed_dict
+        # prefixed_dict = {}
+        # for key, v in self.attributes.items():
+        #     prefixed_dict['repo_' + key] = v
+        #
+        # kwargs["extra"] = prefixed_dict
 
         return msg, kwargs
 
@@ -102,21 +102,19 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
                 self.last_message = message
 
 
-class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
+class BaseRepo(RepoLoggingAdapter, object):
 
     """Base class for repositories.
 
-    Extends :py:class:`collections.MutableMapping` and
-    :py:class:`logging.LoggerAdapter`.
-
+    Extends and :py:class:`logging.LoggerAdapter`.
     """
 
     def __init__(self, url, parent_dir, *args, **kwargs):
-        self.attributes = kwargs
-        self.attributes['url'] = url
-        self.attributes['parent_dir'] = parent_dir
+        self.__dict__.update(kwargs)
+        self.url = url
+        self.parent_dir = parent_dir
 
-        self['path'] = os.path.join(self['parent_dir'], self['name'])
+        self.path = os.path.join(self.parent_dir, self.name)
 
         # Register more schemes with urlparse for various version control
         # systems
@@ -127,10 +125,10 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
         url, rev = self.get_url_and_revision_from_pip_url()
         if url:
-            self.attributes['url'] = url
-        self.attributes['rev'] = rev if rev else None
+            self.url = url
+        self.rev = rev if rev else None
 
-        RepoLoggingAdapter.__init__(self, logger, self.attributes)
+        RepoLoggingAdapter.__init__(self, logger, {})
 
     def run_buffered(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -139,7 +137,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
     ):
         """Run command with stderr directly to buffer, for CLI usage.
 
-        This method will also prefix the VCS command name.
+        This method will also prefix the VCS command bin_name.
 
         This is meant for buffering the raw progress of git/hg/etc. to CLI
         when it is processing.
@@ -156,9 +154,9 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         :rtype: :class:`Subprocess.Popen`
         """
         if cwd is None:
-            cwd = self.get('path', None)
+            cwd = getattr(self, 'path', None)
 
-        cmd = [self.name] + cmd
+        cmd = [self.bin_name] + cmd
 
         process = subprocess.Popen(
             cmd,
@@ -193,7 +191,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
     ):
         """Return combined stderr/stdout from a command.
 
-        This method will also prefix the VCS command name.
+        This method will also prefix the VCS command bin_name.
         By default runs using the cwd :attr:`~.path` of the repo.
 
         :param cwd: dir command is run from, defaults :attr:`~.path`.
@@ -203,9 +201,9 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         """
 
         if cwd is None:
-            cwd = self.get('path', None)
+            cwd = getattr(self, 'path', None)
 
-        cmd = [self.name] + cmd
+        cmd = [self.bin_name] + cmd
 
         return run(
             cmd,
@@ -217,13 +215,13 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def check_destination(self, *args, **kwargs):
         """Assure destination path exists. If not, create directories."""
-        if not os.path.exists(self['parent_dir']):
-            mkdir_p(self['parent_dir'])
+        if not os.path.exists(self.parent_dir):
+            mkdir_p(self.parent_dir)
         else:
-            if not os.path.exists(self['path']):
+            if not os.path.exists(self.path):
                 self.debug('Repo directory for %s (%s) does not exist @ %s' % (
-                    self['name'], self['vcs'], self['path']))
-                mkdir_p(self['path'])
+                    self.name, self.vcs, self.path))
+                mkdir_p(self.path)
 
         return True
 
@@ -236,30 +234,11 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
             "Sorry, '%s' is a malformed VCS url. "
             "The format is <vcs>+<protocol>://<url>, "
             "e.g. svn+http://myrepo/svn/MyApp#egg=MyApp")
-        assert '+' in self['url'], error_message % self['url']
-        url = self['url'].split('+', 1)[1]
+        assert '+' in self.url, error_message % self.url
+        url = self.url.split('+', 1)[1]
         scheme, netloc, path, query, frag = urlparse.urlsplit(url)
         rev = None
         if '@' in path:
             path, rev = path.rsplit('@', 1)
         url = urlparse.urlunsplit((scheme, netloc, path, query, ''))
         return url, rev
-
-    def __getitem__(self, key):
-        return self.attributes[key]
-
-    def __setitem__(self, key, value):
-        self.attributes[key] = value
-
-    def __delitem__(self, key):
-        del self.attributes[key]
-
-    def keys(self):
-        """Return keys."""
-        return self.attributes.keys()
-
-    def __iter__(self):
-        return self.attributes.__iter__()
-
-    def __len__(self):
-        return len(self.attributes.keys())

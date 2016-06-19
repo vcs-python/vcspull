@@ -45,7 +45,7 @@ def test_repo_mercurial(tmpdir, hg_dummy_repo_dir):
         'name': repo_name
     })
 
-    run(['hg', 'init', mercurial_repo['name']],
+    run(['hg', 'init', mercurial_repo.name],
         cwd=str(tmpdir))
 
     mercurial_repo.obtain()

@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class SubversionRepo(BaseRepo):
-    name = 'svn'
+    bin_name = 'svn'
     schemes = ('svn', 'svn+ssh', 'svn+http', 'svn+https', 'svn+svn')
 
     def __init__(self, url, **kwargs):
@@ -55,28 +55,28 @@ class SubversionRepo(BaseRepo):
         :type svn_trust_cert: bool
         """
         if 'svn_trust_cert' not in kwargs:
-            kwargs['svn_trust_cert'] = False
+            self.svn_trust_cert = False
         BaseRepo.__init__(self, url, **kwargs)
 
     def _user_pw_args(self):
         args = []
         for param_name in ['svn_username', 'svn_password']:
-            if param_name in self.attributes:
+            if hasattr(self, param_name):
                 args.extend(['--' + param_name[4:],
-                             self.attributes[param_name]])
+                             getattr(self, param_name)])
         return args
 
     def obtain(self, quiet=None):
         self.check_destination()
 
-        url, rev = self['url'], self['rev']
+        url, rev = self.url, self.rev
 
         cmd = ['checkout', '-q', url, '--non-interactive']
-        if self.attributes['svn_trust_cert']:
+        if self.svn_trust_cert:
             cmd.append('--trust-server-cert')
         cmd.extend(self._user_pw_args())
         cmd.extend(get_rev_options(url, rev))
-        cmd.append(self['path'])
+        cmd.append(self.path)
 
         self.run(cmd)
 
@@ -86,7 +86,7 @@ class SubversionRepo(BaseRepo):
         if location:
             cwd = location
         else:
-            cwd = self['path']
+            cwd = self.path
 
         current_rev = run(['info', cwd])
         infos = current_rev['stdout']
@@ -105,7 +105,7 @@ class SubversionRepo(BaseRepo):
         """
 
         if not location:
-            location = self['url']
+            location = self.url
 
         if os.path.exists(location) and not os.path.isdir(location):
             return self.get_revision_file(location)
@@ -142,10 +142,10 @@ class SubversionRepo(BaseRepo):
 
     def update_repo(self, dest=None):
         self.check_destination()
-        if os.path.isdir(os.path.join(self['path'], '.svn')):
-            dest = self['path'] if not dest else dest
+        if os.path.isdir(os.path.join(self.path, '.svn')):
+            dest = self.path if not dest else dest
 
-            url, rev = self['url'], self['rev']
+            url, rev = self.url, self.rev
 
             cmd = ['update']
             cmd.extend(self._user_pw_args())

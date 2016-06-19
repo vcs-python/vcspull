@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 class GitRepo(BaseRepo):
-    name = 'git'
+    bin_name = 'git'
     schemes = (
         'git', 'git+http', 'git+https', 'git+ssh', 'git+git', 'git+file',
     )
@@ -72,17 +72,17 @@ class GitRepo(BaseRepo):
         :type tls_verify: bool
         """
         if 'git_remote_name' not in kwargs:
-            kwargs['git_remote_name'] = "origin"
+            self.git_remote_name = "origin"
         if 'git_shallow' not in kwargs:
-            kwargs['git_shallow'] = False
+            self.git_shallow = False
         if 'git_submodules' not in kwargs:
-            kwargs['git_submodules'] = []
+            self.git_submodules = []
         if 'tls_verify' not in kwargs:
-            kwargs['tls_verify'] = False
+            self.tls_verify = False
         print(url, kwargs)
         BaseRepo.__init__(self, url, **kwargs)
 
-        self['remotes'] = remotes
+        self.remotes = remotes
 
     def get_revision(self):
         """Return current revision. Initial repositories return 'initial'."""
@@ -98,16 +98,16 @@ class GitRepo(BaseRepo):
         work with a ssh:// scheme (e.g. Github). But we need a scheme for
         parsing. Hence we remove it again afterwards and return it as a stub.
         """
-        if '://' not in self['url']:
-            assert 'file:' not in self['url']
+        if '://' not in self.url:
+            assert 'file:' not in self.url
             self.url = self.url.replace('git+', 'git+ssh://')
             url, rev = super(GitRepo, self).get_url_and_revision_from_pip_url()
             url = url.replace('ssh://', '')
-        elif 'github.com:' in self['url']:
+        elif 'github.com:' in self.url:
             raise exc.VCSPullException(
                 "Repo %s is malformatted, please use the convention %s for"
                 "ssh / private GitHub repositories." % (
-                    self['url'], "git+https://github.com/username/repo.git"
+                    self.url, "git+https://github.com/username/repo.git"
                 )
             )
         else:
@@ -124,20 +124,20 @@ class GitRepo(BaseRepo):
         """
         self.check_destination()
 
-        url = self['url']
+        url = self.url
 
         cmd = ['clone', '--progress']
-        if self.attributes['git_shallow']:
+        if self.git_shallow:
             cmd.extend(['--depth', '1'])
-        if self.attributes['tls_verify']:
+        if self.tls_verify:
             cmd.extend(['-c', 'http.sslVerify=false'])
-        cmd.extend([url, self['path']])
+        cmd.extend([url, self.path])
 
         self.info('Cloning.')
         self.run_buffered(cmd)
 
-        if self['remotes']:
-            for r in self['remotes']:
+        if self.remotes:
+            for r in self.remotes:
                 self.error('Adding remote %s <%s>' %
                            (r['remote_name'], r['url']))
                 self.remote_set(
@@ -148,19 +148,19 @@ class GitRepo(BaseRepo):
         self.info('Initializing submodules.')
         self.run_buffered(['submodule', 'init'],)
         cmd = ['submodule', 'update', '--recursive', '--init']
-        cmd.extend(self.attributes['git_submodules'])
+        cmd.extend(self.git_submodules)
         self.run_buffered(cmd)
 
     def update_repo(self):
         self.check_destination()
 
-        if not os.path.isdir(os.path.join(self['path'], '.git')):
+        if not os.path.isdir(os.path.join(self.path, '.git')):
             self.obtain()
             self.update_repo()
             return
 
         # Get requested revision or tag
-        url, git_tag = self['url'], self['rev']
+        url, git_tag = self.url, self.rev
 
         if not git_tag:
             self.debug("No git revision set, defaulting to origin/master")
@@ -193,7 +193,7 @@ class GitRepo(BaseRepo):
 
         # Tag is in the form <remote>/<tag> (i.e. origin/master) we must
         # strip the remote from the tag.
-        git_remote_name = self.attributes['git_remote_name']
+        git_remote_name = self.git_remote_name
         if "refs/remotes/%s" % git_tag in show_ref_output:
             m = re.match(r'^(?P<git_remote_name>[^/]+)/(?P<git_tag>.+)$',
                          show_ref_output)
@@ -256,7 +256,7 @@ class GitRepo(BaseRepo):
                 self.error(
                     "\nFailed to rebase in: '%s'.\n"
                     "You will have to resolve the conflicts manually" %
-                    self['path'])
+                    self.path)
                 return
 
             if need_stash:
@@ -275,7 +275,7 @@ class GitRepo(BaseRepo):
                         self.run(['stash', 'pop', '--index', '--quiet'])
                         self.error("\nFailed to rebase in: '%s'.\n"
                                    "You will have to resolve the "
-                                   "conflicts manually" % self['path'])
+                                   "conflicts manually" % self.path)
                         return
 
         else:
@@ -286,7 +286,7 @@ class GitRepo(BaseRepo):
                 return
 
         cmd = ['submodule', 'update', '--recursive', '--init']
-        cmd.extend(self.attributes['git_submodules'])
+        cmd.extend(self.git_submodules)
         self.run(cmd)
 
     def revision(self, cwd=None, rev='HEAD', short=False, user=None):
@@ -398,7 +398,7 @@ class GitRepo(BaseRepo):
         """
 
         if not cwd:
-            cwd = self['path']
+            cwd = self.path
 
         if not opts:
             opts = ''
