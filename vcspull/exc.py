@@ -9,12 +9,24 @@ vcspull.exc
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals, with_statement)
 
+from subprocess import CalledProcessError
+
 
 class VCSPullException(Exception):
 
     """Standard VCSPullException."""
 
     pass
+
+
+class VCSPullSubprocessException(VCSPullException, CalledProcessError):
+    """Non-zero return code."""
+
+    def __init__(self, returncode, cmd, output):
+        CalledProcessError.__init__(self,
+                                    returncode=returncode,
+                                    cmd=cmd,
+                                    output=output)
 
 
 class NoConfigsFound(VCSPullException):
