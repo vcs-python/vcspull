@@ -16,7 +16,7 @@ import sys
 
 from .. import exc
 from .._compat import console_to_str, text_type, urlparse
-from ..util import mkdir_p, remove_tracebacks
+from ..util import mkdir_p, remove_tracebacks, run
 
 logger = logging.getLogger(__name__)
 
@@ -129,14 +129,27 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def run_buffered(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        env=os.environ.copy(), cwd=None, stream_stderr=False, log_stdout=False,
+        env=os.environ.copy(), cwd=None, print_stdout_on_progress_end=False,
         *args, **kwargs
     ):
+        """Run command with stderr directly to buffer, for CLI usage.
+
+        This is meant for buffering the raw progress of git/hg/etc. to CLI
+        when it is processing.
+
+        :param cwd: dir command is run from, defaults :path:`~.path`.
+        :type cwd: string
+        :param print_stdout_on_progress_end: print final (non-buffered) stdout
+            message to buffer in cases like git pull, this would be
+            'Already up to date.'
+            You will also have this stdout information in ``.stdout_data``
+            of the return object.
+        :type print_stdout_on_progress_end: bool
+        :returns: subprocess instance ``.stdout_data`` attached.
+        :rtype: :class:`Subprocess.Popen`
+        """
         if cwd is None:
             cwd = self.get('path', None)
-
-        if not stream_stderr and not stderr:
-            stderr = subprocess.STDOUT
 
         process = subprocess.Popen(
             cmd,
@@ -158,7 +171,8 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
                 self.show_progress("%s" % err)
 
         process.stdout_data = console_to_str(process.stdout.read())
-        self.end_progress('%s' % process.stdout_data if log_stdout else '')
+        self.end_progress(
+            '%s' % process.stdout_data if print_stdout_on_progress_end else '')
 
         process.stderr.close()
         process.stdout.close()
@@ -166,40 +180,28 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def run(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        env=os.environ.copy(), cwd=None, stream_stderr=False, log_stdout=False,
-        *args, **kwargs
+        env=os.environ.copy(), cwd=None, *args, **kwargs
     ):
+        """Return combined stderr/stdout from a command.
+
+        By default runs using the cwd :attr:`~.path` of the repo.
+
+        :param cwd: dir command is run from, defaults :attr:`~.path`.
+        :type cwd: string
+        :returns: combined stdout/stderr in a big string, \n's retained
+        :rtype: str
+        """
+
         if cwd is None:
             cwd = self.get('path', None)
 
-        process = subprocess.Popen(
+        return run(
             cmd,
             stdout=stdout,
             stderr=stderr,
-            env=env, cwd=cwd
+            env=env, cwd=cwd,
+            *args, **kwargs
         )
-
-        process.wait()
-        all_output = []
-        while True:
-            line = console_to_str(process.stdout.readline())
-            if not line:
-                break
-            line = line.rstrip()
-            all_output.append(line + '\n')
-
-        output = ''.join(all_output)
-        if log_stdout:
-            self.debug('%s' % output)
-
-        if process.returncode:
-            raise exc.VCSPullSubprocessException(
-                returncode=process.returncode,
-                cmd=cmd,
-                output=output,
-            )
-
-        return remove_tracebacks(output).rstrip()
 
     def check_destination(self, *args, **kwargs):
         """Assure destination path exists. If not, create directories."""

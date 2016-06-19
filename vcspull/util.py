@@ -42,25 +42,26 @@ def run(
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     shell=False,
-    env=(),
+    env=os.environ.copy(),
     timeout=None
 ):
+    """Run command and return output.
+
+    :returns: combined stdout/stderr in a big string, \n's retained
+    :rtype: str
+    """
     if isinstance(cmd, string_types):
         cmd = cmd.split(' ')
     if isinstance(cmd, list):
         cmd[0] = which(cmd[0])
 
-    kwargs = {
-        'cwd': cwd,
-        'stdin': stdin,
-        'stdout': stdout,
-        'stderr': stderr,
-        'shell': shell,
-        'env': os.environ.copy(),
-    }
-
     try:
-        process = subprocess.Popen(cmd, **kwargs)
+        process = subprocess.Popen(
+            cmd,
+            stdout=stdout,
+            stderr=stderr,
+            env=env, cwd=cwd
+        )
     except (OSError, IOError) as e:
         raise exc.VCSPullException('Unable to run command: %s' % e)
 
@@ -72,6 +73,7 @@ def run(
             break
         line = line.rstrip()
         all_output.append(line + '\n')
+    all_output = ''.join(all_output)
 
     if process.returncode:
         logging.error(all_output)
@@ -81,7 +83,7 @@ def run(
             output=all_output,
         )
 
-    return remove_tracebacks(''.join(all_output)).rstrip()
+    return remove_tracebacks(all_output).rstrip()
 
 
 def which(exe=None):
