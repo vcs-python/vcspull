@@ -173,7 +173,7 @@ class GitRepo(BaseRepo):
         try:
             head_sha = self.run([
                 'git', 'rev-list', '--max-count=1', 'HEAD'
-            ], log_stdout=False)
+            ], print_stdout_on_progress_end=False)
         except exc.VCSPullSubprocessException as e:
             self.error("Failed to get the hash for HEAD")
             return
@@ -184,7 +184,7 @@ class GitRepo(BaseRepo):
         # we must always do a fetch and checkout.
         show_ref_output = self.run([
             'git', 'show-ref', git_tag
-        ], log_stdout=False)
+        ], print_stdout_on_progress_end=False)
         self.debug("show_ref_output: %s" % show_ref_output)
         is_remote_ref = "remotes" in show_ref_output
         self.debug("is_remote_ref: %s" % is_remote_ref)
@@ -204,7 +204,7 @@ class GitRepo(BaseRepo):
             error_code = 0
             tag_sha = self.run([
                 'git', 'rev-list', '--max-count=1', git_tag
-            ], log_stdout=False)
+            ], print_stdout_on_progress_end=False)
         except exc.VCSPullSubprocessException as e:
             error_code = e.subprocess.returncode
         self.debug("tag_sha: %s" % tag_sha)
@@ -245,7 +245,7 @@ class GitRepo(BaseRepo):
             try:
                 process = self.run([
                     'git', 'rebase', git_remote_name + '/' + git_tag
-                ], log_stdout=False)
+                ], print_stdout_on_progress_end=False)
             except exc.VCSPullSubprocessException as e:
                 # Rebase failed: Restore previous state.
                 self.run(['git', 'rebase', '--abort'])
