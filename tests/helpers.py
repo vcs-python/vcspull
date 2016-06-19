@@ -8,8 +8,7 @@ _CallableContext, WhateverIO, decorator and stdouts are from the case project,
 https://github.com/celery/case, license BSD 3-clause.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 

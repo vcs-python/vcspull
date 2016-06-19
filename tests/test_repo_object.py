@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Tests for placing config dicts into :py:class:`Repo` objects."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 

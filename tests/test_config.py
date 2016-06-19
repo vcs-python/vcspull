@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Tests for vcspull config loading."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 
@@ -9,7 +8,7 @@ import kaptan
 import pytest
 
 from vcspull import config, exc
-from vcspull.config import extract_repos, expand_dir
+from vcspull.config import expand_dir, extract_repos
 
 from .fixtures import example as fixtures
 from .fixtures._util import loadfixture

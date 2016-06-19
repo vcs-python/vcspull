@@ -5,9 +5,7 @@ vcspull.util
 ~~~~~~~~~~~~
 
 """
-
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import collections
 import errno
@@ -17,7 +15,7 @@ import re
 import subprocess
 
 from . import exc
-from ._compat import string_types, console_to_str, PY2
+from ._compat import PY2, console_to_str, string_types
 
 CONFIG_DIR = os.path.expanduser('~/.vcspull/')  # remove dupes of this
 

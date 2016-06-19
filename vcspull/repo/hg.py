@@ -11,8 +11,7 @@ The following is from pypa/pip (MIT license):
 - :py:meth:`MercurialRepo.get_revision`
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 import os

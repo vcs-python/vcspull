@@ -6,9 +6,7 @@ vcspull.config
 A lot of these items are todo.
 
 """
-
-from __future__ import (absolute_import, print_function, unicode_literals,
-                        with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import fnmatch
 import glob
