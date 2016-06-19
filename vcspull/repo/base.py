@@ -134,6 +134,8 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
     ):
         """Run command with stderr directly to buffer, for CLI usage.
 
+        This method will also prefix the VCS command name.
+
         This is meant for buffering the raw progress of git/hg/etc. to CLI
         when it is processing.
 
@@ -150,6 +152,8 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         """
         if cwd is None:
             cwd = self.get('path', None)
+
+        cmd = [self.name] + cmd
 
         process = subprocess.Popen(
             cmd,
@@ -184,6 +188,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
     ):
         """Return combined stderr/stdout from a command.
 
+        This method will also prefix the VCS command name.
         By default runs using the cwd :attr:`~.path` of the repo.
 
         :param cwd: dir command is run from, defaults :attr:`~.path`.
@@ -194,6 +199,8 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
         if cwd is None:
             cwd = self.get('path', None)
+
+        cmd = [self.name] + cmd
 
         return run(
             cmd,

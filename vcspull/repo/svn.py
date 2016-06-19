@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 
 
 class SubversionRepo(BaseRepo):
-    schemes = ('svn')
+    name = 'svn'
+    schemes = ('svn', 'svn+ssh', 'svn+http', 'svn+https', 'svn+svn')
 
     def __init__(self, url, **kwargs):
         """A svn repository.
@@ -70,7 +71,7 @@ class SubversionRepo(BaseRepo):
 
         url, rev = self.get_url_and_revision_from_pip_url()
 
-        cmd = ['svn', 'checkout', '-q', url, '--non-interactive']
+        cmd = ['checkout', '-q', url, '--non-interactive']
         if self.attributes['svn_trust_cert']:
             cmd.append('--trust-server-cert')
         cmd.extend(self._user_pw_args())
@@ -87,7 +88,7 @@ class SubversionRepo(BaseRepo):
         else:
             cwd = self['path']
 
-        current_rev = run(['svn', 'info', cwd])
+        current_rev = run(['info', cwd])
         infos = current_rev['stdout']
 
         _INI_RE = re.compile(r"^([^:]+):\s+(\S.*)$", re.M)
@@ -146,7 +147,7 @@ class SubversionRepo(BaseRepo):
 
             url, rev = self.get_url_and_revision_from_pip_url()
 
-            cmd = ['svn', 'update']
+            cmd = ['update']
             cmd.extend(self._user_pw_args())
             cmd.extend(get_rev_options(url, rev))
 

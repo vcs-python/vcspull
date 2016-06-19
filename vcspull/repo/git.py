@@ -35,7 +35,10 @@ logger = logging.getLogger(__name__)
 
 
 class GitRepo(BaseRepo):
-    schemes = ('git')
+    name = 'git'
+    schemes = (
+        'git', 'git+http', 'git+https', 'git+ssh', 'git+git', 'git+file',
+    )
 
     def __init__(self, url, remotes=None, **kwargs):
         """A git repository.
@@ -83,7 +86,7 @@ class GitRepo(BaseRepo):
     def get_revision(self):
         """Return current revision. Initial repositories return 'initial'."""
         try:
-            return self.run(['git', 'rev-parse', '--verify', 'HEAD'])
+            return self.run(['rev-parse', '--verify', 'HEAD'])
         except exc.VCSPullSubprocessException:
             return 'initial'
 
@@ -123,7 +126,7 @@ class GitRepo(BaseRepo):
 
         url, _ = self.get_url_and_revision_from_pip_url()
 
-        cmd = ['git', 'clone', '--progress']
+        cmd = ['clone', '--progress']
         if self.attributes['git_shallow']:
             cmd.extend(['--depth', '1'])
         if self.attributes['tls_verify']:
@@ -143,8 +146,8 @@ class GitRepo(BaseRepo):
                 )
 
         self.info('Initializing submodules.')
-        self.run_buffered(['git', 'submodule', 'init'],)
-        cmd = ['git', 'submodule', 'update', '--recursive', '--init']
+        self.run_buffered(['submodule', 'init'],)
+        cmd = ['submodule', 'update', '--recursive', '--init']
         cmd.extend(self.attributes['git_submodules'])
         self.run_buffered(cmd)
 
@@ -160,7 +163,7 @@ class GitRepo(BaseRepo):
         url, git_tag = self.get_url_and_revision_from_pip_url()
         if not git_tag:
             self.debug("No git revision set, defaulting to origin/master")
-            symref = self.run(['git', 'symbolic-ref', '--short', 'HEAD'])
+            symref = self.run(['symbolic-ref', '--short', 'HEAD'])
             if symref:
                 git_tag = symref.rstrip()
             else:
@@ -171,9 +174,8 @@ class GitRepo(BaseRepo):
 
         # Get head sha
         try:
-            head_sha = self.run([
-                'git', 'rev-list', '--max-count=1', 'HEAD'
-            ], print_stdout_on_progress_end=False)
+            head_sha = self.run(['rev-list', '--max-count=1', 'HEAD'],
+                                print_stdout_on_progress_end=False)
         except exc.VCSPullSubprocessException as e:
             self.error("Failed to get the hash for HEAD")
             return
@@ -182,9 +184,8 @@ class GitRepo(BaseRepo):
 
         # If a remote ref is asked for, which can possibly move around,
         # we must always do a fetch and checkout.
-        show_ref_output = self.run([
-            'git', 'show-ref', git_tag
-        ], print_stdout_on_progress_end=False)
+        show_ref_output = self.run(['show-ref', git_tag],
+                                   print_stdout_on_progress_end=False)
         self.debug("show_ref_output: %s" % show_ref_output)
         is_remote_ref = "remotes" in show_ref_output
         self.debug("is_remote_ref: %s" % is_remote_ref)
@@ -202,9 +203,8 @@ class GitRepo(BaseRepo):
         # been fetched yet).
         try:
             error_code = 0
-            tag_sha = self.run([
-                'git', 'rev-list', '--max-count=1', git_tag
-            ], print_stdout_on_progress_end=False)
+            tag_sha = self.run(['rev-list', '--max-count=1', git_tag],
+                               print_stdout_on_progress_end=False)
         except exc.VCSPullSubprocessException as e:
             error_code = e.subprocess.returncode
         self.debug("tag_sha: %s" % tag_sha)
@@ -215,7 +215,7 @@ class GitRepo(BaseRepo):
             self.info("Already up-to-date.")
             return
 
-        process = self.run_buffered(['git', 'fetch'])
+        process = self.run_buffered(['fetch'])
         if process.returncode:
             self.error("Failed to fetch repository '%s'" % url)
             return
@@ -223,7 +223,7 @@ class GitRepo(BaseRepo):
         if is_remote_ref:
             # Check if stash is needed
             try:
-                process = self.run(['git', 'status', '--porcelain'])
+                process = self.run(['status', '--porcelain'])
             except exc.VCSPullSubprocessException as e:
                 self.error("Failed to get the status")
                 return
@@ -236,7 +236,7 @@ class GitRepo(BaseRepo):
                 git_stash_save_options = '--quiet'
                 try:
                     process = self.run([
-                        'git', 'stash', 'save', git_stash_save_options
+                        'stash', 'save', git_stash_save_options
                     ])
                 except exc.VCSPullSubprocessException as e:
                     self.error("Failed to stash changes")
@@ -244,13 +244,13 @@ class GitRepo(BaseRepo):
             # Pull changes from the remote branch
             try:
                 process = self.run([
-                    'git', 'rebase', git_remote_name + '/' + git_tag
+                    'rebase', git_remote_name + '/' + git_tag
                 ], print_stdout_on_progress_end=False)
             except exc.VCSPullSubprocessException as e:
                 # Rebase failed: Restore previous state.
-                self.run(['git', 'rebase', '--abort'])
+                self.run(['rebase', '--abort'])
                 if need_stash:
-                    self.run(['git', 'stash', 'pop', '--index', '--quiet'])
+                    self.run(['stash', 'pop', '--index', '--quiet'])
 
                 self.error(
                     "\nFailed to rebase in: '%s'.\n"
@@ -261,20 +261,17 @@ class GitRepo(BaseRepo):
             if need_stash:
                 try:
                     process = self.run([
-                        'git', 'stash', 'pop', '--index', '--quiet'
+                        'stash', 'pop', '--index', '--quiet'
                     ])
                 except exc.VCSPullSubprocessException as e:
-                    # Stash pop --index failed: Try again dropping the
-                    # index
-                    self.run(['git', 'reset', '--hard', '--quiet'])
+                    # Stash pop --index failed: Try again dropping the index
+                    self.run(['reset', '--hard', '--quiet'])
                     try:
-                        process = self.run(['git', 'stash', 'pop', '--quiet'])
+                        process = self.run(['stash', 'pop', '--quiet'])
                     except exc.VCSPullSubprocessException as e:
                         # Stash pop failed: Restore previous state.
-                        self.run(
-                            ['git', 'reset', '--hard', '--quiet', head_sha]
-                        )
-                        self.run(['git', 'stash', 'pop', '--index', '--quiet'])
+                        self.run(['reset', '--hard', '--quiet', head_sha])
+                        self.run(['stash', 'pop', '--index', '--quiet'])
                         self.error("\nFailed to rebase in: '%s'.\n"
                                    "You will have to resolve the "
                                    "conflicts manually" % self['path'])
@@ -282,12 +279,12 @@ class GitRepo(BaseRepo):
 
         else:
             try:
-                process = self.run(['git', 'checkout', git_tag])
+                process = self.run(['checkout', git_tag])
             except exc.VCSPullSubprocessException as e:
                 self.error("Failed to checkout tag: '%s'" % git_tag)
                 return
 
-        cmd = ['git', 'submodule', 'update', '--recursive', '--init']
+        cmd = ['submodule', 'update', '--recursive', '--init']
         cmd.extend(self.attributes['git_submodules'])
         self.run(cmd)
 
@@ -320,7 +317,7 @@ class GitRepo(BaseRepo):
         """
         remotes = {}
 
-        cmd = self.run(['git', 'remote'])
+        cmd = self.run(['remote'])
         ret = filter(None, cmd.split('\n'))
 
         for remote_name in ret:
@@ -336,7 +333,7 @@ class GitRepo(BaseRepo):
         :rtype: tuple
         """
         try:
-            ret = self.run(['git', 'remote', 'show', '-n', remote])
+            ret = self.run(['remote', 'show', '-n', remote])
             lines = ret.split('\n')
             remote_fetch_url = lines[1].replace('Fetch URL: ', '').strip()
             remote_push_url = lines[2].replace('Push  URL: ', '').strip()
@@ -360,9 +357,9 @@ class GitRepo(BaseRepo):
         url = self.chomp_protocol(url)
 
         if self.remote_get(name):
-            self.run(['git', 'remote', 'rm', 'name'])
+            self.run(['remote', 'rm', 'name'])
 
-        self.run(['git', 'remote', 'add', name, url])
+        self.run(['remote', 'add', name, url])
         return self.remote_get(remote=name)
 
     @staticmethod
@@ -404,4 +401,4 @@ class GitRepo(BaseRepo):
 
         if not opts:
             opts = ''
-        return self.run(['git', 'reset', opts])
+        return self.run(['reset', opts])

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class MercurialRepo(BaseRepo):
-
+    name = 'hg'
     schemes = ('hg', 'hg+http', 'hg+https', 'hg+file')
 
     def __init__(self, url, **kwargs):
@@ -35,18 +35,17 @@ class MercurialRepo(BaseRepo):
         url, rev = self.get_url_and_revision_from_pip_url()
 
         self.run_buffered(
-            ['hg', 'clone', '--noupdate', '-q', url, self['path']])
-        self.run_buffered(['hg', 'update', '-q'])
+            ['clone', '--noupdate', '-q', url, self['path']])
+        self.run_buffered(['update', '-q'])
 
     def get_revision(self):
-        return self.run(
-            ['hg', 'parents', '--template={rev}'])
+        return self.run(['parents', '--template={rev}'])
 
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.hg')):
-            self.run_buffered(['hg', 'update'])
-            self.run_buffered(['hg', 'pull', '-u'])
+            self.run_buffered(['update'])
+            self.run_buffered(['pull', '-u'])
 
         else:
             self.obtain()
