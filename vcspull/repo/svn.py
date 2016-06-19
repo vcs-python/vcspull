@@ -133,8 +133,9 @@ class SubversionRepo(BaseRepo):
         return revision
 
     def get_url_and_revision_from_pip_url(self):
-        # hotfix the URL scheme after removing svn+ from svn+ssh:// readd it
-        url, rev = super(SubversionRepo, self).get_url_and_revision_from_pip_url()
+        # hotfix the URL scheme after removing svn+ from svn+ssh:// re-add it
+        url, rev = super(
+            SubversionRepo, self).get_url_and_revision_from_pip_url()
         if url.startswith('ssh://'):
             url = 'svn+' + url
         return url, rev

@@ -31,10 +31,7 @@ class MercurialRepo(BaseRepo):
     def obtain(self):
         self.check_destination()
 
-        url, rev = self.url, self.rev
-
-        self.run_buffered(
-            ['clone', '--noupdate', '-q', url, self.path])
+        self.run_buffered(['clone', '--noupdate', '-q', self.url, self.path])
         self.run_buffered(['update', '-q'])
 
     def get_revision(self):

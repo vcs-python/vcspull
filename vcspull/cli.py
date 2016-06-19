@@ -105,4 +105,3 @@ def update_repo(repo_dict):
     r.update_repo()
 
 cli.add_command(update)
-

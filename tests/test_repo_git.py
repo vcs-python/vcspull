@@ -115,7 +115,7 @@ def test_private_ssh_format(git_repo_kwargs):
     })
 
     with pytest.raises(exc.VCSPullException) as e:
-        git_repo = create_repo(**git_repo_kwargs)
+        create_repo(**git_repo_kwargs)
         assert e.match("is malformatted")
 
 

@@ -24,7 +24,6 @@ import re
 
 from .. import exc
 from .._compat import urlparse
-from ..util import run
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)
