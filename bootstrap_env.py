@@ -16,13 +16,6 @@ def fail(message):
     sys.exit("Error: {message}".format(message=message))
 
 
-PY2 = sys.version_info[0] == 2
-if PY2:
-    from urllib import urlretrieve
-else:
-    from urllib.request import urlretrieve  # noqa
-
-
 def has_module(module_name):
     try:
         import imp
