@@ -125,6 +125,11 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         if getattr(urlparse, 'uses_fragment', None):
             urlparse.uses_fragment.extend(self.schemes)
 
+        url, rev = self.get_url_and_revision_from_pip_url()
+        if url:
+            self.attributes['url'] = url
+        self.attributes['rev'] = rev if rev else None
+
         RepoLoggingAdapter.__init__(self, logger, self.attributes)
 
     def run_buffered(

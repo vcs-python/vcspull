@@ -79,6 +79,7 @@ class GitRepo(BaseRepo):
             kwargs['git_submodules'] = []
         if 'tls_verify' not in kwargs:
             kwargs['tls_verify'] = False
+        print(url, kwargs)
         BaseRepo.__init__(self, url, **kwargs)
 
         self['remotes'] = remotes
@@ -97,7 +98,6 @@ class GitRepo(BaseRepo):
         work with a ssh:// scheme (e.g. Github). But we need a scheme for
         parsing. Hence we remove it again afterwards and return it as a stub.
         """
-        self.debug("get_url_and_revision_from_pip_url for %s" % self['url'])
         if '://' not in self['url']:
             assert 'file:' not in self['url']
             self.url = self.url.replace('git+', 'git+ssh://')
@@ -124,7 +124,7 @@ class GitRepo(BaseRepo):
         """
         self.check_destination()
 
-        url, _ = self.get_url_and_revision_from_pip_url()
+        url = self['url']
 
         cmd = ['clone', '--progress']
         if self.attributes['git_shallow']:
@@ -160,7 +160,8 @@ class GitRepo(BaseRepo):
             return
 
         # Get requested revision or tag
-        url, git_tag = self.get_url_and_revision_from_pip_url()
+        url, git_tag = self['url'], self['rev']
+
         if not git_tag:
             self.debug("No git revision set, defaulting to origin/master")
             symref = self.run(['symbolic-ref', '--short', 'HEAD'])

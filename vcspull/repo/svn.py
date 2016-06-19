@@ -69,7 +69,7 @@ class SubversionRepo(BaseRepo):
     def obtain(self, quiet=None):
         self.check_destination()
 
-        url, rev = self.get_url_and_revision_from_pip_url()
+        url, rev = self['url'], self['rev']
 
         cmd = ['checkout', '-q', url, '--non-interactive']
         if self.attributes['svn_trust_cert']:
@@ -145,7 +145,7 @@ class SubversionRepo(BaseRepo):
         if os.path.isdir(os.path.join(self['path'], '.svn')):
             dest = self['path'] if not dest else dest
 
-            url, rev = self.get_url_and_revision_from_pip_url()
+            url, rev = self['url'], self['rev']
 
             cmd = ['update']
             cmd.extend(self._user_pw_args())

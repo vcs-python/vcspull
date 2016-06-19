@@ -32,7 +32,7 @@ class MercurialRepo(BaseRepo):
     def obtain(self):
         self.check_destination()
 
-        url, rev = self.get_url_and_revision_from_pip_url()
+        url, rev = self['url'], self['rev']
 
         self.run_buffered(
             ['clone', '--noupdate', '-q', url, self['path']])
