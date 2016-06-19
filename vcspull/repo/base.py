@@ -32,20 +32,6 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
 
         logging.LoggerAdapter.__init__(self, *args, **kwargs)
 
-    def process(self, msg, kwargs):
-        """Return extra kwargs for :class:`Repo` prefixed with``repo_``.
-
-        Both :class:`Repo` and :py:class:`logging.LogRecord` use ``name``.
-
-        """
-        # prefixed_dict = {}
-        # for key, v in self.attributes.items():
-        #     prefixed_dict['repo_' + key] = v
-        #
-        # kwargs["extra"] = prefixed_dict
-
-        return msg, kwargs
-
     def _show_progress(self):
         """Should we display download progress."""
         return sys.stdout.isatty()
