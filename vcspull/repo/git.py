@@ -6,11 +6,9 @@ vcspull.repo.git
 
 From https://github.com/saltstack/salt (Apache License):
 
-- :py:meth:`GitRepo.revision`
 - :py:meth:`GitRepo.remote`
 - :py:meth:`GitRepo.remote_get`
 - :py:meth:`GitRepo.remote_set`
-- :py:meth:`GitRepo.reset`
 
 From pip (MIT Licnese):
 
@@ -288,27 +286,6 @@ class GitRepo(BaseRepo):
         cmd = ['submodule', 'update', '--recursive', '--init']
         cmd.extend(self.git_submodules)
         self.run(cmd)
-
-    def revision(self, cwd=None, rev='HEAD', short=False, user=None):
-        """
-        Return long ref of a given identifier (ref, branch, tag, HEAD, etc)
-
-        cwd
-            The path to the Git repository
-
-        rev: HEAD
-            The revision
-
-        short: False
-            Return an abbreviated SHA1 git hash
-
-        user : None
-            Run git as a user other than what the minion runs as
-
-        """
-
-        cmd = 'git rev-parse {0}{1}'.format('--short ' if short else '', rev)
-        return run(cmd, cwd, runas=user)
 
     @property
     def remotes_get(self):
