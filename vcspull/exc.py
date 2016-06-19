@@ -5,9 +5,9 @@ vcspull.exc
 ~~~~~~~~~~~
 
 """
+from __future__ import absolute_import, print_function, unicode_literals
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from subprocess import CalledProcessError
 
 
 class VCSPullException(Exception):
@@ -17,12 +17,18 @@ class VCSPullException(Exception):
     pass
 
 
-class NoConfigsFound(VCSPullException):
-    message = (
-        'No config file found. Create a .vcspull.yaml or .vcspull.json'
-        ' in your $HOME directory. http://vcspull.rtfd.org for a'
-        ' quickstart.'
-    )
+class VCSPullSubprocessException(VCSPullException, CalledProcessError):
+    """This exception is raised on non-zero Base.run, util.run return codes."""
+
+    def __init__(self, returncode, cmd, output):
+        CalledProcessError.__init__(self,
+                                    returncode=returncode,
+                                    cmd=cmd,
+                                    output=output)
+
+    def __str__(self):
+        return "Command '%s' returned non-zero exit status %d: \n%s" % (
+            self.cmd, self.returncode, self.output)
 
 
 class MultipleRootConfigs(VCSPullException):

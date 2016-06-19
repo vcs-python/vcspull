@@ -5,10 +5,8 @@ vcspull.repo.base
 ~~~~~~~~~~~~~~~~~
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
-import collections
 import logging
 import os
 import subprocess
@@ -16,7 +14,7 @@ import sys
 
 from .. import exc
 from .._compat import console_to_str, text_type, urlparse
-from ..util import mkdir_p
+from ..util import mkdir_p, run
 
 logger = logging.getLogger(__name__)
 
@@ -31,20 +29,6 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
         self.in_progress_hanging = False
 
         logging.LoggerAdapter.__init__(self, *args, **kwargs)
-
-    def process(self, msg, kwargs):
-        """Return extra kwargs for :class:`Repo` prefixed with``repo_``.
-
-        Both :class:`Repo` and :py:class:`logging.LogRecord` use ``name``.
-
-        """
-        prefixed_dict = {}
-        for key, v in self.attributes.items():
-            prefixed_dict['repo_' + key] = v
-
-        kwargs["extra"] = prefixed_dict
-
-        return msg, kwargs
 
     def _show_progress(self):
         """Should we display download progress."""
@@ -102,21 +86,19 @@ class RepoLoggingAdapter(logging.LoggerAdapter):
                 self.last_message = message
 
 
-class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
+class BaseRepo(RepoLoggingAdapter, object):
 
     """Base class for repositories.
 
-    Extends :py:class:`collections.MutableMapping` and
-    :py:class:`logging.LoggerAdapter`.
-
+    Extends and :py:class:`logging.LoggerAdapter`.
     """
 
     def __init__(self, url, parent_dir, *args, **kwargs):
-        self.attributes = kwargs
-        self.attributes['url'] = url
-        self.attributes['parent_dir'] = parent_dir
+        self.__dict__.update(kwargs)
+        self.url = url
+        self.parent_dir = parent_dir
 
-        self['path'] = os.path.join(self['parent_dir'], self['name'])
+        self.path = os.path.join(self.parent_dir, self.name)
 
         # Register more schemes with urlparse for various version control
         # systems
@@ -125,91 +107,122 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         if getattr(urlparse, 'uses_fragment', None):
             urlparse.uses_fragment.extend(self.schemes)
 
-        RepoLoggingAdapter.__init__(self, logger, self.attributes)
+        url, rev = self.get_url_and_revision_from_pip_url()
+        if url:
+            self.url = url
+        self.rev = rev if rev else None
 
-    def run(
+        RepoLoggingAdapter.__init__(self, logger, {})
+
+    def run_buffered(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        env=os.environ.copy(), cwd=None, stream_stderr=True, log_stdout=True, *args, **kwargs
+        env=os.environ.copy(), cwd=None, print_stdout_on_progress_end=False,
+        *args, **kwargs
     ):
+        """Run command with stderr directly to buffer, for CLI usage.
+
+        This method will also prefix the VCS command bin_name.
+
+        This is meant for buffering the raw progress of git/hg/etc. to CLI
+        when it is processing.
+
+        :param cwd: dir command is run from, defaults :path:`~.path`.
+        :type cwd: string
+        :param print_stdout_on_progress_end: print final (non-buffered) stdout
+            message to buffer in cases like git pull, this would be
+            'Already up to date.'
+            You will also have this stdout information in ``.stdout_data``
+            of the return object.
+        :type print_stdout_on_progress_end: bool
+        :returns: subprocess instance ``.stdout_data`` attached.
+        :rtype: :class:`Subprocess.Popen`
+        """
+        if cwd is None:
+            cwd = getattr(self, 'path', None)
+
+        cmd = [self.bin_name] + cmd
+
         process = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(), cwd=cwd
+            stdout=stdout,
+            stderr=stderr,
+            env=env, cwd=cwd
         )
 
-        if stream_stderr:
-            self.start_progress(' '.join(["'%s'" % arg for arg in cmd]))
-            while True:
+        self.start_progress(' '.join(cmd))
+        while True:
+            err = console_to_str(process.stderr.read(128))
+            if err == '' and process.poll() is not None:
+                break
+            elif 'ERROR' in err:
+                raise exc.VCSPullException(
+                    err + console_to_str(process.stderr.read())
+                )
+            else:
+                self.show_progress("%s" % err)
 
-                err = console_to_str(process.stderr.read(128))
-                if err == '' and process.poll() is not None:
-                    break
-                elif 'ERROR' in err:
-                    raise exc.VCSPullException(
-                        err + console_to_str(process.stderr.read())
-                    )
-                else:
-                    self.show_progress("%s" % err)
-
-            process.stdout_data = console_to_str(process.stdout.read())
-            self.end_progress('%s' % process.stdout_data if log_stdout else '')
-        else:
-            process.stdout_data = process.stdout.read()
-            self.info('%s' % process.stdout_data)
+        process.stdout_data = console_to_str(process.stdout.read())
+        self.end_progress(
+            '%s' % process.stdout_data if print_stdout_on_progress_end else '')
 
         process.stderr.close()
         process.stdout.close()
-
         return process
+
+    def run(
+        self, cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        env=os.environ.copy(), cwd=None, *args, **kwargs
+    ):
+        """Return combined stderr/stdout from a command.
+
+        This method will also prefix the VCS command bin_name.
+        By default runs using the cwd :attr:`~.path` of the repo.
+
+        :param cwd: dir command is run from, defaults :attr:`~.path`.
+        :type cwd: string
+        :returns: combined stdout/stderr in a big string, \n's retained
+        :rtype: str
+        """
+
+        if cwd is None:
+            cwd = getattr(self, 'path', None)
+
+        cmd = [self.bin_name] + cmd
+
+        return run(
+            cmd,
+            stdout=stdout,
+            stderr=stderr,
+            env=env, cwd=cwd,
+            *args, **kwargs
+        )
 
     def check_destination(self, *args, **kwargs):
         """Assure destination path exists. If not, create directories."""
-        if not os.path.exists(self['parent_dir']):
-            mkdir_p(self['parent_dir'])
+        if not os.path.exists(self.parent_dir):
+            mkdir_p(self.parent_dir)
         else:
-            if not os.path.exists(self['path']):
+            if not os.path.exists(self.path):
                 self.debug('Repo directory for %s (%s) does not exist @ %s' % (
-                    self['name'], self['vcs'], self['path']))
-                mkdir_p(self['path'])
+                    self.name, self.vcs, self.path))
+                mkdir_p(self.path)
 
         return True
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__, self.__dict__)
 
-    def get_url_rev(self):
+    def get_url_and_revision_from_pip_url(self):
         """Return repo URL and revision by parsing :attr:`~.url`."""
         error_message = (
             "Sorry, '%s' is a malformed VCS url. "
             "The format is <vcs>+<protocol>://<url>, "
             "e.g. svn+http://myrepo/svn/MyApp#egg=MyApp")
-        assert '+' in self['url'], error_message % self['url']
-        url = self['url'].split('+', 1)[1]
+        assert '+' in self.url, error_message % self.url
+        url = self.url.split('+', 1)[1]
         scheme, netloc, path, query, frag = urlparse.urlsplit(url)
         rev = None
         if '@' in path:
             path, rev = path.rsplit('@', 1)
         url = urlparse.urlunsplit((scheme, netloc, path, query, ''))
         return url, rev
-
-    def __getitem__(self, key):
-        return self.attributes[key]
-
-    def __setitem__(self, key, value):
-        self.attributes[key] = value
-        self.dirty = True
-
-    def __delitem__(self, key):
-        del self.attributes[key]
-        self.dirty = True
-
-    def keys(self):
-        """Return keys."""
-        return self.attributes.keys()
-
-    def __iter__(self):
-        return self.attributes.__iter__()
-
-    def __len__(self):
-        return len(self.attributes.keys())

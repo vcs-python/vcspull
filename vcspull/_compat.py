@@ -10,10 +10,7 @@ if PY2:
     unichr = unichr
     text_type = unicode
     string_types = (str, unicode)
-    integer_types = (int, long)
     from urllib import urlretrieve
-
-    text_to_native = lambda s, enc: s.encode(enc)
 
     iterkeys = lambda d: d.iterkeys()
     itervalues = lambda d: d.itervalues()
@@ -24,9 +21,6 @@ if PY2:
     import cPickle as pickle
     import ConfigParser as configparser
 
-    from itertools import izip, imap
-    range_type = xrange
-
     cmp = cmp
 
     input = raw_input
@@ -36,15 +30,10 @@ if PY2:
     def console_to_str(s):
         return s.decode('utf_8')
 
-    exec('def reraise(tp, value, tb=None):\n raise tp, value, tb')
-
 else:
     unichr = chr
     text_type = str
     string_types = (str,)
-    integer_types = (int, )
-
-    text_to_native = lambda s, enc: s
 
     iterkeys = lambda d: iter(d.keys())
     itervalues = lambda d: iter(d.values())
@@ -53,10 +42,6 @@ else:
     from io import StringIO, BytesIO
     import pickle
     import configparser
-
-    izip = zip
-    imap = map
-    range_type = range
 
     cmp = lambda a, b: (a > b) - (a < b)
 
@@ -78,11 +63,3 @@ else:
             return s.decode('utf_8')
         except AttributeError:  # for tests, #13
             return s
-
-    def reraise(tp, value, tb=None):
-        if value.__traceback__ is not tb:
-            raise(value.with_traceback(tb))
-        raise value
-
-
-number_types = integer_types + (float,)

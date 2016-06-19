@@ -6,26 +6,23 @@ vcspull.repo.hg
 
 The following is from pypa/pip (MIT license):
 
-- :py:meth:`MercurialRepo.get_url_rev`
+- :py:meth:`MercurialRepo.get_url_and_revision_from_pip_url`
 - :py:meth:`MercurialRepo.get_url`
 - :py:meth:`MercurialRepo.get_revision`
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 import os
-import subprocess
 
-from ..util import run
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)
 
 
 class MercurialRepo(BaseRepo):
-
+    bin_name = 'hg'
     schemes = ('hg', 'hg+http', 'hg+https', 'hg+file')
 
     def __init__(self, url, **kwargs):
@@ -34,40 +31,17 @@ class MercurialRepo(BaseRepo):
     def obtain(self):
         self.check_destination()
 
-        url, rev = self.get_url_rev()
-
-        self.run([
-            'hg', 'clone', '--noupdate', '-q', url, self['path']])
-
-        self.run([
-            'hg', 'update', '-q'
-        ], cwd=self['path'])
+        self.run_buffered(['clone', '--noupdate', '-q', self.url, self.path])
+        self.run_buffered(['update', '-q'])
 
     def get_revision(self):
-        current_rev = run(
-            ['hg', 'parents', '--template={rev}'],
-            cwd=self['path'],
-        )
-
-        return current_rev['stdout']
+        return self.run(['parents', '--template={rev}'])
 
     def update_repo(self):
         self.check_destination()
-        if os.path.isdir(os.path.join(self['path'], '.hg')):
-
-            self.run(
-                ['hg', 'update'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(), cwd=self['path']
-            )
-
-            self.run(
-                ['hg', 'pull', '-u'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(), cwd=self['path']
-            )
+        if os.path.isdir(os.path.join(self.path, '.hg')):
+            self.run_buffered(['update'])
+            self.run_buffered(['pull', '-u'])
 
         else:
             self.obtain()

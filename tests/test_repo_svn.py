@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Tests for vcspull svn repos."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 
@@ -14,24 +13,12 @@ from vcspull.util import run
 @pytest.fixture
 def svn_dummy_repo_dir(tmpdir_repoparent, scope='session'):
     """Create a git repo with 1 commit, used as a remote."""
-    name = 'dummyrepo'
-    repo_path = str(tmpdir_repoparent.join(name))
+    server_dirname = 'server_dir'
+    server_dir = tmpdir_repoparent.join(server_dirname)
 
-    run(['svnadmin', 'create', name], cwd=str(tmpdir_repoparent))
+    run(['svnadmin', 'create', str(server_dir)])
 
-    testfile_filename = 'testfile.test'
-
-    run(['touch', testfile_filename],
-        cwd=repo_path)
-
-    run(['svn', 'add', '--non-interactive', testfile_filename],
-        cwd=repo_path)
-    run(
-        ['svn', 'commit', '-m', 'a test file for %s' % name],
-        cwd=repo_path
-    )
-
-    return repo_path
+    return str(server_dir)
 
 
 def test_repo_svn(tmpdir, svn_dummy_repo_dir):

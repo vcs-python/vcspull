@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """Tests for vcspull hg repos."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+
 import pytest
 
 from vcspull import exc
@@ -11,9 +11,10 @@ from vcspull.repo import create_repo
 from vcspull.util import run, which
 
 try:
-  which('hg')
+    which('hg')
 except exc.VCSPullException:
-  pytestmark = pytest.mark.skip(reason="hg is not available")
+    pytestmark = pytest.mark.skip(reason="hg is not available")
+
 
 @pytest.fixture
 def hg_dummy_repo_dir(tmpdir_repoparent, scope='session'):
@@ -44,7 +45,7 @@ def test_repo_mercurial(tmpdir, hg_dummy_repo_dir):
         'name': repo_name
     })
 
-    run(['hg', 'init', mercurial_repo['name']],
+    run(['hg', 'init', mercurial_repo.name],
         cwd=str(tmpdir))
 
     mercurial_repo.obtain()
@@ -53,7 +54,7 @@ def test_repo_mercurial(tmpdir, hg_dummy_repo_dir):
     test_repo_revision = run(
         ['hg', 'parents', '--template={rev}'],
         cwd=str(tmpdir.join(repo_name)),
-    )['stdout']
+    )
 
     assert mercurial_repo.get_revision() == test_repo_revision
     assert os.path.exists(str(tmpdir.join(repo_name)))

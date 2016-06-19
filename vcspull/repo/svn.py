@@ -11,19 +11,17 @@ The follow are from saltstack/salt (Apache license):
 
 The following are pypa/pip (MIT license):
 
-- :py:meth:`SubversionRepo.get_url_rev`
+- :py:meth:`SubversionRepo.get_url_and_revision_from_pip_url`
 - :py:meth:`SubversionRepo.get_url`
 - :py:meth:`SubversionRepo.get_revision`
 - :py:meth:`~.get_rev_options`
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals, with_statement)
+from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 import os
 import re
-import subprocess
 
 from .._compat import urlparse
 from ..util import run
@@ -33,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 class SubversionRepo(BaseRepo):
-    schemes = ('svn')
+    bin_name = 'svn'
+    schemes = ('svn', 'svn+ssh', 'svn+http', 'svn+https', 'svn+svn')
 
     def __init__(self, url, **kwargs):
         """A svn repository.
@@ -50,38 +49,35 @@ class SubversionRepo(BaseRepo):
         :param svn_password: password to use for checkout and update
         :type svn_password: str or None
 
-        :param svn_trust_cert: trust the Subversion server site certificate (default False)
+        :param svn_trust_cert: trust the Subversion server site certificate
+            (default False)
         :type svn_trust_cert: bool
         """
         if 'svn_trust_cert' not in kwargs:
-            kwargs['svn_trust_cert'] = False
+            self.svn_trust_cert = False
         BaseRepo.__init__(self, url, **kwargs)
 
     def _user_pw_args(self):
         args = []
         for param_name in ['svn_username', 'svn_password']:
-            if param_name in self.attributes:
-                args.extend(['--' + param_name[4:], self.attributes[param_name]])
+            if hasattr(self, param_name):
+                args.extend(['--' + param_name[4:],
+                             getattr(self, param_name)])
         return args
 
     def obtain(self, quiet=None):
         self.check_destination()
 
-        url, rev = self.get_url_rev()
+        url, rev = self.url, self.rev
 
-        cmd = ['svn', 'checkout', '-q', url, '--non-interactive']
-        if self.attributes['svn_trust_cert']:
+        cmd = ['checkout', '-q', url, '--non-interactive']
+        if self.svn_trust_cert:
             cmd.append('--trust-server-cert')
         cmd.extend(self._user_pw_args())
         cmd.extend(get_rev_options(url, rev))
-        cmd.append(self['path'])
+        cmd.append(self.path)
 
-        self.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(),
-        )
+        self.run(cmd)
 
     def get_revision_file(self, location=None):
         """Return revision for a file."""
@@ -89,11 +85,9 @@ class SubversionRepo(BaseRepo):
         if location:
             cwd = location
         else:
-            cwd = self['path']
+            cwd = self.path
 
-        current_rev = run(
-            ['svn', 'info', cwd],
-        )
+        current_rev = run(['info', cwd])
         infos = current_rev['stdout']
 
         _INI_RE = re.compile(r"^([^:]+):\s+(\S.*)$", re.M)
@@ -110,7 +104,7 @@ class SubversionRepo(BaseRepo):
         """
 
         if not location:
-            location = self['url']
+            location = self.url
 
         if os.path.exists(location) and not os.path.isdir(location):
             return self.get_revision_file(location)
@@ -138,31 +132,26 @@ class SubversionRepo(BaseRepo):
             revision = max(revision, localrev)
         return revision
 
-    def get_url_rev(self):
-        # hotfix the URL scheme after removing svn+ from svn+ssh:// readd it
-        url, rev = super(SubversionRepo, self).get_url_rev()
+    def get_url_and_revision_from_pip_url(self):
+        # hotfix the URL scheme after removing svn+ from svn+ssh:// re-add it
+        url, rev = super(
+            SubversionRepo, self).get_url_and_revision_from_pip_url()
         if url.startswith('ssh://'):
             url = 'svn+' + url
         return url, rev
 
     def update_repo(self, dest=None):
         self.check_destination()
-        if os.path.isdir(os.path.join(self['path'], '.svn')):
-            dest = self['path'] if not dest else dest
+        if os.path.isdir(os.path.join(self.path, '.svn')):
+            dest = self.path if not dest else dest
 
-            url, rev = self.get_url_rev()
+            url, rev = self.url, self.rev
 
-            cmd = ['svn', 'update']
+            cmd = ['update']
             cmd.extend(self._user_pw_args())
             cmd.extend(get_rev_options(url, rev))
 
-            self.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(), cwd=self['path'],
-            )
-
+            self.run(cmd)
         else:
             self.obtain()
             self.update_repo()
