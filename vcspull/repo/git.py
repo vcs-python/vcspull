@@ -387,19 +387,3 @@ class GitRepo(BaseRepo):
             url = url.replace('git+', 'git+ssh://')
             url = url.replace('ssh://', '')
         return url
-
-    def reset(self, cwd=None, opts=None):
-        """Reset the repository checkout.
-
-        :param cwd: The path to the Git repository
-        :type cwd: string
-        :param opts: Any additional options to add to the command line
-        :type opts: string
-        """
-
-        if not cwd:
-            cwd = self.path
-
-        if not opts:
-            opts = ''
-        return self.run(['reset', opts])
