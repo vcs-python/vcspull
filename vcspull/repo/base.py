@@ -16,7 +16,7 @@ import sys
 
 from .. import exc
 from .._compat import console_to_str, text_type, urlparse
-from ..util import mkdir_p, remove_tracebacks, run
+from ..util import mkdir_p, run
 
 logger = logging.getLogger(__name__)
 
