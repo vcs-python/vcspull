@@ -3,8 +3,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
-from vcspull.repo import create_repo
-from vcspull.util import run
+from libvcs import create_repo
+from libvcs.util import run
 
 
 @pytest.fixture

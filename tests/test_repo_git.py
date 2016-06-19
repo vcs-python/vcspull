@@ -7,10 +7,9 @@ import os
 import mock
 import pytest
 
-from vcspull import exc
-from vcspull._compat import StringIO
-from vcspull.repo import create_repo
-from vcspull.util import run
+from libvcs import create_repo, exc
+from libvcs._compat import StringIO
+from libvcs.util import run
 
 
 def test_repo_git_obtain_initial_commit_repo(tmpdir):

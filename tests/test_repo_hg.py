@@ -6,9 +6,9 @@ import os
 
 import pytest
 
-from vcspull import exc
-from vcspull.repo import create_repo
-from vcspull.util import run, which
+from libvcs import exc
+from libvcs import create_repo
+from libvcs.util import run, which
 
 try:
     which('hg')

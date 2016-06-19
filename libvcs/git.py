@@ -22,8 +22,8 @@ import logging
 import os
 import re
 
-from .. import exc
-from .._compat import urlparse
+from . import exc
+from ._compat import urlparse
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)

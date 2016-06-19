@@ -15,8 +15,9 @@ import os
 
 import kaptan
 
-from . import exc
-from ._compat import string_types
+from libvcs import exc
+from libvcs._compat import string_types
+
 from .util import CONFIG_DIR, update_dict
 
 log = logging.getLogger(__name__)

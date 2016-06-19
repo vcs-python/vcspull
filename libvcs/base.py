@@ -12,9 +12,9 @@ import os
 import subprocess
 import sys
 
-from .. import exc
-from .._compat import console_to_str, text_type, urlparse
-from ..util import mkdir_p, run
+from . import exc
+from ._compat import console_to_str, text_type, urlparse
+from .util import mkdir_p, run
 
 logger = logging.getLogger(__name__)
 

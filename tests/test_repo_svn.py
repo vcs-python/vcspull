@@ -6,8 +6,8 @@ import os
 
 import pytest
 
-from vcspull.repo import create_repo
-from vcspull.util import run
+from libvcs import create_repo
+from libvcs.util import run
 
 
 @pytest.fixture

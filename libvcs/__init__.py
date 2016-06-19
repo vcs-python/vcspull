@@ -9,7 +9,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 
-from ..log import RepoFilter, RepoLogFormatter
+from .log import RepoFilter, RepoLogFormatter
 from .base import BaseRepo, RepoLoggingAdapter
 from .git import GitRepo
 from .hg import MercurialRepo

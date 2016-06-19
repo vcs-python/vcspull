@@ -23,8 +23,8 @@ import logging
 import os
 import re
 
-from .._compat import urlparse
-from ..util import run
+from ._compat import urlparse
+from .util import run
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)

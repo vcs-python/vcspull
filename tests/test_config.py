@@ -7,7 +7,8 @@ import os
 import kaptan
 import pytest
 
-from vcspull import config, exc
+from libvcs import exc
+from vcspull import config
 from vcspull.config import expand_dir, extract_repos
 
 from .fixtures import example as fixtures

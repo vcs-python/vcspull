@@ -6,9 +6,9 @@ import os
 
 import kaptan
 
+from libvcs import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
+                    create_repo)
 from vcspull.config import extract_repos, filter_repos
-from vcspull.repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
-                          create_repo)
 
 from .fixtures import example as fixtures
 

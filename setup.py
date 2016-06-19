@@ -51,7 +51,7 @@ setup(
     keywords=about['__title__'],
     packages=[
         'vcspull',
-        'vcspull.repo',
+        'libvcs',
     ],
     entry_points=dict(console_scripts=['vcspull=vcspull:cli.cli']),
     classifiers=[
