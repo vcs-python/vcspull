@@ -224,11 +224,9 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def __setitem__(self, key, value):
         self.attributes[key] = value
-        self.dirty = True
 
     def __delitem__(self, key):
         del self.attributes[key]
-        self.dirty = True
 
     def keys(self):
         """Return keys."""
