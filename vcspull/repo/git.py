@@ -13,7 +13,6 @@ From https://github.com/saltstack/salt (Apache License):
 From pip (MIT Licnese):
 
 - :py:meth:`GitRepo.get_url_and_revision_from_pip_url` (get_url_rev)
-- :py:meth:`GitRepo.get_url`
 - :py:meth:`GitRepo.get_revision`
 
 """
