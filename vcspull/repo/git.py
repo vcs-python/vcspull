@@ -81,11 +81,11 @@ class GitRepo(BaseRepo):
         self['remotes'] = remotes
 
     def get_revision(self):
-        current_rev = self.run(
-            ['git', 'rev-parse', 'HEAD'], stream_stderr=False
-        )
-
-        return current_rev
+        """Return current revision. Initial repositories return 'initial'."""
+        try:
+            return self.run(['git', 'rev-parse', '--verify', 'HEAD'])
+        except exc.VCSPullSubprocessException:
+            return 'initial'
 
     def get_url_and_revision(self):
         """
@@ -131,7 +131,7 @@ class GitRepo(BaseRepo):
         cmd.extend([url, self['path']])
 
         self.info('Cloning.')
-        self.run(cmd)
+        self.run_buffered(cmd)
 
         if self['remotes']:
             for r in self['remotes']:
@@ -143,10 +143,10 @@ class GitRepo(BaseRepo):
                 )
 
         self.info('Initializing submodules.')
-        self.run(['git', 'submodule', 'init'],)
+        self.run_buffered(['git', 'submodule', 'init'],)
         cmd = ['git', 'submodule', 'update', '--recursive', '--init']
         cmd.extend(self.attributes['git_submodules'])
-        self.run(cmd,)
+        self.run_buffered(cmd)
 
     def update_repo(self):
         self.check_destination()
@@ -215,9 +215,8 @@ class GitRepo(BaseRepo):
             self.info("Already up-to-date.")
             return
 
-        try:
-            process = self.run(['git', 'fetch'])
-        except exc.VCSPullSubprocessException as e:
+        process = self.run_buffered(['git', 'fetch'])
+        if process.returncode:
             self.error("Failed to fetch repository '%s'" % url)
             return
 
@@ -313,46 +312,32 @@ class GitRepo(BaseRepo):
         cmd = 'git rev-parse {0}{1}'.format('--short ' if short else '', rev)
         return run(cmd, cwd, runas=user)
 
-    def remotes_get(self, cwd=None):
-        """Get remotes like git remote -v.
+    @property
+    def remotes_get(self):
+        """Return remotes like git remote -v.
 
-        cwd
-            The path to the Git repository
-
-        user : None
-            Run git as a user other than what the minion runs as
-
+        :rtype: dict of tuples
         """
         remotes = {}
-
-        if not cwd:
-            cwd = self['path']
 
         cmd = self.run(['git', 'remote'])
         ret = filter(None, cmd.split('\n'))
 
         for remote_name in ret:
-            remotes[remote_name] = self.remote_get(cwd, remote_name)
+            remotes[remote_name] = self.remote_get(remote_name)
         return remotes
 
-    def remote_get(self, cwd=None, remote='origin'):
+    def remote_get(self, remote='origin'):
         """Get the fetch and push URL for a specified remote name.
 
-        remote : origin
-            the remote name used to define the fetch and push URL
-
-        user : None
-            Run git as a user other than what the minion runs as
-
+        :param remote: the remote name used to define the fetch and push URL
+        :type remote: str
+        :returns: remote name and url in tuple form
+        :rtype: tuple
         """
-
-        if not cwd:
-            cwd = self['path']
-
         try:
             ret = self.run(['git', 'remote', 'show', '-n', remote])
             lines = ret.split('\n')
-            print(lines)
             remote_fetch_url = lines[1].replace('Fetch URL: ', '').strip()
             remote_push_url = lines[2].replace('Push  URL: ', '').strip()
             if remote_fetch_url != remote and remote_push_url != remote:
@@ -363,7 +348,7 @@ class GitRepo(BaseRepo):
         except exc.VCSPullException:
             return None
 
-    def remote_set(self, url, cwd=None, name='origin'):
+    def remote_set(self, url, name='origin'):
         """Set remote with name and URL like git remote add.
 
         :param url: defines the remote URL
@@ -374,13 +359,11 @@ class GitRepo(BaseRepo):
 
         url = self.chomp_protocol(url)
 
-        if not cwd:
-            cwd = self['path']
-        if self.remote_get(cwd, name):
+        if self.remote_get(name):
             self.run(['git', 'remote', 'rm', 'name'])
 
         self.run(['git', 'remote', 'add', name, url])
-        return self.remote_get(cwd=cwd, remote=name)
+        return self.remote_get(remote=name)
 
     @staticmethod
     def chomp_protocol(url):

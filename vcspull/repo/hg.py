@@ -34,18 +34,19 @@ class MercurialRepo(BaseRepo):
 
         url, rev = self.get_url_and_revision()
 
-        self.run(['hg', 'clone', '--noupdate', '-q', url, self['path']])
-        self.run(['hg', 'update', '-q'])
+        self.run_buffered(
+            ['hg', 'clone', '--noupdate', '-q', url, self['path']])
+        self.run_buffered(['hg', 'update', '-q'])
 
     def get_revision(self):
         return self.run(
-            ['hg', 'parents', '--template={rev}'], stream_stderr=False)
+            ['hg', 'parents', '--template={rev}'])
 
     def update_repo(self):
         self.check_destination()
         if os.path.isdir(os.path.join(self['path'], '.hg')):
-            self.run(['hg', 'update'],)
-            self.run(['hg', 'pull', '-u'])
+            self.run_buffered(['hg', 'update'])
+            self.run_buffered(['hg', 'pull', '-u'])
 
         else:
             self.obtain()

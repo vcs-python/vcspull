@@ -127,7 +127,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
         RepoLoggingAdapter.__init__(self, logger, self.attributes)
 
-    def run(
+    def run_buffered(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         env=os.environ.copy(), cwd=None, stream_stderr=False, log_stdout=False,
         *args, **kwargs
@@ -145,37 +145,52 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
             env=env, cwd=cwd
         )
 
-        if stream_stderr:
-            if log_stdout:
-                self.start_progress(' '.join(cmd))
-            while True:
-                err = console_to_str(process.stderr.read(128))
-                if err == '' and process.poll() is not None:
-                    break
-                elif 'ERROR' in err:
-                    raise exc.VCSPullException(
-                        err + console_to_str(process.stderr.read())
-                    )
-                else:
-                    self.show_progress("%s" % err)
+        self.start_progress(' '.join(cmd))
+        while True:
+            err = console_to_str(process.stderr.read(128))
+            if err == '' and process.poll() is not None:
+                break
+            elif 'ERROR' in err:
+                raise exc.VCSPullException(
+                    err + console_to_str(process.stderr.read())
+                )
+            else:
+                self.show_progress("%s" % err)
 
-            process.stdout_data = console_to_str(process.stdout.read())
-            self.end_progress('%s' % process.stdout_data if log_stdout else '')
-        else:
-            process.wait()
-            all_output = []
-            while True:
-                line = console_to_str(process.stdout.readline())
-                if not line:
-                    break
-                line = line.rstrip()
-                all_output.append(line + '\n')
+        process.stdout_data = console_to_str(process.stdout.read())
+        self.end_progress('%s' % process.stdout_data if log_stdout else '')
 
-            output = ''.join(all_output)
-            if log_stdout:
-                self.debug('%s' % output)
+        process.stderr.close()
+        process.stdout.close()
+        return process
 
-            return remove_tracebacks(output).rstrip()
+    def run(
+        self, cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        env=os.environ.copy(), cwd=None, stream_stderr=False, log_stdout=False,
+        *args, **kwargs
+    ):
+        if cwd is None:
+            cwd = self.get('path', None)
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=stdout,
+            stderr=stderr,
+            env=env, cwd=cwd
+        )
+
+        process.wait()
+        all_output = []
+        while True:
+            line = console_to_str(process.stdout.readline())
+            if not line:
+                break
+            line = line.rstrip()
+            all_output.append(line + '\n')
+
+        output = ''.join(all_output)
+        if log_stdout:
+            self.debug('%s' % output)
 
         if process.returncode:
             raise exc.VCSPullSubprocessException(
@@ -184,10 +199,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
                 output=output,
             )
 
-        process.stderr.close()
-        process.stdout.close()
-
-        return process
+        return remove_tracebacks(output).rstrip()
 
     def check_destination(self, *args, **kwargs):
         """Assure destination path exists. If not, create directories."""
