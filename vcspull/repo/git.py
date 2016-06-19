@@ -6,8 +6,6 @@ vcspull.repo.git
 
 From https://github.com/saltstack/salt (Apache License):
 
-- :py:meth:`~._git_ssh_helper`
-- :py:meth:`~._git_run`
 - :py:meth:`GitRepo.revision`
 - :py:meth:`GitRepo.remote`
 - :py:meth:`GitRepo.remote_get`
@@ -16,7 +14,7 @@ From https://github.com/saltstack/salt (Apache License):
 
 From pip (MIT Licnese):
 
-- :py:meth:`GitRepo.get_url_and_revision`
+- :py:meth:`GitRepo.get_url_and_revision` (get_url_rev)
 - :py:meth:`GitRepo.get_url`
 - :py:meth:`GitRepo.get_revision`
 
@@ -27,7 +25,6 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import os
 import re
-import tempfile
 
 from .. import exc
 from .._compat import urlparse
@@ -35,65 +32,6 @@ from ..util import run
 from .base import BaseRepo
 
 logger = logging.getLogger(__name__)
-
-
-def _git_ssh_helper(identity):
-    """Return the path to a helper script which can be used in the GIT_SSH env.
-
-    Returns the path to a helper script which can be used in the GIT_SSH env
-    var to use a custom private key file.
-
-    """
-    opts = {
-        'StrictHostKeyChecking': 'no',
-        'PasswordAuthentication': 'no',
-        'KbdInteractiveAuthentication': 'no',
-        'ChallengeResponseAuthentication': 'no',
-    }
-
-    helper = tempfile.NamedTemporaryFile(delete=False)
-
-    helper.writelines([
-        '#!/bin/sh\n',
-        'exec ssh {opts} -i {identity} $*\n'.format(
-            opts=' '.join('-o%s=%s' % (key, value)
-                          for key, value in opts.items()),
-            identity=identity,
-        )
-    ])
-
-    helper.close()
-
-    os.chmod(helper.name, int('755', 8))
-
-    return helper.name
-
-
-def _git_run(cmd, cwd=None, runas=None, identity=None, **kwargs):
-    """Throw an exception with error message on error return code.
-
-    simple, throw an exception with the error message on an error return code.
-
-    this function may be moved to the command module, spliced with
-    'cmd.run_all', and used as an alternative to 'cmd.run_all'. Some
-    commands don't return proper retcodes, so this can't replace 'cmd.run_all'.
-
-    """
-    env = os.environ.copy()
-
-    if identity:
-        helper = _git_ssh_helper(identity)
-
-        env.update({
-            'GIT_SSH': helper
-        })
-
-    result = run(cmd, cwd=cwd, env=env, **kwargs)
-
-    if identity:
-        os.unlink(helper)
-
-    return result
 
 
 class GitRepo(BaseRepo):
@@ -223,8 +161,8 @@ class GitRepo(BaseRepo):
         if not git_tag:
             self.debug("No git revision set, defaulting to origin/master")
             symref = self.run(['git', 'symbolic-ref', '--short', 'HEAD'])
-            if symref.stdout_data:
-                git_tag = symref.stdout_data.rstrip()
+            if symref:
+                git_tag = symref.rstrip()
             else:
                 git_tag = 'origin/master'
         self.debug("git_tag: %s" % git_tag)
@@ -232,22 +170,21 @@ class GitRepo(BaseRepo):
         self.info("Updating to '%s'." % git_tag)
 
         # Get head sha
-        process = self.run([
-            'git', 'rev-list', '--max-count=1', 'HEAD'
-        ], log_stdout=False)
-        head_sha = process.stdout_data
-        error_code = process.returncode
-        self.debug("head_sha: %s" % head_sha)
-        if error_code:
+        try:
+            head_sha = self.run([
+                'git', 'rev-list', '--max-count=1', 'HEAD'
+            ], log_stdout=False)
+        except exc.VCSPullSubprocessException as e:
             self.error("Failed to get the hash for HEAD")
             return
 
+        self.debug("head_sha: %s" % head_sha)
+
         # If a remote ref is asked for, which can possibly move around,
         # we must always do a fetch and checkout.
-        process = self.run([
+        show_ref_output = self.run([
             'git', 'show-ref', git_tag
         ], log_stdout=False)
-        show_ref_output = process.stdout_data
         self.debug("show_ref_output: %s" % show_ref_output)
         is_remote_ref = "remotes" in show_ref_output
         self.debug("is_remote_ref: %s" % is_remote_ref)
@@ -263,11 +200,13 @@ class GitRepo(BaseRepo):
 
         # This will fail if the tag does not exist (it probably has not
         # been fetched yet).
-        process = self.run([
-            'git', 'rev-list', '--max-count=1', git_tag
-        ], log_stdout=False)
-        tag_sha = process.stdout_data
-        error_code = process.returncode
+        try:
+            error_code = 0
+            tag_sha = self.run([
+                'git', 'rev-list', '--max-count=1', git_tag
+            ], log_stdout=False)
+        except exc.VCSPullSubprocessException as e:
+            error_code = e.subprocess.returncode
         self.debug("tag_sha: %s" % tag_sha)
 
         # Is the hash checkout out what we want?
@@ -276,15 +215,17 @@ class GitRepo(BaseRepo):
             self.info("Already up-to-date.")
             return
 
-        process = self.run(['git', 'fetch'])
-        if process.returncode:
+        try:
+            process = self.run(['git', 'fetch'])
+        except exc.VCSPullSubprocessException as e:
             self.error("Failed to fetch repository '%s'" % url)
             return
 
         if is_remote_ref:
             # Check if stash is needed
-            process = self.run(['git', 'status', '--porcelain'])
-            if process.returncode:
+            try:
+                process = self.run(['git', 'status', '--porcelain'])
+            except exc.VCSPullSubprocessException as e:
                 self.error("Failed to get the status")
                 return
             need_stash = len(process.stdout_data) > 0
@@ -294,18 +235,19 @@ class GitRepo(BaseRepo):
             if need_stash:
                 # If Git < 1.7.6, uses --quiet --all
                 git_stash_save_options = '--quiet'
-                process = self.run([
-                    'git', 'stash', 'save', git_stash_save_options
-                ])
-
-                if process.returncode:
+                try:
+                    process = self.run([
+                        'git', 'stash', 'save', git_stash_save_options
+                    ])
+                except exc.VCSPullSubprocessException as e:
                     self.error("Failed to stash changes")
 
             # Pull changes from the remote branch
-            process = self.run([
-                'git', 'rebase', git_remote_name + '/' + git_tag
-            ], log_stdout=False)
-            if process.returncode:
+            try:
+                process = self.run([
+                    'git', 'rebase', git_remote_name + '/' + git_tag
+                ], log_stdout=False)
+            except exc.VCSPullSubprocessException as e:
                 # Rebase failed: Restore previous state.
                 self.run(['git', 'rebase', '--abort'])
                 if need_stash:
@@ -318,17 +260,17 @@ class GitRepo(BaseRepo):
                 return
 
             if need_stash:
-                process = self.run([
-                    'git', 'stash', 'pop', '--index', '--quiet'
-                ])
-
-                if process.returncode:
+                try:
+                    process = self.run([
+                        'git', 'stash', 'pop', '--index', '--quiet'
+                    ])
+                except exc.VCSPullSubprocessException as e:
                     # Stash pop --index failed: Try again dropping the
                     # index
                     self.run(['git', 'reset', '--hard', '--quiet'])
-                    process = self.run(['git', 'stash', 'pop', '--quiet'])
-
-                    if process.returncode:
+                    try:
+                        process = self.run(['git', 'stash', 'pop', '--quiet'])
+                    except exc.VCSPullSubprocessException as e:
                         # Stash pop failed: Restore previous state.
                         self.run(
                             ['git', 'reset', '--hard', '--quiet', head_sha]
@@ -340,8 +282,9 @@ class GitRepo(BaseRepo):
                         return
 
         else:
-            process = self.run(['git', 'checkout', git_tag])
-            if process.returncode:
+            try:
+                process = self.run(['git', 'checkout', git_tag])
+            except exc.VCSPullSubprocessException as e:
                 self.error("Failed to checkout tag: '%s'" % git_tag)
                 return
 
@@ -370,7 +313,7 @@ class GitRepo(BaseRepo):
         cmd = 'git rev-parse {0}{1}'.format('--short ' if short else '', rev)
         return run(cmd, cwd, runas=user)
 
-    def remotes_get(self, cwd=None, user=None):
+    def remotes_get(self, cwd=None):
         """Get remotes like git remote -v.
 
         cwd
@@ -385,14 +328,14 @@ class GitRepo(BaseRepo):
         if not cwd:
             cwd = self['path']
 
-        cmd = self.run(['git', 'remote'], cwd=cwd)
-        ret = filter(None, cmd.stdout_data.split('\n'))
+        cmd = self.run(['git', 'remote'])
+        ret = filter(None, cmd.split('\n'))
 
         for remote_name in ret:
             remotes[remote_name] = self.remote_get(cwd, remote_name)
         return remotes
 
-    def remote_get(self, cwd=None, remote='origin', user=None):
+    def remote_get(self, cwd=None, remote='origin'):
         """Get the fetch and push URL for a specified remote name.
 
         remote : origin
@@ -407,8 +350,7 @@ class GitRepo(BaseRepo):
             cwd = self['path']
 
         try:
-            cmd = 'git remote show -n {0}'.format(remote)
-            ret = _git_run(cmd, cwd=cwd, runas=user)
+            ret = self.run(['git', 'remote', 'show', '-n', remote])
             lines = ret.split('\n')
             print(lines)
             remote_fetch_url = lines[1].replace('Fetch URL: ', '').strip()
@@ -479,4 +421,4 @@ class GitRepo(BaseRepo):
 
         if not opts:
             opts = ''
-        return _git_run('git reset {0}'.format(opts), cwd=cwd)
+        return self.run(['git', 'reset', opts])

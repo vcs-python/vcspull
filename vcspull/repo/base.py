@@ -129,7 +129,7 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
 
     def run(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        env=os.environ.copy(), cwd=None, stream_stderr=True, log_stdout=True,
+        env=os.environ.copy(), cwd=None, stream_stderr=False, log_stdout=False,
         *args, **kwargs
     ):
         if cwd is None:
@@ -146,9 +146,9 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
         )
 
         if stream_stderr:
-            self.start_progress(' '.join(["'%s'" % arg for arg in cmd]))
+            if log_stdout:
+                self.start_progress(' '.join(cmd))
             while True:
-
                 err = console_to_str(process.stderr.read(128))
                 if err == '' and process.poll() is not None:
                     break
@@ -171,10 +171,18 @@ class BaseRepo(collections.MutableMapping, RepoLoggingAdapter):
                 line = line.rstrip()
                 all_output.append(line + '\n')
 
+            output = ''.join(all_output)
             if log_stdout:
-                self.info('%s' % ''.join(all_output))
+                self.debug('%s' % output)
 
-            return remove_tracebacks(''.join(all_output)).rstrip()
+            return remove_tracebacks(output).rstrip()
+
+        if process.returncode:
+            raise exc.VCSPullSubprocessException(
+                returncode=process.returncode,
+                cmd=cmd,
+                output=output,
+            )
 
         process.stderr.close()
         process.stdout.close()

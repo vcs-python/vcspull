@@ -60,18 +60,26 @@ def run(
     }
 
     try:
-        proc = subprocess.Popen(cmd, **kwargs)
+        process = subprocess.Popen(cmd, **kwargs)
     except (OSError, IOError) as e:
         raise exc.VCSPullException('Unable to run command: %s' % e)
 
-    proc.wait()
+    process.wait()
     all_output = []
     while True:
-        line = console_to_str(proc.stdout.readline())
+        line = console_to_str(process.stdout.readline())
         if not line:
             break
         line = line.rstrip()
         all_output.append(line + '\n')
+
+    if process.returncode:
+        logging.error(all_output)
+        raise exc.VCSPullSubprocessException(
+            returncode=process.returncode,
+            cmd=cmd,
+            output=all_output,
+        )
 
     return remove_tracebacks(''.join(all_output)).rstrip()
 
