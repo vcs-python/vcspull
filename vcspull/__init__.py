@@ -14,13 +14,11 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
+from logging import NullHandler
 
 from .cli import setup_logger
-from .config import (extract_repos, filter_repos, in_dir, is_config_file,
-                     load_configs)
+from .config import extract_repos, filter_repos, is_config_file, load_configs
 from .log import DebugLogFormatter, LogFormatter, RepoFilter, RepoLogFormatter
 from .util import mkdir_p, run, update_dict, which
-
-from logging import NullHandler
 
 logging.getLogger(__name__).addHandler(NullHandler())

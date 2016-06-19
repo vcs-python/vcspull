@@ -158,8 +158,6 @@ def find_config_files(
     :raises:
         - LoadConfigRepoConflict: There are two configs that have same path
           and name with different repo urls.
-        - NoConfigsFound: No configs found in home directory or ~/.vcspull
-          directory.
     :returns: list of absolute paths to config files.
     :rtype: list
 
