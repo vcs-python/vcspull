@@ -14,7 +14,7 @@ before_install:
   - git config --global user.email 'travis@nowhere.edu'
 install:
   - "pip install -e ."
-script: py.test
+script: coverage run --source=vcspull setup.py test
 addons:
   apt:
     packages:
