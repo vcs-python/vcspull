@@ -76,9 +76,8 @@ def test_vcs_url_scheme_to_object(tmpdir):
 
     """
     git_repo = create_repo_from_pip_url(**{
-        'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
-        'parent_dir': str(tmpdir),
-        'name': 'myproject1'
+        'pip_url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
+        'repo_dir': str(tmpdir.join('myproject1')),
     })
 
     # TODO cwd and name if duplicated should give an error
@@ -87,18 +86,16 @@ def test_vcs_url_scheme_to_object(tmpdir):
     assert isinstance(git_repo, BaseRepo)
 
     hg_repo = create_repo_from_pip_url(**{
-        'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
-        'parent_dir': str(tmpdir),
-        'name': 'myproject2'
+        'pip_url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
+        'repo_dir': str(tmpdir.join('myproject2')),
     })
 
     assert isinstance(hg_repo, MercurialRepo)
     assert isinstance(hg_repo, BaseRepo)
 
     svn_repo = create_repo_from_pip_url(**{
-        'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
-        'parent_dir': str(tmpdir),
-        'name': 'myproject3'
+        'pip_url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
+        'repo_dir': str(tmpdir.join('myproject3')),
     })
 
     assert isinstance(svn_repo, SubversionRepo)

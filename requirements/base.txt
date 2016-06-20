@@ -1,4 +1,4 @@
 kaptan==0.5.8
 pyyaml==3.11
 click==6.6 # Updated from 6.2
-libvcs==0.1.1  # Updated from 0.1.0
+libvcs==0.1.2  # Updated from 0.1.1
