@@ -11,7 +11,7 @@ import logging
 
 import click
 
-from libvcs import create_repo
+from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs.log import DebugLogFormatter
 
 from .__about__ import __version__
@@ -101,7 +101,7 @@ def clamp(n, _min, _max):
 
 
 def update_repo(repo_dict):
-    r = create_repo(**repo_dict)
+    r = create_repo_from_pip_url(**repo_dict)
     log.debug('%s' % r)
     r.update_repo()
 

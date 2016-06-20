@@ -7,12 +7,12 @@ import os
 import pytest
 
 from libvcs import exc
-from libvcs import create_repo
+from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs.util import run, which
 
 try:
     which('hg')
-except exc.VCSPullException:
+except exc.LibVCSException:
     pytestmark = pytest.mark.skip(reason="hg is not available")
 
 
@@ -39,7 +39,7 @@ def hg_dummy_repo_dir(tmpdir_repoparent, scope='session'):
 def test_repo_mercurial(tmpdir, hg_dummy_repo_dir):
     repo_name = 'my_mercurial_project'
 
-    mercurial_repo = create_repo(**{
+    mercurial_repo = create_repo_from_pip_url(**{
         'url': 'hg+file://' + hg_dummy_repo_dir,
         'parent_dir': str(tmpdir),
         'name': repo_name

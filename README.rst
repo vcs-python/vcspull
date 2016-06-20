@@ -82,9 +82,11 @@ python API
 
 .. code-block:: python
 
-   In [1]: from vcspull.repo import create_repo
+   In [1]: from libvcs.shortcuts import create_repo_from_pip_url
 
-   In [2]: r = create_repo(url='git+https://www.github.com/tony/myrepo', parent_dir='/tmp/',
+   In [2]: r = create_repo_from_pip_url(
+            url='git+https://www.github.com/tony/myrepo',
+            parent_dir='/tmp/',
             name='myrepo')
 
    In [3]: r.update_repo()

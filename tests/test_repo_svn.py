@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from libvcs import create_repo
+from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs.util import run
 
 
@@ -24,7 +24,7 @@ def svn_dummy_repo_dir(tmpdir_repoparent, scope='session'):
 def test_repo_svn(tmpdir, svn_dummy_repo_dir):
     repo_name = 'my_svn_project'
 
-    svn_repo = create_repo(**{
+    svn_repo = create_repo_from_pip_url(**{
         'url': 'svn+file://' + svn_dummy_repo_dir,
         'parent_dir': str(tmpdir),
         'name': repo_name

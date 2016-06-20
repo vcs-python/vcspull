@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """Subversion object for vcspull.
 
-vcspull.repo.svn
-~~~~~~~~~~~~~~~~
+libvcs.svn
+~~~~~~~~~~
 
 The follow are from saltstack/salt (Apache license):
 

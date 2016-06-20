@@ -2,7 +2,7 @@
 """Utility functions for vcspull.
 
 libvcs.util
-~~~~~~~~~~~~
+~~~~~~~~~~~
 
 """
 from __future__ import absolute_import, print_function, unicode_literals
@@ -58,7 +58,7 @@ def run(
             env=env, cwd=cwd
         )
     except (OSError, IOError) as e:
-        raise exc.VCSPullException('Unable to run command: %s' % e)
+        raise exc.LibVCSException('Unable to run command: %s' % e)
 
     process.wait()
     all_output = []
@@ -72,7 +72,7 @@ def run(
 
     if process.returncode:
         logging.error(all_output)
-        raise exc.VCSPullSubprocessException(
+        raise exc.SubprocessError(
             returncode=process.returncode,
             cmd=cmd,
             output=all_output,
@@ -103,7 +103,7 @@ def which(exe=None):
             full_path = os.path.join(path, exe)
             if os.access(full_path, os.X_OK):
                 return full_path
-        raise exc.VCSPullException(
+        raise exc.LibVCSException(
             '{0!r} could not be found in the following search '
             'path: {1!r}'.format(
                 exe, search_path

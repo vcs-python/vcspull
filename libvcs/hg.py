@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Mercurial Repo object for vcspull.
 
-vcspull.repo.hg
-~~~~~~~~~~~~~~~
+libvcs.hg
+~~~~~~~~~
 
 The following is from pypa/pip (MIT license):
 

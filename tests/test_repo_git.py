@@ -7,7 +7,8 @@ import os
 import mock
 import pytest
 
-from libvcs import create_repo, exc
+from libvcs import exc
+from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs._compat import StringIO
 from libvcs.util import run
 
@@ -26,7 +27,7 @@ def test_repo_git_obtain_initial_commit_repo(tmpdir):
 
     bare_repo_dir = tmpdir.join(repo_name)
 
-    git_repo = create_repo(**{
+    git_repo = create_repo_from_pip_url(**{
         'url': 'git+file://' + str(bare_repo_dir),
         'parent_dir': str(tmpdir),
         'name': 'obtaining a bare repo'
@@ -45,7 +46,7 @@ def test_repo_git_obtain_full(tmpdir, git_dummy_repo_dir):
     )
 
     # create a new repo with the repo as a remote
-    git_repo = create_repo(**{
+    git_repo = create_repo_from_pip_url(**{
         'url': 'git+file://' + remote_repo_dir,
         'parent_dir': str(tmpdir),
         'name': 'myrepo'
@@ -68,7 +69,7 @@ def test_remotes(git_repo_kwargs):
         ]
     })
 
-    git_repo = create_repo(**git_repo_kwargs)
+    git_repo = create_repo_from_pip_url(**git_repo_kwargs)
     git_repo.obtain(quiet=True)
     assert remote_name in git_repo.remotes_get
 
@@ -84,7 +85,7 @@ def test_remotes_vcs_prefix(git_repo_kwargs):
         }]
     })
 
-    git_repo = create_repo(**git_repo_kwargs)
+    git_repo = create_repo_from_pip_url(**git_repo_kwargs)
     git_repo.obtain(quiet=True)
 
     assert (remote_url, remote_url,) in git_repo.remotes_get.values()
@@ -102,7 +103,7 @@ def test_remotes_preserves_git_ssh(git_repo_kwargs):
         }]
     })
 
-    git_repo = create_repo(**git_repo_kwargs)
+    git_repo = create_repo_from_pip_url(**git_repo_kwargs)
     git_repo.obtain(quiet=True)
 
     assert (remote_url, remote_url,) in git_repo.remotes_get.values()
@@ -113,8 +114,8 @@ def test_private_ssh_format(git_repo_kwargs):
         'url': 'git+ssh://github.com:' + '/tmp/omg/private_ssh_repo',
     })
 
-    with pytest.raises(exc.VCSPullException) as e:
-        create_repo(**git_repo_kwargs)
+    with pytest.raises(exc.LibVCSException) as e:
+        create_repo_from_pip_url(**git_repo_kwargs)
         assert e.match("is malformatted")
 
 
@@ -148,7 +149,7 @@ def test_set_remote(git_repo):
 def test_repository_not_found_raises_exception(tmpdir):
     r"""Need to imitate git remote not found.
 
-    |isobar-frontend| (git)  create_repo directory for isobar-frontend (git) \
+    |isobar-frontend| (git)  create_repo_from_pip_url directory for isobar-frontend (git) \
         does not exist @ /home/tony/study/std/html/isobar-frontend
     |isobar-frontend| (git)  Cloning.
     |isobar-frontend| (git)  git clone --progress \
@@ -165,14 +166,14 @@ def test_repository_not_found_raises_exception(tmpdir):
     repo_name = 'my_git_project'
 
     url = 'git+file://' + os.path.join(repo_dir, repo_name)
-    git_repo = create_repo(**{
+    git_repo = create_repo_from_pip_url(**{
         'url': url,
         'parent_dir': str(tmpdir),
         'name': repo_name
     })
     error_output = 'ERROR: hello mock subprocess stderr'
 
-    with pytest.raises(exc.VCSPullException) as excinfo:
+    with pytest.raises(exc.LibVCSException) as excinfo:
         with mock.patch(
             "vcspull.repo.base.subprocess.Popen"
         ) as mock_subprocess:

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Base class for Repository objects.
 
-vcspull.repo.base
-~~~~~~~~~~~~~~~~~
+libvcs.base
+~~~~~~~~~~~
 
 """
 from __future__ import absolute_import, print_function, unicode_literals
@@ -159,7 +159,7 @@ class BaseRepo(RepoLoggingAdapter, object):
             if err == '' and process.poll() is not None:
                 break
             elif 'ERROR' in err:
-                raise exc.VCSPullException(
+                raise exc.LibVCSException(
                     err + console_to_str(process.stderr.read())
                 )
             else:

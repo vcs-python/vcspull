@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Git Repo object for vcspull.
 
-vcspull.repo.git
-~~~~~~~~~~~~~~~~
+libvcs.git
+~~~~~~~~~~
 
 From https://github.com/saltstack/salt (Apache License):
 
@@ -83,7 +83,7 @@ class GitRepo(BaseRepo):
         """Return current revision. Initial repositories return 'initial'."""
         try:
             return self.run(['rev-parse', '--verify', 'HEAD'])
-        except exc.VCSPullSubprocessException:
+        except exc.SubprocessError:
             return 'initial'
 
     def get_url_and_revision_from_pip_url(self):
@@ -99,7 +99,7 @@ class GitRepo(BaseRepo):
             url, rev = super(GitRepo, self).get_url_and_revision_from_pip_url()
             url = url.replace('ssh://', '')
         elif 'github.com:' in self.url:
-            raise exc.VCSPullException(
+            raise exc.LibVCSException(
                 "Repo %s is malformatted, please use the convention %s for"
                 "ssh / private GitHub repositories." % (
                     self.url, "git+https://github.com/username/repo.git"
@@ -172,7 +172,7 @@ class GitRepo(BaseRepo):
         try:
             head_sha = self.run(['rev-list', '--max-count=1', 'HEAD'],
                                 print_stdout_on_progress_end=False)
-        except exc.VCSPullSubprocessException as e:
+        except exc.SubprocessError as e:
             self.error("Failed to get the hash for HEAD")
             return
 
@@ -201,7 +201,7 @@ class GitRepo(BaseRepo):
             error_code = 0
             tag_sha = self.run(['rev-list', '--max-count=1', git_tag],
                                print_stdout_on_progress_end=False)
-        except exc.VCSPullSubprocessException as e:
+        except exc.SubprocessError as e:
             error_code = e.subprocess.returncode
         self.debug("tag_sha: %s" % tag_sha)
 
@@ -220,7 +220,7 @@ class GitRepo(BaseRepo):
             # Check if stash is needed
             try:
                 process = self.run(['status', '--porcelain'])
-            except exc.VCSPullSubprocessException as e:
+            except exc.SubprocessError as e:
                 self.error("Failed to get the status")
                 return
             need_stash = len(process.stdout_data) > 0
@@ -234,7 +234,7 @@ class GitRepo(BaseRepo):
                     process = self.run([
                         'stash', 'save', git_stash_save_options
                     ])
-                except exc.VCSPullSubprocessException as e:
+                except exc.SubprocessError as e:
                     self.error("Failed to stash changes")
 
             # Pull changes from the remote branch
@@ -242,7 +242,7 @@ class GitRepo(BaseRepo):
                 process = self.run([
                     'rebase', git_remote_name + '/' + git_tag
                 ], print_stdout_on_progress_end=False)
-            except exc.VCSPullSubprocessException as e:
+            except exc.SubprocessError as e:
                 # Rebase failed: Restore previous state.
                 self.run(['rebase', '--abort'])
                 if need_stash:
@@ -259,12 +259,12 @@ class GitRepo(BaseRepo):
                     process = self.run([
                         'stash', 'pop', '--index', '--quiet'
                     ])
-                except exc.VCSPullSubprocessException as e:
+                except exc.SubprocessError as e:
                     # Stash pop --index failed: Try again dropping the index
                     self.run(['reset', '--hard', '--quiet'])
                     try:
                         process = self.run(['stash', 'pop', '--quiet'])
-                    except exc.VCSPullSubprocessException as e:
+                    except exc.SubprocessError as e:
                         # Stash pop failed: Restore previous state.
                         self.run(['reset', '--hard', '--quiet', head_sha])
                         self.run(['stash', 'pop', '--index', '--quiet'])
@@ -276,7 +276,7 @@ class GitRepo(BaseRepo):
         else:
             try:
                 process = self.run(['checkout', git_tag])
-            except exc.VCSPullSubprocessException as e:
+            except exc.SubprocessError as e:
                 self.error("Failed to checkout tag: '%s'" % git_tag)
                 return
 
@@ -317,7 +317,7 @@ class GitRepo(BaseRepo):
                 return res
             else:
                 return None
-        except exc.VCSPullException:
+        except exc.LibVCSException:
             return None
 
     def remote_set(self, url, name='origin'):
