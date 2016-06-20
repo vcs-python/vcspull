@@ -6,9 +6,9 @@ import os
 
 import kaptan
 
+from libvcs import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo)
+from libvcs.shortcuts import create_repo_from_pip_url
 from vcspull.config import extract_repos, filter_repos
-from vcspull.repo import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo,
-                          create_repo)
 
 from .fixtures import example as fixtures
 
@@ -75,7 +75,7 @@ def test_vcs_url_scheme_to_object(tmpdir):
     object based on the pip-style URL scheme.
 
     """
-    git_repo = create_repo(**{
+    git_repo = create_repo_from_pip_url(**{
         'url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
         'parent_dir': str(tmpdir),
         'name': 'myproject1'
@@ -86,7 +86,7 @@ def test_vcs_url_scheme_to_object(tmpdir):
     assert isinstance(git_repo, GitRepo)
     assert isinstance(git_repo, BaseRepo)
 
-    hg_repo = create_repo(**{
+    hg_repo = create_repo_from_pip_url(**{
         'url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
         'parent_dir': str(tmpdir),
         'name': 'myproject2'
@@ -95,7 +95,7 @@ def test_vcs_url_scheme_to_object(tmpdir):
     assert isinstance(hg_repo, MercurialRepo)
     assert isinstance(hg_repo, BaseRepo)
 
-    svn_repo = create_repo(**{
+    svn_repo = create_repo_from_pip_url(**{
         'url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
         'parent_dir': str(tmpdir),
         'name': 'myproject3'
@@ -109,7 +109,7 @@ def test_to_repo_objects(tmpdir):
     """:py:obj:`dict` objects into Repo objects."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
     for repo_dict in repo_list:
-        r = create_repo(**repo_dict)
+        r = create_repo_from_pip_url(**repo_dict)
 
         assert isinstance(r, BaseRepo)
         assert 'name' in r
@@ -148,5 +148,5 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
     repos = extract_repos(conf)
 
     for r in filter_repos(repos):
-        repo = create_repo(**r)
+        repo = create_repo_from_pip_url(**r)
         repo.obtain()

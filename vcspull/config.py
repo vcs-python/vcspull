@@ -15,8 +15,9 @@ import os
 
 import kaptan
 
+from libvcs._compat import string_types
+
 from . import exc
-from ._compat import string_types
 from .util import CONFIG_DIR, update_dict
 
 log = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ def find_home_config_files(filetype=['json', 'yaml']):
         )
     else:
         if sum(filter(None, [has_json_config, has_yaml_config])) > int(1):
-            raise exc.MultipleRootConfigs(
+            raise exc.MultipleConfigWarning(
                 'multiple configs found in home directory use only one.'
                 ' .yaml, .json.'
             )
@@ -218,7 +219,7 @@ def load_configs(files, cwd=os.getcwd()):
             msg = (
                 'repos with same path + different VCS detected!', dupes
             )
-            raise Exception(msg)
+            raise exc.VCSPullException(msg)
         repos.extend(newrepos)
 
     return repos

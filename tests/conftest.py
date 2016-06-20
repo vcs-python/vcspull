@@ -3,8 +3,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import pytest
 
-from vcspull.repo import create_repo
-from vcspull.util import run
+from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.util import run
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def tmpdir_repoparent(tmpdir_factory, scope='function'):
 
 @pytest.fixture
 def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
-    """Return kwargs for :func:`create_repo`."""
+    """Return kwargs for :func:`create_repo_from_pip_url`."""
     repo_name = 'repo_clone'
     return {
         'url': 'git+file://' + git_dummy_repo_dir,
@@ -28,7 +28,7 @@ def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
 @pytest.fixture
 def git_repo(git_repo_kwargs):
     """Create an git repository for tests. Return repo."""
-    git_repo = create_repo(**git_repo_kwargs)
+    git_repo = create_repo_from_pip_url(**git_repo_kwargs)
     git_repo.obtain(quiet=True)
     return git_repo
 

@@ -1,4 +1,4 @@
-``vcspull`` - vcs project manager
+``vcspull`` - vcs project manager built on `libvcs`_
 
 |pypi| |docs| |build-status| |coverage| |license|
 
@@ -72,31 +72,11 @@ supports `fnmatch`_ patterns
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories
 * update to the latest repos with ``$ vcspull``
-* `Documentation`_, `API`_ and `Examples`_.
-* builds upon `pip`_'s `RFC3986`_-based `url scheme`_.
+* `Documentation`_  and `Examples`_.
+* supports `pip`_-style URL's (`RFC3986`_-based `url scheme`_)
 
 See the `Quickstart`_.
     
-python API
-----------
-
-.. code-block:: python
-
-   In [1]: from vcspull.repo import create_repo
-
-   In [2]: r = create_repo(url='git+https://www.github.com/tony/myrepo', parent_dir='/tmp/',
-            name='myrepo')
-
-   In [3]: r.update_repo()
-   |myrepo| (git)  Repo directory for myrepo (git) does not exist @ /tmp/myrepo
-   |myrepo| (git)  Cloning.
-   |myrepo| (git)  git clone --progress https://www.github.com/tony/myrepo /tmp/myrepo
-   Cloning into '/tmp/myrepo'...
-   Checking connectivity... done.
-   |myrepo| (git)  git fetch
-   |myrepo| (git)  git pull
-   Already up-to-date.
-
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 .. _.vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
 .. _examples: https://vcspull.readthedocs.io/en/latest/examples.html
@@ -112,7 +92,6 @@ Config formats  YAML, JSON, python dict
 Source          https://github.com/tony/vcspull
 Docs            http://vcspull.rtfd.org
 Changelog       http://vcspull.readthedocs.io/en/latest/history.html
-API             http://vcspull.readthedocs.io/en/latest/api.html
 Issues          https://github.com/tony/vcspull/issues
 Travis          http://travis-ci.org/tony/vcspull
 Test Coverage   https://coveralls.io/r/tony/vcspull
@@ -131,7 +110,7 @@ install dev     .. code-block:: bash
                     $ pip install -e .
 tests           .. code-block:: bash
 
-                    $ python ./run-tests.py
+                    $ py.test
 run             .. code-block:: bash
 
                     $ vcspull
@@ -139,11 +118,10 @@ run             .. code-block:: bash
 
 .. _BSD: http://opensource.org/licenses/BSD-3-Clause
 .. _Documentation: http://vcspull.readthedocs.io/en/latest/
-.. _API: http://vcspull.readthedocs.io/en/latest/api.html
 .. _Quickstart: http://vcspull.readthedocs.io/en/latest/quickstart.html
 .. _pip: http://www.pip-installer.org/en/latest/
 .. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
-.. _saltstack: http://www.saltstack.org
+.. _libvcs: https://github.com/tony/libvcs
 
 .. |pypi| image:: https://img.shields.io/pypi/v/vcspull.svg
     :alt: Python Package

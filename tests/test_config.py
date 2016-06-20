@@ -7,7 +7,9 @@ import os
 import kaptan
 import pytest
 
-from vcspull import config, exc
+import vcspull.exc
+from libvcs import exc
+from vcspull import config
 from vcspull.config import expand_dir, extract_repos
 
 from .fixtures import example as fixtures
@@ -146,7 +148,7 @@ def test_multiple_configs_raises_exception(tmpdir):
     tmpdir.join('.vcspull.json').write('')
     tmpdir.join('.vcspull.yaml').write('')
     with EnvironmentVarGuard() as env:
-        with pytest.raises(exc.MultipleRootConfigs):
+        with pytest.raises(vcspull.exc.MultipleConfigWarning):
             env.set("HOME", str(tmpdir))
             os.environ.get("HOME") == str(tmpdir)
 

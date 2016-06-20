@@ -1,16 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Tests for vcspull.
-
-vcspull.testsuite.helpers
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-_CallableContext, WhateverIO, decorator and stdouts are from the case project,
-https://github.com/celery/case, license BSD 3-clause.
-
-"""
+"""Helpers for vcspull."""
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+
 
 class EnvironmentVarGuard(object):
 

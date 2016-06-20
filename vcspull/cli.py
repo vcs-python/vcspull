@@ -11,11 +11,12 @@ import logging
 
 import click
 
+from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.log import DebugLogFormatter
+
 from .__about__ import __version__
 from .cli_defaultgroup import DefaultGroup
 from .config import filter_repos, find_config_files, load_configs
-from .log import DebugLogFormatter
-from .repo import create_repo
 
 MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
 MAX_ASYNC = 8  # maximum processes to open:w
@@ -100,7 +101,7 @@ def clamp(n, _min, _max):
 
 
 def update_repo(repo_dict):
-    r = create_repo(**repo_dict)
+    r = create_repo_from_pip_url(**repo_dict)
     log.debug('%s' % r)
     r.update_repo()
 

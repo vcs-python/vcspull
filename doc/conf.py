@@ -64,15 +64,6 @@ master_doc = 'index'
 project = about['__title__']
 copyright = about['__copyright__']
 
-rst_prolog = """
-.. note::
-
-    vcspull needs your help reporting errors, bugs and usability feedback.
-    If you encounter an error, please post on the `Issue tracker`_.
-
-.. _Issue tracker: https://github.com/tony/vcspull/issues
-"""
-
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.

@@ -1,37 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Exceptions for vcspull.
-
-vcspull.exc
-~~~~~~~~~~~
-
-"""
 from __future__ import absolute_import, print_function, unicode_literals
-
-from subprocess import CalledProcessError
-
 
 class VCSPullException(Exception):
 
-    """Standard VCSPullException."""
+    """Standard exception raised by libvcs."""
 
     pass
 
 
-class VCSPullSubprocessException(VCSPullException, CalledProcessError):
-    """This exception is raised on non-zero Base.run, util.run return codes."""
-
-    def __init__(self, returncode, cmd, output):
-        CalledProcessError.__init__(self,
-                                    returncode=returncode,
-                                    cmd=cmd,
-                                    output=output)
-
-    def __str__(self):
-        return "Command '%s' returned non-zero exit status %d: \n%s" % (
-            self.cmd, self.returncode, self.output)
-
-
-class MultipleRootConfigs(VCSPullException):
+class MultipleConfigWarning(VCSPullException):
     message = (
         'Multiple configs found in home directory use only one.'
         ' .yaml, .json.'
