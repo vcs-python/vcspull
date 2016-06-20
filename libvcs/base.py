@@ -107,12 +107,16 @@ class BaseRepo(RepoLoggingAdapter, object):
         if getattr(urlparse, 'uses_fragment', None):
             urlparse.uses_fragment.extend(self.schemes)
 
+        RepoLoggingAdapter.__init__(self, logger, {})
+
+    @classmethod
+    def from_pip_url(cls, *args, **kwargs):
+        self = cls(*args, **kwargs)
         url, rev = self.get_url_and_revision_from_pip_url()
         if url:
             self.url = url
         self.rev = rev if rev else None
-
-        RepoLoggingAdapter.__init__(self, logger, {})
+        return self
 
     def run_buffered(
         self, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

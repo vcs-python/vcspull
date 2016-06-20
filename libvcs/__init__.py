@@ -59,15 +59,15 @@ def create_repo(url, **kwargs):
     if url.startswith('git+'):
         if 'vcs' not in kwargs:
             kwargs['vcs'] = 'git'
-        return GitRepo(url, **kwargs)
+        return GitRepo.from_pip_url(url, **kwargs)
     if url.startswith('hg+'):
         if 'vcs' not in kwargs:
             kwargs['vcs'] = 'hg'
-        return MercurialRepo(url, **kwargs)
+        return MercurialRepo.from_pip_url(url, **kwargs)
     if url.startswith('svn+'):
         if 'vcs' not in kwargs:
             kwargs['vcs'] = 'svn'
-        return SubversionRepo(url, **kwargs)
+        return SubversionRepo.from_pip_url(url, **kwargs)
     else:
         raise Exception(
             'repo URL %s requires a vcs scheme. Prepend hg+,'
