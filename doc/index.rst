@@ -17,7 +17,6 @@ vcspull
    quickstart
    examples
    cli
-   api
    developing
    history
    roadmap

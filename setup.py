@@ -49,10 +49,7 @@ setup(
     cmdclass={'test': PyTest},
     zip_safe=False,
     keywords=about['__title__'],
-    packages=[
-        'vcspull',
-        'libvcs',
-    ],
+    packages=['vcspull'],
     entry_points=dict(console_scripts=['vcspull=vcspull:cli.cli']),
     classifiers=[
         'Development Status :: 4 - Beta',
