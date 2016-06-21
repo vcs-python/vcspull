@@ -2,4 +2,4 @@ kaptan==0.5.8
 pyyaml==3.11
 click==6.6 # Updated from 6.2
 colorama==0.3.7
-libvcs # Removed version lock until release
+libvcs==0.1.7  # Updated from no lock
