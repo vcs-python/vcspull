@@ -128,10 +128,7 @@ def find_home_config_files(filetype=['json', 'yaml']):
         )
     else:
         if sum(filter(None, [has_json_config, has_yaml_config])) > int(1):
-            raise exc.MultipleConfigWarning(
-                'multiple configs found in home directory use only one.'
-                ' .yaml, .json.'
-            )
+            raise exc.MultipleConfigWarning()
         if has_yaml_config:
             configs.append(yaml_config)
         if has_json_config:
