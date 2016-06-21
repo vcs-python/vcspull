@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Log utilities for libvcs.
+"""Log utilities for formatting CLI output.
 
-libvcs.log
+vcspull.log
 ~~~~~~~~~~~
+
+This module containers special formatters for processing the additional context
+information from :class:`libvcs.base.RepoLoggingAdapter`.
+
+Colorized formatters for generic logging inside the application is also
+provded.
 
 """
 from __future__ import absolute_import, print_function, unicode_literals

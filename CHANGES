@@ -10,7 +10,7 @@ Here you can find the recent changes to vcspull
   if its searching by vcs URL, repository name or system path.
 - [config] ``repo`` (the longform for the vcs url) is now ``url``.
 - [config] [internal] repos are now passed around in a list of
-  :py:`dict`. :class:`vcspull.config.expand_config` has been
+  :py:mod:`dict`. :class:`vcspull.config.expand_config` has been
   simplified.
 - [internal] flake8 and sort imports
 - [internal] [dev] Add ``Makefile`` for ``watch_test`` (re-running
