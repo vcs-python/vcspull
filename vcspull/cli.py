@@ -12,11 +12,11 @@ import logging
 import click
 
 from libvcs.shortcuts import create_repo_from_pip_url
-from libvcs.log import DebugLogFormatter
 
 from .__about__ import __version__
 from .cli_defaultgroup import DefaultGroup
 from .config import filter_repos, find_config_files, load_configs
+from .log import DebugLogFormatter, RepoLogFormatter, RepoFilter
 
 MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
 MAX_ASYNC = 8  # maximum processes to open:w
@@ -40,15 +40,21 @@ def setup_logger(log=None, level='INFO'):
         log.setLevel(level)
         log.addHandler(channel)
 
+        # setup styling for repo loggers
+        repo_logger = logging.getLogger('vcslib')
+        repo_logger.propagate = False
+        channel = logging.StreamHandler()
+        channel.setFormatter(RepoLogFormatter())
+        channel.addFilter(RepoFilter())
+        repo_logger.addHandler(channel)
+
 
 @click.group(cls=DefaultGroup, default_if_no_args=True)
 @click.option('--log_level', default='INFO',
               help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
 @click.version_option(version=__version__, message='%(prog)s %(version)s')
 def cli(log_level):
-    setup_logger(
-        level=log_level.upper()
-    )
+    setup_logger(log=log, level=log_level.upper())
 
 
 @cli.command(name='update', default=True)
@@ -57,7 +63,11 @@ def cli(log_level):
               help='Run repo syncing concurrently (experimental)')
 @click.option('config', '-c', type=click.Path(exists=True),
               help='Specify config')
-def update(repo_terms, run_async, config):
+@click.option('--log_level', default='INFO',
+              help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+def update(repo_terms, run_async, config, log_level):
+    setup_logger(log=log, level=log_level.upper())
+
     if config:
         configs = load_configs([config])
     else:
