@@ -5,7 +5,7 @@ vcspull.cli
 ~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import, print_function
 
 import logging
 
@@ -41,16 +41,16 @@ def setup_logger(log=None, level='INFO'):
         log.addHandler(channel)
 
         # setup styling for repo loggers
-        repo_logger = logging.getLogger('vcslib')
-        repo_logger.propagate = False
+        repo_logger = logging.getLogger('libvcs')
         channel = logging.StreamHandler()
         channel.setFormatter(RepoLogFormatter())
         channel.addFilter(RepoFilter())
+        repo_logger.setLevel(level)
         repo_logger.addHandler(channel)
 
 
 @click.group(cls=DefaultGroup, default_if_no_args=True)
-@click.option('--log_level', default='INFO',
+@click.option('--log-level', default='INFO',
               help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
 @click.version_option(version=__version__, message='%(prog)s %(version)s')
 def cli(log_level):
@@ -61,11 +61,11 @@ def cli(log_level):
 @click.argument('repo_terms', nargs=-1)
 @click.option('--run-async', '-a', is_flag=True,
               help='Run repo syncing concurrently (experimental)')
+@click.option('--log-level', default='INFO',
+              help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
 @click.option('config', '-c', type=click.Path(exists=True),
               help='Specify config')
-@click.option('--log_level', default='INFO',
-              help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
-def update(repo_terms, run_async, config, log_level):
+def update(repo_terms, run_async, log_level, config):
     setup_logger(log=log, level=log_level.upper())
 
     if config:
@@ -111,6 +111,7 @@ def clamp(n, _min, _max):
 
 
 def update_repo(repo_dict):
+    repo_dict['pip_url'] = repo_dict.pop('url')
     r = create_repo_from_pip_url(**repo_dict)
     log.debug('%s' % r)
     r.update_repo()
