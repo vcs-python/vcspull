@@ -8,6 +8,7 @@ vcspull.cli
 from __future__ import absolute_import, print_function
 
 import logging
+import sys
 
 import click
 
@@ -110,10 +111,17 @@ def clamp(n, _min, _max):
     return max(_min, min(n, _max))
 
 
+def progress_cb(output, timestamp):
+    sys.stdout.write(output)
+    sys.stdout.flush()
+
+
 def update_repo(repo_dict):
     repo_dict['pip_url'] = repo_dict.pop('url')
+    repo_dict['progress_callback'] = progress_cb
+
     r = create_repo_from_pip_url(**repo_dict)
-    log.debug('%s' % r)
+
     r.update_repo()
 
 cli.add_command(update)
