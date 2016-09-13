@@ -1,5 +1,5 @@
 kaptan==0.5.8
-pyyaml==3.11
+pyyaml==3.12  # updated from 3.11
 click==6.6 # Updated from 6.2
 colorama==0.3.7
-libvcs==0.2.0  # Updated from 0.1.7
+libvcs==0.2.1  # Updated from 0.2.0
