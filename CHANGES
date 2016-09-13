@@ -4,6 +4,16 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+- :release:`1.0.0 <2016-09-13>`
+- :feature:`41` Transition uses `libvcs`_ backend
+- :feature:`41` Transition tests from unittest to pytest
+- :support:`40` Major API refactorings and removal of unused code, see the
+  api reference for more.
+- :feature:`38` Improve SVN and git support, thanks `@jcfr`!
+- :support:`35` Don't run mercurial tests if ``hg(1)`` missing, by `@jcfr`
+- :support:`36`, :support:`37` Documentation updates from `@jcfr`
+- :bug:`34` Fix missing mock library, thanks `@jfcr`
+
 - :release:`0.9.0 <2016-05-26>`
 - [cli] [internal]: command line arg parsing now uses `click`_ library.
 - [cli] vcspull will use the beginning part of the argument to determine
@@ -193,5 +203,6 @@ Here you can find the recent changes to vcspull
 .. _issue #6: https://github.com/tony/vcspull/issues/6
 
 .. _issue #1: https://github.com/tony/vcspull/issues/1
+.. _libvcs: https://github.com/tony/libvcs
 
 .. vim: set filetype=rst:
