@@ -1,4 +1,4 @@
-``vcspull`` - vcs project manager built on `libvcs`_
+``vcspull`` - synchronize your repos. built on `libvcs`_
 
 |pypi| |docs| |build-status| |coverage| |license|
 
@@ -7,7 +7,7 @@
     :width: 45%
     :align: center
 
-add projects to ``~/.vcspull.yaml``
+add repos to ``~/.vcspull.yaml``
 
 .. code-block:: yaml
    
