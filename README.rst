@@ -37,7 +37,7 @@ add repos to ``~/.vcspull.yaml``
 
 see the author's `.vcspull.yaml`_, more `examples`_.
 
-update your repos
+clone / update your repos
 
 .. code-block:: bash
     
@@ -53,7 +53,7 @@ svn project with a git dependency:
    ./vendor/:
      sdl2pp: 'git+https://github.com/libSDL2pp/libSDL2pp.git'
 
-update::
+clone / update repos::
 
     $ vcspull -c external_deps.yaml
 
