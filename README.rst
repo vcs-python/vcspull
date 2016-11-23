@@ -89,11 +89,6 @@ supports `fnmatch`_ patterns
     :width: 45%
     :align: center
 
-.. _RFC3986: http://tools.ietf.org/html/rfc3986.html
-.. _.vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
-.. _examples: https://vcspull.readthedocs.io/en/latest/examples.html
-.. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
-
 Donations
 ---------
 
@@ -144,6 +139,10 @@ run             .. code-block:: bash
 .. _pip: http://www.pip-installer.org/en/latest/
 .. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _libvcs: https://github.com/tony/libvcs
+.. _RFC3986: http://tools.ietf.org/html/rfc3986.html
+.. _.vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
+.. _examples: https://vcspull.readthedocs.io/en/latest/examples.html
+.. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
 .. |pypi| image:: https://img.shields.io/pypi/v/vcspull.svg
     :alt: Python Package
