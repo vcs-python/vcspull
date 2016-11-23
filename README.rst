@@ -2,7 +2,8 @@
 
 |pypi| |docs| |build-status| |coverage| |license|
 
-Manage your commonly used repos from a single YAML / JSON manifest.
+Manage your commonly used repos from YAML / JSON manifest(s).
+Compare to `myrepos`_.
 
 Great if you use the same repos across multiple machines or want to
 clone / update a pattern of repos without having to ``cd`` into each
@@ -13,6 +14,8 @@ one.
 * update to the latest repos with ``$ vcspull``
 * `Documentation`_  and `Examples`_.
 * supports `pip`_-style URL's (`RFC3986`_-based `url scheme`_)
+
+.. _myrepos: http://myrepos.branchable.com/
 
 how to
 ------
