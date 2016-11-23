@@ -82,6 +82,16 @@ See the `Quickstart`_.
 .. _examples: https://vcspull.readthedocs.io/en/latest/examples.html
 .. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
+Donations
+---------
+
+Your donations fund development of new features, testing and support.
+Your money will go directly to maintenance and development of the project.
+If you are an individual, feel free to give whatever feels right for the
+value you get out of the project.
+
+See donation options at https://git-pull.com/support.html.
+
 More information 
 ----------------
 
