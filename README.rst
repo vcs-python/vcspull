@@ -5,13 +5,15 @@
 Manage your commonly used repos from YAML / JSON manifest(s).
 Compare to `myrepos`_.
 
-Great if you use the same repos across multiple machines or want to
-clone / update a pattern of repos without having to ``cd`` into each
-one.
+Great if you use the same repos at the same locations across multiple
+machines or want to clone / update a pattern of repos without having
+to ``cd`` into each one.
 
+* clone  /update to the latest repos with ``$ vcspull``
+* use filters to specify a location, repo url or pattern
+  in the manifest to clone / update
 * supports svn, git, hg version control systems
 * automatically checkout fresh repositories
-* update to the latest repos with ``$ vcspull``
 * `Documentation`_  and `Examples`_.
 * supports `pip`_-style URL's (`RFC3986`_-based `url scheme`_)
 
@@ -36,6 +38,10 @@ add repos to ``~/.vcspull.yaml``
           tony: 'git+ssh://git@github.com/tony/AlgoXY.git'
 
 see the author's `.vcspull.yaml`_, more `examples`_.
+
+on future machines, you just copy your ``$HOME/.vcspull.yaml`` file
+or ``$HOME/.vcspull/`` directory into your machine and you can begin
+cloning. vcspull automatically handles building nested directories.
 
 clone / update your repos
 
