@@ -1,7 +1,7 @@
 __title__ = 'vcspull'
 __package_name__ = 'vcspull'
 __description__ = 'vcs project manager'
-__version__ = '0.9.0'
+__version__ = '1.0.0'
 __author__ = 'Tony Narlock'
 __email__ = 'tony@git-pull.com'
 __license__ = 'BSD'
