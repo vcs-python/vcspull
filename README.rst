@@ -2,10 +2,20 @@
 
 |pypi| |docs| |build-status| |coverage| |license|
 
-.. image:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-demo.gif
-    :scale: 100%
-    :width: 45%
-    :align: center
+Manage your commonly used repos from a single YAML / JSON manifest.
+
+Great if you use the same repos across multiple machines or want to
+clone / update a pattern of repos without having to ``cd`` into each
+one.
+
+* supports svn, git, hg version control systems
+* automatically checkout fresh repositories
+* update to the latest repos with ``$ vcspull``
+* `Documentation`_  and `Examples`_.
+* supports `pip`_-style URL's (`RFC3986`_-based `url scheme`_)
+
+how to
+------
 
 add repos to ``~/.vcspull.yaml``
 
@@ -44,6 +54,8 @@ update::
 
     $ vcspull -c external_deps.yaml
 
+See the `Quickstart`_ for more.
+
 filter through hundreds of repos
 --------------------------------
 
@@ -68,15 +80,12 @@ supports `fnmatch`_ patterns
 
     # all repositories in your ~/code directory
     vcspull "$HOME/code/*"
- 
-* supports svn, git, hg version control systems
-* automatically checkout fresh repositories
-* update to the latest repos with ``$ vcspull``
-* `Documentation`_  and `Examples`_.
-* supports `pip`_-style URL's (`RFC3986`_-based `url scheme`_)
 
-See the `Quickstart`_.
-    
+.. image:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-demo.gif
+    :scale: 100%
+    :width: 45%
+    :align: center
+
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 .. _.vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
 .. _examples: https://vcspull.readthedocs.io/en/latest/examples.html
