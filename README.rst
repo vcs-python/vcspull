@@ -65,10 +65,12 @@ clone / update repos::
 
 See the `Quickstart`_ for more.
 
-filter through hundreds of repos
---------------------------------
+filter options
+--------------
 
-supports `fnmatch`_ patterns
+if you have many repos in your ``.vcspull.{json,yaml}`` files to clone or
+update, use this to target by directory, repo name or vcs url. supports
+`fnmatch`_ patterns
 
 .. code-block:: bash
 
@@ -88,7 +90,7 @@ supports `fnmatch`_ patterns
     $ vcspull "git+*django*"
 
     # all repositories in your ~/code directory
-    vcspull "$HOME/code/*"
+    $ vcspull "$HOME/code/*"
 
 .. image:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-demo.gif
     :scale: 100%
