@@ -4,6 +4,10 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+- :release:`1.0.1 <2016-11-24>`
+- :bug:`43` - fix missing test dependency on anaconda by updating libvcs
+- :support:`-` README tweaks
+
 - :release:`1.0.0 <2016-09-13>`
 - :feature:`41` Transition uses `libvcs`_ backend
 - :feature:`41` Transition tests from unittest to pytest
