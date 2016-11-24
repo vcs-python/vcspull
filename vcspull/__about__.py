@@ -1,6 +1,6 @@
 __title__ = 'vcspull'
 __package_name__ = 'vcspull'
-__description__ = 'vcs project manager'
+__description__ = 'synchronize your repos'
 __version__ = '1.0.0'
 __author__ = 'Tony Narlock'
 __email__ = 'tony@git-pull.com'
