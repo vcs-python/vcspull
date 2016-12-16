@@ -15,6 +15,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'releases',
+    'alabaster',
 ]
 
 releases_unstable_prehistory = True
@@ -38,16 +39,20 @@ exclude_patterns = ['_build']
 
 pygments_style = 'sphinx'
 
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-if on_rtd:
-    html_theme = 'default'
-else:
-    try:
-        import sphinx_rtd_theme
-        html_theme = "sphinx_rtd_theme"
-        html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-    except ImportError:
-        html_theme = 'pyramid'
+import alabaster
+
+html_theme_path = [alabaster.get_path()]
+html_theme = 'alabaster'
+html_sidebars = {
+    '**': [
+        'about.html',
+        'star.html',
+        'navigation.html',
+        'relations.html',
+        'more.html',
+        'searchbox.html',
+    ]
+}
 
 html_static_path = ['_static']
 

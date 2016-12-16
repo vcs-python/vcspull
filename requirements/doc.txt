@@ -1,4 +1,4 @@
 -r ./base.txt
 sphinx
-sphinx_rtd_theme
+alabaster
 releases==1.2.1 # Updated from 1.2.0
