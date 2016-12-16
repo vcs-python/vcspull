@@ -25,4 +25,3 @@ More information
    cli
    developing
    history
-   roadmap
