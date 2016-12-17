@@ -116,7 +116,7 @@ VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
 Source          https://github.com/tony/vcspull
 Docs            http://vcspull.rtfd.org
-Changelog       http://vcspull.readthedocs.io/en/latest/history.html
+Changelog       http://vcspull.git-pull.com/en/latest/history.html
 Issues          https://github.com/tony/vcspull/issues
 Travis          http://travis-ci.org/tony/vcspull
 Test Coverage   https://coveralls.io/r/tony/vcspull
@@ -142,14 +142,14 @@ run             .. code-block:: bash
 ==============  ==========================================================
 
 .. _BSD: http://opensource.org/licenses/BSD-3-Clause
-.. _Documentation: http://vcspull.readthedocs.io/en/latest/
-.. _Quickstart: http://vcspull.readthedocs.io/en/latest/quickstart.html
+.. _Documentation: http://vcspull.git-pull.com/en/latest/
+.. _Quickstart: http://vcspull.git-pull.com/en/latest/quickstart.html
 .. _pip: http://www.pip-installer.org/en/latest/
 .. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _libvcs: https://github.com/tony/libvcs
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 .. _.vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
-.. _examples: https://vcspull.readthedocs.io/en/latest/examples.html
+.. _examples: https://vcspull.git-pull.com/en/latest/examples.html
 .. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
 .. |pypi| image:: https://img.shields.io/pypi/v/vcspull.svg
