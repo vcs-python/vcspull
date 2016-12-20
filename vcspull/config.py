@@ -123,7 +123,7 @@ def find_home_config_files(filetype=['json', 'yaml']):
     if not has_yaml_config and not has_json_config:
         log.debug(
             'No config file found. Create a .vcspull.yaml or .vcspull.json'
-            ' in your $HOME directory. http://vcspull.rtfd.org for a'
+            ' in your $HOME directory. http://vcspull.git-pull.com for a'
             ' quickstart.'
         )
     else:

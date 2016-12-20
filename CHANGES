@@ -4,6 +4,9 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+- :release:`1.0.3 <2016-12-19>`
+- :support:`-` Update more documentation domain at vcspull.git-pull.com
+
 - :release:`1.0.2 <2016-12-19>`
 - :support:`-` Update to new documentation domain at vcspull.git-pull.com
 - :support:`-` Fix travis tests via ``pip install -u mock`` in
@@ -198,7 +201,7 @@ Here you can find the recent changes to vcspull
 - removed salt-specific code used for Popen
   (https://github.com/tony/vcspull/commit/67dbb793e7)
 
-.. _tmuxp: http://tmuxp.rtfd.org
+.. _tmuxp: http://tmuxp.git-pull.com
 .. _pep257: http://www.python.org/dev/peps/pep-0257/
 .. _pep8: http://www.python.org/dev/peps/pep-0008/
 .. _sphinx-argparse: https://github.com/tony/sphinx-argparse

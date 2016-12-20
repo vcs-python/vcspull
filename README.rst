@@ -115,7 +115,7 @@ Python support  Python 2.7, >= 3.3
 VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
 Source          https://github.com/tony/vcspull
-Docs            http://vcspull.rtfd.org
+Docs            http://vcspull.git-pull.com
 Changelog       http://vcspull.git-pull.com/en/latest/history.html
 Issues          https://github.com/tony/vcspull/issues
 Travis          http://travis-ci.org/tony/vcspull
