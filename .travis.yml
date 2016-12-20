@@ -9,6 +9,7 @@ before_install:
   - export PIP_USE_MIRRORS=true
   - pip install -U pip setuptools
   - pip install -U pytest  # https://github.com/travis-ci/travis-ci/issues/4873
+  - pip install -U mock  # https://github.com/travis-ci/travis-ci/issues/4873
   - pip install coveralls
   - git config --global user.name 'travis-ci'
   - git config --global user.email 'travis@nowhere.edu'
