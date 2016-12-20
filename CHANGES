@@ -4,6 +4,11 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+- :release:`1.0.2 <2016-12-19>`
+- :support:`-` Update to new documentation domain at vcspull.git-pull.com
+- :support:`-` Fix travis tests via ``pip install -u mock`` in
+  ``.travis.yaml``.
+
 - :release:`1.0.1 <2016-11-24>`
 - :bug:`43` - fix missing test dependency on anaconda by updating libvcs
 - :support:`-` README tweaks
