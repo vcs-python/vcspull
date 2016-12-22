@@ -1,4 +1,4 @@
 -r ./base.txt
-sphinx
+sphinx==1.5.1
 alabaster==0.7.9
 releases==1.2.1 # Updated from 1.2.0
