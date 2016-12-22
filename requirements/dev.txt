@@ -1,2 +1,2 @@
-flake8==2.5.4
-vulture==0.8.1
+flake8==3.2.1
+vulture==0.11
