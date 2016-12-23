@@ -2,4 +2,4 @@ kaptan==0.5.8
 pyyaml==3.12  # updated from 3.11
 click==6.6 # Updated from 6.2
 colorama==0.3.7
-libvcs==0.2.2  # Updated from 0.2.1
+libvcs==0.2.3 # Updated from 0.2.1
