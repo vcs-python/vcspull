@@ -22,7 +22,10 @@ to ``cd`` into each one.
 how to
 ------
 
-add repos to ``~/.vcspull.yaml`` manifest first.
+configure
+=========
+
+add repos you want vcspull to manage to ``~/.vcspull.yaml``.
 
 *vcspull does not currently scan for repos on your system, but it may in
 the future*
@@ -49,6 +52,7 @@ directories. Updating already cloned/checked out repos is done
 automatically if they already exist.
 
 clone / update your repos
+=========================
 
 .. code-block:: bash
     
@@ -71,7 +75,9 @@ clone / update repos::
 See the `Quickstart`_ for more.
 
 pulling specific repos
-----------------------
+======================
+
+have a lot of repos?
 
 you can choose to update only select repos through `fnmatch`_ patterns.
 remember to add the repos to your ``~/.vcspull.{json,yaml}`` first.
