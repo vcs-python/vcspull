@@ -22,7 +22,10 @@ to ``cd`` into each one.
 how to
 ------
 
-add repos to ``~/.vcspull.yaml``
+add repos to ``~/.vcspull.yaml`` manifest first.
+
+*vcspull does not currently scan for repos on your system, but it may in
+the future*
 
 .. code-block:: yaml
    
@@ -37,11 +40,13 @@ add repos to ``~/.vcspull.yaml``
         remotes:
           tony: 'git+ssh://git@github.com/tony/AlgoXY.git'
 
-see the author's `.vcspull.yaml`_, more `examples`_.
+(see the author's `.vcspull.yaml`_, more `examples`_.)
 
-on future machines, you just copy your ``$HOME/.vcspull.yaml`` file
-or ``$HOME/.vcspull/`` directory into your machine and you can begin
-cloning. vcspull automatically handles building nested directories.
+next, on other machines, copy your ``$HOME/.vcspull.yaml`` file
+or ``$HOME/.vcspull/`` directory them and you can clone your repos
+consistently. vcspull automatically handles building nested
+directories. Updating already cloned/checked out repos is done
+automatically if they already exist.
 
 clone / update your repos
 
@@ -65,12 +70,13 @@ clone / update repos::
 
 See the `Quickstart`_ for more.
 
-filter options
---------------
+pulling specific repos
+----------------------
 
-if you have many repos in your ``.vcspull.{json,yaml}`` files to clone or
-update, use this to target by directory, repo name or vcs url. supports
-`fnmatch`_ patterns
+you can choose to update only select repos through `fnmatch`_ patterns.
+remember to add the repos to your ``~/.vcspull.{json,yaml}`` first.
+
+The patterns can be filtered by by directory, repo name or vcs url.
 
 .. code-block:: bash
 
