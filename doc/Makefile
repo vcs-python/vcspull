@@ -162,4 +162,9 @@ watch:
 	if command -v entr > /dev/null; then ${WATCH_FILES} | entr -c $(MAKE) html; else $(MAKE) html; fi
 
 serve:
-	echo 'docs online at: http://0.0.0.0:8002/_build/html'; python -m SimpleHTTPServer 8002
+	@echo '========================================================'
+	@echo
+	@echo ' docs server running at http://0.0.0.0:8002/_build/html '
+	@echo
+	@echo '========================================================'
+	python -m SimpleHTTPServer 8002
