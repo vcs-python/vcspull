@@ -42,6 +42,7 @@ pygments_style = 'sphinx'
 import alabaster
 
 html_theme_path = [alabaster.get_path()]
+html_favicon = 'favicon.ico'
 html_theme = 'alabaster'
 html_theme_options = {
     'logo': 'img/vcspull.svg',
