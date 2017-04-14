@@ -22,8 +22,15 @@ to ``cd`` into each one.
 how to
 ------
 
+install
+"""""""
+
+.. code-block:: sh
+
+    $ pip install --user vcspull
+
 configure
-=========
+"""""""""
 
 add repos you want vcspull to manage to ``~/.vcspull.yaml``.
 
@@ -52,7 +59,7 @@ directories. Updating already cloned/checked out repos is done
 automatically if they already exist.
 
 clone / update your repos
-=========================
+"""""""""""""""""""""""""
 
 .. code-block:: bash
     
@@ -75,7 +82,7 @@ clone / update repos::
 See the `Quickstart`_ for more.
 
 pulling specific repos
-======================
+""""""""""""""""""""""
 
 have a lot of repos?
 
