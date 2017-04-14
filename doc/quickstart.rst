@@ -13,13 +13,13 @@ For latest official version:
 
 .. code-block:: bash
 
-    $ pip install vcspull
+    $ pip install --user vcspull
 
 Development version:
 
 .. code-block:: bash
 
-    $ pip install -e git+https://github.com/tony/vcspull.git#egg=vcspull
+    $ pip install --user -e git+https://github.com/tony/vcspull.git#egg=vcspull
 
 Configuration
 -------------
