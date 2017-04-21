@@ -138,7 +138,7 @@ Docs            http://vcspull.git-pull.com
 Changelog       http://vcspull.git-pull.com/en/latest/history.html
 Issues          https://github.com/tony/vcspull/issues
 Travis          http://travis-ci.org/tony/vcspull
-Test Coverage   https://coveralls.io/r/tony/vcspull
+Test Coverage   https://codecov.io/gh/tony/vcspull
 pypi            https://pypi.python.org/pypi/vcspull
 Open Hub        https://www.openhub.net/p/vcspull
 License         `BSD`_.
