@@ -21,7 +21,7 @@ extensions = [
 releases_unstable_prehistory = True
 releases_document_name = "history"
 releases_issue_uri = "https://github.com/tony/vcspull/issues/%s"
-releases_release_uri = "https://github.com/tony/vcspull/tree/%s"
+releases_release_uri = "https://github.com/tony/vcspull/tree/v%s"
 
 templates_path = ['_templates']
 
