@@ -27,10 +27,10 @@ def expand_dir(_dir, cwd=os.getcwd()):
     """Return path with environmental variables and tilde ~ expanded.
 
     :param _dir:
-    :type _dir: string
+    :type _dir: str
     :param cwd: current working dir (for deciphering relative _dir paths)
-    :type cwd: string
-    :rtype; string
+    :type cwd: str
+    :rtype; str
     """
     _dir = os.path.expanduser(os.path.expandvars(_dir))
     if not os.path.isabs(_dir):
@@ -47,7 +47,7 @@ def extract_repos(config, cwd=os.getcwd()):
     :param config: the repo config in :py:class:`dict` format.
     :type config: dict
     :param cwd: current working dir (for deciphering relative paths)
-    :type cwd: string
+    :type cwd: str
     :rtype: list
 
     """
@@ -267,7 +267,7 @@ def in_dir(
     """Return a list of configs in ``config_dir``.
 
     :param config_dir: directory to search
-    :type config_dir: string
+    :type config_dir: str
     :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
     :type extensions: list
     :rtype: list
@@ -329,9 +329,9 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     """Return True if file has a valid config file type.
 
     :param filename: filename to check (e.g. ``mysession.json``).
-    :type filename: string
+    :type filename: str
     :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list or string
+    :type extensions: list or str
     :rtype: bool
 
     """
