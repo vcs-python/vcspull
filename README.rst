@@ -161,8 +161,8 @@ run             .. code-block:: bash
 ==============  ==========================================================
 
 .. _BSD: http://opensource.org/licenses/BSD-3-Clause
-.. _Documentation: http://vcspull.git-pull.com/en/latest/
-.. _Quickstart: http://vcspull.git-pull.com/en/latest/quickstart.html
+.. _Documentation: https://vcspull.git-pull.com/en/latest/
+.. _Quickstart: https://vcspull.git-pull.com/en/latest/quickstart.html
 .. _pip: http://www.pip-installer.org/en/latest/
 .. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
 .. _libvcs: https://github.com/tony/libvcs
