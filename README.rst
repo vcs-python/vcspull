@@ -141,7 +141,7 @@ Travis          https://travis-ci.org/tony/vcspull
 Test Coverage   https://codecov.io/gh/tony/vcspull
 pypi            https://pypi.python.org/pypi/vcspull
 Open Hub        https://www.openhub.net/p/vcspull
-License         `BSD`_.
+License         `MIT`_.
 git repo        .. code-block:: bash
 
                     $ git clone https://github.com/tony/vcspull.git
@@ -160,7 +160,7 @@ run             .. code-block:: bash
                     $ vcspull
 ==============  ==========================================================
 
-.. _BSD: http://opensource.org/licenses/BSD-3-Clause
+.. _MIT: https://opensource.org/licenses/MIT
 .. _Documentation: https://vcspull.git-pull.com/en/latest/
 .. _Quickstart: https://vcspull.git-pull.com/en/latest/quickstart.html
 .. _pip: http://www.pip-installer.org/en/latest/

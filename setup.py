@@ -53,7 +53,7 @@ setup(
     entry_points=dict(console_scripts=['vcspull=vcspull:cli.cli']),
     classifiers=[
         'Development Status :: 4 - Beta',
-        "License :: OSI Approved :: BSD License",
+        "License :: OSI Approved :: MIT License",
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         "Operating System :: POSIX",
