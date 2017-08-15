@@ -1,2 +1,2 @@
 flake8==3.4.1
-vulture==0.23
+vulture==0.25
