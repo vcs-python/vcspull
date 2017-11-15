@@ -1,2 +1,2 @@
 mock==2.0.0
-pytest==3.2.3 # Updated from 3.0.2
+pytest==3.2.4 # Updated from 3.0.2
