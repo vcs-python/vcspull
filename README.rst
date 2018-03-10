@@ -111,7 +111,7 @@ The patterns can be filtered by by directory, repo name or vcs url.
     # all repositories in your ~/code directory
     $ vcspull "$HOME/code/*"
 
-.. image:: https://raw.github.com/tony/vcspull/master/doc/_static/vcspull-demo.gif
+.. image:: https://raw.github.com/vcs-python/vcspull/master/doc/_static/vcspull-demo.gif
     :scale: 100%
     :width: 45%
     :align: center
@@ -133,21 +133,21 @@ More information
 Python support  Python 2.7, >= 3.4
 VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
-Source          https://github.com/tony/vcspull
+Source          https://github.com/vcs-python/vcspull
 Docs            https://vcspull.git-pull.com
 Changelog       https://vcspull.git-pull.com/en/latest/history.html
-Issues          https://github.com/tony/vcspull/issues
-Travis          https://travis-ci.org/tony/vcspull
-Test Coverage   https://codecov.io/gh/tony/vcspull
+Issues          https://github.com/vcs-python/vcspull/issues
+Travis          https://travis-ci.org/vcs-python/vcspull
+Test Coverage   https://codecov.io/gh/vcs-python/vcspull
 pypi            https://pypi.python.org/pypi/vcspull
 Open Hub        https://www.openhub.net/p/vcspull
 License         `MIT`_.
 git repo        .. code-block:: bash
 
-                    $ git clone https://github.com/tony/vcspull.git
+                    $ git clone https://github.com/vcs-python/vcspull.git
 install dev     .. code-block:: bash
 
-                    $ git clone https://github.com/tony/vcspull.git vcspull
+                    $ git clone https://github.com/vcs-python/vcspull.git vcspull
                     $ cd ./vcspull
                     $ virtualenv .venv
                     $ source .venv/bin/activate
@@ -175,15 +175,15 @@ run             .. code-block:: bash
     :alt: Python Package
     :target: http://badge.fury.io/py/vcspull
 
-.. |build-status| image:: https://img.shields.io/travis/tony/vcspull.svg
+.. |build-status| image:: https://img.shields.io/travis/vcs-python/vcspull.svg
    :alt: Build Status
-   :target: https://travis-ci.org/tony/vcspull
+   :target: https://travis-ci.org/vcs-python/vcspull
 
-.. |coverage| image:: https://codecov.io/gh/tony/vcspull/branch/master/graph/badge.svg
+.. |coverage| image:: https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg
     :alt: Code Coverage
-    :target: https://codecov.io/gh/tony/vcspull
+    :target: https://codecov.io/gh/vcs-python/vcspull
     
-.. |license| image:: https://img.shields.io/github/license/tony/vcspull.svg
+.. |license| image:: https://img.shields.io/github/license/vcs-python/vcspull.svg
     :alt: License 
 
 .. |docs| image:: https://readthedocs.org/projects/vcspull/badge/?version=latest

@@ -19,7 +19,7 @@ Development version:
 
 .. code-block:: bash
 
-    $ pip install --user -e git+https://github.com/tony/vcspull.git#egg=vcspull
+    $ pip install --user -e git+https://github.com/vcs-python/vcspull.git#egg=vcspull
 
 Configuration
 -------------

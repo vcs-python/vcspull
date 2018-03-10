@@ -193,13 +193,13 @@ Here you can find the recent changes to vcspull
 - move to semver
 
 - :release:`0.0.1 <2013-10-06>` 
-- https://github.com/tony/vcspull/compare/a96e723269...a5be723de5
+- https://github.com/vcs-python/vcspull/compare/a96e723269...a5be723de5
 - remove virtualenv dep [Done]
 - remove pip dep [Done]
 - logging for repo obtain/update/makedir/rev [Done]
 - logging.notify with alternative format [Done]
 - removed salt-specific code used for Popen
-  (https://github.com/tony/vcspull/commit/67dbb793e7)
+  (https://github.com/vcs-python/vcspull/commit/67dbb793e7)
 
 .. _tmuxp: http://tmuxp.git-pull.com
 .. _pep257: http://www.python.org/dev/peps/pep-0257/
@@ -208,13 +208,13 @@ Here you can find the recent changes to vcspull
 .. _argcomplete: https://github.com/kislyuk/argcomplete
 .. _tony/cookiecutter-pypackage: https://github.com/tony/cookiecutter-pypackage.
 
-.. _#14: https://github.com/tony/vcspull/issues/14
+.. _#14: https://github.com/vcs-python/vcspull/issues/14
 .. _click: https://github.com/pallets/click
 
 .. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
-.. _issue #6: https://github.com/tony/vcspull/issues/6
+.. _issue #6: https://github.com/vcs-python/vcspull/issues/6
 
-.. _issue #1: https://github.com/tony/vcspull/issues/1
-.. _libvcs: https://github.com/tony/libvcs
+.. _issue #1: https://github.com/vcs-python/vcspull/issues/1
+.. _libvcs: https://github.com/vcs-python/libvcs
 
 .. vim: set filetype=rst:

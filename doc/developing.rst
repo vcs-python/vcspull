@@ -21,7 +21,7 @@ To begin developing, check out the code from github:
 
 .. code-block:: sh
 
-    $ git clone git@github.com:tony/vcspull.git
+    $ git clone git@github.com:vcs-python/vcspull.git
     $ cd vcspull
 
 Now create a virtualenv, if you don't know how to, you can create a
@@ -89,4 +89,4 @@ Multiple can be separated by spaces:
 
     $ py.test tests/test_{window,pane}.py tests/test_config.py::test_export_json
 
-.. _issue on github: https://github.com/tony/vcspull/issues
+.. _issue on github: https://github.com/vcs-python/vcspull/issues

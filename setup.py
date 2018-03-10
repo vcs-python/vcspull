@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""vcspull lives at <https://github.com/tony/vcspull>."""
+"""vcspull lives at <https://github.com/vcs-python/vcspull>."""
 
 import sys
 
@@ -37,7 +37,7 @@ class PyTest(TestCommand):
 setup(
     name=about['__title__'],
     version=about['__version__'],
-    url='http://github.com/tony/vcspull/',
+    url='http://github.com/vcs-python/vcspull/',
     download_url='https://pypi.python.org/pypi/vcspull',
     license=about['__license__'],
     author=about['__author__'],
