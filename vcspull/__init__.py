@@ -5,8 +5,8 @@
 vcspull
 ~~~~~~~
 
-:copyright: Copyright 2013-2015 Tony Narlock.
-:license: BSD, see LICENSE for details
+:copyright: Copyright 2013-2018 Tony Narlock.
+:license: MIT, see LICENSE for details
 
 """
 
