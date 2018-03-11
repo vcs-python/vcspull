@@ -4,6 +4,14 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+- :release:`1.1.0 <2018-03-11>`
+- :support:`-` Move to new organization, vcs-python
+- :bug:`-` Fix a bug in libvcs that prevented syncing on Ubuntu 18.04 LTS
+  beta.
+- :support:`-` Update libvcs to 0.3.0
+- :support:`-` Various package updates for support infrastructure,
+  including pytest and sphinx
+
 - :release:`1.0.3 <2016-12-19>`
 - :support:`-` Update more documentation domain at vcspull.git-pull.com
 
