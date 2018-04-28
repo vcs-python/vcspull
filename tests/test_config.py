@@ -4,8 +4,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 
-import kaptan
 import pytest
+
+import kaptan
 
 from vcspull import config, exc
 from vcspull.config import expand_dir, extract_repos

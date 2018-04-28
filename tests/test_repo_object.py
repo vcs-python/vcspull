@@ -6,7 +6,7 @@ import os
 
 import kaptan
 
-from libvcs import (BaseRepo, GitRepo, MercurialRepo, SubversionRepo)
+from libvcs import BaseRepo, GitRepo, MercurialRepo, SubversionRepo
 from libvcs.shortcuts import create_repo_from_pip_url
 from vcspull.config import extract_repos, filter_repos
 

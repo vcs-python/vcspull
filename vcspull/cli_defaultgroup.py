@@ -38,7 +38,6 @@
 """
 import click
 
-
 __all__ = ['DefaultGroup']
 __version__ = '1.1'
 

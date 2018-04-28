@@ -12,10 +12,10 @@ vcspull
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-from . import cli  # NOQA
-
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
 from logging import NullHandler
+
+from . import cli  # NOQA
 
 logging.getLogger(__name__).addHandler(NullHandler())
