@@ -4,6 +4,11 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+
+- :support:`-` Sort imports
+- :support:`-` Add isort package, isort configuration in setup.cfg, and
+  ``make isort`` task to Makefile.
+
 - :release:`1.1.0 <2018-03-11>`
 - :support:`-` Move to new organization, vcs-python
 - :bug:`-` Fix a bug in libvcs that prevented syncing on Ubuntu 18.04 LTS
