@@ -12,6 +12,9 @@ entr_warn:
 isort:
 	isort `${PY_FILES}`
 
+test:
+	py.test $(test)
+
 watch_test:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) test; else $(MAKE) test entr_warn; fi
 
