@@ -1,3 +1,3 @@
 flake8==3.5.0
-vulture==0.26
+vulture==0.27
 isort==4.3.4
