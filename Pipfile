@@ -4,19 +4,24 @@ verify_ssl = true
 name = "pypi"
 
 [dev-packages]
-kaptan = "==0.5.9"
+kaptan = "<1,>=0.5.9"
 click = "==6.7"
 colorama = "==0.3.9"
 libvcs = "==0.3.0"
-alagitpull = "==0.0.20"
+alagitpull = "==0.0.21"
 mock = "==2.0.0"
-pytest = "==3.5.1"
-releases = "==1.5.0"
+pytest = "==3.6.3"
+releases = "==1.6.1"
 "flake8" = "==3.5.0"
-vulture = "==0.26"
+vulture = "==0.28"
 isort = "==4.3.4"
-PyYAML = "==3.12"
-Sphinx = "==1.7.4"
+PyYAML = "<4,>=3.12"
+Sphinx = "==1.7.5"
 
 [packages]
 "e1839a8" = {path = ".", editable = true}
+kaptan = "<1,>=0.5.9"
+click = "==6.7"
+colorama = "==0.3.9"
+libvcs = "==0.3.0"
+PyYAML = "<4,>=3.12"
