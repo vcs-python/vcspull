@@ -1,5 +1,5 @@
-kaptan==0.5.9
-pyyaml==3.12
+kaptan>=0.5.9,<1
+pyyaml>=3.12,<4
 click==6.7
 colorama==0.3.9
 libvcs==0.3.0
