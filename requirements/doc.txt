@@ -1,4 +1,4 @@
 -r ./base.txt
-sphinx==1.7.5
+sphinx==1.7.6
 alagitpull==0.0.21
 releases==1.6.1
