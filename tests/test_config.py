@@ -39,8 +39,7 @@ def sample_json_config(config_dir):
 
 def test_dict_equals_yaml():
     # Verify that example YAML is returning expected dict format.
-    config = kaptan.Kaptan(handler='yaml').import_config(
-        loadfixture('example1.yaml'))
+    config = kaptan.Kaptan(handler='yaml').import_config(loadfixture('example1.yaml'))
 
     assert fixtures.config_dict == config.export('dict')
 
@@ -83,8 +82,9 @@ def test_scan_config(tmpdir):
     garbage_file.write('wat')
 
     for r, d, f in os.walk(str(tmpdir)):
-        for filela in (x for x in f if x.endswith(('.json', 'yaml')) and
-                       x.startswith('.vcspull')):
+        for filela in (
+            x for x in f if x.endswith(('.json', 'yaml')) and x.startswith('.vcspull')
+        ):
             configs.append(str(tmpdir.join(filela)))
 
     files = 0
@@ -111,11 +111,9 @@ def test_expandenv_and_homevars():
     config_yaml = loadfixture('expand.yaml')
     config_json = loadfixture("expand.json")
 
-    config1 = kaptan.Kaptan(handler='yaml') \
-        .import_config(config_yaml).export('dict')
+    config1 = kaptan.Kaptan(handler='yaml').import_config(config_yaml).export('dict')
 
-    config2 = kaptan.Kaptan(handler='json') \
-        .import_config(config_json).export('dict')
+    config2 = kaptan.Kaptan(handler='json').import_config(config_json).export('dict')
 
     config1_expanded = extract_repos(config1)
     config2_expanded = extract_repos(config2)
@@ -154,91 +152,58 @@ def test_multiple_configs_raises_exception(tmpdir):
             config.find_home_config_files()
 
 
-def test_in_dir(
-    config_dir,
-    sample_yaml_config,
-    sample_json_config
-):
-    expected = [
-        sample_yaml_config.purebasename,
-        sample_json_config.purebasename,
-    ]
+def test_in_dir(config_dir, sample_yaml_config, sample_json_config):
+    expected = [sample_yaml_config.purebasename, sample_json_config.purebasename]
     result = config.in_dir(str(config_dir))
 
     assert len(expected) == len(result)
 
 
-def test_find_config_path_string(
-    config_dir,
-    sample_yaml_config,
-    sample_json_config
-):
+def test_find_config_path_string(config_dir, sample_yaml_config, sample_json_config):
     configs = config.find_config_files(path=str(config_dir))
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) in configs
 
 
-def test_find_config_path_list(
-    config_dir,
-    sample_yaml_config,
-    sample_json_config
-):
+def test_find_config_path_list(config_dir, sample_yaml_config, sample_json_config):
     configs = config.find_config_files(path=[str(config_dir)])
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) in configs
 
 
-def test_find_config_match_string(
-    config_dir,
-    sample_yaml_config,
-    sample_json_config
-):
+def test_find_config_match_string(config_dir, sample_yaml_config, sample_json_config):
     configs = config.find_config_files(
-        path=str(config_dir),
-        match=sample_yaml_config.purebasename
+        path=str(config_dir), match=sample_yaml_config.purebasename
     )
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) not in configs
 
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        match=sample_json_config.purebasename
+        path=[str(config_dir)], match=sample_json_config.purebasename
     )
 
     assert str(sample_yaml_config) not in configs
     assert str(sample_json_config) in configs
 
-    configs = config.find_config_files(
-        path=[str(config_dir)],
-        match='randomstring'
-    )
+    configs = config.find_config_files(path=[str(config_dir)], match='randomstring')
 
     assert str(sample_yaml_config) not in configs
     assert str(sample_json_config) not in configs
 
-    configs = config.find_config_files(
-        path=[str(config_dir)],
-        match='*'
-    )
+    configs = config.find_config_files(path=[str(config_dir)], match='*')
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) in configs
 
-    configs = config.find_config_files(
-        path=[str(config_dir)],
-        match='repos*'
-    )
+    configs = config.find_config_files(path=[str(config_dir)], match='repos*')
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) in configs
 
-    configs = config.find_config_files(
-        path=[str(config_dir)],
-        match='repos[1-9]*'
-    )
+    configs = config.find_config_files(path=[str(config_dir)], match='repos[1-9]*')
 
     assert len([c for c in configs if str(sample_yaml_config) in c]) == 1
 
@@ -246,25 +211,17 @@ def test_find_config_match_string(
     assert str(sample_json_config) in configs
 
 
-def test_find_config_match_list(
-    config_dir,
-    sample_yaml_config,
-    sample_json_config
-):
+def test_find_config_match_list(config_dir, sample_yaml_config, sample_json_config):
     configs = config.find_config_files(
         path=[str(config_dir)],
-        match=[
-            sample_yaml_config.purebasename,
-            sample_json_config.purebasename
-        ]
+        match=[sample_yaml_config.purebasename, sample_json_config.purebasename],
     )
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) in configs
 
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        match=[sample_yaml_config.purebasename]
+        path=[str(config_dir)], match=[sample_yaml_config.purebasename]
     )
 
     assert str(sample_yaml_config) in configs
@@ -274,73 +231,54 @@ def test_find_config_match_list(
 
 
 def test_find_config_filetype_string(
-    config_dir,
-    sample_yaml_config,
-    sample_json_config
+    config_dir, sample_yaml_config, sample_json_config
 ):
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        match=sample_yaml_config.purebasename,
-        filetype='yaml',
+        path=[str(config_dir)], match=sample_yaml_config.purebasename, filetype='yaml'
     )
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) not in configs
 
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        match=sample_yaml_config.purebasename,
-        filetype='json',
+        path=[str(config_dir)], match=sample_yaml_config.purebasename, filetype='json'
     )
 
     assert str(sample_yaml_config) not in configs
     assert str(sample_json_config) not in configs
 
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        match='repos*',
-        filetype='json',
+        path=[str(config_dir)], match='repos*', filetype='json'
     )
 
     assert str(sample_yaml_config) not in configs
     assert str(sample_json_config) in configs
 
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        match='repos*',
-        filetype='*',
+        path=[str(config_dir)], match='repos*', filetype='*'
     )
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) in configs
 
 
-def test_find_config_filetype_list(
-    config_dir,
-    sample_yaml_config,
-    sample_json_config
-):
+def test_find_config_filetype_list(config_dir, sample_yaml_config, sample_json_config):
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        match=['repos*'],
-        filetype=['*'],
+        path=[str(config_dir)], match=['repos*'], filetype=['*']
     )
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) in configs
 
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        match=['repos*'],
-        filetype=['json', 'yaml'],
+        path=[str(config_dir)], match=['repos*'], filetype=['json', 'yaml']
     )
 
     assert str(sample_yaml_config) in configs
     assert str(sample_json_config) in configs
 
     configs = config.find_config_files(
-        path=[str(config_dir)],
-        filetype=['json', 'yaml'],
+        path=[str(config_dir)], filetype=['json', 'yaml']
     )
 
     assert str(sample_yaml_config) in configs
@@ -348,17 +286,12 @@ def test_find_config_filetype_list(
 
 
 def test_find_config_include_home_configs(
-    tmpdir,
-    config_dir,
-    sample_yaml_config,
-    sample_json_config
+    tmpdir, config_dir, sample_yaml_config, sample_json_config
 ):
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmpdir))
         configs = config.find_config_files(
-            path=[str(config_dir)],
-            match='*',
-            include_home=True
+            path=[str(config_dir)], match='*', include_home=True
         )
 
         assert str(sample_yaml_config) in configs
@@ -368,9 +301,7 @@ def test_find_config_include_home_configs(
         config_file3.write('')
 
         results = config.find_config_files(
-            path=[str(config_dir)],
-            match='*',
-            include_home=True
+            path=[str(config_dir)], match='*', include_home=True
         )
         expectedIn = str(config_file3)
 
@@ -387,10 +318,7 @@ def test_merge_nested_dict(tmpdir, config_dir):
     config2.write(loadfixture('repoduplicate2.yaml'))
 
     # Duplicate path + name with different repo URL / remotes raises.
-    configs = config.find_config_files(
-        path=str(config_dir),
-        match="repoduplicate[1-2]"
-    )
+    configs = config.find_config_files(path=str(config_dir), match="repoduplicate[1-2]")
 
     assert str(config1) in configs
     assert str(config2) in configs
@@ -402,16 +330,15 @@ def test_relative_dir(tmpdir):
     arbitrary_dir = tmpdir.join('moo')
     arbitrary_dir.mkdir()
 
-    arbitrary_dir.join('rel.yaml').write("""
+    arbitrary_dir.join('rel.yaml').write(
+        """
 ./relativedir:
   docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
-   """)
-
-    configs = config.find_config_files(
-        path=str(arbitrary_dir)
+   """
     )
+
+    configs = config.find_config_files(path=str(arbitrary_dir))
     repos = config.load_configs(configs, str(arbitrary_dir))
 
     assert str(arbitrary_dir.join('relativedir')) == repos[0]['parent_dir']
-    assert str(arbitrary_dir.join('relativedir', 'docutils')) == \
-        repos[0]['repo_dir']
+    assert str(arbitrary_dir.join('relativedir', 'docutils')) == repos[0]['repo_dir']

@@ -51,8 +51,11 @@ def setup_logger(log=None, level='INFO'):
 
 
 @click.group(cls=DefaultGroup, default_if_no_args=True)
-@click.option('--log-level', default='INFO',
-              help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+@click.option(
+    '--log-level',
+    default='INFO',
+    help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
+)
 @click.version_option(version=__version__, message='%(prog)s %(version)s')
 def cli(log_level):
     setup_logger(log=log, level=log_level.upper())
@@ -60,12 +63,18 @@ def cli(log_level):
 
 @cli.command(name='update', default=True)
 @click.argument('repo_terms', nargs=-1)
-@click.option('--run-async', '-a', is_flag=True,
-              help='Run repo syncing concurrently (experimental)')
-@click.option('--log-level', default='INFO',
-              help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
-@click.option('config', '-c', type=click.Path(exists=True),
-              help='Specify config')
+@click.option(
+    '--run-async',
+    '-a',
+    is_flag=True,
+    help='Run repo syncing concurrently (experimental)',
+)
+@click.option(
+    '--log-level',
+    default='INFO',
+    help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
+)
+@click.option('config', '-c', type=click.Path(exists=True), help='Specify config')
 def update(repo_terms, run_async, log_level, config):
     setup_logger(log=log, level=log_level.upper())
 
@@ -80,20 +89,15 @@ def update(repo_terms, run_async, log_level, config):
             repo_dir, vcs_url, name = None, None, None
             if any(repo_term.startswith(n) for n in ['./', '/', '~', '$HOME']):
                 repo_dir = repo_term
-            elif any(
-                repo_term.startswith(n) for n in ['http', 'git', 'svn', 'hg']
-            ):
+            elif any(repo_term.startswith(n) for n in ['http', 'git', 'svn', 'hg']):
                 vcs_url = repo_term
             else:
                 name = repo_term
 
             # collect the repos from the config files
-            found_repos.extend(filter_repos(
-                configs,
-                repo_dir=repo_dir,
-                vcs_url=vcs_url,
-                name=name
-            ))
+            found_repos.extend(
+                filter_repos(configs, repo_dir=repo_dir, vcs_url=vcs_url, name=name)
+            )
     else:
         found_repos = configs
 
@@ -101,6 +105,7 @@ def update(repo_terms, run_async, log_level, config):
     # turn them into :class:`Repo` objects and clone/update them
     if run_async and found_repos_n >= MIN_ASYNC:
         from multiprocessing import Pool
+
         p = Pool(clamp(found_repos_n, MIN_ASYNC, MAX_ASYNC))
         p.map_async(update_repo, found_repos).get()
     else:
@@ -123,5 +128,6 @@ def update_repo(repo_dict):
     r = create_repo_from_pip_url(**repo_dict)
 
     r.update_repo()
+
 
 cli.add_command(update)

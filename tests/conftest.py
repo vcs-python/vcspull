@@ -21,7 +21,7 @@ def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
     return {
         'url': 'git+file://' + git_dummy_repo_dir,
         'parent_dir': str(tmpdir_repoparent),
-        'name': repo_name
+        'name': repo_name,
     }
 
 
@@ -43,11 +43,8 @@ def git_dummy_repo_dir(tmpdir_repoparent, scope='session'):
 
     testfile_filename = 'testfile.test'
 
-    run(['touch', testfile_filename],
-        cwd=repo_path)
-    run(['git', 'add', testfile_filename],
-        cwd=repo_path)
-    run(['git', 'commit', '-m', 'test file for %s' % name],
-        cwd=repo_path)
+    run(['touch', testfile_filename], cwd=repo_path)
+    run(['git', 'add', testfile_filename], cwd=repo_path)
+    run(['git', 'commit', '-m', 'test file for %s' % name], cwd=repo_path)
 
     return repo_path

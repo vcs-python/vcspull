@@ -16,10 +16,7 @@ from .fixtures import example as fixtures
 def test_filter_dir():
     """``filter_repos`` filter by dir"""
 
-    repo_list = filter_repos(
-        fixtures.config_dict_expanded,
-        repo_dir="*github_project*"
-    )
+    repo_list = filter_repos(fixtures.config_dict_expanded, repo_dir="*github_project*")
 
     assert len(repo_list) == 1
     for r in repo_list:
@@ -28,10 +25,7 @@ def test_filter_dir():
 
 def test_filter_name():
     """``filter_repos`` filter by name"""
-    repo_list = filter_repos(
-        fixtures.config_dict_expanded,
-        name=".vim"
-    )
+    repo_list = filter_repos(fixtures.config_dict_expanded, name=".vim")
 
     assert len(repo_list) == 1
     for r in repo_list:
@@ -40,10 +34,7 @@ def test_filter_name():
 
 def test_filter_vcs():
     """``filter_repos`` filter by vcs remote url"""
-    repo_list = filter_repos(
-        fixtures.config_dict_expanded,
-        vcs_url="*kernel.org*"
-    )
+    repo_list = filter_repos(fixtures.config_dict_expanded, vcs_url="*kernel.org*")
 
     assert len(repo_list) == 1
     for r in repo_list:
@@ -75,28 +66,34 @@ def test_vcs_url_scheme_to_object(tmpdir):
     object based on the pip-style URL scheme.
 
     """
-    git_repo = create_repo_from_pip_url(**{
-        'pip_url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
-        'repo_dir': str(tmpdir.join('myproject1')),
-    })
+    git_repo = create_repo_from_pip_url(
+        **{
+            'pip_url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
+            'repo_dir': str(tmpdir.join('myproject1')),
+        }
+    )
 
     # TODO cwd and name if duplicated should give an error
 
     assert isinstance(git_repo, GitRepo)
     assert isinstance(git_repo, BaseRepo)
 
-    hg_repo = create_repo_from_pip_url(**{
-        'pip_url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
-        'repo_dir': str(tmpdir.join('myproject2')),
-    })
+    hg_repo = create_repo_from_pip_url(
+        **{
+            'pip_url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
+            'repo_dir': str(tmpdir.join('myproject2')),
+        }
+    )
 
     assert isinstance(hg_repo, MercurialRepo)
     assert isinstance(hg_repo, BaseRepo)
 
-    svn_repo = create_repo_from_pip_url(**{
-        'pip_url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
-        'repo_dir': str(tmpdir.join('myproject3')),
-    })
+    svn_repo = create_repo_from_pip_url(
+        **{
+            'pip_url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
+            'repo_dir': str(tmpdir.join('myproject3')),
+        }
+    )
 
     assert isinstance(svn_repo, SubversionRepo)
     assert isinstance(svn_repo, BaseRepo)
@@ -134,10 +131,7 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
         my_url: git+file://{REPO_DIR}
     """
 
-    YAML_CONFIG = YAML_CONFIG.format(
-        TMP_DIR=str(tmpdir),
-        REPO_DIR=git_dummy_repo_dir
-    )
+    YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=git_dummy_repo_dir)
 
     conf = kaptan.Kaptan(handler='yaml')
     conf.import_config(YAML_CONFIG)
