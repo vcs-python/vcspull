@@ -65,35 +65,45 @@ html_sidebars = {
 
 html_static_path = ['_static']
 
-alagitpull_internal_hosts = [
-    'vcspull.git-pull.com',
-    '0.0.0.0',
-]
+alagitpull_internal_hosts = ['vcspull.git-pull.com', '0.0.0.0']
 alagitpull_external_hosts_new_window = True
 
 
 htmlhelp_basename = '%sdoc' % about['__title__']
 
 latex_documents = [
-    ('index', '{0}.tex'.format(about['__package_name__']),
-     '{0} Documentation'.format(about['__title__']),
-     about['__author__'], 'manual')
+    (
+        'index',
+        '{0}.tex'.format(about['__package_name__']),
+        '{0} Documentation'.format(about['__title__']),
+        about['__author__'],
+        'manual',
+    )
 ]
 
 man_pages = [
-    ('index', about['__package_name__'],
-     '{0} Documentation'.format(about['__title__']),
-     about['__author__'], 1),
+    (
+        'index',
+        about['__package_name__'],
+        '{0} Documentation'.format(about['__title__']),
+        about['__author__'],
+        1,
+    )
 ]
 
 texinfo_documents = [
-    ('index', '{0}'.format(about['__package_name__']),
-     '{0} Documentation'.format(about['__title__']),
-     about['__author__'], about['__package_name__'],
-     about['__description__'], 'Miscellaneous'),
+    (
+        'index',
+        '{0}'.format(about['__package_name__']),
+        '{0} Documentation'.format(about['__title__']),
+        about['__author__'],
+        about['__package_name__'],
+        about['__description__'],
+        'Miscellaneous',
+    )
 ]
 
 intersphinx_mapping = {
     'py': ('https://docs.python.org/2', None),
-    'libvcs': ('http://libvcs.readthedocs.io/en/latest/', None)
+    'libvcs': ('http://libvcs.readthedocs.io/en/latest/', None),
 }

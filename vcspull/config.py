@@ -83,9 +83,7 @@ def extract_repos(config, cwd=os.getcwd()):
             '''
             if 'shell_command_after' in conf:
                 if isinstance(conf['shell_command_after'], string_types):
-                    conf['shell_command_after'] = [
-                        conf['shell_command_after']
-                    ]
+                    conf['shell_command_after'] = [conf['shell_command_after']]
 
             if 'name' not in conf:
                 conf['name'] = repo
@@ -99,10 +97,7 @@ def extract_repos(config, cwd=os.getcwd()):
             if 'remotes' in conf:
                 remotes = []
                 for remote_name, url in conf['remotes'].items():
-                    remotes.append({
-                        'remote_name': remote_name,
-                        'url': url
-                    })
+                    remotes.append({'remote_name': remote_name, 'url': url})
                 conf['remotes'] = sorted(
                     remotes, key=lambda x: sorted(x.get('remote_name'))
                 )
@@ -138,10 +133,7 @@ def find_home_config_files(filetype=['json', 'yaml']):
 
 
 def find_config_files(
-    path=['~/.vcspull'],
-    match=['*'],
-    filetype=['json', 'yaml'],
-    include_home=False
+    path=['~/.vcspull'], match=['*'], filetype=['json', 'yaml'], include_home=False
 ):
     """Return repos from a directory and match. Not recursive.
 
@@ -213,9 +205,7 @@ def load_configs(files, cwd=os.getcwd()):
         dupes = detect_duplicate_repos(repos, newrepos)
 
         if dupes:
-            msg = (
-                'repos with same path + different VCS detected!', dupes
-            )
+            msg = ('repos with same path + different VCS detected!', dupes)
             raise exc.VCSPullException(msg)
         repos.extend(newrepos)
 
@@ -243,27 +233,20 @@ def detect_duplicate_repos(repos1, repos2):
         return None
 
     path_dupe_repos.extend(
-        [r for r in repos2 if
-            any(r['repo_dir'] == p for p in path_duplicates)]
+        [r for r in repos2 if any(r['repo_dir'] == p for p in path_duplicates)]
     )
 
     if not path_dupe_repos:
         return None
 
     for n in path_dupe_repos:
-        currepo = next(
-            (r for r in repos1
-                if r['repo_dir'] == n['repo_dir']), None
-        )
+        currepo = next((r for r in repos1 if r['repo_dir'] == n['repo_dir']), None)
         if n['url'] != currepo['url']:
-            dupes += (n, currepo,)
+            dupes += (n, currepo)
     return dupes
 
 
-def in_dir(
-    config_dir=CONFIG_DIR,
-    extensions=['.yml', '.yaml', '.json']
-):
+def in_dir(config_dir=CONFIG_DIR, extensions=['.yml', '.yaml', '.json']):
     """Return a list of configs in ``config_dir``.
 
     :param config_dir: directory to search
@@ -276,8 +259,7 @@ def in_dir(
     configs = []
 
     for filename in os.listdir(config_dir):
-        if is_config_file(filename, extensions) and \
-           not filename.startswith('.'):
+        if is_config_file(filename, extensions) and not filename.startswith('.'):
             configs.append(filename)
 
     return configs
@@ -308,19 +290,11 @@ def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
 
     if vcs_url:
         repo_list.extend(
-            r for r in config if fnmatch.fnmatch(
-                r.get('url', r.get('repo')),
-                vcs_url
-            )
+            r for r in config if fnmatch.fnmatch(r.get('url', r.get('repo')), vcs_url)
         )
 
     if name:
-        repo_list.extend(
-            [r for r in config if fnmatch.fnmatch(
-                r.get('name'),
-                name
-            )]
-        )
+        repo_list.extend([r for r in config if fnmatch.fnmatch(r.get('name'), name)])
 
     return repo_list
 
@@ -335,6 +309,5 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     :rtype: bool
 
     """
-    extensions = [extensions] if isinstance(
-        extensions, string_types) else extensions
+    extensions = [extensions] if isinstance(extensions, string_types) else extensions
     return any(filename.endswith(e) for e in extensions)

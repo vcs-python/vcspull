@@ -73,6 +73,7 @@ class DefaultGroup(click.Group):
                     raise RuntimeError('Default command already defined')
                 self.default_cmd_name = cmd.name
             return cmd
+
         return _decorator
 
     def parse_args(self, ctx, args):
