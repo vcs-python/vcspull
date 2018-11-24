@@ -1,3 +1,5 @@
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fvcs-python%2Fvcspull.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fvcs-python%2Fvcspull?ref=badge_shield)
+
 ``vcspull`` - synchronize your repos. built on `libvcs`_
 
 |pypi| |docs| |build-status| |coverage| |license|
@@ -190,3 +192,6 @@ run             .. code-block:: bash
     :alt: Documentation Status
     :scale: 100%
     :target: https://readthedocs.org/projects/vcspull/
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fvcs-python%2Fvcspull.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fvcs-python%2Fvcspull?ref=badge_large)
