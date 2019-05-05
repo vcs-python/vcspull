@@ -26,4 +26,4 @@ libvcs = "==0.3.0"
 PyYAML = ">=3.12,<4"
 
 [requires]
-python_version = "2.7"
+python_version = "3"
