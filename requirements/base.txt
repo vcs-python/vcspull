@@ -1,5 +1,4 @@
 kaptan>=0.5.9,<1
-pyyaml>=3.12,<6
 click==7.0
 colorama==0.4.1
 libvcs==0.3.0
