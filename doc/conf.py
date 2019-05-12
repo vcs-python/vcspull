@@ -16,12 +16,11 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
-    'releases',
     'alagitpull',
 ]
 
 releases_unstable_prehistory = True
-releases_document_name = "history"
+releases_document_name = ["history"]
 releases_issue_uri = "https://github.com/vcs-python/vcspull/issues/%s"
 releases_release_uri = "https://github.com/vcs-python/vcspull/tree/v%s"
 
