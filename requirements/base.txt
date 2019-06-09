@@ -1,4 +1,4 @@
 kaptan>=0.5.9,<1
 click>=7<8
 colorama==0.4.1
-libvcs==0.3.0
+libvcs>=0.3.0,<0.4.0
