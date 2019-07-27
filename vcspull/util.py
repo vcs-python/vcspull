@@ -7,8 +7,14 @@ vcspull.util
 """
 from __future__ import absolute_import, print_function, unicode_literals
 
-import collections
 import os
+
+from libvcs._compat import PY2
+
+if PY2:
+    from collections import Mapping
+else:
+    from collections.abc import Mapping
 
 CONFIG_DIR = os.path.expanduser('~/.vcspull/')  # remove dupes of this
 
@@ -26,7 +32,7 @@ def update_dict(d, u):
 
     """
     for k, v in u.items():
-        if isinstance(v, collections.Mapping):
+        if isinstance(v, Mapping):
             r = update_dict(d.get(k, {}), v)
             d[k] = r
         else:
