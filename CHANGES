@@ -4,6 +4,11 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+- Removed dependency on releases for CHANGES, use plain reStructuredText
+  for now
+- Loosen constraints for colorama
+- Update click to 7/8
+
 1.2.0 <2018-07-08>
 ------------------
 - Sort imports
