@@ -130,7 +130,7 @@ More information
 ----------------
 
 ==============  ==========================================================
-Python support  Python 2.7, >= 3.4
+Python support  Python 2.7, >= 3.5
 VCS supported   git(1), svn(1), hg(1)
 Config formats  YAML, JSON, python dict
 Source          https://github.com/vcs-python/vcspull
