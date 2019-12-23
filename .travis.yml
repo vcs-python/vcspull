@@ -6,8 +6,7 @@ python:
   - 3.7
   - pypy3
 if: (type = push AND branch IN (master)) OR (type = pull_request)
-cache:
-  - pip
+cache: pip
 before_install:
   - export PIP_USE_MIRRORS=true
   - pip install -U pip setuptools
