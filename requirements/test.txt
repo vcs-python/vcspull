@@ -1,2 +1,2 @@
 pytest<=6
-mock==3.0.5
+mock<=4
