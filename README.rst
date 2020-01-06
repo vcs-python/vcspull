@@ -190,3 +190,8 @@ run             .. code-block:: bash
     :alt: Documentation Status
     :scale: 100%
     :target: https://readthedocs.org/projects/vcspull/
+
+
+.. image:: https://badges.gitter.im/vcs-python/vcspull.svg
+   :alt: Join the chat at https://gitter.im/vcs-python/vcspull
+   :target: https://gitter.im/vcs-python/vcspull?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
