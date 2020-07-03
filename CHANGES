@@ -4,6 +4,7 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+- :issue:`257` - Move from Pipfile to poetry
 - Removed dependency on releases for CHANGES, use plain reStructuredText
   for now
 - Loosen constraints for colorama
