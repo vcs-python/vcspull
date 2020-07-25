@@ -4,6 +4,8 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+1.3.0 <2020-07-25>
+------------------
 - :issue:`257` - Move from Pipfile to poetry
 - Removed dependency on releases for CHANGES, use plain reStructuredText
   for now
