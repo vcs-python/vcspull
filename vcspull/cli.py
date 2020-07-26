@@ -122,7 +122,8 @@ def progress_cb(output, timestamp):
 
 
 def update_repo(repo_dict):
-    repo_dict['pip_url'] = repo_dict.pop('url')
+    if 'pip_url' not in repo_dict:
+        repo_dict['pip_url'] = repo_dict.pop('url')
     repo_dict['progress_callback'] = progress_cb
 
     r = create_repo_from_pip_url(**repo_dict)
@@ -133,7 +134,10 @@ def update_repo(repo_dict):
 
     for remote_setting in remote_settings:
         config_remote_name = remote_setting['remote_name']  # From config file
-        current_remote = r.remotes_get.get(config_remote_name)
+        try:
+            current_remote = r.remotes_get.get(config_remote_name)
+        except FileNotFoundError:  # git repo doesn't exist yet, so cna't be outdated
+            break
 
         if current_remote is not None and current_remote[0] != remote_setting['url']:
             print(
