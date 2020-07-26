@@ -6,6 +6,7 @@ Here you can find the recent changes to vcspull
 
 current
 -------
+- :issue:`231` Add updating / merging of remote URLs (via PR :issue:`231`)
 - Fix colorama constraint
 - poetry lockfile: Fix (accidentally pushed lockfile via prerelease
   version of poetry)
