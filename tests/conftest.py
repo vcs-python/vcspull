@@ -34,17 +34,22 @@ def git_repo(git_repo_kwargs):
 
 
 @pytest.fixture
-def git_dummy_repo_dir(tmpdir_repoparent, scope='session'):
+def create_git_dummy_repo(tmpdir_repoparent):
+    def fn(repo_name, testfile_filename='testfile.test'):
+        repo_path = str(tmpdir_repoparent.join(repo_name))
+
+        run(['git', 'init', repo_name], cwd=str(tmpdir_repoparent))
+
+        run(['touch', testfile_filename], cwd=repo_path)
+        run(['git', 'add', testfile_filename], cwd=repo_path)
+        run(['git', 'commit', '-m', 'test file for %s' % repo_name], cwd=repo_path)
+
+        return repo_path
+
+    yield fn
+
+
+@pytest.fixture
+def git_dummy_repo_dir(tmpdir_repoparent, create_git_dummy_repo):
     """Create a git repo with 1 commit, used as a remote."""
-    name = 'dummyrepo'
-    repo_path = str(tmpdir_repoparent.join(name))
-
-    run(['git', 'init', name], cwd=str(tmpdir_repoparent))
-
-    testfile_filename = 'testfile.test'
-
-    run(['touch', testfile_filename], cwd=repo_path)
-    run(['git', 'add', testfile_filename], cwd=repo_path)
-    run(['git', 'commit', '-m', 'test file for %s' % name], cwd=repo_path)
-
-    return repo_path
+    return create_git_dummy_repo('dummyrepo')
