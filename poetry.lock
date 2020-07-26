@@ -379,7 +379,7 @@ description = "vcs abstraction layer"
 name = "libvcs"
 optional = false
 python-versions = "~2.7 || ^3.5"
-version = "0.3.1.post1"
+version = "0.3.2"
 
 [[package]]
 category = "dev"
@@ -1058,7 +1058,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "792b8ce7a7270e19326864b99b218f0e4375483d9de7122522058db0d1aa7409"
+content-hash = "c8f6cbd05695fb929d3e4fbb8a07742936e22dbac016fb1be80ac131fcce4e15"
 lock-version = "1.0"
 python-versions = "~2.7 || ^3.5"
 
@@ -1216,7 +1216,7 @@ kaptan = [
     {file = "kaptan-0.5.12.tar.gz", hash = "sha256:1abd1f56731422fce5af1acc28801677a51e56f5d3c3e8636db761ed143c3dd2"},
 ]
 libvcs = [
-    {file = "libvcs-0.3.1.post1.tar.gz", hash = "sha256:2bfec57d4048670da300c91c50b156b390668dc9d341e113887cbae5d470241f"},
+    {file = "libvcs-0.3.2.tar.gz", hash = "sha256:14d7337304bc164662b191dbaf086fd0abb95e4a18f6246a25fef8a8f6959e97"},
 ]
 markupsafe = [
     {file = "MarkupSafe-1.1.1-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:09027a7803a62ca78792ad89403b1b7a73a01c8cb65909cd876f7fcebd79b161"},
