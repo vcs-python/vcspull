@@ -20,6 +20,7 @@ alabaster = "<0.8"
 [[package]]
 category = "dev"
 description = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
+marker = "python_version >= \"3.6\" and python_version < \"4.0\""
 name = "appdirs"
 optional = false
 python-versions = "*"
@@ -28,6 +29,7 @@ version = "1.4.4"
 [[package]]
 category = "dev"
 description = "Atomic file writes."
+marker = "python_version < \"3\" or python_version >= \"3\" and sys_platform == \"win32\""
 name = "atomicwrites"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
@@ -36,6 +38,7 @@ version = "1.4.0"
 [[package]]
 category = "dev"
 description = "Classes Without Boilerplate"
+marker = "python_version < \"3\" or python_version >= \"3\" or python_version >= \"3.6\" and python_version < \"4.0\""
 name = "attrs"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
@@ -50,6 +53,7 @@ tests = ["coverage", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.i
 [[package]]
 category = "dev"
 description = "Internationalization utilities"
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "babel"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
@@ -61,6 +65,7 @@ pytz = ">=2015.7"
 [[package]]
 category = "dev"
 description = "Backport of functools.lru_cache"
+marker = "python_version < \"3.2\""
 name = "backports.functools-lru-cache"
 optional = false
 python-versions = ">=2.6"
@@ -73,6 +78,7 @@ testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pyt
 [[package]]
 category = "dev"
 description = "The uncompromising code formatter."
+marker = "python_version >= \"3.6\" and python_version < \"4.0\""
 name = "black"
 optional = false
 python-versions = ">=3.6"
@@ -150,6 +156,7 @@ version = "0.3.0"
 [[package]]
 category = "dev"
 description = "Updated configparser from Python 3.7 for Python 2.6+."
+marker = "python_version < \"3.2\""
 name = "configparser"
 optional = false
 python-versions = ">=2.6"
@@ -162,6 +169,7 @@ testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2)", "pytes
 [[package]]
 category = "dev"
 description = "Backports and enhancements for the contextlib module"
+marker = "python_version < \"3\""
 name = "contextlib2"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
@@ -205,6 +213,7 @@ version = "0.16"
 [[package]]
 category = "dev"
 description = "Python 3.4 Enum backported to 3.3, 3.2, 3.1, 2.7, 2.6, 2.5, and 2.4"
+marker = "python_version < \"3.4\""
 name = "enum34"
 optional = false
 python-versions = "*"
@@ -222,15 +231,31 @@ version = "3.8.3"
 mccabe = ">=0.6.0,<0.7.0"
 pycodestyle = ">=2.6.0a1,<2.7.0"
 pyflakes = ">=2.2.0,<2.3.0"
-configparser = {version = "*", markers = "python_version < \"3.2\""}
-enum34 = {version = "*", markers = "python_version < \"3.4\""}
-functools32 = {version = "*", markers = "python_version < \"3.2\""}
-importlib-metadata = {version = "*", markers = "python_version < \"3.8\""}
-typing = {version = "*", markers = "python_version < \"3.5\""}
+
+[package.dependencies.configparser]
+python = "<3.2"
+version = "*"
+
+[package.dependencies.enum34]
+python = "<3.4"
+version = "*"
+
+[package.dependencies.functools32]
+python = "<3.2"
+version = "*"
+
+[package.dependencies.importlib-metadata]
+python = "<3.8"
+version = "*"
+
+[package.dependencies.typing]
+python = "<3.5"
+version = "*"
 
 [[package]]
 category = "dev"
 description = "Python function signatures from PEP362 for Python 2.6, 2.7 and 3.2+"
+marker = "python_version < \"3\""
 name = "funcsigs"
 optional = false
 python-versions = "*"
@@ -239,6 +264,7 @@ version = "1.0.2"
 [[package]]
 category = "dev"
 description = "Backport of the functools module from Python 3.2.3 for use on 2.7 and PyPy."
+marker = "python_version < \"3.2\""
 name = "functools32"
 optional = false
 python-versions = "*"
@@ -247,6 +273,7 @@ version = "3.2.3-2"
 [[package]]
 category = "dev"
 description = "Backport of the concurrent.futures package from Python 3"
+marker = "python_version < \"3.2\""
 name = "futures"
 optional = false
 python-versions = ">=2.6, <3"
@@ -263,6 +290,7 @@ version = "2.10"
 [[package]]
 category = "dev"
 description = "Read metadata from Python packages"
+marker = "python_version < \"3.8\" or python_version >= \"3\" and python_version < \"3.8\""
 name = "importlib-metadata"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
@@ -270,9 +298,18 @@ version = "1.7.0"
 
 [package.dependencies]
 zipp = ">=0.5"
-configparser = {version = ">=3.5", markers = "python_version < \"3\""}
-contextlib2 = {version = "*", markers = "python_version < \"3\""}
-pathlib2 = {version = "*", markers = "python_version < \"3\""}
+
+[package.dependencies.configparser]
+python = "<3"
+version = ">=3.5"
+
+[package.dependencies.contextlib2]
+python = "<3"
+version = "*"
+
+[package.dependencies.pathlib2]
+python = "<3"
+version = "*"
 
 [package.extras]
 docs = ["sphinx", "rst.linker"]
@@ -287,8 +324,13 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "4.3.21"
 
 [package.dependencies]
-"backports.functools-lru-cache" = {version = "*", markers = "python_version < \"3.2\""}
-futures = {version = "*", markers = "python_version < \"3.2\""}
+[package.dependencies."backports.functools-lru-cache"]
+python = "<3.2"
+version = "*"
+
+[package.dependencies.futures]
+python = "<3.2"
+version = "*"
 
 [package.extras]
 pipfile = ["pipreqs", "requirementslib"]
@@ -299,6 +341,7 @@ xdg_home = ["appdirs (>=1.4.0)"]
 [[package]]
 category = "dev"
 description = "A very fast and expressive template engine."
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "jinja2"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
@@ -332,6 +375,7 @@ version = "0.3.1.post1"
 [[package]]
 category = "dev"
 description = "Safely add untrusted strings to HTML/XML markup."
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "markupsafe"
 optional = false
 python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
@@ -348,6 +392,7 @@ version = "0.6.1"
 [[package]]
 category = "dev"
 description = "More routines for operating on iterables, beyond itertools"
+marker = "python_version <= \"2.7\""
 name = "more-itertools"
 optional = false
 python-versions = "*"
@@ -359,14 +404,7 @@ six = ">=1.0.0,<2.0.0"
 [[package]]
 category = "dev"
 description = "More routines for operating on iterables, beyond itertools"
-name = "more-itertools"
-optional = false
-python-versions = ">=3.5"
-version = "8.3.0"
-
-[[package]]
-category = "dev"
-description = "More routines for operating on iterables, beyond itertools"
+marker = "python_version >= \"3\""
 name = "more-itertools"
 optional = false
 python-versions = ">=3.5"
@@ -387,6 +425,7 @@ six = "*"
 [[package]]
 category = "dev"
 description = "Object-oriented filesystem paths"
+marker = "python_version < \"3\""
 name = "pathlib2"
 optional = false
 python-versions = "*"
@@ -394,11 +433,27 @@ version = "2.3.4"
 
 [package.dependencies]
 six = "*"
-scandir = {version = "*", markers = "python_version < \"3.5\""}
+
+[package.dependencies.scandir]
+python = "<3.5"
+version = "*"
+
+[[package]]
+category = "dev"
+description = "Object-oriented filesystem paths"
+marker = "python_version >= \"3\" and python_version < \"3.6\""
+name = "pathlib2"
+optional = false
+python-versions = "*"
+version = "2.3.5"
+
+[package.dependencies]
+six = "*"
 
 [[package]]
 category = "dev"
 description = "Utility library for gitignore style pattern matching of file paths."
+marker = "python_version >= \"3.6\" and python_version < \"4.0\""
 name = "pathspec"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
@@ -426,13 +481,16 @@ testing = ["nose", "coverage"]
 [[package]]
 category = "dev"
 description = "plugin and hook calling mechanisms for python"
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "pluggy"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "0.13.1"
 
 [package.dependencies]
-importlib-metadata = {version = ">=0.12", markers = "python_version < \"3.8\""}
+[package.dependencies.importlib-metadata]
+python = "<3.8"
+version = ">=0.12"
 
 [package.extras]
 dev = ["pre-commit", "tox"]
@@ -440,6 +498,7 @@ dev = ["pre-commit", "tox"]
 [[package]]
 category = "dev"
 description = "library with cross-python path, ini-parsing, io, code, log facilities"
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "py"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
@@ -471,6 +530,14 @@ version = "2.5.2"
 
 [[package]]
 category = "dev"
+description = "Pygments is a syntax highlighting package written in Python."
+name = "pygments"
+optional = false
+python-versions = ">=3.5"
+version = "2.6.1"
+
+[[package]]
+category = "dev"
 description = "Python parsing module"
 name = "pyparsing"
 optional = false
@@ -480,6 +547,7 @@ version = "2.4.7"
 [[package]]
 category = "dev"
 description = "pytest: simple powerful testing with Python"
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "pytest"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
@@ -493,18 +561,26 @@ pluggy = ">=0.12,<1.0"
 py = ">=1.5.0"
 six = ">=1.10.0"
 wcwidth = "*"
-colorama = {version = "*", markers = "sys_platform == \"win32\" and python_version != \"3.4\""}
-funcsigs = {version = ">=1.0", markers = "python_version < \"3.0\""}
-importlib-metadata = {version = ">=0.12", markers = "python_version < \"3.8\""}
-pathlib2 = {version = ">=2.2.0", markers = "python_version < \"3.6\""}
 
-[[package.dependencies.more-itertools]]
-markers = "python_version <= \"2.7\""
+[package.dependencies.colorama]
+python = "<3.4.0 || >=3.5.0"
+version = "*"
+
+[package.dependencies.funcsigs]
+python = "<3.0"
+version = ">=1.0"
+
+[package.dependencies.importlib-metadata]
+python = "<3.8"
+version = ">=0.12"
+
+[package.dependencies.more-itertools]
+python = "<2.8"
 version = ">=4.0.0,<6.0.0"
 
-[[package.dependencies.more-itertools]]
-markers = "python_version > \"2.7\""
-version = ">=4.0.0"
+[package.dependencies.pathlib2]
+python = "<3.6"
+version = ">=2.2.0"
 
 [package.extras]
 testing = ["argcomplete", "hypothesis (>=3.56)", "nose", "requests", "mock"]
@@ -512,22 +588,29 @@ testing = ["argcomplete", "hypothesis (>=3.56)", "nose", "requests", "mock"]
 [[package]]
 category = "dev"
 description = "pytest: simple powerful testing with Python"
+marker = "python_version >= \"3\""
 name = "pytest"
 optional = false
 python-versions = ">=3.5"
 version = "5.4.3"
 
 [package.dependencies]
+atomicwrites = ">=1.0"
 attrs = ">=17.4.0"
+colorama = "*"
 more-itertools = ">=4.0.0"
 packaging = "*"
 pluggy = ">=0.12,<1.0"
 py = ">=1.5.0"
 wcwidth = "*"
-atomicwrites = {version = ">=1.0", markers = "sys_platform == \"win32\""}
-colorama = {version = "*", markers = "sys_platform == \"win32\""}
-importlib-metadata = {version = ">=0.12", markers = "python_version < \"3.8\""}
-pathlib2 = {version = ">=2.2.0", markers = "python_version < \"3.6\""}
+
+[package.dependencies.importlib-metadata]
+python = "<3.8"
+version = ">=0.12"
+
+[package.dependencies.pathlib2]
+python = "<3.6"
+version = ">=2.2.0"
 
 [package.extras]
 checkqa-mypy = ["mypy (v0.761)"]
@@ -536,6 +619,7 @@ testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xm
 [[package]]
 category = "dev"
 description = "Pytest plugin for measuring coverage."
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "pytest-cov"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
@@ -551,6 +635,7 @@ testing = ["fields", "hunter", "process-tests (2.0.2)", "six", "pytest-xdist", "
 [[package]]
 category = "dev"
 description = "Pytest plugin for measuring coverage."
+marker = "python_version >= \"3\""
 name = "pytest-cov"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
@@ -566,6 +651,7 @@ testing = ["fields", "hunter", "process-tests (2.0.2)", "six", "pytest-xdist", "
 [[package]]
 category = "dev"
 description = "World timezone definitions, modern and historical"
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "pytz"
 optional = false
 python-versions = "*"
@@ -599,6 +685,7 @@ md = ["cmarkgfm (>=0.2.0)"]
 [[package]]
 category = "dev"
 description = "Alternative regular expression module, to replace re."
+marker = "python_version >= \"3.6\" and python_version < \"4.0\""
 name = "regex"
 optional = false
 python-versions = "*"
@@ -647,6 +734,7 @@ docutils = ">=0.11,<1.0"
 [[package]]
 category = "dev"
 description = "scandir, a better directory iterator and faster os.walk()"
+marker = "python_version < \"3\""
 name = "scandir"
 optional = false
 python-versions = "*"
@@ -663,6 +751,7 @@ version = "1.15.0"
 [[package]]
 category = "dev"
 description = "This package provides 26 stemmers for 25 languages generated from Snowball algorithms."
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "snowballstemmer"
 optional = false
 python-versions = "*"
@@ -681,11 +770,11 @@ Jinja2 = ">=2.3"
 Pygments = ">=2.0"
 alabaster = ">=0.7,<0.8"
 babel = ">=1.3,<2.0 || >2.0"
+colorama = "*"
 docutils = ">=0.11"
 six = ">=1.4"
 snowballstemmer = ">=1.1"
 sphinx-rtd-theme = ">=0.1,<2.0"
-colorama = {version = "*", markers = "sys_platform == \"win32\""}
 
 [package.extras]
 test = ["nose", "mock", "simplejson"]
@@ -710,6 +799,7 @@ tests = ["pytest", "mock"]
 [[package]]
 category = "dev"
 description = "Read the Docs theme for Sphinx"
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "sphinx-rtd-theme"
 optional = false
 python-versions = "*"
@@ -736,6 +826,7 @@ six = ">=1.10.0"
 [[package]]
 category = "dev"
 description = "Python Library for Tom's Obvious, Minimal Language"
+marker = "python_version >= \"3.6\" and python_version < \"4.0\""
 name = "toml"
 optional = false
 python-versions = "*"
@@ -765,6 +856,7 @@ pkginfo = ">=1.4.2"
 readme-renderer = ">=21.0"
 requests = ">=2.5.0,<2.15 || >2.15,<2.16 || >2.16"
 requests-toolbelt = ">=0.8.0,<0.9.0 || >0.9.0"
+setuptools = ">=0.7.0"
 tqdm = ">=4.14"
 
 [package.extras]
@@ -774,6 +866,7 @@ with-blake2 = ["pyblake2"]
 [[package]]
 category = "dev"
 description = "a fork of Python 2 and 3 ast modules with type comment support"
+marker = "python_version >= \"3.6\" and python_version < \"4.0\""
 name = "typed-ast"
 optional = false
 python-versions = "*"
@@ -782,6 +875,7 @@ version = "1.4.1"
 [[package]]
 category = "dev"
 description = "Type Hints for Python"
+marker = "python_version < \"3.5\""
 name = "typing"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
@@ -803,13 +897,16 @@ socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7,<2.0)"]
 [[package]]
 category = "dev"
 description = "Measures the displayed width of unicode strings in a terminal"
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "wcwidth"
 optional = false
 python-versions = "*"
 version = "0.2.5"
 
 [package.dependencies]
-"backports.functools-lru-cache" = {version = ">=1.2.1", markers = "python_version < \"3.2\""}
+[package.dependencies."backports.functools-lru-cache"]
+python = "<3.2"
+version = ">=1.2.1"
 
 [[package]]
 category = "dev"
@@ -822,13 +919,16 @@ version = "0.5.1"
 [[package]]
 category = "dev"
 description = "Backport of pathlib-compatible object wrapper for zip files"
+marker = "python_version < \"3\" or python_version >= \"3\" and python_version < \"3.8\""
 name = "zipp"
 optional = false
 python-versions = ">=2.7"
 version = "1.2.0"
 
 [package.dependencies]
-contextlib2 = {version = "*", markers = "python_version < \"3.4\""}
+[package.dependencies.contextlib2]
+python = "<3.4"
+version = "*"
 
 [package.extras]
 docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
@@ -836,7 +936,7 @@ testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
 
 [metadata]
 content-hash = "ca7f338e741ed3e1909b6d7c99a5e7e6b7e0bd7ab2b2952e8be6760c9db23367"
-lock-version = "1.1"
+lock-version = "1.0"
 python-versions = "~2.7 || ^3.5"
 
 [metadata.files]
@@ -1033,8 +1133,6 @@ more-itertools = [
     {file = "more-itertools-5.0.0.tar.gz", hash = "sha256:38a936c0a6d98a38bcc2d03fdaaedaba9f412879461dd2ceff8d37564d6522e4"},
     {file = "more_itertools-5.0.0-py2-none-any.whl", hash = "sha256:c0a5785b1109a6bd7fac76d6837fd1feca158e54e521ccd2ae8bfe393cc9d4fc"},
     {file = "more_itertools-5.0.0-py3-none-any.whl", hash = "sha256:fe7a7cae1ccb57d33952113ff4fa1bc5f879963600ed74918f1236e212ee50b9"},
-    {file = "more-itertools-8.3.0.tar.gz", hash = "sha256:558bb897a2232f5e4f8e2399089e35aecb746e1f9191b6584a151647e89267be"},
-    {file = "more_itertools-8.3.0-py3-none-any.whl", hash = "sha256:7818f596b1e87be009031c7653d01acc46ed422e6656b394b0f765ce66ed4982"},
     {file = "more-itertools-8.4.0.tar.gz", hash = "sha256:68c70cc7167bdf5c7c9d8f6954a7837089c6a36bf565383919bb595efb8a17e5"},
     {file = "more_itertools-8.4.0-py3-none-any.whl", hash = "sha256:b78134b2063dd214000685165d81c154522c3ee0a1c0d4d113c80361c234c5a2"},
 ]
@@ -1045,6 +1143,8 @@ packaging = [
 pathlib2 = [
     {file = "pathlib2-2.3.4-py2.py3-none-any.whl", hash = "sha256:2156525d6576d21c4dcaddfa427fae887ef89a7a9de5cbfe0728b3aafa78427e"},
     {file = "pathlib2-2.3.4.tar.gz", hash = "sha256:446014523bb9be5c28128c4d2a10ad6bb60769e78bd85658fe44a450674e0ef8"},
+    {file = "pathlib2-2.3.5-py2.py3-none-any.whl", hash = "sha256:0ec8205a157c80d7acc301c0b18fbd5d44fe655968f5d947b6ecef5290fc35db"},
+    {file = "pathlib2-2.3.5.tar.gz", hash = "sha256:6cd9a47b597b37cc57de1c05e56fb1a1c9cc9fab04fe78c29acd090418529868"},
 ]
 pathspec = [
     {file = "pathspec-0.8.0-py2.py3-none-any.whl", hash = "sha256:7d91249d21749788d07a2d0f94147accd8f845507400749ea19c1ec9054a12b0"},
@@ -1077,6 +1177,8 @@ pyflakes = [
 pygments = [
     {file = "Pygments-2.5.2-py2.py3-none-any.whl", hash = "sha256:2a3fe295e54a20164a9df49c75fa58526d3be48e14aceba6d6b1e8ac0bfd6f1b"},
     {file = "Pygments-2.5.2.tar.gz", hash = "sha256:98c8aa5a9f778fcd1026a17361ddaf7330d1b7c62ae97c3bb0ae73e0b9b6b0fe"},
+    {file = "Pygments-2.6.1-py3-none-any.whl", hash = "sha256:ff7a40b4860b727ab48fad6360eb351cc1b33cbf9b15a0f689ca5353e9463324"},
+    {file = "Pygments-2.6.1.tar.gz", hash = "sha256:647344a061c249a3b74e230c739f434d7ea4d8b1d5f3721bc0f3558049b38f44"},
 ]
 pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},
