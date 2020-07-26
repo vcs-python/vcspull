@@ -13,12 +13,16 @@ from copy import deepcopy
 
 import click
 
+from libvcs._compat import PY2
 from libvcs.shortcuts import create_repo_from_pip_url
 
 from .__about__ import __version__
 from .cli_defaultgroup import DefaultGroup
 from .config import filter_repos, find_config_files, load_configs
 from .log import DebugLogFormatter, RepoFilter, RepoLogFormatter
+
+if PY2:
+    FileNotFoundError = EnvironmentError
 
 MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
 MAX_ASYNC = 8  # maximum processes to open:w
