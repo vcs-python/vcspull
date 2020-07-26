@@ -147,6 +147,7 @@ def update_repo(repo_dict):
                 name=config_remote_name, url=remote_setting['url'], overwrite=True
             )
     r.update_repo()
+    return r
 
 
 cli.add_command(update)
