@@ -141,7 +141,7 @@ def update_repo(repo_dict):
 
         if current_remote is not None and current_remote[0] != remote_setting['url']:
             print(
-                'Ovewrriting {name} ({current_url}) with {new_url}'.format(
+                'Updating remote {name} ({current_url}) with {new_url}'.format(
                     name=config_remote_name,
                     current_url=current_remote[0],
                     new_url=remote_setting['url'],
