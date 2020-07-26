@@ -9,6 +9,7 @@ from __future__ import absolute_import, print_function
 
 import logging
 import sys
+from copy import deepcopy
 
 import click
 
@@ -122,6 +123,7 @@ def progress_cb(output, timestamp):
 
 
 def update_repo(repo_dict):
+    repo_dict = deepcopy(repo_dict)
     if 'pip_url' not in repo_dict:
         repo_dict['pip_url'] = repo_dict.pop('url')
     repo_dict['progress_callback'] = progress_cb
