@@ -126,7 +126,7 @@ def update_repo(repo_dict):
         repo_dict['pip_url'] = repo_dict.pop('url')
     repo_dict['progress_callback'] = progress_cb
 
-    r = create_repo_from_pip_url(**repo_dict)
+    r = create_repo_from_pip_url(**repo_dict)  # Creates the repo object
 
     remote_settings = repo_dict.get('remotes', [])
     if not any(rs for rs in remote_settings if rs['remote_name'] == 'origin'):
@@ -150,7 +150,7 @@ def update_repo(repo_dict):
             r.remote_set(
                 name=config_remote_name, url=remote_setting['url'], overwrite=True
             )
-    r.update_repo()
+    r.update_repo()  # Creates repo if not exists and fetches
     return r
 
 
