@@ -146,21 +146,36 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
 
 def test_updating_remote(tmpdir, create_git_dummy_repo):
     """Ensure that directories in pull are made recursively."""
-    dummy_repo = create_git_dummy_repo('dummyrepo')
 
-    YAML_CONFIG = """
-    {TMP_DIR}/study/myrepo:
-        my_url: git+file://{REPO_DIR}
-    """
+    def create_and_load_configs(repo_name):
+        dummy_repo = create_git_dummy_repo(repo_name)
 
-    YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=dummy_repo)
-    CONFIG_FILENAME = 'myrepos.yaml'
-    config_file = tmpdir.join(CONFIG_FILENAME)
-    config_file.write(YAML_CONFIG)
-    repo_parent = tmpdir.join('study/myrepo')
-    repo_parent.ensure(dir=True)
+        YAML_CONFIG = """
+        {TMP_DIR}/study/myrepo:
+            my_url: git+file://{REPO_DIR}
+        """
 
+        YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=dummy_repo)
+        CONFIG_FILENAME = 'myrepos.yaml'
+        config_file = tmpdir.join(CONFIG_FILENAME)
+        config_file.write(YAML_CONFIG)
+        repo_parent = tmpdir.join('study/myrepo')
+        repo_parent.ensure(dir=True)
+        return config_file
+
+    config_file = create_and_load_configs('dummyrepo')
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        update_repo(repo_dict)
+        old_repo_remotes = update_repo(repo_dict).remotes_get['origin']
+
+    # Later: Copy dummy repo somewhere else so the commits are common
+    config_file = create_and_load_configs('new_repo_url')
+    configs = load_configs([str(config_file)])
+
+    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
+        repo_url = repo_dict['url'].replace('git+', '')
+        r = update_repo(repo_dict)
+        current_remote_url = r.remotes_get['origin']
+        assert current_remote_url[0] == repo_url
+        assert current_remote_url != old_repo_remotes
