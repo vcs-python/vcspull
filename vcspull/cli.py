@@ -127,6 +127,25 @@ def update_repo(repo_dict):
 
     r = create_repo_from_pip_url(**repo_dict)
 
+    remote_settings = repo_dict.get('remotes', [])
+    if not any(rs for rs in remote_settings if rs['remote_name'] == 'origin'):
+        remote_settings.append({'remote_name': 'origin', 'url': repo_dict['pip_url']})
+
+    for remote_setting in remote_settings:
+        config_remote_name = remote_setting['remote_name']  # From config file
+        current_remote = r.remotes_get.get(config_remote_name)
+
+        if current_remote is not None and current_remote[0] != remote_setting['url']:
+            print(
+                'Ovewrriting {name} ({current_url}) with {new_url}'.format(
+                    name=config_remote_name,
+                    current_url=current_remote[0],
+                    new_url=remote_setting['url'],
+                )
+            )
+            r.remote_set(
+                name=config_remote_name, url=remote_setting['url'], overwrite=True
+            )
     r.update_repo()
 
 
