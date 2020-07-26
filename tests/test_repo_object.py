@@ -8,7 +8,8 @@ import kaptan
 
 from libvcs import BaseRepo, GitRepo, MercurialRepo, SubversionRepo
 from libvcs.shortcuts import create_repo_from_pip_url
-from vcspull.config import extract_repos, filter_repos
+from vcspull.cli import update_repo
+from vcspull.config import extract_repos, filter_repos, load_configs
 
 from .fixtures import example as fixtures
 
@@ -141,3 +142,25 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
     for r in filter_repos(repos):
         repo = create_repo_from_pip_url(**r)
         repo.obtain()
+
+
+def test_updating_remote(tmpdir, create_git_dummy_repo):
+    """Ensure that directories in pull are made recursively."""
+    dummy_repo = create_git_dummy_repo('dummyrepo')
+
+    YAML_CONFIG = """
+    {TMP_DIR}/study/myrepo:
+        my_url: git+file://{REPO_DIR}
+    """
+
+    YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=dummy_repo)
+    CONFIG_FILENAME = 'myrepos.yaml'
+    config_file = tmpdir.join(CONFIG_FILENAME)
+    config_file.write(YAML_CONFIG)
+    repo_parent = tmpdir.join('study/myrepo')
+    repo_parent.ensure(dir=True)
+
+    configs = load_configs([str(config_file)])
+
+    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
+        update_repo(repo_dict)
