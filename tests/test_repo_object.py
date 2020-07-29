@@ -4,6 +4,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 
+from py._path.local import LocalPath
+
 import kaptan
 
 from libvcs import BaseRepo, GitRepo, MercurialRepo, SubversionRepo
@@ -145,21 +147,26 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
 
 
 def test_updating_remote(tmpdir, create_git_dummy_repo):
+    # type: (LocalPath, LocalPath)
     """Ensure that directories in pull are made recursively."""
 
-    def create_and_load_configs(repo_name):
-        dummy_repo = create_git_dummy_repo(repo_name)
+    dummy_repo_name = 'dummy_repo'
+    dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
+
+    def create_and_load_configs(repo_dir, clone_name):
 
         YAML_CONFIG = """
         {TMP_DIR}/study/myrepo:
-            my_url:
-              repo: git+file://{REPO_DIR}
-              remotes:
-                firstremote: git+file://{REPO_DIR}
+          {CLONE_NAME}: 
+            repo: git+file://{REPO_DIR}
+            remotes:
+              firstremote: git+file://{REPO_DIR}
               #   secondremote: git+file://{REPO_DIR}
         """
 
-        YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=dummy_repo)
+        YAML_CONFIG = YAML_CONFIG.format(
+            TMP_DIR=str(tmpdir), REPO_DIR=repo_dir, CLONE_NAME=clone_name
+        )
         CONFIG_FILENAME = 'myrepos.yaml'
         config_file = tmpdir.join(CONFIG_FILENAME)
         config_file.write(YAML_CONFIG)
@@ -167,14 +174,16 @@ def test_updating_remote(tmpdir, create_git_dummy_repo):
         repo_parent.ensure(dir=True)
         return config_file
 
-    config_file = create_and_load_configs('dummyrepo')
+    config_file = create_and_load_configs(repo_dir=dummy_repo, clone_name='myclone')
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
         old_repo_remotes = update_repo(repo_dict).remotes()['origin']
 
     # Later: Copy dummy repo somewhere else so the commits are common
-    config_file = create_and_load_configs('new_repo_url')
+    config_file = create_and_load_configs(
+        repo_dir=dummy_repo, clone_name='anotherclone'
+    )
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
