@@ -157,11 +157,13 @@ def test_updating_remote(tmpdir, create_git_dummy_repo):
 
         YAML_CONFIG = """
         {TMP_DIR}/study/myrepo:
-          {CLONE_NAME}: 
-            repo: git+file://{REPO_DIR}
-            remotes:
-              firstremote: git+file://{REPO_DIR}
-              #   secondremote: git+file://{REPO_DIR}
+            {CLONE_NAME}: git+file://{REPO_DIR}
+            {CLONE_NAME}_style_two:
+               repo: git+file://{REPO_DIR}
+            {CLONE_NAME}_style_two_with_remotes:
+               repo: git+file://{REPO_DIR}
+               remotes:
+                   secondremote: git+file://{REPO_DIR}
         """
 
         YAML_CONFIG = YAML_CONFIG.format(
