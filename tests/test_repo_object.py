@@ -154,7 +154,6 @@ def test_updating_remote(tmpdir, create_git_dummy_repo):
     dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
 
     def create_and_load_configs(repo_dir, clone_name):
-
         YAML_CONFIG = """
         {TMP_DIR}/study/myrepo:
             {CLONE_NAME}: git+file://{REPO_DIR}
@@ -191,9 +190,9 @@ def test_updating_remote(tmpdir, create_git_dummy_repo):
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
         repo_url = repo_dict['url'].replace('git+', '')
         r = update_repo(repo_dict)
-
-        for remote_name, remote_info in repo_dict.get('remotes', {}).items():
+        remotes = r.remotes() or {}
+        for remote_name, remote_data in remotes.items():
             current_remote_url = r.remotes()[remote_name]
             assert current_remote_url['fetch_url'] == repo_url
             assert current_remote_url['push_url'] == repo_url
-            assert current_remote_url != old_repo_remotes
+            assert set(old_repo_remotes).issubset(set(current_remote_url))
