@@ -4,6 +4,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 
+import pytest
 from py._path.local import LocalPath
 
 import kaptan
@@ -146,45 +147,122 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
         repo.obtain()
 
 
-def test_updating_remote(tmpdir, create_git_dummy_repo):
+@pytest.mark.parametrize(
+    'config_tpl',
+    [
+        """
+        {TMP_DIR}/study/myrepo:
+            {CLONE_NAME}: git+file://{REPO_DIR}
+        """,
+        """
+        {TMP_DIR}/study/myrepo:
+            {CLONE_NAME}:
+               repo: git+file://{REPO_DIR}
+        """,
+        """
+        {TMP_DIR}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{REPO_DIR}
+                remotes:
+                    secondremote: git+file://{REPO_DIR}
+        """,
+    ],
+)
+def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
     # type: (LocalPath, LocalPath)
-    """Ensure that directories in pull are made recursively."""
+    """Test config output with varation of config formats"""
 
     dummy_repo_name = 'dummy_repo'
     dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
 
-    def create_and_load_configs(repo_dir, clone_name):
-        YAML_CONFIG = """
-        {TMP_DIR}/study/myrepo:
-            {CLONE_NAME}: git+file://{REPO_DIR}
-            {CLONE_NAME}_style_two:
-               repo: git+file://{REPO_DIR}
-            {CLONE_NAME}_style_two_with_remotes:
-               repo: git+file://{REPO_DIR}
-               remotes:
-                   secondremote: git+file://{REPO_DIR}
-        """
+    def write_config(repo_dir, clone_name):
 
-        YAML_CONFIG = YAML_CONFIG.format(
+        config = config_tpl.format(
             TMP_DIR=str(tmpdir), REPO_DIR=repo_dir, CLONE_NAME=clone_name
         )
         CONFIG_FILENAME = 'myrepos.yaml'
         config_file = tmpdir.join(CONFIG_FILENAME)
-        config_file.write(YAML_CONFIG)
+        config_file.write(config)
         repo_parent = tmpdir.join('study/myrepo')
         repo_parent.ensure(dir=True)
         return config_file
 
-    config_file = create_and_load_configs(repo_dir=dummy_repo, clone_name='myclone')
+    config_file = write_config(repo_dir=dummy_repo, clone_name='myclone')
+    configs = load_configs([str(config_file)])
+
+    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
+        old_repo_remotes = update_repo(repo_dict).remotes_get['origin']
+
+    # Later: Copy dummy repo somewhere else so the commits are common
+    config_file = write_config(repo_dir=dummy_repo, clone_name='anotherclone')
+    configs = load_configs([str(config_file)])
+
+    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
+        repo_url = repo_dict['url'].replace('git+', '')
+        r = update_repo(repo_dict)
+        remotes = r.remotes or []
+        for remote in remotes:
+            current_remote_url = r.remotes_get[remote['remote_name']]
+            assert current_remote_url[0] == repo_url
+            assert set(old_repo_remotes).issubset(set(current_remote_url))
+
+
+@pytest.mark.parametrize(
+    'config_tpl,has_extra_remotes',
+    [
+        [
+            """
+        {TMP_DIR}/study/myrepo:
+            {CLONE_NAME}: git+file://{REPO_DIR}
+        """,
+            False,
+        ],
+        [
+            """
+        {TMP_DIR}/study/myrepo:
+            {CLONE_NAME}:
+               repo: git+file://{REPO_DIR}
+        """,
+            False,
+        ],
+        [
+            """
+        {TMP_DIR}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{REPO_DIR}
+                remotes:
+                    secondremote: git+file://{REPO_DIR}
+        """,
+            True,
+        ],
+    ],
+)
+def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_remotes):
+    # type: (LocalPath, LocalPath)
+    """Ensure additions/changes to yaml config are reflected"""
+
+    dummy_repo_name = 'dummy_repo'
+    dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
+
+    def write_config(repo_dir, clone_name):
+        config = config_tpl.format(
+            TMP_DIR=str(tmpdir), REPO_DIR=repo_dir, CLONE_NAME=clone_name
+        )
+        CONFIG_FILENAME = 'myrepos.yaml'
+        config_file = tmpdir.join(CONFIG_FILENAME)
+        config_file.write(config)
+        repo_parent = tmpdir.join('study/myrepo')
+        repo_parent.ensure(dir=True)
+        return config_file
+
+    config_file = write_config(repo_dir=dummy_repo, clone_name='myclone')
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
         old_repo_remotes = update_repo(repo_dict).remotes()['origin']
 
     # Later: Copy dummy repo somewhere else so the commits are common
-    config_file = create_and_load_configs(
-        repo_dir=dummy_repo, clone_name='anotherclone'
-    )
+    config_file = write_config(repo_dir=dummy_repo, clone_name='anotherclone')
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
