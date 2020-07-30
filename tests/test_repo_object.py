@@ -190,7 +190,7 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        old_repo_remotes = update_repo(repo_dict).remotes_get['origin']
+        old_repo_remotes = update_repo(repo_dict).remote('origin')
 
     # Later: Copy dummy repo somewhere else so the commits are common
     config_file = write_config(repo_dir=dummy_repo, clone_name='anotherclone')
@@ -200,10 +200,10 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
         repo_url = repo_dict['url'].replace('git+', '')
         r = update_repo(repo_dict)
         remotes = r.remotes or []
-        for remote in remotes:
-            current_remote_url = r.remotes_get[remote['remote_name']]
-            assert current_remote_url[0] == repo_url
-            assert set(old_repo_remotes).issubset(set(current_remote_url))
+        for remote_name, remote_info in remotes().items():
+            current_remote = r.remote(remote_name)
+            assert current_remote.fetch_url == repo_url
+            assert set(old_repo_remotes).issubset(set(current_remote))
 
 
 @pytest.mark.parametrize(
@@ -243,32 +243,56 @@ def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_re
     dummy_repo_name = 'dummy_repo'
     dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
 
-    def write_config(repo_dir, clone_name):
-        config = config_tpl.format(
-            tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
-        )
-        config_file = tmpdir.join('myrepos.yaml')
-        config_file.write(config)
-        repo_parent = tmpdir.join('study/myrepo')
-        repo_parent.ensure(dir=True)
-        return config_file
+    repo_parent = tmpdir.join('study/myrepo')
+    repo_parent.ensure(dir=True)
 
-    config_file = write_config(repo_dir=dummy_repo, clone_name='myclone')
-    configs = load_configs([str(config_file)])
+    base_config = {
+        'name': 'myclone',
+        'repo_dir': '{tmpdir}/study/myrepo/myclone'.format(tmpdir=tmpdir),
+        'parent_dir': '{tmpdir}/study/myrepo'.format(tmpdir=tmpdir),
+        'url': 'git+file://{repo_dir}'.format(repo_dir=dummy_repo),
+        'remotes': [
+            {
+                'remote_name': 'secondremote',
+                'url': 'git+file://{repo_dir}'.format(repo_dir=dummy_repo),
+            }
+        ],
+    }
+
+    def merge_dict(_dict, extra):
+        _dict = _dict.copy()
+        _dict.update(**extra)
+        return _dict
+
+    configs = [base_config]
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        old_repo_remotes = update_repo(repo_dict).remotes()['origin']
+        update_repo(repo_dict).remotes()['origin']
 
-    # Later: Copy dummy repo somewhere else so the commits are common
-    config_file = write_config(repo_dir=dummy_repo, clone_name='anotherclone')
-    configs = load_configs([str(config_file)])
+    expected_remote_url = 'git+file://{repo_dir}/moo'.format(repo_dir=dummy_repo)
 
-    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        repo_url = repo_dict['url'].replace('git+', '')
-        r = update_repo(repo_dict)
-        remotes = r.remotes() or {}
-        for remote_name, remote_data in remotes.items():
-            current_remote_url = r.remotes()[remote_name]
-            assert current_remote_url['fetch_url'] == repo_url
-            assert current_remote_url['push_url'] == repo_url
-            assert set(old_repo_remotes).issubset(set(current_remote_url))
+    config = merge_dict(
+        base_config,
+        extra={
+            'remotes': [{'remote_name': 'secondremote', 'url': expected_remote_url}]
+        },
+    )
+    configs = [config]
+
+    repo_dict = filter_repos(configs, repo_dir='*', vcs_url='*', name='myclone')[0]
+    r = update_repo(repo_dict)
+    for remote_name, remote_info in r.remotes().items():
+        current_remote_url = r.remote(remote_name).fetch_url.replace('git+', '')
+        config_remote_url = (
+            next(
+                (
+                    r['url']
+                    for r in config['remotes']
+                    if r.get('remote_name') == remote_name
+                ),
+                None,
+            )
+            if remote_name != 'origin'
+            else config['url']
+        ).replace('git+', '')
+        assert config_remote_url == current_remote_url
