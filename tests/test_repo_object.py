@@ -131,11 +131,11 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
     """Ensure that directories in pull are made recursively."""
 
     YAML_CONFIG = """
-    {TMP_DIR}/study/myrepo:
-        my_url: git+file://{REPO_DIR}
+    {tmpdir}/study/myrepo:
+        my_url: git+file://{repo_dir}
     """
 
-    YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=git_dummy_repo_dir)
+    YAML_CONFIG = YAML_CONFIG.format(tmpdir=str(tmpdir), repo_dir=git_dummy_repo_dir)
 
     conf = kaptan.Kaptan(handler='yaml')
     conf.import_config(YAML_CONFIG)
@@ -151,20 +151,20 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
     'config_tpl',
     [
         """
-        {TMP_DIR}/study/myrepo:
-            {CLONE_NAME}: git+file://{REPO_DIR}
+        {tmpdir}/study/myrepo:
+            {CLONE_NAME}: git+file://{repo_dir}
         """,
         """
-        {TMP_DIR}/study/myrepo:
+        {tmpdir}/study/myrepo:
             {CLONE_NAME}:
-               repo: git+file://{REPO_DIR}
+               repo: git+file://{repo_dir}
         """,
         """
-        {TMP_DIR}/study/myrepo:
+        {tmpdir}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{REPO_DIR}
+                repo: git+file://{repo_dir}
                 remotes:
-                    secondremote: git+file://{REPO_DIR}
+                    secondremote: git+file://{repo_dir}
         """,
     ],
 )
@@ -178,10 +178,9 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
     def write_config(repo_dir, clone_name):
 
         config = config_tpl.format(
-            TMP_DIR=str(tmpdir), REPO_DIR=repo_dir, CLONE_NAME=clone_name
+            tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
         )
-        CONFIG_FILENAME = 'myrepos.yaml'
-        config_file = tmpdir.join(CONFIG_FILENAME)
+        config_file = tmpdir.join('myrepos.yaml')
         config_file.write(config)
         repo_parent = tmpdir.join('study/myrepo')
         repo_parent.ensure(dir=True)
@@ -212,26 +211,26 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
     [
         [
             """
-        {TMP_DIR}/study/myrepo:
-            {CLONE_NAME}: git+file://{REPO_DIR}
+        {tmpdir}/study/myrepo:
+            {CLONE_NAME}: git+file://{repo_dir}
         """,
             False,
         ],
         [
             """
-        {TMP_DIR}/study/myrepo:
+        {tmpdir}/study/myrepo:
             {CLONE_NAME}:
-               repo: git+file://{REPO_DIR}
+               repo: git+file://{repo_dir}
         """,
             False,
         ],
         [
             """
-        {TMP_DIR}/study/myrepo:
+        {tmpdir}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{REPO_DIR}
+                repo: git+file://{repo_dir}
                 remotes:
-                    secondremote: git+file://{REPO_DIR}
+                    secondremote: git+file://{repo_dir}
         """,
             True,
         ],
@@ -246,10 +245,9 @@ def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_re
 
     def write_config(repo_dir, clone_name):
         config = config_tpl.format(
-            TMP_DIR=str(tmpdir), REPO_DIR=repo_dir, CLONE_NAME=clone_name
+            tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
         )
-        CONFIG_FILENAME = 'myrepos.yaml'
-        config_file = tmpdir.join(CONFIG_FILENAME)
+        config_file = tmpdir.join('myrepos.yaml')
         config_file.write(config)
         repo_parent = tmpdir.join('study/myrepo')
         repo_parent.ensure(dir=True)
