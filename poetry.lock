@@ -326,6 +326,15 @@ testing = ["packaging", "pep517", "importlib-resources (>=1.3)"]
 
 [[package]]
 category = "dev"
+description = "iniconfig: brain-dead simple config-ini parsing"
+marker = "python_version >= \"3\""
+name = "iniconfig"
+optional = false
+python-versions = "*"
+version = "1.0.1"
+
+[[package]]
+category = "dev"
 description = "A Python utility / library to sort Python imports."
 name = "isort"
 optional = false
@@ -548,6 +557,7 @@ version = "2.6.1"
 [[package]]
 category = "dev"
 description = "Python parsing module"
+marker = "python_version < \"3\" or python_version >= \"3\""
 name = "pyparsing"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
@@ -601,17 +611,18 @@ marker = "python_version >= \"3\""
 name = "pytest"
 optional = false
 python-versions = ">=3.5"
-version = "5.4.3"
+version = "6.0.1"
 
 [package.dependencies]
 atomicwrites = ">=1.0"
 attrs = ">=17.4.0"
 colorama = "*"
+iniconfig = "*"
 more-itertools = ">=4.0.0"
 packaging = "*"
 pluggy = ">=0.12,<1.0"
-py = ">=1.5.0"
-wcwidth = "*"
+py = ">=1.8.2"
+toml = "*"
 
 [package.dependencies.importlib-metadata]
 python = "<3.8"
@@ -622,7 +633,7 @@ python = "<3.6"
 version = ">=2.2.0"
 
 [package.extras]
-checkqa-mypy = ["mypy (v0.761)"]
+checkqa_mypy = ["mypy (0.780)"]
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
 
 [[package]]
@@ -949,7 +960,7 @@ six = ">=1.10.0"
 [[package]]
 category = "dev"
 description = "Python Library for Tom's Obvious, Minimal Language"
-marker = "python_version >= \"3.6\" and python_version < \"4.0\""
+marker = "python_version >= \"3\" or python_version >= \"3.6\" and python_version < \"4.0\""
 name = "toml"
 optional = false
 python-versions = "*"
@@ -1020,7 +1031,7 @@ socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7,<2.0)"]
 [[package]]
 category = "dev"
 description = "Measures the displayed width of unicode strings in a terminal"
-marker = "python_version < \"3\" or python_version >= \"3\""
+marker = "python_version < \"3\""
 name = "wcwidth"
 optional = false
 python-versions = "*"
@@ -1204,6 +1215,10 @@ importlib-metadata = [
     {file = "importlib_metadata-1.7.0-py2.py3-none-any.whl", hash = "sha256:dc15b2969b4ce36305c51eebe62d418ac7791e9a157911d58bfb1f9ccd8e2070"},
     {file = "importlib_metadata-1.7.0.tar.gz", hash = "sha256:90bb658cdbbf6d1735b6341ce708fc7024a3e14e99ffdc5783edea9f9b077f83"},
 ]
+iniconfig = [
+    {file = "iniconfig-1.0.1-py3-none-any.whl", hash = "sha256:80cf40c597eb564e86346103f609d74efce0f6b4d4f30ec8ce9e2c26411ba437"},
+    {file = "iniconfig-1.0.1.tar.gz", hash = "sha256:e5f92f89355a67de0595932a6c6c02ab4afddc6fcdc0bfc5becd0d60884d3f69"},
+]
 isort = [
     {file = "isort-4.3.21-py2.py3-none-any.whl", hash = "sha256:6e811fcb295968434526407adb8796944f1988c5b65e8139058f2014cbe100fd"},
     {file = "isort-4.3.21.tar.gz", hash = "sha256:54da7e92468955c4fceacd0c86bd0ec997b0e1ee80d97f67c35a78b719dccab1"},
@@ -1315,8 +1330,8 @@ pyparsing = [
 pytest = [
     {file = "pytest-4.6.11-py2.py3-none-any.whl", hash = "sha256:a00a7d79cbbdfa9d21e7d0298392a8dd4123316bfac545075e6f8f24c94d8c97"},
     {file = "pytest-4.6.11.tar.gz", hash = "sha256:50fa82392f2120cc3ec2ca0a75ee615be4c479e66669789771f1758332be4353"},
-    {file = "pytest-5.4.3-py3-none-any.whl", hash = "sha256:5c0db86b698e8f170ba4582a492248919255fcd4c79b1ee64ace34301fb589a1"},
-    {file = "pytest-5.4.3.tar.gz", hash = "sha256:7979331bfcba207414f5e1263b5a0f8f521d0f457318836a7355531ed1a4c7d8"},
+    {file = "pytest-6.0.1-py3-none-any.whl", hash = "sha256:8b6007800c53fdacd5a5c192203f4e531eb2a1540ad9c752e052ec0f7143dbad"},
+    {file = "pytest-6.0.1.tar.gz", hash = "sha256:85228d75db9f45e06e57ef9bf4429267f81ac7c0d742cc9ed63d09886a9fe6f4"},
 ]
 pytest-cov = [
     {file = "pytest-cov-2.9.0.tar.gz", hash = "sha256:b6a814b8ed6247bd81ff47f038511b57fe1ce7f4cc25b9106f1a4b106f1d9322"},
