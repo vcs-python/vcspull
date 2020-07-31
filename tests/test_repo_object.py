@@ -167,7 +167,7 @@ def test_updating_remote(tmpdir, create_git_dummy_repo):
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        old_repo_remotes = update_repo(repo_dict).remotes_get['origin']
+        old_repo_remotes = update_repo(repo_dict).remotes()['origin']
 
     # Later: Copy dummy repo somewhere else so the commits are common
     config_file = create_and_load_configs('new_repo_url')
@@ -176,6 +176,7 @@ def test_updating_remote(tmpdir, create_git_dummy_repo):
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
         repo_url = repo_dict['url'].replace('git+', '')
         r = update_repo(repo_dict)
-        current_remote_url = r.remotes_get['origin']
-        assert current_remote_url[0] == repo_url
+        current_remote_url = r.remotes()['origin']
+        assert current_remote_url['fetch_url'] == repo_url
+        assert current_remote_url['push_url'] == repo_url
         assert current_remote_url != old_repo_remotes

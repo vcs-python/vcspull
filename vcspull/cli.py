@@ -141,19 +141,22 @@ def update_repo(repo_dict):
     for remote_setting in remote_settings:
         config_remote_name = remote_setting['remote_name']  # From config file
         try:
-            current_remote = r.remotes_get.get(config_remote_name)
+            current_remote = r.remote(config_remote_name)
         except FileNotFoundError:  # git repo doesn't exist yet, so cna't be outdated
             break
 
-        if current_remote is not None and current_remote[0] != remote_setting['url']:
+        if (
+            current_remote is not None
+            and current_remote.fetch_url != remote_setting['url']
+        ):
             print(
                 'Updating remote {name} ({current_url}) with {new_url}'.format(
                     name=config_remote_name,
-                    current_url=current_remote[0],
+                    current_url=current_remote.fetch_url,
                     new_url=remote_setting['url'],
                 )
             )
-            r.remote_set(
+            r.set_remote(
                 name=config_remote_name, url=remote_setting['url'], overwrite=True
             )
     r.update_repo()  # Creates repo if not exists and fetches
