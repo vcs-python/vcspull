@@ -74,3 +74,5 @@ target/
 doc/_build/
 
 *.lprof
+
+pip-wheel-metadata/
