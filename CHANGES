@@ -4,6 +4,11 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+1.4.1 <2020-08-01>
+------------------
+- Bump libvcs to 0.4.2, fixes issues with checking out branches where
+  branch doesn't exist upstream
+
 1.4.0 <2020-08-01>
 ------------------
 - :issue:`300` Update libvcs to 0.4.0, also fixes :issue:`298` issue on initial checkout
