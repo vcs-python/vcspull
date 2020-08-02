@@ -4,6 +4,11 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+1.4.2 <2020-08-01>
+------------------
+- Bump libvcs 0.4.2, fix issue with updating branches that have special
+  characters (e.g. hyphens)
+
 1.4.1 <2020-08-01>
 ------------------
 - Bump libvcs to 0.4.2, fixes issues with checking out branches where
