@@ -166,13 +166,13 @@ watch:
 serve:
 	@echo '================================================='
 	@echo
-	@echo 'docs server running at http://0.0.0.0:${HTTP_PORT}/_build/html'
+	@echo 'docs server running at http://localhost${HTTP_PORT}/'
 	@echo
 	@echo '================================================='
 	@if test ${PYVERSION} -eq 2; then $(MAKE) serve_py2; else make serve_py3; fi
 
 serve_py2:
-	python -m SimpleHTTPServer ${HTTP_PORT}
+	pushd _build/html; python -m SimpleHTTPServer ${HTTP_PORT}; popd
 
 serve_py3:
-	python -m http.server ${HTTP_PORT}
+	python -m http.server ${HTTP_PORT} --directory _build/html
