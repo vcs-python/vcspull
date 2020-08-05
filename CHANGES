@@ -4,39 +4,39 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
-1.4.2 <2020-08-01>
-------------------
+vcspull 1.4.2 (2020-08-01)
+--------------------------
 - Bump libvcs 0.4.2, fix issue with updating branches that have special
   characters (e.g. hyphens)
 
-1.4.1 <2020-08-01>
-------------------
+vcspull 1.4.1 (2020-08-01)
+--------------------------
 - Bump libvcs to 0.4.2, fixes issues with checking out branches where
   branch doesn't exist upstream
 
-1.4.0 <2020-08-01>
-------------------
+vcspull 1.4.0 (2020-08-01)
+--------------------------
 - :issue:`300` Update libvcs to 0.4.0, also fixes :issue:`298` issue on initial checkout
 - :issue:`301` Move from Travis to GitHub Actions
 
-1.3.1 <2020-07-26>
-------------------
+vcspull 1.3.1 (2020-07-26)
+--------------------------
 - :issue:`231` Add updating / merging of remote URLs (via PR :issue:`297`)
 - Fix colorama constraint
 - poetry lockfile: Fix (accidentally pushed lockfile via prerelease
   version of poetry)
 
-1.3.0post2 <2020-07-26>
------------------------
+vcspull 1.3.0post2 (2020-07-26)
+-------------------------------
 - Fix pyproject.toml libvcs pin
 
-1.3.0post1 <2020-07-26>
------------------------
+vcspull 1.3.0post1 (2020-07-26)
+-------------------------------
 - Fix pyproject.toml release version
 - Fixes to contribution docs
 
-1.3.0 <2020-07-25>
-------------------
+vcspull 1.3.0 (2020-07-25)
+--------------------------
 - :issue:`257` - Move from Pipfile to poetry
 - Removed dependency on releases for CHANGES, use plain reStructuredText
   for now
@@ -44,8 +44,8 @@ Here you can find the recent changes to vcspull
 - Update click to 7/8
 - Add ``project_urls`` to setup.py
 
-1.2.0 <2018-07-08>
-------------------
+vcspull 1.2.0 (2018-07-08)
+--------------------------
 - Sort imports
 - Add isort package, isort configuration in setup.cfg, and
   ``make isort`` task to Makefile.
@@ -69,8 +69,8 @@ Here you can find the recent changes to vcspull
 
   - pytest: 3.4.2 to 3.6.3
 
-1.1.0 <2018-03-11>
-------------------
+vcspull 1.1.0 (2018-03-11)
+--------------------------
 - Move to new organization, vcs-python
 - Fix a bug in libvcs that prevented syncing on Ubuntu 18.04 LTS
   beta.
@@ -78,23 +78,23 @@ Here you can find the recent changes to vcspull
 - Various package updates for support infrastructure,
   including pytest and sphinx
 
-1.0.3 <2016-12-19>
-------------------
+vcspull 1.0.3 (2016-12-19)
+--------------------------
 - Update more documentation domain at vcspull.git-pull.com
 
-1.0.2 <2016-12-19>
-------------------
+vcspull 1.0.2 (2016-12-19)
+--------------------------
 - Update to new documentation domain at vcspull.git-pull.com
 - Fix travis tests via ``pip install -u mock`` in
   ``.travis.yaml``.
 
-1.0.1 <2016-11-24>
-------------------
+vcspull 1.0.1 (2016-11-24)
+--------------------------
 - :issue:`43`  - fix missing test dependency on anaconda by updating libvcs
 - README tweaks
 
-1.0.0 <2016-09-13>
-------------------
+vcspull 1.0.0 (2016-09-13)
+--------------------------
 - :issue:`41`  Transition uses `libvcs`_ backend
 - :issue:`41`  Transition tests from unittest to pytest
 - :issue:`40`  Major API refactorings and removal of unused code, see the
@@ -104,8 +104,8 @@ Here you can find the recent changes to vcspull
 - :issue:`36` , :issue:`37`  Documentation updates from `@jcfr`
 - :issue:`34`  Fix missing mock library, thanks `@jfcr`
 
-0.9.0 <2016-05-26>
-------------------
+vcspull 0.9.0 (2016-05-26)
+--------------------------
 - [cli] [internal]: command line arg parsing now uses `click`_ library.
 - [cli] vcspull will use the beginning part of the argument to determine
   if its searching by vcs URL, repository name or system path.
@@ -131,36 +131,36 @@ Here you can find the recent changes to vcspull
 - [git] [tests]: fix git+https remotes `#14`_, add regression tests.
 
 
-0.2.2 <2015-07-10>
-------------------
+vcspull 0.2.2 (2015-07-10)
+--------------------------
 - [internal]: devendorize colorama
 
-0.2.1 <2015-06-12>
-------------------
+vcspull 0.2.1 (2015-06-12)
+--------------------------
 - [internal] [tests]: handle ``ERROR`` in git cloning, add tests. Fixes
   cases like ``ERROR: Repository not found``.
 
-0.2.0 <2015-05-19>
-------------------
+vcspull 0.2.0 (2015-05-19)
+--------------------------
 - [api] Change the API of :class:`vcspull.repo.base.BaseRepo` and
   :class:`vcspull.repo.Repo` to accept arguments as ``kwargs``
 - [api]: Rename ``parent_path`` to ``cwd``.
 - [docs]: Pydoc documentation for ``Repo`` usage.
 - [docs]: Python API example
 
-0.1.1 <2015-05-09>
-------------------
+vcspull 0.1.1 (2015-05-09)
+--------------------------
 - [testing] Fix sniffer on Python 3
 - [cli] remove redundant message when adding remotes
 - [docs] add animated screencast preview for ReadTheDocs and README.rst
 
-0.1.0 <2015-04-30>
-------------------
+vcspull 0.1.0 (2015-04-30)
+--------------------------
 - [cli]: support for specifying for config file path with ``-c``.
 - [cli]: clarify error output when no repositories found
 
-0.0.10 <2015-04-08>
--------------------
+vcspull 0.0.10 (2015-04-08)
+---------------------------
 - [cli]: fix message when adding remotes
 - [internals]: split config-related functions into ``config`` module.
 - [tests]: consolidate tests from ``testsuite.cli`` into
@@ -170,14 +170,14 @@ Here you can find the recent changes to vcspull
 - [cli]: vcspull now checks for configs in ``~/.vcspull`` (yaml and json
   files) as well as the standard ``~/.vcspull.{yaml,json}`` files.
 
-0.0.9-1 <2015-03-27>
---------------------
+vcspull 0.0.9-1 (2015-03-27)
+----------------------------
 - [internals]: move to ``__about__.py`` convention for pulling package
   data.
 - [internals]: remove extraneous url from stdout in git repositories.
 
-0.0.9 <2015-03-25>
-------------------
+vcspull 0.0.9 (2015-03-25)
+--------------------------
 - [dev]: support for tmuxp ``before_script`` to set up local virtualenv +
   dependencies.
 - [dev]: Clean up ``__init__.py`` imports
@@ -192,51 +192,51 @@ Here you can find the recent changes to vcspull
 - [docs]: Update docs to reflect updates on new commands and how to clone
   private / priveleged GitHub repos.
 
-0.0.8-4 <2014-02-06>
---------------------
+vcspull 0.0.8-4 <2014-02-06)
+----------------------------
 - [cli] Update documentation when no config found to show ``yaml`` and
   ``json``. Remove mentioning of ``conf``.
 
-0.0.8-3 <2014-02-06>
---------------------
+vcspull 0.0.8-3 <2014-02-06)
+----------------------------
 - [logging] `Issue #6`_ - fix issue where log templates would not
   concatenate correctly.
 
-0.0.8-2 <2014-02-05>
---------------------
+vcspull 0.0.8-2 <2014-02-05)
+----------------------------
 - [packaging] Fix issue where ``package_metadata.py`` missing from
   ``MANIFEST.in``.
 
-0.0.8-1 <2014-02-05>
---------------------
+vcspull 0.0.8-1 <2014-02-05)
+----------------------------
 - [setup.py] remove history from readme
 
-0.0.8 <2014-02-05>
-------------------
+vcspull 0.0.8 <2014-02-05)
+--------------------------
 - Use werkzeug/flask style unit test suites.
 - [docs] Fix section headings.
 - [internals] use conventions from `tony/cookiecutter-pypackage`_.
 
-0.0.7 <2014-01-07>
+vcspull 0.0.7 <2014-01-07)
  
 - New logging system from pypa/pip with support showing current stderr
   (checkout, pull, cloning) progress.
 - ``unicode_literals``, ``__future__`` for python 3 support.
 
-0.0.6 <2013-12-03>
-------------------
+vcspull 0.0.6 <2013-12-03)
+--------------------------
 - Renamed to ``vcspull``.
 
-0.0.5 <2013-11-28>
-------------------
+vcspull 0.0.5 <2013-11-28)
+--------------------------
 - [tests] tests for loading multiple configs, config conflict cases
 - [internal] fix recursive imports, using explicit importing
 - [git] handle cli case where git is on a different branch, just fetch
   repo.
 - [py3] python 3 support
 
-0.0.4 <2013-11-25>
-------------------
+vcspull 0.0.4 <2013-11-25)
+--------------------------
 - [svn] [git] [hg] added functionality for pip's netloc and vcs
   functionality.
 - [docs] update license docs for methods from salt (apache) and pip (mit).
@@ -246,8 +246,8 @@ Here you can find the recent changes to vcspull
 - [cli] Exit with ``Ctrl-C`` gracefully.
 
 
-0.0.3 <2013-11-23>
-------------------
+vcspull 0.0.3 <2013-11-23)
+--------------------------
 - [docs] [examples] more docs and examples
 - [internal] remove developer logger message that would show when
   updating.
@@ -255,47 +255,47 @@ Here you can find the recent changes to vcspull
 - [`pep257`_] [`pep8`_] [logger] update ``vcspull.log`` module to latest
   code (from `tmuxp`_ project).
 
-0.0.2 <2013-11-23>
-------------------
+vcspull 0.0.2 <2013-11-23)
+--------------------------
 - [tests] Move tests for making directory paths to ``test_repo``
   TestSuite.
 - [tests] [git] more work on remotes with :class:`vcspull.repo.git.GitRepo`.
 
-0.0.2 <2013-11-16>
-------------------
+vcspull 0.0.2 <2013-11-16)
+--------------------------
 - [tests] refactor tests modules
 - [git] add some functions with saltstack to
   :py:class:`vcspull.repo.git.GitRepo`.
 - [version] reset to 0.1.0 w/o dev tag to begin releases.
 
-0.0.1 <2013-11-15>
-------------------
+vcspull 0.0.1 <2013-11-15)
+--------------------------
 - [cli] [tests] fix `issue #1`_ for making directories recursively.
 - [tests] :py:mod:`tempfile`.
 - [cli] [config] remove .ini support
 
-0.0.1 <2013-11-09>
-------------------
+vcspull 0.0.1 <2013-11-09)
+--------------------------
 - `pep257`_ to all modules.
 - Add `argcomplete`_.
 - Move in code patterns from `tmuxp`_. New logger, setup.py, testsuite
   structure, etc.
 
-0.0.1 <2013-10-23>
-------------------
+vcspull 0.0.1 <2013-10-23)
+--------------------------
 - add example
 
-0.0.1 <2013-10-17>
-------------------
+vcspull 0.0.1 <2013-10-17)
+--------------------------
 - fix packaging issue, add MANIFEST.in
 - bump to 0.1.1
 
-0.0.1 <2013-10-08>
-------------------
+vcspull 0.0.1 <2013-10-08)
+--------------------------
 - move to semver
 
-0.0.1 <2013-10-06>
-------------------
+vcspull 0.0.1 <2013-10-06)
+--------------------------
 - https://github.com/vcs-python/vcspull/compare/a96e723269...a5be723de5
 - remove virtualenv dep [Done]
 - remove pip dep [Done]
