@@ -4,8 +4,8 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
-vcspull-current (2020-08-05)
-----------------------------
+vcspull-1.4.3 (2020-08-05)
+--------------------------
 - Bump libvcs to 0.4.4
 
 vcspull 1.4.2 (2020-08-01)
