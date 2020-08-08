@@ -107,5 +107,5 @@ texinfo_documents = [
 
 intersphinx_mapping = {
     'py': ('https://docs.python.org/2', None),
-    'libvcs': ('http://libvcs.readthedocs.io/en/latest/', None),
+    'libvcs': ('http://libvcs.git-pull.com/', None),
 }
