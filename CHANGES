@@ -4,6 +4,11 @@ Changelog
 
 Here you can find the recent changes to vcspull
 
+current
+-------
+- #303 - Overhaul docs and packaging
+- #303 - Add docs for CLI via sphinx-click
+
 vcspull-1.4.3 (2020-08-05)
 --------------------------
 - Bump libvcs to 0.4.4
