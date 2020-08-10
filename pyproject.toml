@@ -3,7 +3,7 @@ skip-string-normalization = true
 
 [tool.poetry]
 name = "vcspull"
-version = "1.5.0a1"
+version = "1.5.0a2"
 description = "synchronize your projects via yaml / json files"
 license = "MIT"
 authors = ["Tony Narlock <tony@git-pull.com>"]
