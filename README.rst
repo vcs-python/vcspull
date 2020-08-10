@@ -159,9 +159,9 @@ More information
    :alt: Docs
    :target: https://github.com/vcs-python/vcspull/actions?query=workflow%3A"Publish+Docs"
 
-.. |build-status| image:: https://github.com/vcs-python/vcspull/workflows/test/badge.svg
+.. |build-status| image:: https://github.com/vcs-python/vcspull/workflows/tests/badge.svg
    :alt: Build Status
-   :target: https://github.com/vcs-python/vcspull/actions?query=workflow%3A"test"
+   :target: https://github.com/vcs-python/vcspull/actions?query=workflow%3A"tests"
 
 .. |coverage| image:: https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg
     :alt: Code Coverage
