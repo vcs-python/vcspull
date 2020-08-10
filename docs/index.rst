@@ -5,7 +5,7 @@ vcspull
 #######
 
 .. include:: ../README.rst
-    :start-line: 4
+    :start-line: 2
     :end-before: .. image
 
 .. image:: _static/vcspull-demo.gif
