@@ -155,9 +155,13 @@ More information
     :alt: Python Package
     :target: http://badge.fury.io/py/vcspull
 
-.. |build-status| image:: https://img.shields.io/travis/vcs-python/vcspull.svg
+.. |docs| image:: https://github.com/vcs-python/vcspull/workflows/Publish%20Docs/badge.svg
+   :alt: Docs
+   :target: https://github.com/vcs-python/vcspull/actions?query=workflow%3A"Publish+Docs"
+
+.. |build-status| image:: https://github.com/vcs-python/vcspull/workflows/test/badge.svg
    :alt: Build Status
-   :target: https://travis-ci.org/vcs-python/vcspull
+   :target: https://github.com/vcs-python/vcspull/actions?query=workflow%3A"test"
 
 .. |coverage| image:: https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg
     :alt: Code Coverage
@@ -165,8 +169,3 @@ More information
     
 .. |license| image:: https://img.shields.io/github/license/vcs-python/vcspull.svg
     :alt: License 
-
-.. |docs| image:: https://readthedocs.org/projects/vcspull/badge/?version=latest
-    :alt: Documentation Status
-    :scale: 100%
-    :target: https://readthedocs.org/projects/vcspull/

@@ -134,6 +134,12 @@ intersphinx_mapping = {
 
 
 def linkcode_resolve(domain, info):  # NOQA: C901
+    import inspect
+    import sys
+    from os.path import dirname, relpath
+
+    import vcspull
+
     """
     Determine the URL corresponding to Python object
 
@@ -185,7 +191,7 @@ def linkcode_resolve(domain, info):  # NOQA: C901
     else:
         linespec = ""
 
-    fn = relpath(fn, start=dirname(cihai_cli.__file__))
+    fn = relpath(fn, start=dirname(vcspull.__file__))
 
     if 'dev' in about['__version__']:
         return "%s/blob/master/%s/%s%s" % (
