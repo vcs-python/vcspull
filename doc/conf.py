@@ -17,6 +17,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.napoleon',
+    'sphinx.ext.linkcode',
     'alagitpull',
     'sphinx_issues',
     'sphinx_click.ext',  # sphinx-click
@@ -41,7 +42,6 @@ exclude_patterns = ['_build']
 pygments_style = 'sphinx'
 
 html_theme_path = [alagitpull.get_path()]
-html_favicon = 'favicon.ico'
 html_theme = 'alagitpull'
 html_theme_options = {
     'logo': 'img/vcspull.svg',
@@ -51,6 +51,12 @@ html_theme_options = {
     'github_banner': True,
     'projects': alagitpull.projects,
     'project_name': about['__title__'],
+    'project_title': about['__title__'],
+    'project_description': about['__description__'],
+    'project_url': about['__docs__'],
+    'show_meta_manifest_tag': True,
+    'show_meta_og_tags': True,
+    'show_meta_app_icon_tags': True,
 }
 html_sidebars = {
     '**': [
@@ -103,6 +109,77 @@ texinfo_documents = [
 ]
 
 intersphinx_mapping = {
-    'py': ('https://docs.python.org/2', None),
+    'py': ('https://docs.python.org/', None),
     'libvcs': ('http://libvcs.git-pull.com/', None),
 }
+
+
+def linkcode_resolve(domain, info):  # NOQA: C901
+    """
+    Determine the URL corresponding to Python object
+
+    Notes
+    -----
+    From https://github.com/numpy/numpy/blob/v1.15.1/doc/source/conf.py, 7c49cfa
+    on Jul 31. License BSD-3. https://github.com/numpy/numpy/blob/v1.15.1/LICENSE.txt
+    """
+    if domain != 'py':
+        return None
+
+    modname = info['module']
+    fullname = info['fullname']
+
+    submod = sys.modules.get(modname)
+    if submod is None:
+        return None
+
+    obj = submod
+    for part in fullname.split('.'):
+        try:
+            obj = getattr(obj, part)
+        except Exception:
+            return None
+
+    # strip decorators, which would resolve to the source of the decorator
+    # possibly an upstream bug in getsourcefile, bpo-1764286
+    try:
+        unwrap = inspect.unwrap
+    except AttributeError:
+        pass
+    else:
+        obj = unwrap(obj)
+
+    try:
+        fn = inspect.getsourcefile(obj)
+    except Exception:
+        fn = None
+    if not fn:
+        return None
+
+    try:
+        source, lineno = inspect.getsourcelines(obj)
+    except Exception:
+        lineno = None
+
+    if lineno:
+        linespec = "#L%d-L%d" % (lineno, lineno + len(source) - 1)
+    else:
+        linespec = ""
+
+    fn = relpath(fn, start=dirname(cihai_cli.__file__))
+
+    if 'dev' in about['__version__']:
+        return "%s/blob/master/%s/%s%s" % (
+            about['__github__'],
+            about['__package_name__'],
+            fn,
+            linespec,
+        )
+    else:
+        return "%s/blob/v%s/%s/%s%s" % (
+            about['__github__'],
+            about['__version__'],
+            about['__package_name__'],
+            fn,
+            linespec,
+        )
