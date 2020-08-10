@@ -52,6 +52,7 @@ sphinx = [
   {version="*", python=">=3"}
 ]
 alagitpull = {version = "^0.1.0"}
+recommonmark = {version = "^0.6.0"}
 sphinx-issues = {version = "^1.2.0"}
 sphinx-click = {version = "*"}
 
@@ -82,7 +83,7 @@ isort = [
 flake8 = "*"
 
 [tool.poetry.extras]
-docs = ["sphinx", "sphinx-issues", "sphinx-click", "alagitpull"]
+docs = ["sphinx", "sphinx-issues", "sphinx-click", "recommonmark", "alagitpull"]
 test = ["pytest", "pathlib2", "pytest-rerunfailures"]
 coverage = ["codecov", "coverage", "pytest-cov"]
 format = ["black", "isort"]
