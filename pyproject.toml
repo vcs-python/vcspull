@@ -37,6 +37,8 @@ homepage = "https://vcspull.git-pull.com"
 Documentation = "https://vcspull.git-pull.com"
 Repository = "https://github.com/vcs-python/vcspull"
 
+[tool.poetry.scripts]
+vcspull = 'vcspull:cli.cli'
 
 [tool.poetry.dependencies]
 python = "~2.7 || ^3.5"
