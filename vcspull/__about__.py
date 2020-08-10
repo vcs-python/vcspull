@@ -1,6 +1,6 @@
 __title__ = 'vcspull'
 __package_name__ = 'vcspull'
-__description__ = 'synchronize your repos and forks via declarative yaml/json file(s)'
+__description__ = 'synchronize your projects via yaml / json files'
 __version__ = '1.4.3'
 __author__ = 'Tony Narlock'
 __github__ = 'https://github.com/vcs-python/vcspull'
