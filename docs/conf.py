@@ -87,6 +87,7 @@ html_sidebars = {
 }
 
 html_static_path = ['_static']
+html_extra_path = ['manifest.json']
 
 alagitpull_internal_hosts = ['vcspull.git-pull.com', '0.0.0.0']
 alagitpull_external_hosts_new_window = True
