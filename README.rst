@@ -128,37 +128,17 @@ See donation options at https://git-pull.com/support.html.
 
 More information 
 ----------------
-
-==============  ==========================================================
-Python support  Python 2.7, >= 3.5
-VCS supported   git(1), svn(1), hg(1)
-Config formats  YAML, JSON, python dict
-Source          https://github.com/vcs-python/vcspull
-Docs            https://vcspull.git-pull.com
-Changelog       https://vcspull.git-pull.com/history.html
-Issues          https://github.com/vcs-python/vcspull/issues
-Travis          https://travis-ci.org/vcs-python/vcspull
-Test Coverage   https://codecov.io/gh/vcs-python/vcspull
-pypi            https://pypi.python.org/pypi/vcspull
-Open Hub        https://www.openhub.net/p/vcspull
-License         `MIT`_.
-git repo        .. code-block:: bash
-
-                    $ git clone https://github.com/vcs-python/vcspull.git
-install dev     .. code-block:: bash
-
-                    $ git clone https://github.com/vcs-python/vcspull.git vcspull
-                    $ cd ./vcspull
-                    $ virtualenv .venv
-                    $ source .venv/bin/activate
-                    $ pip install -e .
-tests           .. code-block:: bash
-
-                    $ py.test
-run             .. code-block:: bash
-
-                    $ vcspull
-==============  ==========================================================
+- Python support: Python 2.7, >= 3.4, pypy
+- VCS supported: git(1), svn(1), hg(1)
+- Source: https://github.com/vcs-python/vcspull
+- Docs: https://vcspull.git-pull.com
+- Changelog: https://vcspull.git-pull.com/history.html
+- API: https://vcspull.git-pull.com/api.html
+- Issues: https://github.com/vcs-python/vcspull/issues
+- Test Coverage: https://codecov.io/gh/vcs-python/vcspull
+- pypi: https://pypi.python.org/pypi/vcspull
+- Open Hub: https://www.openhub.net/p/vcspull
+- License: `MIT`_.
 
 .. _MIT: https://opensource.org/licenses/MIT
 .. _Documentation: https://vcspull.git-pull.com/
