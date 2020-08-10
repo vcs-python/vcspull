@@ -166,7 +166,7 @@ watch:
 serve:
 	@echo '================================================='
 	@echo
-	@echo 'docs server running at http://localhost/${HTTP_PORT}/'
+	@echo 'docs server running at http://localhost:${HTTP_PORT}/'
 	@echo
 	@echo '================================================='
 	@if test ${PYVERSION} -eq 2; then $(MAKE) serve_py2; else make serve_py3; fi
