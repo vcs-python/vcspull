@@ -16,6 +16,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
+    'sphinx.ext.napoleon',
     'alagitpull',
     'sphinx_issues',
 ]
