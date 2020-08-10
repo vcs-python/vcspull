@@ -19,6 +19,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'alagitpull',
     'sphinx_issues',
+    'sphinx_click.ext',  # sphinx-click
 ]
 
 issues_github_path = about['__github__'].replace('https://github.com/', '')
