@@ -24,13 +24,13 @@ watch_test:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) test; else $(MAKE) test entr_warn; fi
 
 build_docs:
-	poetry run mkdocs build
+	$(MAKE) -C docs html
 
 watch_docs:
 	if command -v entr > /dev/null; then ${DOC_FILES} | entr -c $(MAKE) build_docs; else $(MAKE) build_docs entr_warn; fi
 
 serve_docs:
-	python -m http.server --directory site
+	$(MAKE) -C docs serve
 
 dev_docs:
 	$(MAKE) -j watch_docs serve_docs
