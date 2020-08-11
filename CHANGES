@@ -6,6 +6,7 @@ Here you can find the recent changes to vcspull
 
 current
 -------
+- #304 - Fix adding of remotes
 - #303 - Overhaul docs and packaging
 - #303 - Add docs for CLI via sphinx-click
 
