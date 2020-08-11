@@ -45,7 +45,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
-*,cover
+*.cover
 .hypothesis/
 .pytest_cache/
 
@@ -62,13 +62,14 @@ docs/_build/
 # PyBuilder
 target/
 
-#Ipython Notebook
+# ipython Notebook
 .ipynb_checkpoints
 
 # editors
 .idea
 .ropeproject
 *.swp
+.vim/
 
 # docs
 doc/_build/
