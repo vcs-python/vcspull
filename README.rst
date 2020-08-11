@@ -145,7 +145,7 @@ More information
 .. _Quickstart: https://vcspull.git-pull.com/quickstart.html
 .. _pip: http://www.pip-installer.org/
 .. _url scheme: http://www.pip-installer.org/logic.html#vcs-support
-.. _libvcs: https://github.com/tony/libvcs
+.. _libvcs: https://github.com/vcs-python/libvcs
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 .. _.vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
 .. _examples: https://vcspull.git-pull.com/examples.html
