@@ -135,32 +135,45 @@ def update_repo(repo_dict):
 
     r = create_repo_from_pip_url(**repo_dict)  # Creates the repo object
 
-    remote_settings = repo_dict.get('remotes', [])
-    if not any(rs for rs in remote_settings if rs['remote_name'] == 'origin'):
-        remote_settings.append({'remote_name': 'origin', 'url': repo_dict['pip_url']})
+    remote_settings = repo_dict.get('remotes', {})
+    if remote_settings.get('origin', {}) == {}:
+        from libvcs.git import GitRemote
 
-    for remote_setting in remote_settings:
-        config_remote_name = remote_setting['remote_name']  # From config file
+        remote_settings['origin'] = GitRemote(
+            name='origin',
+            push_url=repo_dict['pip_url'],
+            fetch_url=repo_dict['pip_url'],
+        )
+
+    remotes_updated = False
+    r.update_repo()  # Creates repo if not exists and fetches
+
+    for remote_name, remote_setting in remote_settings.items():
+        config_remote_name = remote_name  # From config file
         try:
             current_remote = r.remote(config_remote_name)
         except FileNotFoundError:  # git repo doesn't exist yet, so cna't be outdated
             break
 
-        if (
-            current_remote is not None
-            and current_remote.fetch_url != remote_setting['url']
-        ):
+        current_fetch_url = (
+            current_remote.fetch_url if current_remote is not None else None
+        )
+
+        if current_remote is None or current_fetch_url != remote_setting.fetch_url:
             print(
                 'Updating remote {name} ({current_url}) with {new_url}'.format(
                     name=config_remote_name,
-                    current_url=current_remote.fetch_url,
-                    new_url=remote_setting['url'],
+                    current_url=current_fetch_url,
+                    new_url=remote_setting.fetch_url,
                 )
             )
             r.set_remote(
-                name=config_remote_name, url=remote_setting['url'], overwrite=True
+                name=config_remote_name, url=remote_setting.fetch_url, overwrite=True
             )
-    r.update_repo()  # Creates repo if not exists and fetches
+            remotes_updated = True
+
+    if remotes_updated:  # Fetch again since we added / changed remotes
+        r.update_repo()
     return r
 
 

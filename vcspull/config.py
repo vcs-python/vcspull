@@ -104,13 +104,13 @@ def extract_repos(config, cwd=os.getcwd()):
                 conf['repo_dir'] = expand_dir(
                     os.path.join(conf['parent_dir'], conf['name']), cwd
                 )
+            from libvcs.git import GitRemote
+
             if 'remotes' in conf:
-                remotes = []
                 for remote_name, url in conf['remotes'].items():
-                    remotes.append({'remote_name': remote_name, 'url': url})
-                conf['remotes'] = sorted(
-                    remotes, key=lambda x: sorted(x.get('remote_name'))
-                )
+                    conf['remotes'][remote_name] = GitRemote(
+                        name=remote_name, fetch_url=url, push_url=url
+                    )
             configs.append(conf)
 
     return configs

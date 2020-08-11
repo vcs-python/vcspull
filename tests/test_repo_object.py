@@ -118,10 +118,10 @@ def test_to_repo_objects(tmpdir):
 
         if 'remotes' in repo_dict:
             assert isinstance(r['remotes'], list)
-            for remote in r['remotes']:
-                assert isinstance(remote, dict)
-                assert 'remote_name' in remote
-                assert 'url' in remote
+            for remote_name, remote_dict in r['remotes'].items():
+                assert isinstance(remote_dict, dict)
+                assert 'fetch_url' in remote_dict
+                assert 'push_url' in remote_dict
 
 
 def test_makes_recursive(tmpdir, git_dummy_repo_dir):
@@ -152,7 +152,11 @@ def test_updating_remote(tmpdir, create_git_dummy_repo):
 
         YAML_CONFIG = """
         {TMP_DIR}/study/myrepo:
-            my_url: git+file://{REPO_DIR}
+            my_url:
+              repo: git+file://{REPO_DIR}
+              remotes:
+                firstremote: git+file://{REPO_DIR}
+              #   secondremote: git+file://{REPO_DIR}
         """
 
         YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=dummy_repo)
@@ -176,7 +180,9 @@ def test_updating_remote(tmpdir, create_git_dummy_repo):
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
         repo_url = repo_dict['url'].replace('git+', '')
         r = update_repo(repo_dict)
-        current_remote_url = r.remotes()['origin']
-        assert current_remote_url['fetch_url'] == repo_url
-        assert current_remote_url['push_url'] == repo_url
-        assert current_remote_url != old_repo_remotes
+
+        for remote_name, remote_info in repo_dict.get('remotes', {}).items():
+            current_remote_url = r.remotes()[remote_name]
+            assert current_remote_url['fetch_url'] == repo_url
+            assert current_remote_url['push_url'] == repo_url
+            assert current_remote_url != old_repo_remotes
