@@ -1,4 +1,0 @@
-pytest<=6
-mock<=4
-pytest-cov
-coverage
