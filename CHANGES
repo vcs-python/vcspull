@@ -2,15 +2,17 @@
 Changelog
 =========
 
-Here you can find the recent changes to vcspull
-
 current
 -------
+Here you can find the recent changes to vcspull
+
+vcspull 1.5.0 (2020-08-11)
+--------------------------
 - #304, #299 (tests) - Fix adding of remotes
 - #303 - Overhaul docs and packaging
 - #303 - Add docs for CLI via sphinx-click
 
-vcspull-1.4.3 (2020-08-05)
+vcspull 1.4.3 (2020-08-05)
 --------------------------
 - Bump libvcs to 0.4.4
 
