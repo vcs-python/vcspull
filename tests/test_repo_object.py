@@ -4,9 +4,13 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 
+import pytest
+from py._path.local import LocalPath
+
 import kaptan
 
 from libvcs import BaseRepo, GitRepo, MercurialRepo, SubversionRepo
+from libvcs.git import GitRemote
 from libvcs.shortcuts import create_repo_from_pip_url
 from vcspull.cli import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
@@ -128,11 +132,11 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
     """Ensure that directories in pull are made recursively."""
 
     YAML_CONFIG = """
-    {TMP_DIR}/study/myrepo:
-        my_url: git+file://{REPO_DIR}
+    {tmpdir}/study/myrepo:
+        my_url: git+file://{repo_dir}
     """
 
-    YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=git_dummy_repo_dir)
+    YAML_CONFIG = YAML_CONFIG.format(tmpdir=str(tmpdir), repo_dir=git_dummy_repo_dir)
 
     conf = kaptan.Kaptan(handler='yaml')
     conf.import_config(YAML_CONFIG)
@@ -144,45 +148,155 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
         repo.obtain()
 
 
-def test_updating_remote(tmpdir, create_git_dummy_repo):
-    """Ensure that directories in pull are made recursively."""
-
-    def create_and_load_configs(repo_name):
-        dummy_repo = create_git_dummy_repo(repo_name)
-
-        YAML_CONFIG = """
-        {TMP_DIR}/study/myrepo:
-            my_url:
-              repo: git+file://{REPO_DIR}
-              remotes:
-                firstremote: git+file://{REPO_DIR}
-              #   secondremote: git+file://{REPO_DIR}
+@pytest.mark.parametrize(
+    'config_tpl',
+    [
         """
+        {tmpdir}/study/myrepo:
+            {CLONE_NAME}: git+file://{repo_dir}
+        """,
+        """
+        {tmpdir}/study/myrepo:
+            {CLONE_NAME}:
+               repo: git+file://{repo_dir}
+        """,
+        """
+        {tmpdir}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{repo_dir}
+                remotes:
+                    secondremote: git+file://{repo_dir}
+        """,
+    ],
+)
+def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
+    # type: (LocalPath, LocalPath)
+    """Test config output with varation of config formats"""
 
-        YAML_CONFIG = YAML_CONFIG.format(TMP_DIR=str(tmpdir), REPO_DIR=dummy_repo)
-        CONFIG_FILENAME = 'myrepos.yaml'
-        config_file = tmpdir.join(CONFIG_FILENAME)
-        config_file.write(YAML_CONFIG)
+    dummy_repo_name = 'dummy_repo'
+    dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
+
+    def write_config(repo_dir, clone_name):
+
+        config = config_tpl.format(
+            tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
+        )
+        config_file = tmpdir.join('myrepos.yaml')
+        config_file.write(config)
         repo_parent = tmpdir.join('study/myrepo')
         repo_parent.ensure(dir=True)
         return config_file
 
-    config_file = create_and_load_configs('dummyrepo')
+    config_file = write_config(repo_dir=dummy_repo, clone_name='myclone')
     configs = load_configs([str(config_file)])
 
-    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        old_repo_remotes = update_repo(repo_dict).remotes()['origin']
-
     # Later: Copy dummy repo somewhere else so the commits are common
-    config_file = create_and_load_configs('new_repo_url')
+    config_file = write_config(repo_dir=dummy_repo, clone_name='anotherclone')
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
         repo_url = repo_dict['url'].replace('git+', '')
         r = update_repo(repo_dict)
+        remotes = r.remotes or []
+        for remote_name, remote_info in remotes().items():
+            current_remote = r.remote(remote_name)
+            assert current_remote.fetch_url == repo_url
 
-        for remote_name, remote_info in repo_dict.get('remotes', {}).items():
-            current_remote_url = r.remotes()[remote_name]
-            assert current_remote_url['fetch_url'] == repo_url
-            assert current_remote_url['push_url'] == repo_url
-            assert current_remote_url != old_repo_remotes
+
+@pytest.mark.parametrize(
+    'config_tpl,has_extra_remotes',
+    [
+        [
+            """
+        {tmpdir}/study/myrepo:
+            {CLONE_NAME}: git+file://{repo_dir}
+        """,
+            False,
+        ],
+        [
+            """
+        {tmpdir}/study/myrepo:
+            {CLONE_NAME}:
+               repo: git+file://{repo_dir}
+        """,
+            False,
+        ],
+        [
+            """
+        {tmpdir}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{repo_dir}
+                remotes:
+                    secondremote: git+file://{repo_dir}
+        """,
+            True,
+        ],
+    ],
+)
+def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_remotes):
+    # type: (LocalPath, LocalPath)
+    """Ensure additions/changes to yaml config are reflected"""
+
+    dummy_repo_name = 'dummy_repo'
+    dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
+
+    repo_parent = tmpdir.join('study/myrepo')
+    repo_parent.ensure(dir=True)
+
+    base_config = {
+        'name': 'myclone',
+        'repo_dir': '{tmpdir}/study/myrepo/myclone'.format(tmpdir=tmpdir),
+        'parent_dir': '{tmpdir}/study/myrepo'.format(tmpdir=tmpdir),
+        'url': 'git+file://{repo_dir}'.format(repo_dir=dummy_repo),
+        'remotes': {
+            'secondremote': GitRemote(
+                name='secondremote',
+                fetch_url='git+file://{repo_dir}'.format(repo_dir=dummy_repo),
+                push_url='git+file://{repo_dir}'.format(repo_dir=dummy_repo),
+            )
+        },
+    }
+
+    def merge_dict(_dict, extra):
+        _dict = _dict.copy()
+        _dict.update(**extra)
+        return _dict
+
+    configs = [base_config]
+
+    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
+        update_repo(repo_dict).remotes()['origin']
+
+    expected_remote_url = 'git+file://{repo_dir}/moo'.format(repo_dir=dummy_repo)
+
+    config = merge_dict(
+        base_config,
+        extra={
+            'remotes': {
+                'secondremote': GitRemote(
+                    name='secondremote',
+                    fetch_url=expected_remote_url,
+                    push_url=expected_remote_url,
+                )
+            }
+        },
+    )
+    configs = [config]
+
+    repo_dict = filter_repos(configs, repo_dir='*', vcs_url='*', name='myclone')[0]
+    r = update_repo(repo_dict)
+    for remote_name, remote_info in r.remotes().items():
+        current_remote_url = r.remote(remote_name).fetch_url.replace('git+', '')
+        config_remote_url = (
+            next(
+                (
+                    r.fetch_url
+                    for rname, r in config['remotes'].items()
+                    if rname == remote_name
+                ),
+                None,
+            )
+            if remote_name != 'origin'
+            else config['url']
+        ).replace('git+', '')
+        assert config_remote_url == current_remote_url

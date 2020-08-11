@@ -88,13 +88,6 @@ def extract_repos(config, cwd=os.getcwd()):
                 else:
                     conf.pop('repo', None)
 
-            '''
-            ``shell_command_after``: if str, turn to list.
-            '''
-            if 'shell_command_after' in conf:
-                if isinstance(conf['shell_command_after'], string_types):
-                    conf['shell_command_after'] = [conf['shell_command_after']]
-
             if 'name' not in conf:
                 conf['name'] = repo
             if 'parent_dir' not in conf:
