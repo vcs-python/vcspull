@@ -33,9 +33,10 @@ log = logging.getLogger(__name__)
 def setup_logger(log=None, level='INFO'):
     """Setup logging for CLI use.
 
-    :param log: instance of logger
-    :type log: :py:class:`Logger`
-
+    Parameters
+    ----------
+    log : :py:class:`Logger`
+        instance of logger
     """
     if not log:
         log = logging.getLogger()

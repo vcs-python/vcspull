@@ -43,10 +43,12 @@ __version__ = '1.1'
 
 
 class DefaultGroup(click.Group):
-    """Invokes a subcommand marked with `default=True` if any subcommand not
-    chosen.
-    :param default_if_no_args: resolves to the default command if no arguments
-                               passed.
+    """Invokes a subcommand marked with `default=True` if any subcommand not chosen.
+
+    Parameters
+    ----------
+    default_if_no_args :
+        resolves to the default command if no arguments passed.
     """
 
     def __init__(self, *args, **kwargs):

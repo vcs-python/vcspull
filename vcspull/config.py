@@ -26,11 +26,17 @@ log = logging.getLogger(__name__)
 def expand_dir(_dir, cwd=os.getcwd()):
     """Return path with environmental variables and tilde ~ expanded.
 
-    :param _dir:
-    :type _dir: str
-    :param cwd: current working dir (for deciphering relative _dir paths)
-    :type cwd: str
-    :rtype; str
+    Parameters
+    ----------
+    _dir : str
+    cwd : str, optional
+        current working dir (for deciphering relative _dir paths), defaults to
+        :py:meth:`os.getcwd()`
+
+    Returns
+    -------
+    str :
+        Absolute directory path
     """
     _dir = os.path.expanduser(os.path.expandvars(_dir))
     if not os.path.isabs(_dir):
@@ -44,12 +50,16 @@ def extract_repos(config, cwd=os.getcwd()):
     end-user configuration permit inline configuration shortcuts, expand to
     identical format for parsing.
 
-    :param config: the repo config in :py:class:`dict` format.
-    :type config: dict
-    :param cwd: current working dir (for deciphering relative paths)
-    :type cwd: str
-    :rtype: list
+    Parameters
+    ----------
+    config : dict
+        the repo config in :py:class:`dict` format.
+    cwd : str
+        current working dir (for deciphering relative paths)
 
+    Returns
+    -------
+    list : List of normalized repository information
     """
     configs = []
     for directory, repos in config.items():
@@ -137,20 +147,26 @@ def find_config_files(
 ):
     """Return repos from a directory and match. Not recursive.
 
-    :param path: list of paths to search
-    :type path: list
-    :param match: list of globs to search against
-    :type match: list
-    :param filetype: list of filetypes to search against
-    :type filetype: list
-    :param include_home: Include home configuration files
-    :type include_home: bool
-    :raises:
-        - LoadConfigRepoConflict: There are two configs that have same path
-          and name with different repo urls.
-    :returns: list of absolute paths to config files.
-    :rtype: list
+    Parameters
+    ----------
+    path : list
+        list of paths to search
+    match : list
+        list of globs to search against
+    filetype: list 
+        of filetypes to search against
+    include_home : bool
+        Include home configuration files
 
+    Raises
+    ------
+    LoadConfigRepoConflict : 
+        There are two configs that have same path and name with different repo urls.
+
+    Returns
+    -------
+    list :
+        list of absolute paths to config files.
     """
     configs = []
 
@@ -182,14 +198,21 @@ def find_config_files(
 def load_configs(files, cwd=os.getcwd()):
     """Return repos from a list of files.
 
-    :todo: Validate scheme, check for duplciate destinations, VCS urls
+    Parameters
+    ----------
+    files : list
+        paths to config file
+    cwd : str
+        current path (pass down for :func:`extract_repos`
 
-    :param files: paths to config file
-    :type files: list
-    :param cwd: current path (pass down for :func:`extract_repos`
-    :type cwd: str
-    :returns: expanded config dict item
-    :rtype: list of dict
+    Returns
+    -------
+    list of dict :
+        expanded config dict item
+
+    Todo
+    ----
+    Validate scheme, check for duplciate destinations, VCS urls
     """
     repos = []
     for f in files:
@@ -215,12 +238,18 @@ def load_configs(files, cwd=os.getcwd()):
 def detect_duplicate_repos(repos1, repos2):
     """Return duplicate repos dict if repo_dir same and vcs different.
 
-    :param repos1: list of repo expanded dicts
-    :type repos1: list of :py:dict
-    :param repos2: list of repo expanded dicts
-    :type repos2: list of :py:dict
-    :rtype: list of dicts or None
-    :returns: Duplicate lists
+    Parameters
+    ----------
+    repos1 : dict
+        list of repo expanded dicts
+
+    repos2 : dict
+        list of repo expanded dicts
+
+    Returns
+    -------
+    list of dict, or None
+        Duplicate repos
     """
     dupes = []
     path_dupe_repos = []
@@ -249,12 +278,16 @@ def detect_duplicate_repos(repos1, repos2):
 def in_dir(config_dir=CONFIG_DIR, extensions=['.yml', '.yaml', '.json']):
     """Return a list of configs in ``config_dir``.
 
-    :param config_dir: directory to search
-    :type config_dir: str
-    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list
-    :rtype: list
+    Parameters
+    ----------
+    config_dir : str
+        directory to search
+    extensions : list
+        filetypes to check (e.g. ``['.yaml', '.json']``).
 
+    Returns
+    -------
+    list
     """
     configs = []
 
@@ -270,16 +303,21 @@ def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
 
     repo_dir, vcs_url and name all support fnmatch.
 
-    :param config: the expanded repo config in :py:class:`dict` format.
-    :type config: dict
-    :param repo_dir: directory of checkout location, fnmatch pattern supported
-    :type repo_dir: str or None
-    :param vcs_url: url of vcs remote, fn match pattern supported
-    :type vcs_url: str or None
-    :param name: project name, fnmatch pattern supported
-    :type name: str or None
-    :rtype: list
+    Parameters
+    ----------
+    config : dist
+        the expanded repo config in :py:class:`dict` format.
+    repo_dir : str, Optional
+        directory of checkout location, fnmatch pattern supported
+    vcs_url : str, Optional
+        url of vcs remote, fn match pattern supported
+    name : str, Optional
+        project name, fnmatch pattern supported
 
+    Returns
+    -------
+    list :
+        Repos
     """
     repo_list = []
 
@@ -302,12 +340,16 @@ def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
 def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     """Return True if file has a valid config file type.
 
-    :param filename: filename to check (e.g. ``mysession.json``).
-    :type filename: str
-    :param extensions: filetypes to check (e.g. ``['.yaml', '.json']``).
-    :type extensions: list or str
-    :rtype: bool
+    Parameters
+    ----------
+    filename : str
+        filename to check (e.g. ``mysession.json``).
+    extensions : list or str
+        filetypes to check (e.g. ``['.yaml', '.json']``).
 
+    Returns
+    -------
+    bool : True if is a valid config file type
     """
     extensions = [extensions] if isinstance(extensions, string_types) else extensions
     return any(filename.endswith(e) for e in extensions)
