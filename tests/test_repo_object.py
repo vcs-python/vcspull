@@ -10,6 +10,7 @@ from py._path.local import LocalPath
 import kaptan
 
 from libvcs import BaseRepo, GitRepo, MercurialRepo, SubversionRepo
+from libvcs.git import GitRemote
 from libvcs.shortcuts import create_repo_from_pip_url
 from vcspull.cli import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
@@ -203,7 +204,6 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
         for remote_name, remote_info in remotes().items():
             current_remote = r.remote(remote_name)
             assert current_remote.fetch_url == repo_url
-            assert set(old_repo_remotes).issubset(set(current_remote))
 
 
 @pytest.mark.parametrize(
@@ -251,12 +251,13 @@ def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_re
         'repo_dir': '{tmpdir}/study/myrepo/myclone'.format(tmpdir=tmpdir),
         'parent_dir': '{tmpdir}/study/myrepo'.format(tmpdir=tmpdir),
         'url': 'git+file://{repo_dir}'.format(repo_dir=dummy_repo),
-        'remotes': [
-            {
-                'remote_name': 'secondremote',
-                'url': 'git+file://{repo_dir}'.format(repo_dir=dummy_repo),
-            }
-        ],
+        'remotes': {
+            'secondremote': GitRemote(
+                name='secondremote',
+                fetch_url='git+file://{repo_dir}'.format(repo_dir=dummy_repo),
+                push_url='git+file://{repo_dir}'.format(repo_dir=dummy_repo),
+            )
+        },
     }
 
     def merge_dict(_dict, extra):
@@ -274,7 +275,13 @@ def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_re
     config = merge_dict(
         base_config,
         extra={
-            'remotes': [{'remote_name': 'secondremote', 'url': expected_remote_url}]
+            'remotes': {
+                'secondremote': GitRemote(
+                    name='secondremote',
+                    fetch_url=expected_remote_url,
+                    push_url=expected_remote_url,
+                )
+            }
         },
     )
     configs = [config]
@@ -286,9 +293,9 @@ def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_re
         config_remote_url = (
             next(
                 (
-                    r['url']
-                    for r in config['remotes']
-                    if r.get('remote_name') == remote_name
+                    r.fetch_url
+                    for rname, r in config['remotes'].items()
+                    if rname == remote_name
                 ),
                 None,
             )
