@@ -190,9 +190,6 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
     config_file = write_config(repo_dir=dummy_repo, clone_name='myclone')
     configs = load_configs([str(config_file)])
 
-    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        old_repo_remotes = update_repo(repo_dict).remote('origin')
-
     # Later: Copy dummy repo somewhere else so the commits are common
     config_file = write_config(repo_dir=dummy_repo, clone_name='anotherclone')
     configs = load_configs([str(config_file)])
