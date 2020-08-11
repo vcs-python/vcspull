@@ -1,4 +1,6 @@
 PY_FILES= find . -type f -not -path '*/\.*' | grep -i '.*[.]py$$' 2> /dev/null
+DOC_FILES= find . -type f -not -path '*/\.*' | grep -i '.*[.]rst\$\|.*[.]md\$\|.*[.]css\$\|.*[.]py\$\|mkdocs\.yml\|CHANGES\|TODO\|.*conf\.py' 2> /dev/null
+SHELL := /bin/bash
 
 
 entr_warn:
@@ -10,25 +12,31 @@ entr_warn:
 	@echo "----------------------------------------------------------"
 
 isort:
-	isort `${PY_FILES}`
+	poetry run isort `${PY_FILES}`
 
 black:
-	black `${PY_FILES}` --skip-string-normalization
+	poetry run black `${PY_FILES}` --skip-string-normalization
 
 test:
-	py.test $(test)
+	poetry run py.test $(test)
 
 watch_test:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) test; else $(MAKE) test entr_warn; fi
 
 build_docs:
-	cd doc && $(MAKE) html
+	$(MAKE) -C docs html
 
 watch_docs:
-	cd doc && $(MAKE) watch_docs
+	if command -v entr > /dev/null; then ${DOC_FILES} | entr -c $(MAKE) build_docs; else $(MAKE) build_docs entr_warn; fi
+
+serve_docs:
+	$(MAKE) -C docs serve
+
+dev_docs:
+	$(MAKE) -j watch_docs serve_docs
 
 flake8:
-	flake8 vcspull tests
+	flake8 libvcs tests
 
 watch_flake8:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) flake8; else $(MAKE) flake8 entr_warn; fi

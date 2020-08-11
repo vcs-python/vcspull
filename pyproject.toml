@@ -3,42 +3,90 @@ skip-string-normalization = true
 
 [tool.poetry]
 name = "vcspull"
-version = "1.4.3"
-description = "synchronize your repos and forks via declarative yaml/json file(s)"
+version = "1.5.0a2"
+description = "synchronize your projects via yaml / json files"
 license = "MIT"
 authors = ["Tony Narlock <tony@git-pull.com>"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: MIT License",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "Operating System :: POSIX",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 2.7",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.5",
+  "Programming Language :: Python :: 3.6",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Topic :: Utilities",
+  "Topic :: System :: Shells"
+]
+packages = [
+    { include = "vcspull" }
+]
+readme = 'README.rst'
+keywords = ["vcspull", "git", "vcs", "json", "yaml"]
+
+homepage = "https://vcspull.git-pull.com"
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/vcs-python/vcspull/issues"
+Documentation = "https://vcspull.git-pull.com"
+Repository = "https://github.com/vcs-python/vcspull"
+
+[tool.poetry.scripts]
+vcspull = 'vcspull:cli.cli'
 
 [tool.poetry.dependencies]
 python = "~2.7 || ^3.5"
 click = ">=7<8"
 kaptan = "*"
-libvcs = "^0.4.4"
+libvcs = { version = "0.5.0a1", allow-prereleases = true }
 colorama = ">=0.3.9"
 
 [tool.poetry.dev-dependencies]
-alagitpull = "*"
-black = {version="==19.10b0", python="^3.6"}
-doc8 = "*"
-docutils = "*"
-flake8 = "*"
-isort = [
-  {version="<5", python="<3.6"},
-  {version="*", python=">=3.6"}
+### Docs ###
+sphinx = [
+  {version="<2", python="<3"},
+  {version="*", python=">=3"}
 ]
+alagitpull = {version = "^0.1.0"}
+recommonmark = {version = "^0.6.0"}
+sphinx-issues = {version = "^1.2.0"}
+sphinx-click = {version = "*"}
+
+### Testing ###
 pytest = [
   {version="<4.7.0", python="<3"},
   {version="*", python=">=3"}
 ]
 pathlib2 = {version="<2.3.5", python="<3"}  # Untangle pytest peer-dependency
-sphinx = [
-  {version="<2", python="<3"},
-  {version="*", python=">=3"}
-]
-sphinx-issues = "*"
-twine = "*"
+pytest-rerunfailures = "*"
+
+### Coverage ###
 codecov = "*"
 coverage = "*"
 pytest-cov = [
   {version="<2.10.0", python="<3"},
   {version="*", python=">=3"}
 ]
+
+### Format ###
+black = {version="==19.10b0", python="^3.6"}
+isort = [
+  {version="<5", python="<3.6"},
+  {version="*", python=">=3.6"}
+]
+
+### Lint ###
+flake8 = "*"
+
+[tool.poetry.extras]
+docs = ["sphinx", "sphinx-issues", "sphinx-click", "recommonmark", "alagitpull"]
+test = ["pytest", "pathlib2", "pytest-rerunfailures"]
+coverage = ["codecov", "coverage", "pytest-cov"]
+format = ["black", "isort"]
+lint = ["flake8"]

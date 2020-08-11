@@ -158,7 +158,7 @@ checkbuild:
 	rm -rf $(BUILDDIR)
 	$(SPHINXBUILD) -n -q ./ $(BUILDDIR)
 
-WATCH_FILES= find .. -type f -not -path '*/\.*' | grep -i '.*[.]rst\$\|.*[.]py\$\|CHANGES\|TODO\|.*conf\.py' 2> /dev/null
+WATCH_FILES= find .. -type f -not -path '*/\.*' | grep -i '.*[.]rst\$\|.*[.]md\$\|.*[.]py\$\|CHANGES\|TODO\|.*conf\.py' 2> /dev/null
 
 watch:
 	if command -v entr > /dev/null; then ${WATCH_FILES} | entr -c $(MAKE) html; else $(MAKE) html; fi
@@ -166,13 +166,16 @@ watch:
 serve:
 	@echo '================================================='
 	@echo
-	@echo 'docs server running at http://localhost${HTTP_PORT}/'
+	@echo 'docs server running at http://localhost:${HTTP_PORT}/'
 	@echo
 	@echo '================================================='
 	@if test ${PYVERSION} -eq 2; then $(MAKE) serve_py2; else make serve_py3; fi
 
 serve_py2:
-	pushd _build/html; python -m SimpleHTTPServer ${HTTP_PORT}; popd
+	pushd _build/html; python2 -m SimpleHTTPServer ${HTTP_PORT}; popd
 
 serve_py3:
 	python -m http.server ${HTTP_PORT} --directory _build/html
+
+dev:
+	$(MAKE) -j watch serve

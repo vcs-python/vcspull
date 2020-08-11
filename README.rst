@@ -128,56 +128,40 @@ See donation options at https://git-pull.com/support.html.
 
 More information 
 ----------------
-
-==============  ==========================================================
-Python support  Python 2.7, >= 3.5
-VCS supported   git(1), svn(1), hg(1)
-Config formats  YAML, JSON, python dict
-Source          https://github.com/vcs-python/vcspull
-Docs            https://vcspull.git-pull.com
-Changelog       https://vcspull.git-pull.com/en/latest/history.html
-Issues          https://github.com/vcs-python/vcspull/issues
-Travis          https://travis-ci.org/vcs-python/vcspull
-Test Coverage   https://codecov.io/gh/vcs-python/vcspull
-pypi            https://pypi.python.org/pypi/vcspull
-Open Hub        https://www.openhub.net/p/vcspull
-License         `MIT`_.
-git repo        .. code-block:: bash
-
-                    $ git clone https://github.com/vcs-python/vcspull.git
-install dev     .. code-block:: bash
-
-                    $ git clone https://github.com/vcs-python/vcspull.git vcspull
-                    $ cd ./vcspull
-                    $ virtualenv .venv
-                    $ source .venv/bin/activate
-                    $ pip install -e .
-tests           .. code-block:: bash
-
-                    $ py.test
-run             .. code-block:: bash
-
-                    $ vcspull
-==============  ==========================================================
+- Python support: Python 2.7, >= 3.4, pypy
+- VCS supported: git(1), svn(1), hg(1)
+- Source: https://github.com/vcs-python/vcspull
+- Docs: https://vcspull.git-pull.com
+- Changelog: https://vcspull.git-pull.com/history.html
+- API: https://vcspull.git-pull.com/api.html
+- Issues: https://github.com/vcs-python/vcspull/issues
+- Test Coverage: https://codecov.io/gh/vcs-python/vcspull
+- pypi: https://pypi.python.org/pypi/vcspull
+- Open Hub: https://www.openhub.net/p/vcspull
+- License: `MIT`_.
 
 .. _MIT: https://opensource.org/licenses/MIT
-.. _Documentation: https://vcspull.git-pull.com/en/latest/
-.. _Quickstart: https://vcspull.git-pull.com/en/latest/quickstart.html
-.. _pip: http://www.pip-installer.org/en/latest/
-.. _url scheme: http://www.pip-installer.org/en/latest/logic.html#vcs-support
-.. _libvcs: https://github.com/tony/libvcs
+.. _Documentation: https://vcspull.git-pull.com/
+.. _Quickstart: https://vcspull.git-pull.com/quickstart.html
+.. _pip: http://www.pip-installer.org/
+.. _url scheme: http://www.pip-installer.org/logic.html#vcs-support
+.. _libvcs: https://github.com/vcs-python/libvcs
 .. _RFC3986: http://tools.ietf.org/html/rfc3986.html
 .. _.vcspull.yaml: https://github.com/tony/.dot-config/blob/master/.vcspull.yaml
-.. _examples: https://vcspull.git-pull.com/en/latest/examples.html
+.. _examples: https://vcspull.git-pull.com/examples.html
 .. _fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
 .. |pypi| image:: https://img.shields.io/pypi/v/vcspull.svg
     :alt: Python Package
     :target: http://badge.fury.io/py/vcspull
 
-.. |build-status| image:: https://img.shields.io/travis/vcs-python/vcspull.svg
+.. |docs| image:: https://github.com/vcs-python/vcspull/workflows/Publish%20Docs/badge.svg
+   :alt: Docs
+   :target: https://github.com/vcs-python/vcspull/actions?query=workflow%3A"Publish+Docs"
+
+.. |build-status| image:: https://github.com/vcs-python/vcspull/workflows/tests/badge.svg
    :alt: Build Status
-   :target: https://travis-ci.org/vcs-python/vcspull
+   :target: https://github.com/vcs-python/vcspull/actions?query=workflow%3A"tests"
 
 .. |coverage| image:: https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg
     :alt: Code Coverage
@@ -185,8 +169,3 @@ run             .. code-block:: bash
     
 .. |license| image:: https://img.shields.io/github/license/vcs-python/vcspull.svg
     :alt: License 
-
-.. |docs| image:: https://readthedocs.org/projects/vcspull/badge/?version=latest
-    :alt: Documentation Status
-    :scale: 100%
-    :target: https://readthedocs.org/projects/vcspull/
