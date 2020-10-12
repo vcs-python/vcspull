@@ -26,7 +26,7 @@ def update_dict(d, u):
     ----------
     d : dict
     u : dict
-    
+
     Returns
     -------
     dict :
