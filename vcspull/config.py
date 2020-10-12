@@ -146,14 +146,14 @@ def find_config_files(
         list of paths to search
     match : list
         list of globs to search against
-    filetype: list 
+    filetype: list
         of filetypes to search against
     include_home : bool
         Include home configuration files
 
     Raises
     ------
-    LoadConfigRepoConflict : 
+    LoadConfigRepoConflict :
         There are two configs that have same path and name with different repo urls.
 
     Returns

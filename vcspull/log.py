@@ -96,7 +96,7 @@ def debug_log_template(self, record):
 
     Parameters
     ----------
-    record : :class:`logging.LogRecord` 
+    record : :class:`logging.LogRecord`
         This is passed in from inside the :py:meth:`logging.Formatter.format` record.
     """
 
