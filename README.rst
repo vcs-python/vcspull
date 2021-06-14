@@ -111,7 +111,7 @@ The patterns can be filtered by by directory, repo name or vcs url.
     # all repositories in your ~/code directory
     $ vcspull "$HOME/code/*"
 
-.. image:: https://raw.github.com/vcs-python/vcspull/master/doc/_static/vcspull-demo.gif
+.. image:: https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/vcspull-demo.gif
     :scale: 100%
     :width: 45%
     :align: center
