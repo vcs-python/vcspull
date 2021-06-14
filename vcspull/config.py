@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Config utility functions for vcspull.
 vcspull.config
 ~~~~~~~~~~~~~~
@@ -6,8 +5,6 @@ vcspull.config
 A lot of these items are todo.
 
 """
-from __future__ import absolute_import, print_function, unicode_literals
-
 import fnmatch
 import glob
 import logging

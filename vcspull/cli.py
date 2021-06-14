@@ -1,12 +1,9 @@
-# -*- coding: utf-8 -*-
 """CLI utilities for vcspull.
 
 vcspull.cli
 ~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, print_function
-
 import logging
 import sys
 from copy import deepcopy

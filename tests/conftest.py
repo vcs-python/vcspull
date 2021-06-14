@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import pytest
 
 from libvcs.shortcuts import create_repo_from_pip_url
