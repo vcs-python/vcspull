@@ -6,6 +6,10 @@ current
 -------
 - _Add your latest changes from PRs here_
 
+vcspull 1.7.0post0 (2021-06-14)
+-------------------------------
+- Fix image in README
+
 vcspull 1.7.0 (2021-06-14)
 --------------------------
 - #308: Update to libtmux 0.9.0 (python 3.6+ only)
