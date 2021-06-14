@@ -15,9 +15,7 @@ classifiers = [
   "Operating System :: POSIX",
   "Operating System :: MacOS :: MacOS X",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 2.7",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.5",
   "Programming Language :: Python :: 3.6",
   "Programming Language :: Python :: 3.7",
   "Programming Language :: Python :: 3.8",
@@ -41,7 +39,7 @@ Repository = "https://github.com/vcs-python/vcspull"
 vcspull = 'vcspull:cli.cli'
 
 [tool.poetry.dependencies]
-python = "~2.7 || ^3.5"
+python = "^3.6"
 click = ">=7<8"
 kaptan = "*"
 libvcs = "~=0.5.0"
@@ -49,44 +47,31 @@ colorama = ">=0.3.9"
 
 [tool.poetry.dev-dependencies]
 ### Docs ###
-sphinx = [
-  {version="<2", python="<3"},
-  {version="*", python=">=3"}
-]
+sphinx = "*"
 alagitpull = {version = "^0.1.0"}
 recommonmark = {version = "^0.6.0"}
 sphinx-issues = {version = "^1.2.0"}
 sphinx-click = {version = "*"}
 
 ### Testing ###
-pytest = [
-  {version="<4.7.0", python="<3"},
-  {version="*", python=">=3"}
-]
-pathlib2 = {version="<2.3.5", python="<3"}  # Untangle pytest peer-dependency
+pytest = "*"
 pytest-rerunfailures = "*"
 
 ### Coverage ###
 codecov = "*"
 coverage = "*"
-pytest-cov = [
-  {version="<2.10.0", python="<3"},
-  {version="*", python=">=3"}
-]
+pytest-cov = "*"
 
 ### Format ###
-black = {version="==20.08b1", python="^3.6"}
-isort = [
-  {version="<5", python="<3.6"},
-  {version="*", python=">=3.6"}
-]
+black = {version="==21.6b0", python="^3.6.2"}
+isort = "*"
 
 ### Lint ###
 flake8 = "*"
 
 [tool.poetry.extras]
 docs = ["sphinx", "sphinx-issues", "sphinx-click", "recommonmark", "alagitpull"]
-test = ["pytest", "pathlib2", "pytest-rerunfailures"]
+test = ["pytest", "pytest-rerunfailures"]
 coverage = ["codecov", "coverage", "pytest-cov"]
 format = ["black", "isort"]
 lint = ["flake8"]
