@@ -12,8 +12,6 @@ import os
 
 import kaptan
 
-from libvcs._compat import string_types
-
 from . import exc
 from .util import CONFIG_DIR, update_dict
 
@@ -74,7 +72,7 @@ def extract_repos(config, cwd=os.getcwd()):
             also assures the repo is a :py:class:`dict`.
             '''
 
-            if isinstance(repo_data, string_types):
+            if isinstance(repo_data, str):
                 conf['url'] = repo_data
             else:
                 conf = update_dict(conf, repo_data)
@@ -341,5 +339,5 @@ def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
     -------
     bool : True if is a valid config file type
     """
-    extensions = [extensions] if isinstance(extensions, string_types) else extensions
+    extensions = [extensions] if isinstance(extensions, str) else extensions
     return any(filename.endswith(e) for e in extensions)

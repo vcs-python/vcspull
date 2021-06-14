@@ -5,13 +5,7 @@ vcspull.util
 
 """
 import os
-
-from libvcs._compat import PY2
-
-if PY2:
-    from collections import Mapping
-else:
-    from collections.abc import Mapping
+from collections.abc import Mapping
 
 CONFIG_DIR = os.path.expanduser('~/.vcspull/')  # remove dupes of this
 
