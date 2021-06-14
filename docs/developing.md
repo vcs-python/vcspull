@@ -51,7 +51,7 @@ Update `__version__` in `__about__.py` and `pyproject.toml`::
     git push
     git push --tags
     poetry build
-    poetry deploy
+    poetry publish
 
 [poetry]: https://python-poetry.org/
 [entr(1)]: http://eradman.com/entrproject/
