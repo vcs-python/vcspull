@@ -29,7 +29,7 @@ version = "1.4.4"
 [[package]]
 category = "dev"
 description = "Atomic file writes."
-marker = "python_version >= \"3\" and sys_platform == \"win32\" or sys_platform == \"win32\""
+marker = "sys_platform == \"win32\""
 name = "atomicwrites"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
@@ -221,7 +221,7 @@ version = "1.2.0"
 [[package]]
 category = "main"
 description = "Read metadata from Python packages"
-marker = "python_version < \"3.8\" or python_version >= \"3\" and python_version < \"3.8\" or python_version >= \"3.6.2\" and python_version < \"3.8\""
+marker = "python_version >= \"3.6.2\" and python_version < \"3.8\" or python_version < \"3.8\""
 name = "importlib-metadata"
 optional = false
 python-versions = ">=3.6"
@@ -289,13 +289,12 @@ category = "main"
 description = "vcs abstraction layer"
 name = "libvcs"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-version = "0.5.0"
+python-versions = ">=3.6,<4.0"
+version = "0.9.0"
 
 [[package]]
 category = "dev"
 description = "Safely add untrusted strings to HTML/XML markup."
-marker = "python_version >= \"3\""
 name = "markupsafe"
 optional = false
 python-versions = ">=3.6"
@@ -389,7 +388,6 @@ version = "2.9.0"
 [[package]]
 category = "dev"
 description = "Python parsing module"
-marker = "python_version < \"3\" or python_version >= \"3\""
 name = "pyparsing"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
@@ -451,7 +449,6 @@ setuptools = ">=40.0"
 [[package]]
 category = "dev"
 description = "World timezone definitions, modern and historical"
-marker = "python_version < \"3\" or python_version >= \"3\""
 name = "pytz"
 optional = false
 python-versions = "*"
@@ -665,7 +662,7 @@ version = "1.4.3"
 [[package]]
 category = "main"
 description = "Backported and Experimental Type Hints for Python 3.5+"
-marker = "python_version >= \"3\" and python_version < \"3.8\" or python_version < \"3.8\" or python_version >= \"3.6\" and python_version < \"3.8\" or python_version >= \"3\" and python_version < \"3.8\" and (python_version >= \"3\" and python_version < \"3.8\" or python_version < \"3.8\" or python_version >= \"3.6\" and python_version < \"3.8\") or python_version >= \"3.6.2\" and python_version < \"3.8\" and (python_version >= \"3\" and python_version < \"3.8\" or python_version < \"3.8\" or python_version >= \"3.6\" and python_version < \"3.8\") or python_version >= \"3.6.2\" and python_version < \"3.8\""
+marker = "python_version < \"3.8\" or python_version >= \"3\" and python_version < \"3.8\" or python_version >= \"3.6.2\" and python_version < \"3.8\" or python_version >= \"3.6.2\" and python_version < \"3.8\" and (python_version < \"3.8\" or python_version >= \"3\" and python_version < \"3.8\" or python_version >= \"3.6.2\" and python_version < \"3.8\")"
 name = "typing-extensions"
 optional = false
 python-versions = "*"
@@ -687,7 +684,7 @@ socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7,<2.0)"]
 [[package]]
 category = "main"
 description = "Backport of pathlib-compatible object wrapper for zip files"
-marker = "python_version >= \"3\" and python_version < \"3.8\" or python_version < \"3.8\" or python_version >= \"3.6\" and python_version < \"3.8\" or python_version >= \"3\" and python_version < \"3.8\" and (python_version >= \"3\" and python_version < \"3.8\" or python_version < \"3.8\" or python_version >= \"3.6\" and python_version < \"3.8\") or python_version >= \"3.6.2\" and python_version < \"3.8\" and (python_version >= \"3\" and python_version < \"3.8\" or python_version < \"3.8\" or python_version >= \"3.6\" and python_version < \"3.8\")"
+marker = "python_version < \"3.8\" or python_version >= \"3\" and python_version < \"3.8\" or python_version >= \"3.6.2\" and python_version < \"3.8\" or python_version >= \"3.6.2\" and python_version < \"3.8\" and (python_version < \"3.8\" or python_version >= \"3\" and python_version < \"3.8\" or python_version >= \"3.6.2\" and python_version < \"3.8\")"
 name = "zipp"
 optional = false
 python-versions = ">=3.6"
@@ -705,7 +702,7 @@ lint = []
 test = []
 
 [metadata]
-content-hash = "e24dc3e6de2c2c804c36e09bd7884bb9e7c04c0cb8ca4e69090518d0385d9d5c"
+content-hash = "f6db53a146537667fbd2e96d95a1bad515d2421041a3625b21df64e0fda3a2c1"
 lock-version = "1.0"
 python-versions = "^3.6"
 
@@ -857,8 +854,8 @@ kaptan = [
     {file = "kaptan-0.5.12.tar.gz", hash = "sha256:1abd1f56731422fce5af1acc28801677a51e56f5d3c3e8636db761ed143c3dd2"},
 ]
 libvcs = [
-    {file = "libvcs-0.5.0-py2.py3-none-any.whl", hash = "sha256:8bfa10366ed17181e5233822aa78804598400deca0376d3af66662510c5c8576"},
-    {file = "libvcs-0.5.0.tar.gz", hash = "sha256:46801a5879a1b632c01a745fcb064354c05ae24770c9b3878202182024b88fd5"},
+    {file = "libvcs-0.9.0-py3-none-any.whl", hash = "sha256:b1c9a6b143e793431de1d2d35f53c6f7fe24dca5b09ac33f895a1a747f406006"},
+    {file = "libvcs-0.9.0.tar.gz", hash = "sha256:a6db54427cc4e7ede72b2a80ee2b58d041c40ab145eba40591f2a491051226f2"},
 ]
 markupsafe = [
     {file = "MarkupSafe-2.0.1-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:f9081981fe268bd86831e5c75f7de206ef275defcb82bc70740ae6dc507aee51"},
