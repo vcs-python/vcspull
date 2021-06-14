@@ -5,6 +5,9 @@ Changelog
 current
 -------
 Here you can find the recent changes to vcspull
+
+vcspull 1.6.0 (2021-06-14)
+--------------------------
 - #307: Drop python 2.7, update libtmux to 0.9.0
 
 vcspull 1.5.0 (2020-08-11)
