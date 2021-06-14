@@ -1,12 +1,9 @@
-# -*- coding: utf-8 -*-
 """Utility functions for vcspull.
 
 vcspull.util
 ~~~~~~~~~~~~
 
 """
-from __future__ import absolute_import, print_function, unicode_literals
-
 import os
 
 from libvcs._compat import PY2

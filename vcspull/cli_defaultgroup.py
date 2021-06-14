@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
    click_default_group
    ~~~~~~~~~~~~~~~~~~~

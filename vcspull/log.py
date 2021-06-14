@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Log utilities for formatting CLI output.
 
 vcspull.log
@@ -11,8 +10,6 @@ Colorized formatters for generic logging inside the application is also
 provded.
 
 """
-from __future__ import absolute_import, print_function, unicode_literals
-
 import logging
 import time
 
