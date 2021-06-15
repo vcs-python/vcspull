@@ -50,7 +50,6 @@ colorama = ">=0.3.9"
 ### Docs ###
 sphinx = "*"
 alagitpull = {version = "^0.1.0"}
-docutils = "~0.16.0"  # Pin below 17 to avoid recommonmark#220
 sphinx-issues = {version = "^1.2.0"}
 sphinx-click = {version = "*"}
 sphinx-autodoc-typehints = {version = "^1.12.0"}
