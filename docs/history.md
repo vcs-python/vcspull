@@ -1,8 +1,10 @@
-.. _history:
+(history)=
 
-=======
-History
-=======
+# History
 
+```{eval-rst}
 .. include:: ../CHANGES
     :start-line: 5
+```
+
+
