@@ -279,7 +279,7 @@ description = "vcs abstraction layer"
 name = "libvcs"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "0.9.0"
+version = "0.10.0"
 
 [[package]]
 category = "dev"
@@ -754,7 +754,7 @@ lint = []
 test = []
 
 [metadata]
-content-hash = "b14224fe7515c90e4f49ea1cb816dfa4bece80e8cffd6877521f9eac19dfd480"
+content-hash = "05a8e1a6a33bf72087b857394fcfc473220b2ffb3a47b1922f4bd569c0029cae"
 lock-version = "1.0"
 python-versions = "^3.6"
 
@@ -902,8 +902,8 @@ kaptan = [
     {file = "kaptan-0.5.12.tar.gz", hash = "sha256:1abd1f56731422fce5af1acc28801677a51e56f5d3c3e8636db761ed143c3dd2"},
 ]
 libvcs = [
-    {file = "libvcs-0.9.0-py3-none-any.whl", hash = "sha256:b1c9a6b143e793431de1d2d35f53c6f7fe24dca5b09ac33f895a1a747f406006"},
-    {file = "libvcs-0.9.0.tar.gz", hash = "sha256:a6db54427cc4e7ede72b2a80ee2b58d041c40ab145eba40591f2a491051226f2"},
+    {file = "libvcs-0.10.0-py3-none-any.whl", hash = "sha256:2687d8e6e6a16c8926595bd81d048448ae37b581aea41db594ba459e23c51a11"},
+    {file = "libvcs-0.10.0.tar.gz", hash = "sha256:cf9c5c225e36e34a6dc183afb8b0d05493b486cfd71feaad299c12f1ace11256"},
 ]
 markdown-it-py = [
     {file = "markdown-it-py-1.1.0.tar.gz", hash = "sha256:36be6bb3ad987bfdb839f5ba78ddf094552ca38ccbd784ae4f74a4e1419fc6e3"},
