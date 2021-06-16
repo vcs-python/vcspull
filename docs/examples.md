@@ -38,5 +38,3 @@ YAML:
 ```
 
 [pip vcs url]: https://pip.pypa.io/en/latest/reference/pip_install/#vcs-support
-
-

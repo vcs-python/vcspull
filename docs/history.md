@@ -1,10 +1,5 @@
 (history)=
 
-# History
+```{include} ../CHANGES
 
-```{eval-rst}
-.. include:: ../CHANGES
-    :start-line: 5
 ```
-
-

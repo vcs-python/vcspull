@@ -7,5 +7,3 @@
     :prog: vcspull
     :show-nested:
 ```
-
-
