@@ -3,6 +3,7 @@
 # vcspull
 
 ```{include} ../README.md
+
 ```
 
 ```{toctree}
@@ -15,5 +16,3 @@ developing
 history
 
 ```
-
-

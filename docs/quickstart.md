@@ -128,9 +128,5 @@ $ vcspull ~/*python*"
 ```
 
 [pip vcs url]: http://www.pip-installer.org/en/latest/logic.html#vcs-support
-
 [flask]: http://flask.pocoo.org/
-
 [fnmatch]: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
-
-
