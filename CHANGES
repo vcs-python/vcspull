@@ -6,6 +6,11 @@ Changelog
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.8.0 (2021-06-16)
+
+- #277: COnvert to markdown
+- Update libvcs to 0.10.0
+
 ## vcspull 1.7.0post0 (2021-06-14)
 
 - Fix image in README
