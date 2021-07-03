@@ -3,6 +3,9 @@
 ## current
 
 - _Add your latest changes from PRs here_
+- #313: Update poetry to 1.1
+  - CI: Use poetry 1.1.7 and `install-poetry.py` installer
+  - Relock poetry.lock at 1.1 (w/ 1.1.7's fix)
 
 ## vcspull 1.8.0 (2021-06-16)
 
