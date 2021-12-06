@@ -21,10 +21,11 @@ classifiers = [
   "Topic :: System :: Shells"
 ]
 packages = [
-    { include = "vcspull" }
+    { include = "vcspull" },
 ]
 include = [
-    { path = "tests", format = "sdist" }
+    { path = "tests", format = "sdist" },
+    { path = "g.py" }
 ]
 readme = 'README.md'
 keywords = ["vcspull", "git", "vcs", "json", "yaml"]
@@ -39,6 +40,7 @@ Changes = "https://github.com/vcs-python/vcspull/blob/master/CHANGES"
 
 [tool.poetry.scripts]
 vcspull = 'vcspull:cli.cli'
+g = 'g:run'
 
 [tool.poetry.dependencies]
 python = "^3.7"
@@ -82,5 +84,5 @@ format = ["black", "isort"]
 lint = ["flake8"]
 
 [build-system]
-requires = ["poetry_core>=1.0.0"]
+requires = ["poetry_core>=1.0.0", "setuptools>60"]
 build-backend = "poetry.core.masonry.api"
