@@ -4,6 +4,13 @@
 
 - _Add your latest changes from PRs here_
 
+#### Compatibility
+- Drop Python 3.6 (#329)
+- Add Python 3.10 (#329)
+
+#### Development
+- CI: Use poetry 1.1.12 and new `install-poetry.py` install location (#329)
+
 ## vcspull 1.8.1 (2021-12-05)
 - Update libvcs 0.10.0 to 0.10.1
 - #313: Update poetry to 1.1
