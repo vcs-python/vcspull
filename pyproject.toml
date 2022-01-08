@@ -35,6 +35,7 @@ homepage = "https://vcspull.git-pull.com"
 "Bug Tracker" = "https://github.com/vcs-python/vcspull/issues"
 Documentation = "https://vcspull.git-pull.com"
 Repository = "https://github.com/vcs-python/vcspull"
+Changes = "https://github.com/vcs-python/vcspull/blob/master/CHANGES"
 
 [tool.poetry.scripts]
 vcspull = 'vcspull:cli.cli'
