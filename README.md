@@ -130,7 +130,7 @@ See donation options at <https://git-pull.com/support.html>.
 
 # More information
 
-- Python support: >= 3.6, pypy
+- Python support: >= 3.7, pypy
 - VCS supported: git(1), svn(1), hg(1)
 - Source: <https://github.com/vcs-python/vcspull>
 - Docs: <https://vcspull.git-pull.com>
