@@ -26,6 +26,9 @@ classifiers = [
 packages = [
     { include = "vcspull" }
 ]
+include = [
+    { path = "tests", format = "sdist" }
+]
 readme = 'README.md'
 keywords = ["vcspull", "git", "vcs", "json", "yaml"]
 
