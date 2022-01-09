@@ -244,11 +244,11 @@ PyYAML = ">=3.13,<6"
 
 [[package]]
 name = "libvcs"
-version = "0.10.1"
+version = "0.11.0"
 description = "vcs abstraction layer"
 category = "main"
 optional = false
-python-versions = ">=3.6,<4.0"
+python-versions = ">=3.7,<4.0"
 
 [[package]]
 name = "markdown-it-py"
@@ -724,7 +724,7 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "b33d7ef657b0e8c7cd50f6ada9cbed8b8652c2dc207d2e37b287545f33d5b74b"
+content-hash = "ac376c1d5a7fd8c89654b2cb91f6ffb037099ce438e12c74d6d5fbee5ece0ace"
 
 [metadata.files]
 alabaster = [
@@ -857,8 +857,8 @@ kaptan = [
     {file = "kaptan-0.5.12.tar.gz", hash = "sha256:1abd1f56731422fce5af1acc28801677a51e56f5d3c3e8636db761ed143c3dd2"},
 ]
 libvcs = [
-    {file = "libvcs-0.10.1-py3-none-any.whl", hash = "sha256:ebc92aa2c4687dc6b96ae2d9deac9376c3647fbb8186a7c902e3655697582bd1"},
-    {file = "libvcs-0.10.1.tar.gz", hash = "sha256:eba24891c0ab46549658b2d0fc691ac32631320a1cd84255c45aed6a1ea42a48"},
+    {file = "libvcs-0.11.0-py3-none-any.whl", hash = "sha256:7e84a7a3b12cc2b5e72e0fc6e61a6be74a743f791e9e62e71b8d4a7f364d032c"},
+    {file = "libvcs-0.11.0.tar.gz", hash = "sha256:4400653964eb5bfdd8caead183cdfe7812b6a6763ffc7ab2711cdeaa47018590"},
 ]
 markdown-it-py = [
     {file = "markdown-it-py-1.1.0.tar.gz", hash = "sha256:36be6bb3ad987bfdb839f5ba78ddf094552ca38ccbd784ae4f74a4e1419fc6e3"},
