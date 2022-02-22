@@ -5,7 +5,7 @@ from libvcs.util import run
 
 
 @pytest.fixture
-def tmpdir_repoparent(tmpdir_factory, scope='function'):
+def tmpdir_repoparent(tmpdir_factory, scope="function"):
     """Return temporary directory for repository checkout guaranteed unique."""
     fn = tmpdir_factory.mktemp("repo")
     return fn
@@ -14,11 +14,11 @@ def tmpdir_repoparent(tmpdir_factory, scope='function'):
 @pytest.fixture
 def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
     """Return kwargs for :func:`create_repo_from_pip_url`."""
-    repo_name = 'repo_clone'
+    repo_name = "repo_clone"
     return {
-        'url': 'git+file://' + git_dummy_repo_dir,
-        'parent_dir': str(tmpdir_repoparent),
-        'name': repo_name,
+        "url": "git+file://" + git_dummy_repo_dir,
+        "parent_dir": str(tmpdir_repoparent),
+        "name": repo_name,
     }
 
 
@@ -32,14 +32,14 @@ def git_repo(git_repo_kwargs):
 
 @pytest.fixture
 def create_git_dummy_repo(tmpdir_repoparent):
-    def fn(repo_name, testfile_filename='testfile.test'):
+    def fn(repo_name, testfile_filename="testfile.test"):
         repo_path = str(tmpdir_repoparent.join(repo_name))
 
-        run(['git', 'init', repo_name], cwd=str(tmpdir_repoparent))
+        run(["git", "init", repo_name], cwd=str(tmpdir_repoparent))
 
-        run(['touch', testfile_filename], cwd=repo_path)
-        run(['git', 'add', testfile_filename], cwd=repo_path)
-        run(['git', 'commit', '-m', 'test file for %s' % repo_name], cwd=repo_path)
+        run(["touch", testfile_filename], cwd=repo_path)
+        run(["git", "add", testfile_filename], cwd=repo_path)
+        run(["git", "commit", "-m", "test file for %s" % repo_name], cwd=repo_path)
 
         return repo_path
 
@@ -49,4 +49,4 @@ def create_git_dummy_repo(tmpdir_repoparent):
 @pytest.fixture
 def git_dummy_repo_dir(tmpdir_repoparent, create_git_dummy_repo):
     """Create a git repo with 1 commit, used as a remote."""
-    return create_git_dummy_repo('dummyrepo')
+    return create_git_dummy_repo("dummyrepo")

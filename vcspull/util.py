@@ -7,7 +7,7 @@ vcspull.util
 import os
 from collections.abc import Mapping
 
-CONFIG_DIR = os.path.expanduser('~/.vcspull/')  # remove dupes of this
+CONFIG_DIR = os.path.expanduser("~/.vcspull/")  # remove dupes of this
 
 
 def update_dict(d, u):

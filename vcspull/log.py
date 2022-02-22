@@ -16,11 +16,11 @@ import time
 from colorama import Fore, Style
 
 LEVEL_COLORS = {
-    'DEBUG': Fore.BLUE,  # Blue
-    'INFO': Fore.GREEN,  # Green
-    'WARNING': Fore.YELLOW,
-    'ERROR': Fore.RED,
-    'CRITICAL': Fore.RED,
+    "DEBUG": Fore.BLUE,  # Blue
+    "INFO": Fore.GREEN,  # Green
+    "WARNING": Fore.YELLOW,
+    "ERROR": Fore.RED,
+    "CRITICAL": Fore.RED,
 }
 
 
@@ -36,29 +36,29 @@ def default_log_template(self, record):
     levelname = [
         LEVEL_COLORS.get(record.levelname),
         Style.BRIGHT,
-        '(%(levelname)s)',
+        "(%(levelname)s)",
         Style.RESET_ALL,
-        ' ',
+        " ",
     ]
     asctime = [
-        '[',
+        "[",
         Fore.BLACK,
         Style.DIM,
         Style.BRIGHT,
-        '%(asctime)s',
+        "%(asctime)s",
         Fore.RESET,
         Style.RESET_ALL,
-        ']',
+        "]",
     ]
     name = [
-        ' ',
+        " ",
         Fore.WHITE,
         Style.DIM,
         Style.BRIGHT,
-        '%(name)s',
+        "%(name)s",
         Fore.RESET,
         Style.RESET_ALL,
-        ' ',
+        " ",
     ]
 
     tpl = "".join(reset + levelname + asctime + name + reset)
@@ -79,7 +79,7 @@ class LogFormatter(logging.Formatter):
         except Exception as e:
             record.message = "Bad message (%r): %r" % (e, record.__dict__)
 
-        date_format = '%H:%m:%S'
+        date_format = "%H:%m:%S"
         record.asctime = time.strftime(date_format, self.converter(record.created))
 
         prefix = self.template(record) % record.__dict__
@@ -101,42 +101,42 @@ def debug_log_template(self, record):
     levelname = [
         LEVEL_COLORS.get(record.levelname),
         Style.BRIGHT,
-        '(%(levelname)1.1s)',
+        "(%(levelname)1.1s)",
         Style.RESET_ALL,
-        ' ',
+        " ",
     ]
     asctime = [
-        '[',
+        "[",
         Fore.BLACK,
         Style.DIM,
         Style.BRIGHT,
-        '%(asctime)s',
+        "%(asctime)s",
         Fore.RESET,
         Style.RESET_ALL,
-        ']',
+        "]",
     ]
     name = [
-        ' ',
+        " ",
         Fore.WHITE,
         Style.DIM,
         Style.BRIGHT,
-        '%(name)s',
+        "%(name)s",
         Fore.RESET,
         Style.RESET_ALL,
-        ' ',
+        " ",
     ]
-    module_funcName = [Fore.GREEN, Style.BRIGHT, '%(module)s.%(funcName)s()']
+    module_funcName = [Fore.GREEN, Style.BRIGHT, "%(module)s.%(funcName)s()"]
     lineno = [
         Fore.BLACK,
         Style.DIM,
         Style.BRIGHT,
-        ':',
+        ":",
         Style.RESET_ALL,
         Fore.CYAN,
-        '%(lineno)d',
+        "%(lineno)d",
     ]
 
-    tpl = ''.join(reset + levelname + asctime + name + module_funcName + lineno + reset)
+    tpl = "".join(reset + levelname + asctime + name + module_funcName + lineno + reset)
 
     return tpl
 
@@ -150,10 +150,10 @@ class DebugLogFormatter(LogFormatter):
 
 class RepoLogFormatter(LogFormatter):
     def template(self, record):
-        record.message = ''.join(
+        record.message = "".join(
             [Fore.MAGENTA, Style.BRIGHT, record.message, Fore.RESET, Style.RESET_ALL]
         )
-        return '%s|%s| %s(%s) %s' % (
+        return "%s|%s| %s(%s) %s" % (
             Fore.GREEN + Style.DIM,
             record.repo_name,
             Fore.YELLOW,
@@ -168,4 +168,4 @@ class RepoFilter(logging.Filter):
 
     def filter(self, record):
         """Only return a record if a repo_vcs object."""
-        return True if 'repo_vcs' in record.__dict__ else False
+        return True if "repo_vcs" in record.__dict__ else False

@@ -23,7 +23,7 @@ MAX_ASYNC = 8  # maximum processes to open:w
 log = logging.getLogger(__name__)
 
 
-def setup_logger(log=None, level='INFO'):
+def setup_logger(log=None, level="INFO"):
     """Setup logging for CLI use.
 
     Parameters
@@ -41,7 +41,7 @@ def setup_logger(log=None, level='INFO'):
         log.addHandler(channel)
 
         # setup styling for repo loggers
-        repo_logger = logging.getLogger('libvcs')
+        repo_logger = logging.getLogger("libvcs")
         channel = logging.StreamHandler()
         channel.setFormatter(RepoLogFormatter())
         channel.addFilter(RepoFilter())
@@ -51,29 +51,29 @@ def setup_logger(log=None, level='INFO'):
 
 @click.group(cls=DefaultGroup, default_if_no_args=True)
 @click.option(
-    '--log-level',
-    default='INFO',
-    help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
+    "--log-level",
+    default="INFO",
+    help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
 )
-@click.version_option(version=__version__, message='%(prog)s %(version)s')
+@click.version_option(version=__version__, message="%(prog)s %(version)s")
 def cli(log_level):
     setup_logger(log=log, level=log_level.upper())
 
 
-@cli.command(name='update', default=True)
-@click.argument('repo_terms', nargs=-1)
+@cli.command(name="update", default=True)
+@click.argument("repo_terms", nargs=-1)
 @click.option(
-    '--run-async',
-    '-a',
+    "--run-async",
+    "-a",
     is_flag=True,
-    help='Run repo syncing concurrently (experimental)',
+    help="Run repo syncing concurrently (experimental)",
 )
 @click.option(
-    '--log-level',
-    default='INFO',
-    help='Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
+    "--log-level",
+    default="INFO",
+    help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
 )
-@click.option('config', '-c', type=click.Path(exists=True), help='Specify config')
+@click.option("config", "-c", type=click.Path(exists=True), help="Specify config")
 def update(repo_terms, run_async, log_level, config):
     setup_logger(log=log, level=log_level.upper())
 
@@ -86,9 +86,9 @@ def update(repo_terms, run_async, log_level, config):
     if repo_terms:
         for repo_term in repo_terms:
             repo_dir, vcs_url, name = None, None, None
-            if any(repo_term.startswith(n) for n in ['./', '/', '~', '$HOME']):
+            if any(repo_term.startswith(n) for n in ["./", "/", "~", "$HOME"]):
                 repo_dir = repo_term
-            elif any(repo_term.startswith(n) for n in ['http', 'git', 'svn', 'hg']):
+            elif any(repo_term.startswith(n) for n in ["http", "git", "svn", "hg"]):
                 vcs_url = repo_term
             else:
                 name = repo_term
@@ -122,20 +122,20 @@ def progress_cb(output, timestamp):
 
 def update_repo(repo_dict):
     repo_dict = deepcopy(repo_dict)
-    if 'pip_url' not in repo_dict:
-        repo_dict['pip_url'] = repo_dict.pop('url')
-    repo_dict['progress_callback'] = progress_cb
+    if "pip_url" not in repo_dict:
+        repo_dict["pip_url"] = repo_dict.pop("url")
+    repo_dict["progress_callback"] = progress_cb
 
     r = create_repo_from_pip_url(**repo_dict)  # Creates the repo object
 
-    remote_settings = repo_dict.get('remotes', {})
-    if remote_settings.get('origin', {}) == {}:
+    remote_settings = repo_dict.get("remotes", {})
+    if remote_settings.get("origin", {}) == {}:
         from libvcs.git import GitRemote
 
-        remote_settings['origin'] = GitRemote(
-            name='origin',
-            push_url=repo_dict['pip_url'],
-            fetch_url=repo_dict['pip_url'],
+        remote_settings["origin"] = GitRemote(
+            name="origin",
+            push_url=repo_dict["pip_url"],
+            fetch_url=repo_dict["pip_url"],
         )
 
     remotes_updated = False
@@ -154,7 +154,7 @@ def update_repo(repo_dict):
 
         if current_remote is None or current_fetch_url != remote_setting.fetch_url:
             print(
-                'Updating remote {name} ({current_url}) with {new_url}'.format(
+                "Updating remote {name} ({current_url}) with {new_url}".format(
                     name=config_remote_name,
                     current_url=current_fetch_url,
                     new_url=remote_setting.fetch_url,

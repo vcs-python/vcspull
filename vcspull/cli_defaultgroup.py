@@ -37,8 +37,8 @@
 """
 import click
 
-__all__ = ['DefaultGroup']
-__version__ = '1.1'
+__all__ = ["DefaultGroup"]
+__version__ = "1.1"
 
 
 class DefaultGroup(click.Group):
@@ -52,15 +52,15 @@ class DefaultGroup(click.Group):
 
     def __init__(self, *args, **kwargs):
         self.default_cmd_name = None
-        self.default_if_no_args = kwargs.pop('default_if_no_args', False)
+        self.default_if_no_args = kwargs.pop("default_if_no_args", False)
         # To resolve as the default command.
-        if not kwargs.get('ignore_unknown_options', True):
-            raise ValueError('Default group accepts unknown options')
+        if not kwargs.get("ignore_unknown_options", True):
+            raise ValueError("Default group accepts unknown options")
         self.ignore_unknown_options = True
         super(DefaultGroup, self).__init__(*args, **kwargs)
 
     def command(self, *args, **kwargs):
-        default = kwargs.pop('default', False)
+        default = kwargs.pop("default", False)
         decorator = super(DefaultGroup, self).command(*args, **kwargs)
         if not default:
             # Customized feature not used.
@@ -71,7 +71,7 @@ class DefaultGroup(click.Group):
             if default:
                 if self.default_cmd_name is not None:
                     del self.commands[cmd.name]
-                    raise RuntimeError('Default command already defined')
+                    raise RuntimeError("Default command already defined")
                 self.default_cmd_name = cmd.name
             return cmd
 
@@ -92,19 +92,19 @@ class DefaultGroup(click.Group):
     def resolve_command(self, ctx, args):
         base = super(DefaultGroup, self)
         cmd_name, cmd, args = base.resolve_command(ctx, args)
-        if hasattr(ctx, 'arg0'):
+        if hasattr(ctx, "arg0"):
             args.insert(0, ctx.arg0)
         return cmd_name, cmd, args
 
     def format_commands(self, ctx, formatter):
-        formatter = DefaultCommandFormatter(self, formatter, mark='*')
+        formatter = DefaultCommandFormatter(self, formatter, mark="*")
         return super(DefaultGroup, self).format_commands(ctx, formatter)
 
 
 class DefaultCommandFormatter(object):
     """Wraps a formatter to mark a default command."""
 
-    def __init__(self, group, formatter, mark='*'):
+    def __init__(self, group, formatter, mark="*"):
         self.group = group
         self.formatter = formatter
         self.mark = mark

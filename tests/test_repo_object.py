@@ -22,7 +22,7 @@ def test_filter_dir():
 
     assert len(repo_list) == 1
     for r in repo_list:
-        assert r['name'] == 'kaptan'
+        assert r["name"] == "kaptan"
 
 
 def test_filter_name():
@@ -31,7 +31,7 @@ def test_filter_name():
 
     assert len(repo_list) == 1
     for r in repo_list:
-        assert r['name'] == '.vim'
+        assert r["name"] == ".vim"
 
 
 def test_filter_vcs():
@@ -40,7 +40,7 @@ def test_filter_vcs():
 
     assert len(repo_list) == 1
     for r in repo_list:
-        assert r['name'] == 'linux'
+        assert r["name"] == "linux"
 
 
 def test_to_dictlist():
@@ -49,16 +49,16 @@ def test_to_dictlist():
 
     for r in repo_list:
         assert isinstance(r, dict)
-        assert 'name' in r
-        assert 'parent_dir' in r
-        assert 'url' in r
+        assert "name" in r
+        assert "parent_dir" in r
+        assert "url" in r
 
-        if 'remotes' in r:
-            assert isinstance(r['remotes'], list)
-            for remote in r['remotes']:
+        if "remotes" in r:
+            assert isinstance(r["remotes"], list)
+            for remote in r["remotes"]:
                 assert isinstance(remote, dict)
-                assert 'remote_name' == remote
-                assert 'url' == remote
+                assert "remote_name" == remote
+                assert "url" == remote
 
 
 def test_vcs_url_scheme_to_object(tmpdir):
@@ -70,8 +70,8 @@ def test_vcs_url_scheme_to_object(tmpdir):
     """
     git_repo = create_repo_from_pip_url(
         **{
-            'pip_url': 'git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b',
-            'repo_dir': str(tmpdir.join('myproject1')),
+            "pip_url": "git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b",
+            "repo_dir": str(tmpdir.join("myproject1")),
         }
     )
 
@@ -82,8 +82,8 @@ def test_vcs_url_scheme_to_object(tmpdir):
 
     hg_repo = create_repo_from_pip_url(
         **{
-            'pip_url': 'hg+https://hg.myproject.org/MyProject#egg=MyProject',
-            'repo_dir': str(tmpdir.join('myproject2')),
+            "pip_url": "hg+https://hg.myproject.org/MyProject#egg=MyProject",
+            "repo_dir": str(tmpdir.join("myproject2")),
         }
     )
 
@@ -92,8 +92,8 @@ def test_vcs_url_scheme_to_object(tmpdir):
 
     svn_repo = create_repo_from_pip_url(
         **{
-            'pip_url': 'svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject',
-            'repo_dir': str(tmpdir.join('myproject3')),
+            "pip_url": "svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject",
+            "repo_dir": str(tmpdir.join("myproject3")),
         }
     )
 
@@ -108,21 +108,21 @@ def test_to_repo_objects(tmpdir):
         r = create_repo_from_pip_url(**repo_dict)
 
         assert isinstance(r, BaseRepo)
-        assert 'name' in r
-        assert r['name'] == repo_dict['name']
-        assert 'parent_dir' in r
-        assert r['parent_dir'] == repo_dict['parent_dir']
-        assert 'url' in r
-        assert r['url'] == repo_dict['url']
+        assert "name" in r
+        assert r["name"] == repo_dict["name"]
+        assert "parent_dir" in r
+        assert r["parent_dir"] == repo_dict["parent_dir"]
+        assert "url" in r
+        assert r["url"] == repo_dict["url"]
 
-        assert r['path'] == os.path.join(r['parent_dir'], r['name'])
+        assert r["path"] == os.path.join(r["parent_dir"], r["name"])
 
-        if 'remotes' in repo_dict:
-            assert isinstance(r['remotes'], list)
-            for remote_name, remote_dict in r['remotes'].items():
+        if "remotes" in repo_dict:
+            assert isinstance(r["remotes"], list)
+            for remote_name, remote_dict in r["remotes"].items():
                 assert isinstance(remote_dict, dict)
-                assert 'fetch_url' in remote_dict
-                assert 'push_url' in remote_dict
+                assert "fetch_url" in remote_dict
+                assert "push_url" in remote_dict
 
 
 def test_makes_recursive(tmpdir, git_dummy_repo_dir):
@@ -135,9 +135,9 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
 
     YAML_CONFIG = YAML_CONFIG.format(tmpdir=str(tmpdir), repo_dir=git_dummy_repo_dir)
 
-    conf = kaptan.Kaptan(handler='yaml')
+    conf = kaptan.Kaptan(handler="yaml")
     conf.import_config(YAML_CONFIG)
-    conf = conf.export('dict')
+    conf = conf.export("dict")
     repos = extract_repos(conf)
 
     for r in filter_repos(repos):
@@ -146,7 +146,7 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
 
 
 @pytest.mark.parametrize(
-    'config_tpl',
+    "config_tpl",
     [
         """
         {tmpdir}/study/myrepo:
@@ -170,7 +170,7 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
     # type: (LocalPath, LocalPath)
     """Test config output with varation of config formats"""
 
-    dummy_repo_name = 'dummy_repo'
+    dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
 
     def write_config(repo_dir, clone_name):
@@ -178,21 +178,21 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
         config = config_tpl.format(
             tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
         )
-        config_file = tmpdir.join('myrepos.yaml')
+        config_file = tmpdir.join("myrepos.yaml")
         config_file.write(config)
-        repo_parent = tmpdir.join('study/myrepo')
+        repo_parent = tmpdir.join("study/myrepo")
         repo_parent.ensure(dir=True)
         return config_file
 
-    config_file = write_config(repo_dir=dummy_repo, clone_name='myclone')
+    config_file = write_config(repo_dir=dummy_repo, clone_name="myclone")
     configs = load_configs([str(config_file)])
 
     # Later: Copy dummy repo somewhere else so the commits are common
-    config_file = write_config(repo_dir=dummy_repo, clone_name='anotherclone')
+    config_file = write_config(repo_dir=dummy_repo, clone_name="anotherclone")
     configs = load_configs([str(config_file)])
 
-    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        repo_url = repo_dict['url'].replace('git+', '')
+    for repo_dict in filter_repos(configs, repo_dir="*", vcs_url="*", name="*"):
+        repo_url = repo_dict["url"].replace("git+", "")
         r = update_repo(repo_dict)
         remotes = r.remotes or []
         for remote_name, remote_info in remotes().items():
@@ -201,7 +201,7 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
 
 
 @pytest.mark.parametrize(
-    'config_tpl,has_extra_remotes',
+    "config_tpl,has_extra_remotes",
     [
         [
             """
@@ -234,22 +234,22 @@ def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_re
     # type: (LocalPath, LocalPath)
     """Ensure additions/changes to yaml config are reflected"""
 
-    dummy_repo_name = 'dummy_repo'
+    dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
 
-    repo_parent = tmpdir.join('study/myrepo')
+    repo_parent = tmpdir.join("study/myrepo")
     repo_parent.ensure(dir=True)
 
     base_config = {
-        'name': 'myclone',
-        'repo_dir': '{tmpdir}/study/myrepo/myclone'.format(tmpdir=tmpdir),
-        'parent_dir': '{tmpdir}/study/myrepo'.format(tmpdir=tmpdir),
-        'url': 'git+file://{repo_dir}'.format(repo_dir=dummy_repo),
-        'remotes': {
-            'secondremote': GitRemote(
-                name='secondremote',
-                fetch_url='git+file://{repo_dir}'.format(repo_dir=dummy_repo),
-                push_url='git+file://{repo_dir}'.format(repo_dir=dummy_repo),
+        "name": "myclone",
+        "repo_dir": "{tmpdir}/study/myrepo/myclone".format(tmpdir=tmpdir),
+        "parent_dir": "{tmpdir}/study/myrepo".format(tmpdir=tmpdir),
+        "url": "git+file://{repo_dir}".format(repo_dir=dummy_repo),
+        "remotes": {
+            "secondremote": GitRemote(
+                name="secondremote",
+                fetch_url="git+file://{repo_dir}".format(repo_dir=dummy_repo),
+                push_url="git+file://{repo_dir}".format(repo_dir=dummy_repo),
             )
         },
     }
@@ -261,17 +261,17 @@ def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_re
 
     configs = [base_config]
 
-    for repo_dict in filter_repos(configs, repo_dir='*', vcs_url='*', name='*'):
-        update_repo(repo_dict).remotes()['origin']
+    for repo_dict in filter_repos(configs, repo_dir="*", vcs_url="*", name="*"):
+        update_repo(repo_dict).remotes()["origin"]
 
-    expected_remote_url = 'git+file://{repo_dir}/moo'.format(repo_dir=dummy_repo)
+    expected_remote_url = "git+file://{repo_dir}/moo".format(repo_dir=dummy_repo)
 
     config = merge_dict(
         base_config,
         extra={
-            'remotes': {
-                'secondremote': GitRemote(
-                    name='secondremote',
+            "remotes": {
+                "secondremote": GitRemote(
+                    name="secondremote",
                     fetch_url=expected_remote_url,
                     push_url=expected_remote_url,
                 )
@@ -280,20 +280,20 @@ def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_re
     )
     configs = [config]
 
-    repo_dict = filter_repos(configs, repo_dir='*', vcs_url='*', name='myclone')[0]
+    repo_dict = filter_repos(configs, repo_dir="*", vcs_url="*", name="myclone")[0]
     r = update_repo(repo_dict)
     for remote_name, remote_info in r.remotes().items():
-        current_remote_url = r.remote(remote_name).fetch_url.replace('git+', '')
+        current_remote_url = r.remote(remote_name).fetch_url.replace("git+", "")
         config_remote_url = (
             next(
                 (
                     r.fetch_url
-                    for rname, r in config['remotes'].items()
+                    for rname, r in config["remotes"].items()
                     if rname == remote_name
                 ),
                 None,
             )
-            if remote_name != 'origin'
-            else config['url']
-        ).replace('git+', '')
+            if remote_name != "origin"
+            else config["url"]
+        ).replace("git+", "")
         assert config_remote_url == current_remote_url

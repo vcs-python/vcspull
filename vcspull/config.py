@@ -62,7 +62,7 @@ def extract_repos(config, cwd=os.getcwd()):
 
             conf = {}
 
-            '''
+            """
             repo_name: http://myrepo.com/repo.git
 
             to
@@ -70,33 +70,33 @@ def extract_repos(config, cwd=os.getcwd()):
             repo_name: { url: 'http://myrepo.com/repo.git' }
 
             also assures the repo is a :py:class:`dict`.
-            '''
+            """
 
             if isinstance(repo_data, str):
-                conf['url'] = repo_data
+                conf["url"] = repo_data
             else:
                 conf = update_dict(conf, repo_data)
 
-            if 'repo' in conf:
-                if 'url' not in conf:
-                    conf['url'] = conf.pop('repo')
+            if "repo" in conf:
+                if "url" not in conf:
+                    conf["url"] = conf.pop("repo")
                 else:
-                    conf.pop('repo', None)
+                    conf.pop("repo", None)
 
-            if 'name' not in conf:
-                conf['name'] = repo
-            if 'parent_dir' not in conf:
-                conf['parent_dir'] = expand_dir(directory, cwd)
+            if "name" not in conf:
+                conf["name"] = repo
+            if "parent_dir" not in conf:
+                conf["parent_dir"] = expand_dir(directory, cwd)
 
-            if 'repo_dir' not in conf:
-                conf['repo_dir'] = expand_dir(
-                    os.path.join(conf['parent_dir'], conf['name']), cwd
+            if "repo_dir" not in conf:
+                conf["repo_dir"] = expand_dir(
+                    os.path.join(conf["parent_dir"], conf["name"]), cwd
                 )
             from libvcs.git import GitRemote
 
-            if 'remotes' in conf:
-                for remote_name, url in conf['remotes'].items():
-                    conf['remotes'][remote_name] = GitRemote(
+            if "remotes" in conf:
+                for remote_name, url in conf["remotes"].items():
+                    conf["remotes"][remote_name] = GitRemote(
                         name=remote_name, fetch_url=url, push_url=url
                     )
             configs.append(conf)
@@ -104,20 +104,20 @@ def extract_repos(config, cwd=os.getcwd()):
     return configs
 
 
-def find_home_config_files(filetype=['json', 'yaml']):
+def find_home_config_files(filetype=["json", "yaml"]):
     """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
     configs = []
 
-    yaml_config = os.path.expanduser('~/.vcspull.yaml')
+    yaml_config = os.path.expanduser("~/.vcspull.yaml")
     has_yaml_config = os.path.exists(yaml_config)
-    json_config = os.path.expanduser('~/.vcspull.json')
+    json_config = os.path.expanduser("~/.vcspull.json")
     has_json_config = os.path.exists(json_config)
 
     if not has_yaml_config and not has_json_config:
         log.debug(
-            'No config file found. Create a .vcspull.yaml or .vcspull.json'
-            ' in your $HOME directory. http://vcspull.git-pull.com for a'
-            ' quickstart.'
+            "No config file found. Create a .vcspull.yaml or .vcspull.json"
+            " in your $HOME directory. http://vcspull.git-pull.com for a"
+            " quickstart."
         )
     else:
         if sum(filter(None, [has_json_config, has_yaml_config])) > int(1):
@@ -131,7 +131,7 @@ def find_home_config_files(filetype=['json', 'yaml']):
 
 
 def find_config_files(
-    path=['~/.vcspull'], match=['*'], filetype=['json', 'yaml'], include_home=False
+    path=["~/.vcspull"], match=["*"], filetype=["json", "yaml"], include_home=False
 ):
     """Return repos from a directory and match. Not recursive.
 
@@ -205,9 +205,9 @@ def load_configs(files, cwd=os.getcwd()):
     repos = []
     for f in files:
         _, ext = os.path.splitext(f)
-        conf = kaptan.Kaptan(handler=ext.lstrip('.')).import_config(f)
+        conf = kaptan.Kaptan(handler=ext.lstrip(".")).import_config(f)
 
-        newrepos = extract_repos(conf.export('dict'), cwd)
+        newrepos = extract_repos(conf.export("dict"), cwd)
 
         if not repos:
             repos.extend(newrepos)
@@ -216,7 +216,7 @@ def load_configs(files, cwd=os.getcwd()):
         dupes = detect_duplicate_repos(repos, newrepos)
 
         if dupes:
-            msg = ('repos with same path + different VCS detected!', dupes)
+            msg = ("repos with same path + different VCS detected!", dupes)
             raise exc.VCSPullException(msg)
         repos.extend(newrepos)
 
@@ -242,28 +242,28 @@ def detect_duplicate_repos(repos1, repos2):
     dupes = []
     path_dupe_repos = []
 
-    curpaths = [r['repo_dir'] for r in repos1]
-    newpaths = [r['repo_dir'] for r in repos2]
+    curpaths = [r["repo_dir"] for r in repos1]
+    newpaths = [r["repo_dir"] for r in repos2]
     path_duplicates = list(set(curpaths).intersection(newpaths))
 
     if not path_duplicates:
         return None
 
     path_dupe_repos.extend(
-        [r for r in repos2 if any(r['repo_dir'] == p for p in path_duplicates)]
+        [r for r in repos2 if any(r["repo_dir"] == p for p in path_duplicates)]
     )
 
     if not path_dupe_repos:
         return None
 
     for n in path_dupe_repos:
-        currepo = next((r for r in repos1 if r['repo_dir'] == n['repo_dir']), None)
-        if n['url'] != currepo['url']:
+        currepo = next((r for r in repos1 if r["repo_dir"] == n["repo_dir"]), None)
+        if n["url"] != currepo["url"]:
             dupes += (n, currepo)
     return dupes
 
 
-def in_dir(config_dir=CONFIG_DIR, extensions=['.yml', '.yaml', '.json']):
+def in_dir(config_dir=CONFIG_DIR, extensions=[".yml", ".yaml", ".json"]):
     """Return a list of configs in ``config_dir``.
 
     Parameters
@@ -280,7 +280,7 @@ def in_dir(config_dir=CONFIG_DIR, extensions=['.yml', '.yaml', '.json']):
     configs = []
 
     for filename in os.listdir(config_dir):
-        if is_config_file(filename, extensions) and not filename.startswith('.'):
+        if is_config_file(filename, extensions) and not filename.startswith("."):
             configs.append(filename)
 
     return configs
@@ -311,21 +311,21 @@ def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
 
     if repo_dir:
         repo_list.extend(
-            [r for r in config if fnmatch.fnmatch(r['parent_dir'], repo_dir)]
+            [r for r in config if fnmatch.fnmatch(r["parent_dir"], repo_dir)]
         )
 
     if vcs_url:
         repo_list.extend(
-            r for r in config if fnmatch.fnmatch(r.get('url', r.get('repo')), vcs_url)
+            r for r in config if fnmatch.fnmatch(r.get("url", r.get("repo")), vcs_url)
         )
 
     if name:
-        repo_list.extend([r for r in config if fnmatch.fnmatch(r.get('name'), name)])
+        repo_list.extend([r for r in config if fnmatch.fnmatch(r.get("name"), name)])
 
     return repo_list
 
 
-def is_config_file(filename, extensions=['.yml', '.yaml', '.json']):
+def is_config_file(filename, extensions=[".yml", ".yaml", ".json"]):
     """Return True if file has a valid config file type.
 
     Parameters

@@ -6,4 +6,4 @@ class VCSPullException(Exception):
 
 
 class MultipleConfigWarning(VCSPullException):
-    message = 'Multiple configs found in home directory use only one.' ' .yaml, .json.'
+    message = "Multiple configs found in home directory use only one." " .yaml, .json."
