@@ -4,16 +4,16 @@
 
 - _Add your latest changes from PRs here_
 
-#### Compatibility
+### Compatibility
 
 - Drop Python 3.6 (#329)
 - Add Python 3.10 (#329)
 
-#### Documentation
+### Documentation
 
 - GitLab config importer example script, credit @aschleifer (#336)
 
-#### Development
+### Development
 
 - CI: Use poetry 1.1.12 and new `install-poetry.py` install location (#329)
 
