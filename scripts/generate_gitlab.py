@@ -12,10 +12,28 @@ except KeyError:
     print('Please provide the environment variable GITLAB_TOKEN')
     sys.exit(1)
 
-parser = argparse.ArgumentParser(description='Script to generate vcsconfig for all repositories under the given namespace (needs Gitlab >= 10.3)')
-parser.add_argument('gitlab_host', type=str, help='url to the gitlab instance')
-parser.add_argument('gitlab_namespace', type=str, help='namespace/group in gitlab to generate vcsconfig for')
-parser.add_argument('-c', type=str, help='path to the target config file (default: ./vcspull.yaml)', dest='config_file_name', required=False, default='./vcspull.yaml')
+parser = argparse.ArgumentParser(
+    description='Script to generate vcsconfig for all repositories \
+    under the given namespace (needs Gitlab >= 10.3)'
+)
+parser.add_argument(
+    'gitlab_host',
+    type=str,
+    help='url to the gitlab instance'
+)
+parser.add_argument(
+    'gitlab_namespace',
+    type=str,
+    help='namespace/group in gitlab to generate vcsconfig for'
+)
+parser.add_argument(
+    '-c',
+    type=str,
+    help='path to the target config file (default: ./vcspull.yaml)',
+    dest='config_file_name',
+    required=False,
+    default='./vcspull.yaml'
+)
 
 args = vars(parser.parse_args())
 gitlab_host = args['gitlab_host']
@@ -24,10 +42,16 @@ config_filename = args['config_file_name']
 
 try:
     if os.path.isfile(config_filename):
-        result = input('The target config file (%s) already exists, do you want to overwrite it? [y/N] ' % (config_filename))
+        result = input(
+            'The target config file (%s) already exists, \
+            do you want to overwrite it? [y/N] ' % (config_filename)
+        )
 
         if result != 'y':
-            print('Aborting per user request as existing config file (%s) should not be overwritten!' % (config_filename))
+            print(
+                'Aborting per user request as existing config file (%s) \
+                should not be overwritten!' % (config_filename)
+            )
             sys.exit(0)
 
     config_file = open(config_filename, 'w')
