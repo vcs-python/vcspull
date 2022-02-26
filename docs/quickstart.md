@@ -24,11 +24,11 @@ $ pip install --user -e git+https://github.com/vcs-python/vcspull.git#egg=vcspul
 
 ## Configuration
 
-:::{seealso}
+```{seealso}
 
 {ref}`examples`.
 
-:::
+```
 
 We will check out the source code of [flask][flask] to `~/code/flask`.
 
@@ -115,7 +115,7 @@ $ vcspull "git+https://*bitbucket*"
 Filter by the path of the repo on your local machine:
 
 Any repo beginning with `/`, `./`, `~` or `$HOME` will scan
-for patterns of where the project is on your system[
+for patterns of where the project is on your system:
 
 ```{code-block} bash
 
