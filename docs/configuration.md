@@ -1,8 +1,10 @@
-(examples)=
+(configuration)=
 
-# Examples
+# Configuration
 
 Repo type and address is specified in [pip vcs url][pip vcs url] format.
+
+[pip vcs url]: https://pip.pypa.io/en/latest/reference/pip_install/#vcs-support
 
 (git-remote-ssh-git)=
 
@@ -36,5 +38,3 @@ YAML:
 :language: yaml
 
 ```
-
-[pip vcs url]: https://pip.pypa.io/en/latest/reference/pip_install/#vcs-support

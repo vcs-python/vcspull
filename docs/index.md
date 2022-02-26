@@ -20,7 +20,7 @@
 :maxdepth: 2
 
 quickstart
-examples
+configuration
 cli
 developing
 history
