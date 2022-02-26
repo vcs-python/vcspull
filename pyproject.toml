@@ -54,6 +54,7 @@ alagitpull = "^0.1.0"
 sphinx-issues = "^3.0.0"
 sphinx-click = "*"
 sphinx-autodoc-typehints = "~1.17.0"
+sphinx-autobuild = "^2021.3.14"
 myst_parser = "~0.17.0"
 
 ### Testing ###
@@ -73,7 +74,7 @@ isort = "*"
 flake8 = "*"
 
 [tool.poetry.extras]
-docs = ["sphinx", "sphinx-issues", "sphinx-click", "sphinx-autodoc-typehints", "myst_parser", "alagitpull"]
+docs = ["sphinx", "sphinx-issues", "sphinx-click", "sphinx-autodoc-typehints", "myst_parser", "sphinx-autobuild", "alagitpull"]
 test = ["pytest", "pytest-rerunfailures"]
 coverage = ["codecov", "coverage", "pytest-cov"]
 format = ["black", "isort"]
