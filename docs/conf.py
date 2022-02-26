@@ -45,7 +45,7 @@ release = "%s" % (about["__version__"])
 
 exclude_patterns = ["_build"]
 
-pygments_style = "sphinx"
+pygments_style = "monokai"
 pygments_dark_style = "monokai"
 
 html_favicon = "_static/favicon.ico"
