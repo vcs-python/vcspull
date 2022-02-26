@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v1
       - name: Configure git
         run: |
-          git config --global user.name 'travis-ci'	
+          git config --global user.name 'travis-ci'        
           git config --global user.email 'travis@nowhere.edu'
 
       - name: Filter changed file paths to outputs
@@ -120,3 +120,9 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           PATHS_FROM: .updated_files
+
+      - name: Purge cache on Cloudflare
+        uses: jakejarvis/cloudflare-purge-action@master
+        env:
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+          CLOUDFLARE_ZONE: ${{ secrets.CLOUDFLARE_ZONE }}
