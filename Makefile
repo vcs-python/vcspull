@@ -33,7 +33,7 @@ start_docs:
 	$(MAKE) -C docs start
 
 flake8:
-	flake8 libvcs tests
+	flake8 vcspull tests
 
 watch_flake8:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) flake8; else $(MAKE) flake8 entr_warn; fi
