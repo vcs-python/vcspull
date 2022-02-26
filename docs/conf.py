@@ -1,3 +1,4 @@
+# flake8: noqa E501
 import os
 
 # Get the project root dir, which is the parent dir of this
