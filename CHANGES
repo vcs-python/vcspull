@@ -11,7 +11,10 @@
 
 ### Documentation
 
-- GitLab config importer example script, credit @aschleifer (#336)
+- GitLab config importer example script, credit @aschleifer (#336, #337, #341)
+
+  These are hosted on the new _config generation_ page.
+- Rename `examples` page to `configuration`
 
 ### Development
 
