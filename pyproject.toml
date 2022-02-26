@@ -50,7 +50,6 @@ colorama = ">=0.3.9"
 [tool.poetry.dev-dependencies]
 ### Docs ###
 sphinx = "*"
-alagitpull = "^0.1.0"
 furo = "^2022.2.23"
 sphinx-issues = "^3.0.0"
 sphinx-click = "*"

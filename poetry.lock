@@ -7,17 +7,6 @@ optional = false
 python-versions = "*"
 
 [[package]]
-name = "alagitpull"
-version = "0.1.0"
-description = "Cleverly-named alabaster sub-theme for git-pull projects"
-category = "dev"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-
-[package.dependencies]
-alabaster = "<0.8"
-
-[[package]]
 name = "atomicwrites"
 version = "1.4.0"
 description = "Atomic file writes."
@@ -804,16 +793,12 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "396bd4554b9e130ac6e1df159b61c5ceab445013aee05e78b6552e9c081c0b7b"
+content-hash = "e74ebdd8cd86a57117d915871e30f7fd57d34deabcfe873a3ed0c3d70c20c3ec"
 
 [metadata.files]
 alabaster = [
     {file = "alabaster-0.7.12-py2.py3-none-any.whl", hash = "sha256:446438bdcca0e05bd45ea2de1668c1d9b032e1a9154c2c259092d77031ddd359"},
     {file = "alabaster-0.7.12.tar.gz", hash = "sha256:a661d72d58e6ea8a57f7a86e37d86716863ee5e92788398526d58b26a4e4dc02"},
-]
-alagitpull = [
-    {file = "alagitpull-0.1.0-py2.py3-none-any.whl", hash = "sha256:5b9ed87ee410c6fa40a63a91d2f25919a10e20c6d39e080356b067f3ff6f379b"},
-    {file = "alagitpull-0.1.0.tar.gz", hash = "sha256:f6076f81a738c3291b598d8016b248edf5adf25d1d348c2599eff92c1eedaed9"},
 ]
 atomicwrites = [
     {file = "atomicwrites-1.4.0-py2.py3-none-any.whl", hash = "sha256:6d1784dea7c0c8d4a5172b6c620f40b6e4cbfdf96d783691f2e1302a7b88e197"},
