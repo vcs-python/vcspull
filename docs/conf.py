@@ -18,8 +18,8 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.napoleon",
     "sphinx.ext.linkcode",
-    "alagitpull",
     "sphinx_issues",
+    # "alagitpull",
     "sphinx_click.ext",  # sphinx-click
     "myst_parser",
 ]
@@ -33,8 +33,7 @@ myst_enable_extensions = ["substitution", "replacements"]
 
 
 issues_github_path = about["__github__"].replace("https://github.com/", "")
-
-templates_path = ["_templates"]
+templates_path = ["_templates", alagitpull.get_path()]
 
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 
@@ -50,11 +49,12 @@ exclude_patterns = ["_build"]
 
 pygments_style = "sphinx"
 
-html_theme_path = [alagitpull.get_path()]
+html_theme_path = []
 html_theme = "furo"
 html_theme_options = {
     "logo": "img/vcspull.svg",
     "light_logo": "img/vcspull.svg",
+    "dark_logo": "img/vcspull-dark.svg",
     "github_user": "vcs-python",
     "github_repo": "vcspull",
     "github_type": "star",
@@ -70,25 +70,17 @@ html_theme_options = {
 }
 html_sidebars = {
     "**": [
-        # "about.html",
-        # "navigation.html",
-        # "relations.html",
-        # "more.html",
-        # "searchbox.html",
         "sidebar/scroll-start.html",
         "sidebar/brand.html",
         "sidebar/search.html",
         "sidebar/navigation.html",
+        "more.html",
         "sidebar/scroll-end.html",
     ]
 }
 
 html_static_path = ["_static"]
 html_extra_path = ["manifest.json"]
-
-alagitpull_internal_hosts = ["vcspull.git-pull.com", "0.0.0.0"]
-alagitpull_external_hosts_new_window = True
-
 
 htmlhelp_basename = "%sdoc" % about["__title__"]
 
