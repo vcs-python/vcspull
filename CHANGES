@@ -242,42 +242,42 @@
 - [docs]: Update docs to reflect updates on new commands and how to clone
   private / priveleged GitHub repos.
 
-## vcspull 0.0.8-4 <2014-02-06)
+## vcspull 0.0.8-4 (2014-02-06)
 
 - [cli] Update documentation when no config found to show `yaml` and
   `json`. Remove mentioning of `conf`.
 
-## vcspull 0.0.8-3 <2014-02-06)
+## vcspull 0.0.8-3 (2014-02-06)
 
 - [logging] `Issue #6`\_ - fix issue where log templates would not
   concatenate correctly.
 
-## vcspull 0.0.8-2 <2014-02-05)
+## vcspull 0.0.8-2 (2014-02-05)
 
 - [packaging] Fix issue where `package_metadata.py` missing from
   `MANIFEST.in`.
 
-## vcspull 0.0.8-1 <2014-02-05)
+## vcspull 0.0.8-1 (2014-02-05)
 
 - [setup.py] remove history from readme
 
-## vcspull 0.0.8 <2014-02-05)
+## vcspull 0.0.8 (2014-02-05)
 
 - Use werkzeug/flask style unit test suites.
 - [docs] Fix section headings.
 - [internals] use conventions from `tony/cookiecutter-pypackage`\_.
 
-vcspull 0.0.7 <2014-01-07)
+vcspull 0.0.7 (2014-01-07)
 
 - New logging system from pypa/pip with support showing current stderr
   (checkout, pull, cloning) progress.
 - `unicode_literals`, `__future__` for python 3 support.
 
-## vcspull 0.0.6 <2013-12-03)
+## vcspull 0.0.6 (2013-12-03)
 
 - Renamed to `vcspull`.
 
-## vcspull 0.0.5 <2013-11-28)
+## vcspull 0.0.5 (2013-11-28)
 
 - [tests] tests for loading multiple configs, config conflict cases
 - [internal] fix recursive imports, using explicit importing
@@ -285,7 +285,7 @@ vcspull 0.0.7 <2014-01-07)
   repo.
 - [py3] python 3 support
 
-## vcspull 0.0.4 <2013-11-25)
+## vcspull 0.0.4 (2013-11-25)
 
 - [svn] [git] [hg] added functionality for pip's netloc and vcs
   functionality.
@@ -295,7 +295,7 @@ vcspull 0.0.7 <2014-01-07)
   with `${envvar}` and `~`.
 - [cli] Exit with `Ctrl-C` gracefully.
 
-## vcspull 0.0.3 <2013-11-23)
+## vcspull 0.0.3 (2013-11-23)
 
 - [docs] [examples] more docs and examples
 - [internal] remove developer logger message that would show when
@@ -304,46 +304,46 @@ vcspull 0.0.7 <2014-01-07)
 - [`pep257`_] [`pep8`_] [logger] update `vcspull.log` module to latest
   code (from `tmuxp`\_ project).
 
-## vcspull 0.0.2 <2013-11-23)
+## vcspull 0.0.2 (2013-11-23)
 
 - [tests] Move tests for making directory paths to `test_repo`
   TestSuite.
 - [tests] [git] more work on remotes with :class:`vcspull.repo.git.GitRepo`.
 
-## vcspull 0.0.2 <2013-11-16)
+## vcspull 0.0.2 (2013-11-16)
 
 - [tests] refactor tests modules
 - [git] add some functions with saltstack to
   :py:class:`vcspull.repo.git.GitRepo`.
 - [version] reset to 0.1.0 w/o dev tag to begin releases.
 
-## vcspull 0.0.1 <2013-11-15)
+## vcspull 0.0.1 (2013-11-15)
 
 - [cli] [tests] fix `issue #1`\_ for making directories recursively.
 - [tests] :py:mod:`tempfile`.
 - [cli] [config] remove .ini support
 
-## vcspull 0.0.1 <2013-11-09)
+## vcspull 0.0.1 (2013-11-09)
 
 - `pep257`\_ to all modules.
 - Add `argcomplete`\_.
 - Move in code patterns from `tmuxp`\_. New logger, setup.py, testsuite
   structure, etc.
 
-## vcspull 0.0.1 <2013-10-23)
+## vcspull 0.0.1 (2013-10-23)
 
 - add example
 
-## vcspull 0.0.1 <2013-10-17)
+## vcspull 0.0.1 (2013-10-17)
 
 - fix packaging issue, add MANIFEST.in
 - bump to 0.1.1
 
-## vcspull 0.0.1 <2013-10-08)
+## vcspull 0.0.1 (2013-10-08)
 
 - move to semver
 
-## vcspull 0.0.1 <2013-10-06)
+## vcspull 0.0.1 (2013-10-06)
 
 - https://github.com/vcs-python/vcspull/compare/a96e723269...a5be723de5
 - remove virtualenv dep [Done]
