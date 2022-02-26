@@ -155,9 +155,11 @@
 - :issue:`36` , :issue:`37` Documentation updates from `@jcfr`
 - :issue:`34` Fix missing mock library, thanks `@jfcr`
 
+[libvcs]: https://github.com/vcs-python/libvcs
+
 ## vcspull 0.9.0 (2016-05-26)
 
-- [cli] [internal]: command line arg parsing now uses `click`\_ library.
+- [cli] [internal]: command line arg parsing now uses [click] library.
 - [cli] vcspull will use the beginning part of the argument to determine
   if its searching by vcs URL, repository name or system path.
 - [config] `repo` (the longform for the vcs url) is now `url`.
@@ -179,7 +181,7 @@
 - [api][internal]: Refactor :class:`vcspull.repo.Repo` factory class
   into :func:`vcspull.repo.create_repo`.
 - [internal]: major internal cleanup of dead code, pep8 style updates.
-- [git] [tests]: fix git+https remotes `#14`\_, add regression tests.
+- [git] [tests]: fix git+https remotes [#14], add regression tests.
 
 ## vcspull 0.2.2 (2015-07-10)
 
@@ -233,9 +235,9 @@
 - [dev]: Clean up `__init__.py` imports
 - [internals]: move :meth:`update` to :meth:`update_dict` in `utils`.
 - [cli]: `-d` / `--dirmatch` for matching directories, accepts
-  `fnmatch`\_ \'s.
+  [fnmatch]'s.
 - [cli]: `-r` / `--repomatch` for matching directories, accepts
-  `fnmatch`\_ \'s.
+  [fnmatch]'s.
 - [cli]: `-c` / `--config` YAML / JSON file of repositories
 - [config/vcs]: Exception for private / ssh GitHub repository URLs and
   message to change to correct format.
@@ -249,8 +251,10 @@
 
 ## vcspull 0.0.8-3 (2014-02-06)
 
-- [logging] `Issue #6`\_ - fix issue where log templates would not
+- [logging] [#6] - fix issue where log templates would not
   concatenate correctly.
+
+[#6]: https://github.com/vcs-python/vcspull/issues/6
 
 ## vcspull 0.0.8-2 (2014-02-05)
 
@@ -265,7 +269,7 @@
 
 - Use werkzeug/flask style unit test suites.
 - [docs] Fix section headings.
-- [internals] use conventions from `tony/cookiecutter-pypackage`\_.
+- [internals] use conventions from [tony/cookiecutter-pypackage].
 
 vcspull 0.0.7 (2014-01-07)
 
@@ -319,15 +323,17 @@ vcspull 0.0.7 (2014-01-07)
 
 ## vcspull 0.0.1 (2013-11-15)
 
-- [cli] [tests] fix `issue #1`\_ for making directories recursively.
+- [cli] [tests] [#1] for making directories recursively.
 - [tests] :py:mod:`tempfile`.
 - [cli] [config] remove .ini support
 
+[#1]: https://github.com/vcs-python/vcspull/issues/1
+
 ## vcspull 0.0.1 (2013-11-09)
 
-- `pep257`\_ to all modules.
-- Add `argcomplete`\_.
-- Move in code patterns from `tmuxp`\_. New logger, setup.py, testsuite
+- [pep257] to all modules.
+- Add [argcomplete]
+- Move in code patterns from [tmuxp]. New logger, setup.py, testsuite
   structure, etc.
 
 ## vcspull 0.0.1 (2013-10-23)
@@ -353,20 +359,16 @@ vcspull 0.0.7 (2014-01-07)
 - removed salt-specific code used for Popen
   (https://github.com/vcs-python/vcspull/commit/67dbb793e7)
 
-.. \_tmuxp: http://tmuxp.git-pull.com
-.. \_pep257: http://www.python.org/dev/peps/pep-0257/
-.. \_pep8: http://www.python.org/dev/peps/pep-0008/
-.. \_sphinx-argparse: https://github.com/tony/sphinx-argparse
-.. \_argcomplete: https://github.com/kislyuk/argcomplete
-.. \_tony/cookiecutter-pypackage: https://github.com/tony/cookiecutter-pypackage.
+[tmuxp]: http://tmuxp.git-pull.com
+[pep257]: http://www.python.org/dev/peps/pep-0257/
+[pep8]: http://www.python.org/dev/peps/pep-0008/
+[sphinx-argparse]: https://github.com/tony/sphinx-argparse
+[argcomplete]: https://github.com/kislyuk/argcomplete
+[tony/cookiecutter-pypackage]: https://github.com/tony/cookiecutter-pypackage.
 
-.. \_#14: https://github.com/vcs-python/vcspull/issues/14
-.. \_click: https://github.com/pallets/click
+[#14]: https://github.com/vcs-python/vcspull/issues/14
+[click]: https://github.com/pallets/click
 
-.. \_fnmatch: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
-.. \_issue #6: https://github.com/vcs-python/vcspull/issues/6
-
-.. \_issue #1: https://github.com/vcs-python/vcspull/issues/1
-.. \_libvcs: https://github.com/vcs-python/libvcs
+[fnmatch]: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
 .. vim: set filetype=markdown:
