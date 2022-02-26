@@ -51,9 +51,10 @@ exclude_patterns = ["_build"]
 pygments_style = "sphinx"
 
 html_theme_path = [alagitpull.get_path()]
-html_theme = "alagitpull"
+html_theme = "furo"
 html_theme_options = {
     "logo": "img/vcspull.svg",
+    "light_logo": "img/vcspull.svg",
     "github_user": "vcs-python",
     "github_repo": "vcspull",
     "github_type": "star",
@@ -69,11 +70,16 @@ html_theme_options = {
 }
 html_sidebars = {
     "**": [
-        "about.html",
-        "navigation.html",
-        "relations.html",
-        "more.html",
-        "searchbox.html",
+        # "about.html",
+        # "navigation.html",
+        # "relations.html",
+        # "more.html",
+        # "searchbox.html",
+        "sidebar/scroll-start.html",
+        "sidebar/brand.html",
+        "sidebar/search.html",
+        "sidebar/navigation.html",
+        "sidebar/scroll-end.html",
     ]
 }
 
