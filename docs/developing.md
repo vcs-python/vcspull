@@ -15,7 +15,13 @@ Makefile commands prefixed with `watch_` will watch files and rerun.
 `poetry run py.test`
 
 Helpers: `make test`
-Rerun tests on file change: `make watch_test` (requires [entr(1)])
+
+## Automatically run tests on file save
+
+1. `make start` (via [pytest-watcher])
+2. `make watch_test` (requires installing [entr(1)])
+
+[pytest-watcher]: https://github.com/olzhasar/pytest-watcher
 
 ## Documentation
 
