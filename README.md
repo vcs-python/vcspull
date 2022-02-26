@@ -119,6 +119,10 @@ $ vcspull "$HOME/code/*"
 
 <img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/vcspull-demo.gif" class="align-center" style="width:45.0%" alt="image" />
 
+# Credits
+
+2021-12-05: Thanks to [John Shanahan](https://github.com/shanahanjrs) ([@_shanahanjrs](https://twitter.com/_shanahanjrs)) for giving vcspull use [g](https://pypi.org/project/g/)
+
 # Donations
 
 Your donations fund development of new features, testing and support.
