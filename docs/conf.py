@@ -45,6 +45,7 @@ release = "%s" % (about["__version__"])
 exclude_patterns = ["_build"]
 
 pygments_style = "sphinx"
+pygments_dark_style = "monokai"
 
 html_theme_path = []
 html_theme = "furo"
