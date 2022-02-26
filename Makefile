@@ -26,14 +26,8 @@ watch_test:
 build_docs:
 	$(MAKE) -C docs html
 
-watch_docs:
-	if command -v entr > /dev/null; then ${DOC_FILES} | entr -c $(MAKE) build_docs; else $(MAKE) build_docs entr_warn; fi
-
-serve_docs:
-	$(MAKE) -C docs serve
-
-dev_docs:
-	$(MAKE) -j watch_docs serve_docs
+start_docs:
+	$(MAKE) -C docs start
 
 flake8:
 	flake8 libvcs tests
