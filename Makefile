@@ -20,7 +20,10 @@ black:
 test:
 	poetry run py.test $(test)
 
-watch_test:
+start:
+	poetry run ptw .
+
+watch_test_entr:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) test; else $(MAKE) test entr_warn; fi
 
 build_docs:
