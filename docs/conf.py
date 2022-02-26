@@ -1,7 +1,5 @@
 import os
 
-import alagitpull
-
 # Get the project root dir, which is the parent dir of this
 cwd = os.getcwd()
 project_root = os.path.dirname(cwd)
@@ -19,7 +17,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.linkcode",
     "sphinx_issues",
-    # "alagitpull",
     "sphinx_click.ext",  # sphinx-click
     "myst_parser",
 ]
@@ -33,7 +30,7 @@ myst_enable_extensions = ["substitution", "replacements"]
 
 
 issues_github_path = about["__github__"].replace("https://github.com/", "")
-templates_path = ["_templates", alagitpull.get_path()]
+templates_path = ["_templates"]
 
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 
@@ -52,21 +49,8 @@ pygments_style = "sphinx"
 html_theme_path = []
 html_theme = "furo"
 html_theme_options = {
-    "logo": "img/vcspull.svg",
     "light_logo": "img/vcspull.svg",
     "dark_logo": "img/vcspull-dark.svg",
-    "github_user": "vcs-python",
-    "github_repo": "vcspull",
-    "github_type": "star",
-    "github_banner": True,
-    "projects": alagitpull.projects,
-    "project_name": about["__title__"],
-    "project_title": about["__title__"],
-    "project_description": about["__description__"],
-    "project_url": about["__docs__"],
-    "show_meta_manifest_tag": True,
-    "show_meta_og_tags": True,
-    "show_meta_app_icon_tags": True,
 }
 html_sidebars = {
     "**": [
@@ -74,7 +58,6 @@ html_sidebars = {
         "sidebar/brand.html",
         "sidebar/search.html",
         "sidebar/navigation.html",
-        "more.html",
         "sidebar/scroll-end.html",
     ]
 }
