@@ -47,6 +47,7 @@ exclude_patterns = ["_build"]
 pygments_style = "sphinx"
 pygments_dark_style = "monokai"
 
+html_favicon = "_static/favicon.ico"
 html_theme_path = []
 html_theme = "furo"
 html_theme_options = {
