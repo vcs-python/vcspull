@@ -26,7 +26,7 @@ $ pip install --user -e git+https://github.com/vcs-python/vcspull.git#egg=vcspul
 
 ```{seealso}
 
-{ref}`configuration`.
+{ref}`configuration` and {ref}`config-generation`.
 
 ```
 
