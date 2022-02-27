@@ -32,6 +32,9 @@ build_docs:
 start_docs:
 	$(MAKE) -C docs start
 
+design_docs:
+	$(MAKE) -C docs design
+
 flake8:
 	flake8 vcspull tests
 
