@@ -23,7 +23,7 @@ test:
 start:
 	poetry run ptw .
 
-watch_test_entr:
+watch_test:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) test; else $(MAKE) test entr_warn; fi
 
 build_docs:
