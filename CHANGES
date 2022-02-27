@@ -383,4 +383,6 @@ vcspull 0.0.7 (2014-01-07)
 [click]: https://github.com/pallets/click
 [fnmatch]: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
+<!---
 .. vim: set filetype=markdown:
+-->
