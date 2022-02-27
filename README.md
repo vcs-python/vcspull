@@ -56,7 +56,7 @@ the future_
 
 (see the author's
 [.vcspull.yaml](https://github.com/tony/.dot-config/blob/master/.vcspull.yaml),
-more [examples](https://vcspull.git-pull.com/examples.html).)
+more [configuration](https://vcspull.git-pull.com/configuration.html))
 
 next, on other machines, copy your `$HOME/.vcspull.yaml` file or
 `$HOME/.vcspull/` directory them and you can clone your repos
