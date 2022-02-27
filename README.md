@@ -23,7 +23,7 @@ machines or want to clone / update a pattern of repos without having to
   [Configuration](https://vcspull.git-pull.com/configuration.html),
   and [Config generators](https://vcspull.git-pull.com/config-generation.html)
 - supports [pip](https://pip.pypa.io/)-style URL's
-  ([RFC3986](http://tools.ietf.org/html/rfc3986.html)-based [url
+  ([RFC3986](https://datatracker.ietf.org/doc/html/rfc3986)-based [url
   scheme](https://pip.pypa.io/en/latest/topics/vcs-support/))
 
 # how to
