@@ -76,6 +76,7 @@ html_sidebars = {
         "sidebar/brand.html",
         "sidebar/search.html",
         "sidebar/navigation.html",
+        "sidebar/projects.html",
         "sidebar/scroll-end.html",
     ]
 }
