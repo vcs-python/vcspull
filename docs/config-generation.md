@@ -2,7 +2,7 @@
 
 # Config generation
 
-As a temporary solution for  `vcspull` not being able to generate {ref}`configuration` through scanning directories or fetching them via API (e.g. gitlab, github, etc), you can write scripts to generate configs in the mean time.
+As a temporary solution for `vcspull` not being able to generate {ref}`configuration` through scanning directories or fetching them via API (e.g. gitlab, github, etc), you can write scripts to generate configs in the mean time.
 
 (config-generation-gitlab)=
 
@@ -13,18 +13,15 @@ Contributed by Andreas Schleifer (a.schleifer@bigpoint.net)
 Limitation on both, no pagination support in either, so only returns the
 first page of repos (as of Feb 26th this is 100).
 
-(config-generation-gitlab-shell)=
-
-### Shell script version
+````{tab} Shell-script
 
 _Requires [jq] and [curl]._
 
 ```{literalinclude} ../scripts/generate_gitlab.sh
 :language: shell
-
 ```
 
-```{code-block} shell
+```shell
 export GITLAB_TOKEN=mySecretToken
 /path/to/generate_gitlab.sh gitlab.mycompany.com desired_namespace
 ```
@@ -34,7 +31,7 @@ the current working directory as a "prefix" for the path used in the new config 
 
 Optional: Set config file output path as additional argument (_will overwrite_)
 
-```{code-block} shell
+```shell
 export GITLAB_TOKEN=mySecretToken
 /path/to/generate_gitlab.sh gitlab.mycompany.com desired_namespace /path/to/config.yaml
 ```
@@ -43,35 +40,35 @@ export GITLAB_TOKEN=mySecretToken
 
 Assume current directory of _/home/user/workspace/_ and script at _/home/user/workspace/scripts/generate_gitlab.sh_:
 
-```{code-block} shell
+```shell
 ./scripts/generate_gitlab.sh gitlab.com vcs-python
 ```
 
 New file _vcspull.yaml_:
 
-```{code-block} yaml
+```yaml
 /my/workspace/:
   g:
-    url: 'git+ssh://git@gitlab.com/vcs-python/g.git'
+    url: "git+ssh://git@gitlab.com/vcs-python/g.git"
     remotes:
-      origin: 'ssh://git@gitlab.com/vcs-python/g.git'
+      origin: "ssh://git@gitlab.com/vcs-python/g.git"
   libvcs:
-    url: 'git+ssh://git@gitlab.com/vcs-python/libvcs.git'
+    url: "git+ssh://git@gitlab.com/vcs-python/libvcs.git"
     remotes:
-      origin: 'ssh://git@gitlab.com/vcs-python/libvcs.git'
+      origin: "ssh://git@gitlab.com/vcs-python/libvcs.git"
   vcspull:
-    url: 'git+ssh://git@gitlab.com/vcs-python/vcspull.git'
+    url: "git+ssh://git@gitlab.com/vcs-python/vcspull.git"
     remotes:
-      origin: 'ssh://git@gitlab.com/vcs-python/vcspull.git'
+      origin: "ssh://git@gitlab.com/vcs-python/vcspull.git"
 ```
 
 [jq]: https://stedolan.github.io/jq/
+
 [curl]: https://curl.se/
 
-(config-generation-gitlab-python)=
+````
 
-### Python version
-
+````{tab} Python
 _Requires [requests] and [pyyaml]._
 
 This confirms file overwrite, if already exists. It also requires passing the protocol/schema
@@ -79,18 +76,17 @@ of the gitlab mirror, e.g. `https://gitlab.com` instead of `gitlab.com`.
 
 ```{literalinclude} ../scripts/generate_gitlab.py
 :language: python
-
 ```
 
 **Demonstration**
 
 Assume current directory of _/home/user/workspace/_ and script at _/home/user/workspace/scripts/generate_gitlab.sh_:
 
-```{code-block} sh
+```sh
 ./scripts/generate_gitlab.py https://gitlab.com vcs-python
 ```
 
-```{code-block} yaml
+```yaml
 /my/workspace/vcs-python:
   g:
     remotes:
@@ -108,6 +104,8 @@ Assume current directory of _/home/user/workspace/_ and script at _/home/user/wo
 
 [requests]: https://docs.python-requests.org/en/latest/
 [pyyaml]: https://pyyaml.org/
+
+````
 
 ### Contribute your own
 

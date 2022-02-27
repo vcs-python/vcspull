@@ -2,23 +2,45 @@
 
 # Configuration
 
-Repo type and address is specified in [pip vcs url][pip vcs url] format.
+## URL Format
 
-[pip vcs url]: https://pip.pypa.io/en/latest/reference/pip_install/#vcs-support
+Repo type and address is [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986) style URLs.
+You may recognize this from `pip`'s [VCS URL] format.
+
+[VCS URL]: https://pip.pypa.io/en/latest/topics/vcs-support/
 
 (git-remote-ssh-git)=
 
-## Remote git repositories and SSH git
+## SSH Git URLs
 
-Note, `git+ssh` repos such as `git+git@github.com:tony/kaptan.git`.
-Must use the format `git+ssh://git@github.com/tony/kaptan.git`
+For git remotes using SSH authorization such as `git+git@github.com:tony/kaptan.git` use `git+ssh`:
+
+```sh
+git+ssh://git@github.com/tony/kaptan.git
+```
+
+## Examples
+
+````{tab} Simple
+
+_~/.vcspull.yaml_:
 
 ```{literalinclude} ../examples/remotes.yaml
 :language: yaml
 
 ```
 
-## Christmas tree
+Then type:
+
+```sh
+vcspull kaptan
+```
+
+````
+
+````{tab} Complex
+
+**Christmas tree**
 
 config showing off every current feature and inline shortcut available.
 
@@ -27,7 +49,11 @@ config showing off every current feature and inline shortcut available.
 
 ```
 
-## Code scholar
+````
+
+````{tab} Open Source Student
+
+**Code scholar**
 
 This `.vcspull.yaml` is used to checkout and sync multiple open source
 configs.
@@ -38,3 +64,5 @@ YAML:
 :language: yaml
 
 ```
+
+````
