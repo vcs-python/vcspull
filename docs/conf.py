@@ -19,6 +19,9 @@ extensions = [
     "sphinx.ext.linkcode",
     "sphinx_issues",
     "sphinx_click.ext",  # sphinx-click
+    "sphinx_inline_tabs",
+    "sphinx_copybutton",
+    "sphinxext.opengraph",
     "myst_parser",
 ]
 
