@@ -53,6 +53,7 @@ pygments_dark_style = "monokai"
 
 html_favicon = "_static/favicon.ico"
 html_theme_path = []
+html_css_files = ["css/custom.css"]
 html_theme = "furo"
 html_theme_options = {
     "light_logo": "img/vcspull.svg",
