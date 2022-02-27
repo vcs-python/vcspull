@@ -17,6 +17,18 @@ def load_yaml(tmpdir):
     return fn
 
 
+def test_simple_format(load_yaml):
+    dir, _, repos = load_yaml(
+        """
+vcspull:
+  libvcs: git+https://github.com/vcs-python/libvcs
+   """
+    )
+
+    assert str(dir.join("vcspull")) == repos[0]["parent_dir"]
+    assert str(dir.join("vcspull", "libvcs")) == repos[0]["repo_dir"]
+
+
 def test_relative_dir(load_yaml):
     dir, _, repos = load_yaml(
         """
