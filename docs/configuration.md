@@ -4,7 +4,8 @@
 
 ## URL Format
 
-Repo type and address is specified in `pip`'s [VCS URL] format.
+Repo type and address is [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986) style URLs.
+You may recognize this from `pip`'s [VCS URL] format.
 
 [VCS URL]: https://pip.pypa.io/en/latest/topics/vcs-support/
 
