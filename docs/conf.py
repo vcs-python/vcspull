@@ -53,7 +53,6 @@ pygments_dark_style = "monokai"
 
 html_favicon = "_static/favicon.ico"
 html_theme_path = []
-html_css_files = ["css/custom.css"]
 html_theme = "furo"
 html_theme_options = {
     "light_logo": "img/vcspull.svg",
@@ -82,6 +81,7 @@ html_sidebars = {
 }
 
 html_static_path = ["_static"]
+html_css_files = ["css/custom.css"]
 html_extra_path = ["manifest.json"]
 
 htmlhelp_basename = "%sdoc" % about["__title__"]
