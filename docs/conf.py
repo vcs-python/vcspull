@@ -84,12 +84,12 @@ html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 html_extra_path = ["manifest.json"]
 
-htmlhelp_basename = "%sdoc" % about["__title__"]
-
 ogp_site_url = about["__docs__"]
 ogp_image = "_static/img/icons/icon-192x192.png"
 ogp_desscription_length = about["__description__"]
 ogp_site_name = about["__title__"]
+
+htmlhelp_basename = "%sdoc" % about["__title__"]
 
 latex_documents = [
     (
