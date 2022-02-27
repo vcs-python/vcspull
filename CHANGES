@@ -4,6 +4,8 @@
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.9.0 (2022-02-26)
+
 ### Compatibility
 
 - Drop Python 3.6 (#329)
