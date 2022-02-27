@@ -84,6 +84,7 @@ html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 html_extra_path = ["manifest.json"]
 
+# sphinxext.opengraph
 ogp_site_url = about["__docs__"]
 ogp_image = "_static/img/icons/icon-192x192.png"
 ogp_desscription_length = about["__description__"]
