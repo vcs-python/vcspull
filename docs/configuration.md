@@ -2,9 +2,11 @@
 
 # Configuration
 
-Repo type and address is specified in [pip vcs url][pip vcs url] format.
+## URL Format
 
-[pip vcs url]: https://pip.pypa.io/en/latest/reference/pip_install/#vcs-support
+Repo type and address is specified in `pip`'s [VCS URL] format.
+
+[VCS URL]: https://pip.pypa.io/en/latest/topics/vcs-support/
 
 (git-remote-ssh-git)=
 
