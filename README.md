@@ -19,8 +19,9 @@ machines or want to clone / update a pattern of repos without having to
   manifest to clone / update
 - supports svn, git, hg version control systems
 - automatically checkout fresh repositories
-- [Documentation](https://vcspull.git-pull.com/) and
-  [Examples](https://vcspull.git-pull.com/examples.html).
+- [Documentation](https://vcspull.git-pull.com/),
+  [Configuration](https://vcspull.git-pull.com/configuration.html),
+  and [Config generators](https://vcspull.git-pull.com/config-generation.html)
 - supports [pip](http://www.pip-installer.org/)-style URL's
   ([RFC3986](http://tools.ietf.org/html/rfc3986.html)-based [url
   scheme](https://pip.pypa.io/en/latest/topics/vcs-support/))
