@@ -23,7 +23,7 @@ machines or want to clone / update a pattern of repos without having to
   [Examples](https://vcspull.git-pull.com/examples.html).
 - supports [pip](http://www.pip-installer.org/)-style URL's
   ([RFC3986](http://tools.ietf.org/html/rfc3986.html)-based [url
-  scheme](http://www.pip-installer.org/logic.html#vcs-support))
+  scheme](https://pip.pypa.io/en/latest/topics/vcs-support/))
 
 # how to
 
