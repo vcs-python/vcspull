@@ -9,6 +9,7 @@ import sys
 from copy import deepcopy
 
 import click
+import click.shell_completion
 
 from libvcs.shortcuts import create_repo_from_pip_url
 
@@ -60,6 +61,14 @@ def cli(log_level):
     setup_logger(log=log, level=log_level.upper())
 
 
+def get_configs(ctx, args, incomplete):
+    return [
+        click.shell_completion.CompletionItem(c)
+        for c in find_config_files(include_home=True)
+        if incomplete in c
+    ]
+
+
 @cli.command(name="sync")
 @click.argument("repo_terms", nargs=-1)
 @click.option(
@@ -73,7 +82,13 @@ def cli(log_level):
     default="INFO",
     help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
 )
-@click.option("config", "-c", type=click.Path(exists=True), help="Specify config")
+@click.option(
+    "config",
+    "-c",
+    type=click.Path(exists=True),
+    help="Specify config",
+    shell_complete=get_configs,
+)
 def sync(repo_terms, run_async, log_level, config):
     setup_logger(log=log, level=log_level.upper())
 
