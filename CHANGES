@@ -4,6 +4,17 @@
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.11.0 (2022-02-28)
+
+### Development
+
+- CLI moved from `cli.py` -> `cli/__init__.py`, `cli/sync.py` 
+- CLI: Default groups removed
+
+### Documentation
+
+- Updates for `vcspull sync` changed in 1.10.0
+
 ## vcspull 1.10.0 (2022-02-28)
 
 ### Breaking
@@ -16,8 +27,10 @@
 
 - Experimental completion, see {ref}`completion`:
 
-  - Completion for `vcspull -c <tab>`
-  - Completion for `vcspull sync <tab>`
+  - Completion for sync:
+
+    - `vcspull sync <tab>`
+    - `vcspull sync -c <tab> <tab>`
 
 ### Documentation
 
