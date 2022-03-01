@@ -35,7 +35,7 @@ def cli(log_level):
     setup_logger(log=log, level=log_level.upper())
 
 
-def get_sync_terms(ctx: click.core.Context, args, incomplete):
+def get_repo_completions(ctx: click.core.Context, args, incomplete):
     configs = load_configs(find_config_files(include_home=True))
     found_repos = []
     repo_terms = [incomplete]
@@ -59,7 +59,7 @@ def get_sync_terms(ctx: click.core.Context, args, incomplete):
     return [o["name"] for o in found_repos if incomplete in o["name"]]
 
 
-def get_configs(ctx, args, incomplete):
+def get_config_file_completions(ctx, args, incomplete):
 
     return [
         click.shell_completion.CompletionItem(c)
@@ -70,7 +70,7 @@ def get_configs(ctx, args, incomplete):
 
 @cli.command(name="sync")
 @click.argument(
-    "repo_terms", type=click.STRING, nargs=-1, shell_complete=get_sync_terms
+    "repo_terms", type=click.STRING, nargs=-1, shell_complete=get_repo_completions
 )
 @click.option(
     "--run-async",
@@ -88,7 +88,7 @@ def get_configs(ctx, args, incomplete):
     "-c",
     type=click.Path(exists=True),
     help="Specify config",
-    shell_complete=get_configs,
+    shell_complete=get_config_file_completions,
 )
 def sync(repo_terms, run_async, log_level, config):
     setup_logger(log=log, level=log_level.upper())
