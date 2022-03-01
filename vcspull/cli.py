@@ -49,7 +49,7 @@ def setup_logger(log=None, level="INFO"):
         repo_logger.addHandler(channel)
 
 
-@click.group(cls=DefaultGroup, default_if_no_args=True)
+@click.group(cls=DefaultGroup)
 @click.option(
     "--log-level",
     default="INFO",
@@ -60,7 +60,7 @@ def cli(log_level):
     setup_logger(log=log, level=log_level.upper())
 
 
-@cli.command(name="update", default=True)
+@cli.command(name="update")
 @click.argument("repo_terms", nargs=-1)
 @click.option(
     "--run-async",
