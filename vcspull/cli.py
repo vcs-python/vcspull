@@ -60,7 +60,7 @@ def cli(log_level):
     setup_logger(log=log, level=log_level.upper())
 
 
-@cli.command(name="update")
+@cli.command(name="sync")
 @click.argument("repo_terms", nargs=-1)
 @click.option(
     "--run-async",
@@ -74,7 +74,7 @@ def cli(log_level):
     help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
 )
 @click.option("config", "-c", type=click.Path(exists=True), help="Specify config")
-def update(repo_terms, run_async, log_level, config):
+def sync(repo_terms, run_async, log_level, config):
     setup_logger(log=log, level=log_level.upper())
 
     if config:
@@ -170,4 +170,4 @@ def update_repo(repo_dict):
     return r
 
 
-cli.add_command(update)
+cli.add_command(sync)
