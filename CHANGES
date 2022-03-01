@@ -4,6 +4,25 @@
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.10.0 (2022-02-28)
+
+### Breaking
+
+- Sync through `vcspull sync`
+
+  Syncing is no longer ran by default when `vcspull` is typed
+
+### Improvements
+
+- Experimental completion, see {ref}`completion`:
+
+  - Completion for `vcspull -c <tab>`
+  - Completion for `vcspull sync <tab>`
+
+### Documentation
+
+- Added {ref}`completion`:
+
 ## vcspull 1.9.0 (2022-02-26)
 
 ### Compatibility
