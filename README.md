@@ -82,7 +82,7 @@ or svn project with a git dependency:
 
 clone / update repos:
 
-    $ vcspull -c external_deps.yaml
+    $ vcspull sync -c external_deps.yaml
 
 See the [Quickstart](https://vcspull.git-pull.com/quickstart.html) for
 more.
@@ -100,22 +100,22 @@ The patterns can be filtered by by directory, repo name or vcs url.
 
 ```bash
 # any repo starting with "fla"
-$ vcspull "fla*"
+$ vcspull sync "fla*"
 # any repo with django in the name
-$ vcspull "*django*"
+$ vcspull sync "*django*"
 
 # search by vcs + url
 # since urls are in this format <vcs>+<protocol>://<url>
-$ vcspull "git+*"
+$ vcspull sync "git+*"
 
 # any git repo with python in the vcspull
-$ vcspull "git+*python*
+$ vcspull sync "git+*python*
 
 # any git repo with django in the vcs url
-$ vcspull "git+*django*"
+$ vcspull sync "git+*django*"
 
 # all repositories in your ~/code directory
-$ vcspull "$HOME/code/*"
+$ vcspull sync "$HOME/code/*"
 ```
 
 <img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/vcspull-demo.gif" class="align-center" style="width:45.0%" alt="image" />
