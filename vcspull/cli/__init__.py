@@ -9,14 +9,13 @@ import logging
 import click
 
 from ..__about__ import __version__
-from ..cli_defaultgroup import DefaultGroup
 from ..log import setup_logger
 from .sync import sync
 
 log = logging.getLogger(__name__)
 
 
-@click.group(cls=DefaultGroup)
+@click.group()
 @click.option(
     "--log-level",
     default="INFO",
