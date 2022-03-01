@@ -16,38 +16,12 @@ from libvcs.shortcuts import create_repo_from_pip_url
 from ..__about__ import __version__
 from ..cli_defaultgroup import DefaultGroup
 from ..config import filter_repos, find_config_files, load_configs
-from ..log import DebugLogFormatter, RepoFilter, RepoLogFormatter
+from ..log import setup_logger
 
 MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
 MAX_ASYNC = 8  # maximum processes to open:w
 
 log = logging.getLogger(__name__)
-
-
-def setup_logger(log=None, level="INFO"):
-    """Setup logging for CLI use.
-
-    Parameters
-    ----------
-    log : :py:class:`Logger`
-        instance of logger
-    """
-    if not log:
-        log = logging.getLogger()
-    if not log.handlers:
-        channel = logging.StreamHandler()
-        channel.setFormatter(DebugLogFormatter())
-
-        log.setLevel(level)
-        log.addHandler(channel)
-
-        # setup styling for repo loggers
-        repo_logger = logging.getLogger("libvcs")
-        channel = logging.StreamHandler()
-        channel.setFormatter(RepoLogFormatter())
-        channel.addFilter(RepoFilter())
-        repo_logger.setLevel(level)
-        repo_logger.addHandler(channel)
 
 
 @click.group(cls=DefaultGroup)

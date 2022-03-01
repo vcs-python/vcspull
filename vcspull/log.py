@@ -24,6 +24,32 @@ LEVEL_COLORS = {
 }
 
 
+def setup_logger(log=None, level="INFO"):
+    """Setup logging for CLI use.
+
+    Parameters
+    ----------
+    log : :py:class:`Logger`
+        instance of logger
+    """
+    if not log:
+        log = logging.getLogger()
+    if not log.handlers:
+        channel = logging.StreamHandler()
+        channel.setFormatter(DebugLogFormatter())
+
+        log.setLevel(level)
+        log.addHandler(channel)
+
+        # setup styling for repo loggers
+        repo_logger = logging.getLogger("libvcs")
+        channel = logging.StreamHandler()
+        channel.setFormatter(RepoLogFormatter())
+        channel.addFilter(RepoFilter())
+        repo_logger.setLevel(level)
+        repo_logger.addHandler(channel)
+
+
 def default_log_template(self, record):
     """Return the prefix for the log message. Template for Formatter.
 
