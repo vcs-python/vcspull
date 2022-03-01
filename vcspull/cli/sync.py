@@ -1,9 +1,3 @@
-"""CLI utilities for vcspull.
-
-vcspull.cli
-~~~~~~~~~~~
-
-"""
 import logging
 import sys
 from copy import deepcopy
@@ -13,10 +7,8 @@ import click.shell_completion
 
 from libvcs.shortcuts import create_repo_from_pip_url
 
-from .__about__ import __version__
-from .cli_defaultgroup import DefaultGroup
-from .config import filter_repos, find_config_files, load_configs
-from .log import DebugLogFormatter, RepoFilter, RepoLogFormatter
+from ..config import filter_repos, find_config_files, load_configs
+from ..log import setup_logger
 
 MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
 MAX_ASYNC = 8  # maximum processes to open:w
@@ -24,44 +16,7 @@ MAX_ASYNC = 8  # maximum processes to open:w
 log = logging.getLogger(__name__)
 
 
-def setup_logger(log=None, level="INFO"):
-    """Setup logging for CLI use.
-
-    Parameters
-    ----------
-    log : :py:class:`Logger`
-        instance of logger
-    """
-    if not log:
-        log = logging.getLogger()
-    if not log.handlers:
-        channel = logging.StreamHandler()
-        channel.setFormatter(DebugLogFormatter())
-
-        log.setLevel(level)
-        log.addHandler(channel)
-
-        # setup styling for repo loggers
-        repo_logger = logging.getLogger("libvcs")
-        channel = logging.StreamHandler()
-        channel.setFormatter(RepoLogFormatter())
-        channel.addFilter(RepoFilter())
-        repo_logger.setLevel(level)
-        repo_logger.addHandler(channel)
-
-
-@click.group(cls=DefaultGroup)
-@click.option(
-    "--log-level",
-    default="INFO",
-    help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
-)
-@click.version_option(version=__version__, message="%(prog)s %(version)s")
-def cli(log_level):
-    setup_logger(log=log, level=log_level.upper())
-
-
-def get_sync_terms(ctx: click.core.Context, args, incomplete):
+def get_repo_completions(ctx: click.core.Context, args, incomplete):
     configs = load_configs(find_config_files(include_home=True))
     found_repos = []
     repo_terms = [incomplete]
@@ -85,8 +40,7 @@ def get_sync_terms(ctx: click.core.Context, args, incomplete):
     return [o["name"] for o in found_repos if incomplete in o["name"]]
 
 
-def get_configs(ctx, args, incomplete):
-
+def get_config_file_completions(ctx, args, incomplete):
     return [
         click.shell_completion.CompletionItem(c)
         for c in find_config_files(include_home=True)
@@ -94,9 +48,13 @@ def get_configs(ctx, args, incomplete):
     ]
 
 
-@cli.command(name="sync")
+def clamp(n, _min, _max):
+    return max(_min, min(n, _max))
+
+
+@click.command(name="sync")
 @click.argument(
-    "repo_terms", type=click.STRING, nargs=-1, shell_complete=get_sync_terms
+    "repo_terms", type=click.STRING, nargs=-1, shell_complete=get_repo_completions
 )
 @click.option(
     "--run-async",
@@ -114,7 +72,7 @@ def get_configs(ctx, args, incomplete):
     "-c",
     type=click.Path(exists=True),
     help="Specify config",
-    shell_complete=get_configs,
+    shell_complete=get_config_file_completions,
 )
 def sync(repo_terms, run_async, log_level, config):
     setup_logger(log=log, level=log_level.upper())
@@ -151,10 +109,6 @@ def sync(repo_terms, run_async, log_level, config):
         p.map_async(update_repo, found_repos).get()
     else:
         list(map(update_repo, found_repos))
-
-
-def clamp(n, _min, _max):
-    return max(_min, min(n, _max))
 
 
 def progress_cb(output, timestamp):
@@ -210,6 +164,3 @@ def update_repo(repo_dict):
     if remotes_updated:  # Fetch again since we added / changed remotes
         r.update_repo()
     return r
-
-
-cli.add_command(sync)
