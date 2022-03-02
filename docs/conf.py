@@ -24,13 +24,11 @@ extensions = [
     "sphinxext.opengraph",
     "myst_parser",
 ]
+myst_enable_extensions = ["colon_fence", "substitution", "replacements"]
 
 # app setup hook
 def setup(app):
     pass
-
-
-myst_enable_extensions = ["substitution", "replacements"]
 
 
 issues_github_path = about["__github__"].replace("https://github.com/", "")
