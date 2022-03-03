@@ -25,8 +25,11 @@ vcspull:
    """
     )
 
-    assert str(dir.join("vcspull")) == repos[0]["parent_dir"]
-    assert str(dir.join("vcspull", "libvcs")) == repos[0]["repo_dir"]
+    assert len(repos) == 1
+    repo = repos[0]
+
+    assert str(dir.join("vcspull")) == repo["parent_dir"]
+    assert str(dir.join("vcspull", "libvcs")) == repo["repo_dir"]
 
 
 def test_relative_dir(load_yaml):
@@ -40,5 +43,8 @@ def test_relative_dir(load_yaml):
     configs = config.find_config_files(path=str(dir))
     repos = config.load_configs(configs, str(dir))
 
-    assert str(dir.join("relativedir")) == repos[0]["parent_dir"]
-    assert str(dir.join("relativedir", "docutils")) == repos[0]["repo_dir"]
+    assert len(repos) == 1
+    repo = repos[0]
+
+    assert str(dir.join("relativedir")) == repo["parent_dir"]
+    assert str(dir.join("relativedir", "docutils")) == repo["repo_dir"]
