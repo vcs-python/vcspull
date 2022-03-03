@@ -1,25 +1,33 @@
 # Development
 
-[poetry] is a required package to develop.
+## Setup the project
 
-`git clone https://github.com/vcs-python/vcspull.git`
+Install and [git] and [poetry]. After:
 
-`cd vcspull`
+    git clone https://github.com/vcs-python/vcspull.git
+    cd vcspull
+    poetry install -E "docs test coverage lint format"
 
-`poetry install -E "docs test coverage lint format"`
-
-Makefile commands prefixed with `watch_` will watch files and rerun.
+[installation documentation]: https://python-poetry.org/docs/#installation
+[poetry]: https://python-poetry.org/
 
 ## Tests
 
-`poetry run py.test`
+    poetry run py.test
 
-Helpers: `make test`
+or:
+
+    make test
 
 ## Automatically run tests on file save
 
-1. `make start` (via [pytest-watcher])
-2. `make watch_test` (requires installing [entr(1)])
+via [pytest-watcher] (works out of the box):
+
+    make start
+
+via [entr(1)] (requires installation):
+
+    make watch_test
 
 [pytest-watcher]: https://github.com/olzhasar/pytest-watcher
 
@@ -29,32 +37,56 @@ Default preview server: http://localhost:8022
 
 [sphinx-autobuild] will automatically build the docs, watch for file changes and launch a server.
 
-From home directory: `make start_docs`
-From inside `docs/`: `make start`
+    cd docs
+    make start
+
+If doing css adjustments:
+
+    cd docs
+    make design
 
 [sphinx-autobuild]: https://github.com/executablebooks/sphinx-autobuild
 
 ### Manual documentation (the hard way)
 
-`cd docs/` and `make html` to build. `make serve` to start http server.
+    cd docs
+    make html
 
-Helpers:
-`make build_docs`, `make serve_docs`
+To launch in server:
 
-Rebuild docs on file change: `make watch_docs` (requires [entr(1)])
+    cd docs
+    make serve
+
+Rebuild docs on file change (requires [entr(1)]):
+
+    cd docs
+    make watch_docs
 
 Rebuild docs and run server via one terminal: `make dev_docs` (requires above, and a
 `make(1)` with `-J` support, e.g. GNU Make)
 
-## Formatting / Linting
+## Formatting code
 
 The project uses [black] and [isort] (one after the other) and runs [flake8] via
 CI. See the configuration in `pyproject.toml` and `setup.cfg`:
 
-`make black isort`: Run `black` first, then `isort` to handle import nuances
-`make flake8`, to watch (requires `entr(1)`): `make watch_flake8`
+Run `black` first, then `isort` to handle import nuances:
 
-## Releasing
+    make black isort
+
+[black]: https://github.com/psf/black
+[isort]: https://pypi.org/project/isort/
+[flake8]: https://flake8.pycqa.org/
+
+## Lint
+
+    make flake8
+
+to watch (requires `entr(1)`)
+
+    make watch_flake8
+
+## Releasing to PyPI
 
 As of 0.10, [poetry] handles virtualenv creation, package requirements, versioning,
 building, and publishing. Therefore there is no setup.py or requirements files.
@@ -68,8 +100,4 @@ Update `__version__` in `__about__.py` and `pyproject.toml`::
     poetry build
     poetry publish
 
-[poetry]: https://python-poetry.org/
 [entr(1)]: http://eradman.com/entrproject/
-[black]: https://github.com/psf/black
-[isort]: https://pypi.org/project/isort/
-[flake8]: https://flake8.pycqa.org/
