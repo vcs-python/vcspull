@@ -1,5 +1,10 @@
 # Development
 
+Developing python projects associated with [git-pull.com] all use the same
+structure and workflow. At a later point these will refer to that website for documentation.
+
+[git-pull.com]: https://git-pull.com
+
 ## Setup the project
 
 Install and [git] and [poetry]. After:
@@ -9,17 +14,17 @@ Install and [git] and [poetry]. After:
     poetry install -E "docs test coverage lint format"
 
 [installation documentation]: https://python-poetry.org/docs/#installation
-[poetry]: https://python-poetry.org/
+[git]: https://git-scm.com/
 
-## Tests
+## Development loop
 
-    poetry run py.test
+### Tests
 
-or:
+[pytest] is used for tests.
 
-    make test
+[pytest]: https://pytest.org/
 
-## Automatically run tests on file save
+#### Rerun on file change
 
 via [pytest-watcher] (works out of the box):
 
@@ -31,11 +36,50 @@ via [entr(1)] (requires installation):
 
 [pytest-watcher]: https://github.com/olzhasar/pytest-watcher
 
-## Documentation
+#### Manual (just the command, please)
+
+    poetry run py.test
+
+or:
+
+    make test
+
+#### pytest options
+
+`PYTEST_ADDOPTS` can be set in the commands below. For more
+information read [docs.pytest.com] for the latest documentation.
+
+[docs.pytest.com]: https://docs.pytest.org/
+
+Verbose:
+
+    env PYTEST_ADDOPTS="-verbose" make start
+
+Drop into `pdb` on first error:
+
+    env PYTEST_ADDOPTS="-x -s --pdb" make start
+
+If you have [ipython] installed:
+
+    env PYTEST_ADDOPTS="--pdbcls=IPython.terminal.debugger:TerminalPdb" \
+    make start
+
+[ipython]: https://ipython.org/
+
+### Documentation
+
+[sphinx] is used for documentation generation. In the future this may change to
+[docusaurus].
 
 Default preview server: http://localhost:8022
 
-[sphinx-autobuild] will automatically build the docs, watch for file changes and launch a server.
+[sphinx]: https://www.sphinx-doc.org/
+[docusaurus]: https://docusaurus.io/
+
+#### Rerun on file change
+
+[sphinx-autobuild] will automatically build the docs, it also handles launching
+a server, rebuilding file changes, and updating content in the browser:
 
     cd docs
     make start
@@ -47,25 +91,31 @@ If doing css adjustments:
 
 [sphinx-autobuild]: https://github.com/executablebooks/sphinx-autobuild
 
-### Manual documentation (the hard way)
+Rebuild docs on file change (requires [entr(1)]):
 
     cd docs
-    make html
+    make dev
 
-To launch in server:
+    # If not GNU Make / no -J support, use two terminals:
+    cd docs
+    make watch
 
     cd docs
     make serve
 
-Rebuild docs on file change (requires [entr(1)]):
+#### Manual (just the command, please)
+
+Build:
 
     cd docs
-    make watch_docs
+    make html
 
-Rebuild docs and run server via one terminal: `make dev_docs` (requires above, and a
-`make(1)` with `-J` support, e.g. GNU Make)
+Launch server:
 
-## Formatting code
+    cd docs
+    make serve
+
+### Formatting code
 
 The project uses [black] and [isort] (one after the other) and runs [flake8] via
 CI. See the configuration in `pyproject.toml` and `setup.cfg`:
@@ -78,15 +128,15 @@ Run `black` first, then `isort` to handle import nuances:
 [isort]: https://pypi.org/project/isort/
 [flake8]: https://flake8.pycqa.org/
 
-## Lint
+### Linting code
 
     make flake8
 
-to watch (requires `entr(1)`)
+to watch (requires [entr(1)])
 
     make watch_flake8
 
-## Releasing to PyPI
+## Publishing to PyPI
 
 As of 0.10, [poetry] handles virtualenv creation, package requirements, versioning,
 building, and publishing. Therefore there is no setup.py or requirements files.
@@ -101,3 +151,4 @@ Update `__version__` in `__about__.py` and `pyproject.toml`::
     poetry publish
 
 [entr(1)]: http://eradman.com/entrproject/
+[poetry]: https://python-poetry.org/
