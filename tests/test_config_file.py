@@ -71,7 +71,7 @@ def test_dict_equals_yaml():
     assert fixtures.config_dict == config.export("dict")
 
 
-def test_export_json(tmpdir):
+def test_export_json(tmpdir: LEGACY_PATH):
     json_config = tmpdir.join(".vcspull.json")
     json_config_file = str(json_config)
 
@@ -86,7 +86,7 @@ def test_export_json(tmpdir):
     assert fixtures.config_dict == new_config
 
 
-def test_export_yaml(tmpdir):
+def test_export_yaml(tmpdir: LEGACY_PATH):
     yaml_config = tmpdir.join(".vcspull.yaml")
     yaml_config_file = str(yaml_config)
 
@@ -100,7 +100,7 @@ def test_export_yaml(tmpdir):
     assert fixtures.config_dict == new_config
 
 
-def test_scan_config(tmpdir):
+def test_scan_config(tmpdir: LEGACY_PATH):
     config_files = []
 
     exists = os.path.exists
@@ -197,7 +197,7 @@ def test_expandenv_and_homevars():
     assert expand_dir("~/study/") in paths
 
 
-def test_find_config_files(tmpdir):
+def test_find_config_files(tmpdir: LEGACY_PATH):
     # Test find_config_files in home directory.
 
     tmpdir.join(".vcspull.yaml").write("")
@@ -210,7 +210,7 @@ def test_find_config_files(tmpdir):
         assert expectedIn in results
 
 
-def test_multiple_config_files_raises_exception(tmpdir):
+def test_multiple_config_files_raises_exception(tmpdir: LEGACY_PATH):
     tmpdir.join(".vcspull.json").write("")
     tmpdir.join(".vcspull.yaml").write("")
     with EnvironmentVarGuard() as env:
@@ -221,14 +221,18 @@ def test_multiple_config_files_raises_exception(tmpdir):
             config.find_home_config_files()
 
 
-def test_in_dir(config_dir, yaml_config, json_config):
+def test_in_dir(
+    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+):
     expected = [yaml_config.purebasename, json_config.purebasename]
     result = config.in_dir(str(config_dir))
 
     assert len(expected) == len(result)
 
 
-def test_find_config_path_string(config_dir, yaml_config, json_config):
+def test_find_config_path_string(
+    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+):
     config_files = config.find_config_files(path=str(config_dir))
 
     assert str(yaml_config) in config_files
@@ -242,7 +246,9 @@ def test_find_config_path_list(config_dir, yaml_config, json_config):
     assert str(json_config) in config_files
 
 
-def test_find_config_match_string(config_dir, yaml_config, json_config):
+def test_find_config_match_string(
+    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+):
     config_files = config.find_config_files(
         path=str(config_dir), match=yaml_config.purebasename
     )
@@ -292,7 +298,9 @@ def test_find_config_match_list(config_dir, yaml_config, json_config):
     assert len([c for c in config_files if str(json_config) in c]) == 0
 
 
-def test_find_config_filetype_string(config_dir, yaml_config, json_config):
+def test_find_config_filetype_string(
+    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+):
     config_files = config.find_config_files(
         path=[str(config_dir)], match=yaml_config.purebasename, filetype="yaml"
     )
@@ -318,7 +326,9 @@ def test_find_config_filetype_string(config_dir, yaml_config, json_config):
     assert str(json_config) in config_files
 
 
-def test_find_config_filetype_list(config_dir, yaml_config, json_config):
+def test_find_config_filetype_list(
+    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+):
     config_files = config.find_config_files(
         path=[str(config_dir)], match=["repos*"], filetype=["*"]
     )
