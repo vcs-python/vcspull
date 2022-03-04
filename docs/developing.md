@@ -5,12 +5,17 @@ structure and workflow. At a later point these will refer to that website for do
 
 [git-pull.com]: https://git-pull.com
 
-## Setup the project
+## Bootstrap the project
 
-Install and [git] and [poetry]. After:
+Install and [git] and [poetry]
+
+Clone:
 
     git clone https://github.com/vcs-python/vcspull.git
     cd vcspull
+
+Install packages:
+
     poetry install -E "docs test coverage lint format"
 
 [installation documentation]: https://python-poetry.org/docs/#installation
