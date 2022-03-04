@@ -15,29 +15,28 @@ from .helpers import EnvironmentVarGuard
 
 @pytest.fixture
 def config_dir(tmpdir):
-    _config_dir = tmpdir.join(".vcspull")
-    _config_dir.ensure(dir=True)
-    return _config_dir
+    conf_dir = tmpdir.join(".vcspull")
+    conf_dir.ensure(dir=True)
+    return conf_dir
 
 
 @pytest.fixture
-def sample_yaml_config(config_dir):
-    config_file1 = config_dir.join("repos1.yaml")
-    config_file1.write("")
-    return config_file1
+def yaml_config(config_dir):
+    yaml_file = config_dir.join("repos1.yaml")
+    yaml_file.write("")
+    return yaml_file
 
 
 @pytest.fixture
-def sample_json_config(config_dir):
-    config_file2 = config_dir.join("repos2.json")
-    config_file2.write("")
-    return config_file2
+def json_config(config_dir):
+    json_file = config_dir.join("repos2.json")
+    json_file.write("")
+    return json_file
 
 
 def test_dict_equals_yaml():
     # Verify that example YAML is returning expected dict format.
     config = kaptan.Kaptan(handler="yaml").import_config(loadfixture("example1.yaml"))
-
     assert fixtures.config_dict == config.export("dict")
 
 
@@ -64,7 +63,6 @@ def test_export_yaml(tmpdir):
     config.import_config(fixtures.config_dict)
 
     yaml_config_data = config.export("yaml", indent=2)
-
     yaml_config.write(yaml_config_data)
 
     new_config = kaptan.Kaptan().import_config(yaml_config_file).get()
@@ -72,7 +70,7 @@ def test_export_yaml(tmpdir):
 
 
 def test_scan_config(tmpdir):
-    configs = []
+    config_files = []
 
     exists = os.path.exists
     garbage_file = tmpdir.join(".vcspull.psd")
@@ -82,18 +80,18 @@ def test_scan_config(tmpdir):
         for filela in (
             x for x in f if x.endswith((".json", "yaml")) and x.startswith(".vcspull")
         ):
-            configs.append(str(tmpdir.join(filela)))
+            config_files.append(str(tmpdir.join(filela)))
 
     files = 0
     if exists(str(tmpdir.join(".vcspull.json"))):
         files += 1
-        assert str(tmpdir.join(".vcspull.json")) in configs
+        assert str(tmpdir.join(".vcspull.json")) in config_files
 
     if exists(str(tmpdir.join(".vcspull.yaml"))):
         files += 1
-        assert str(tmpdir.join(".vcspull.json")) in configs
+        assert str(tmpdir.join(".vcspull.json")) in config_files
 
-    assert len(configs) == files
+    assert len(config_files) == files
 
 
 def test_expand_shell_command_after():
@@ -109,7 +107,6 @@ def test_expandenv_and_homevars():
     config_json = loadfixture("expand.json")
 
     config1 = kaptan.Kaptan(handler="yaml").import_config(config_yaml).export("dict")
-
     config2 = kaptan.Kaptan(handler="json").import_config(config_json).export("dict")
 
     config1_expanded = extract_repos(config1)
@@ -138,7 +135,7 @@ def test_find_config_files(tmpdir):
         assert expectedIn in results
 
 
-def test_multiple_configs_raises_exception(tmpdir):
+def test_multiple_config_files_raises_exception(tmpdir):
     tmpdir.join(".vcspull.json").write("")
     tmpdir.join(".vcspull.yaml").write("")
     with EnvironmentVarGuard() as env:
@@ -149,162 +146,143 @@ def test_multiple_configs_raises_exception(tmpdir):
             config.find_home_config_files()
 
 
-def test_in_dir(config_dir, sample_yaml_config, sample_json_config):
-    expected = [sample_yaml_config.purebasename, sample_json_config.purebasename]
+def test_in_dir(config_dir, yaml_config, json_config):
+    expected = [yaml_config.purebasename, json_config.purebasename]
     result = config.in_dir(str(config_dir))
 
     assert len(expected) == len(result)
 
 
-def test_find_config_path_string(config_dir, sample_yaml_config, sample_json_config):
-    configs = config.find_config_files(path=str(config_dir))
+def test_find_config_path_string(config_dir, yaml_config, json_config):
+    config_files = config.find_config_files(path=str(config_dir))
 
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
-
-
-def test_find_config_path_list(config_dir, sample_yaml_config, sample_json_config):
-    configs = config.find_config_files(path=[str(config_dir)])
-
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
 
-def test_find_config_match_string(config_dir, sample_yaml_config, sample_json_config):
-    configs = config.find_config_files(
-        path=str(config_dir), match=sample_yaml_config.purebasename
+def test_find_config_path_list(config_dir, yaml_config, json_config):
+    config_files = config.find_config_files(path=[str(config_dir)])
+
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
+
+
+def test_find_config_match_string(config_dir, yaml_config, json_config):
+    config_files = config.find_config_files(
+        path=str(config_dir), match=yaml_config.purebasename
     )
+    assert str(yaml_config) in config_files
+    assert str(json_config) not in config_files
 
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) not in configs
-
-    configs = config.find_config_files(
-        path=[str(config_dir)], match=sample_json_config.purebasename
+    config_files = config.find_config_files(
+        path=[str(config_dir)], match=json_config.purebasename
     )
+    assert str(yaml_config) not in config_files
+    assert str(json_config) in config_files
 
-    assert str(sample_yaml_config) not in configs
-    assert str(sample_json_config) in configs
+    config_files = config.find_config_files(
+        path=[str(config_dir)], match="randomstring"
+    )
+    assert str(yaml_config) not in config_files
+    assert str(json_config) not in config_files
 
-    configs = config.find_config_files(path=[str(config_dir)], match="randomstring")
+    config_files = config.find_config_files(path=[str(config_dir)], match="*")
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
-    assert str(sample_yaml_config) not in configs
-    assert str(sample_json_config) not in configs
+    config_files = config.find_config_files(path=[str(config_dir)], match="repos*")
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
-    configs = config.find_config_files(path=[str(config_dir)], match="*")
-
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
-
-    configs = config.find_config_files(path=[str(config_dir)], match="repos*")
-
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
-
-    configs = config.find_config_files(path=[str(config_dir)], match="repos[1-9]*")
-
-    assert len([c for c in configs if str(sample_yaml_config) in c]) == 1
-
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
+    config_files = config.find_config_files(path=[str(config_dir)], match="repos[1-9]*")
+    assert len([c for c in config_files if str(yaml_config) in c]) == 1
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
 
-def test_find_config_match_list(config_dir, sample_yaml_config, sample_json_config):
-    configs = config.find_config_files(
+def test_find_config_match_list(config_dir, yaml_config, json_config):
+    config_files = config.find_config_files(
         path=[str(config_dir)],
-        match=[sample_yaml_config.purebasename, sample_json_config.purebasename],
+        match=[yaml_config.purebasename, json_config.purebasename],
     )
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
-
-    configs = config.find_config_files(
-        path=[str(config_dir)], match=[sample_yaml_config.purebasename]
+    config_files = config.find_config_files(
+        path=[str(config_dir)], match=[yaml_config.purebasename]
     )
+    assert str(yaml_config) in config_files
+    assert len([c for c in config_files if str(yaml_config) in c]) == 1
+    assert str(json_config) not in config_files
+    assert len([c for c in config_files if str(json_config) in c]) == 0
 
-    assert str(sample_yaml_config) in configs
-    assert len([c for c in configs if str(sample_yaml_config) in c]) == 1
-    assert str(sample_json_config) not in configs
-    assert len([c for c in configs if str(sample_json_config) in c]) == 0
 
-
-def test_find_config_filetype_string(
-    config_dir, sample_yaml_config, sample_json_config
-):
-    configs = config.find_config_files(
-        path=[str(config_dir)], match=sample_yaml_config.purebasename, filetype="yaml"
+def test_find_config_filetype_string(config_dir, yaml_config, json_config):
+    config_files = config.find_config_files(
+        path=[str(config_dir)], match=yaml_config.purebasename, filetype="yaml"
     )
+    assert str(yaml_config) in config_files
+    assert str(json_config) not in config_files
 
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) not in configs
-
-    configs = config.find_config_files(
-        path=[str(config_dir)], match=sample_yaml_config.purebasename, filetype="json"
+    config_files = config.find_config_files(
+        path=[str(config_dir)], match=yaml_config.purebasename, filetype="json"
     )
+    assert str(yaml_config) not in config_files
+    assert str(json_config) not in config_files
 
-    assert str(sample_yaml_config) not in configs
-    assert str(sample_json_config) not in configs
-
-    configs = config.find_config_files(
+    config_files = config.find_config_files(
         path=[str(config_dir)], match="repos*", filetype="json"
     )
+    assert str(yaml_config) not in config_files
+    assert str(json_config) in config_files
 
-    assert str(sample_yaml_config) not in configs
-    assert str(sample_json_config) in configs
-
-    configs = config.find_config_files(
+    config_files = config.find_config_files(
         path=[str(config_dir)], match="repos*", filetype="*"
     )
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
 
-
-def test_find_config_filetype_list(config_dir, sample_yaml_config, sample_json_config):
-    configs = config.find_config_files(
+def test_find_config_filetype_list(config_dir, yaml_config, json_config):
+    config_files = config.find_config_files(
         path=[str(config_dir)], match=["repos*"], filetype=["*"]
     )
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
-
-    configs = config.find_config_files(
+    config_files = config.find_config_files(
         path=[str(config_dir)], match=["repos*"], filetype=["json", "yaml"]
     )
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
-
-    configs = config.find_config_files(
+    config_files = config.find_config_files(
         path=[str(config_dir)], filetype=["json", "yaml"]
     )
+    assert str(yaml_config) in config_files
+    assert str(json_config) in config_files
 
-    assert str(sample_yaml_config) in configs
-    assert str(sample_json_config) in configs
 
-
-def test_find_config_include_home_configs(
-    tmpdir, config_dir, sample_yaml_config, sample_json_config
+def test_find_config_include_home_config_files(
+    tmpdir, config_dir, yaml_config, json_config
 ):
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmpdir))
-        configs = config.find_config_files(
+        config_files = config.find_config_files(
             path=[str(config_dir)], match="*", include_home=True
         )
-
-        assert str(sample_yaml_config) in configs
-        assert str(sample_json_config) in configs
+        assert str(yaml_config) in config_files
+        assert str(json_config) in config_files
 
         config_file3 = tmpdir.join(".vcspull.json")
         config_file3.write("")
-
         results = config.find_config_files(
             path=[str(config_dir)], match="*", include_home=True
         )
         expectedIn = str(config_file3)
-
         assert expectedIn in results
-        assert str(sample_yaml_config) in results
-        assert str(sample_json_config) in results
+        assert str(yaml_config) in results
+        assert str(json_config) in results
 
 
 def test_merge_nested_dict(tmpdir, config_dir):
@@ -315,9 +293,10 @@ def test_merge_nested_dict(tmpdir, config_dir):
     config2.write(loadfixture("repoduplicate2.yaml"))
 
     # Duplicate path + name with different repo URL / remotes raises.
-    configs = config.find_config_files(path=str(config_dir), match="repoduplicate[1-2]")
-
-    assert str(config1) in configs
-    assert str(config2) in configs
+    config_files = config.find_config_files(
+        path=str(config_dir), match="repoduplicate[1-2]"
+    )
+    assert str(config1) in config_files
+    assert str(config2) in config_files
     with pytest.raises(Exception):
-        config.load_configs(configs)
+        config.load_configs(config_files)
