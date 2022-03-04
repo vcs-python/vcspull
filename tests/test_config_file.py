@@ -11,7 +11,6 @@ from vcspull import config, exc
 from vcspull.config import expand_dir, extract_repos
 
 from .fixtures import example as fixtures
-from .fixtures._util import loadfixture
 from .helpers import EnvironmentVarGuard
 
 
@@ -44,7 +43,31 @@ def json_config(config_dir: LEGACY_PATH):
 
 def test_dict_equals_yaml():
     # Verify that example YAML is returning expected dict format.
-    config = kaptan.Kaptan(handler="yaml").import_config(loadfixture("example1.yaml"))
+    config = kaptan.Kaptan(handler="yaml").import_config(
+        textwrap.dedent(
+            """\
+            /home/me/myproject/study/:
+              linux: git+git://git.kernel.org/linux/torvalds/linux.git
+              freebsd: git+https://github.com/freebsd/freebsd.git
+              sphinx: hg+https://bitbucket.org/birkenfeld/sphinx
+              docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
+            /home/me/myproject/github_projects/:
+              kaptan:
+                url: git+git@github.com:tony/kaptan.git
+                remotes:
+                  upstream: git+https://github.com/emre/kaptan
+                  ms: git+https://github.com/ms/kaptan.git
+            /home/me/myproject:
+              .vim:
+                url: git+git@github.com:tony/vim-config.git
+                shell_command_after: ln -sf /home/me/.vim/.vimrc /home/me/.vimrc
+              .tmux:
+                url: git+git@github.com:tony/tmux-config.git
+                shell_command_after:
+                  - ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf
+            """
+        )
+    )
     assert fixtures.config_dict == config.export("dict")
 
 
