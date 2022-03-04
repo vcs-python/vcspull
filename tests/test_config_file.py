@@ -1,5 +1,6 @@
 """Tests for vcspull config loading."""
 import os
+import textwrap
 
 import pytest
 
@@ -12,6 +13,12 @@ from vcspull.config import expand_dir, extract_repos
 from .fixtures import example as fixtures
 from .fixtures._util import loadfixture
 from .helpers import EnvironmentVarGuard
+
+
+def write_config(config_dir: LEGACY_PATH, filename: str, content: str):
+    config = config_dir.join(filename)
+    config.write(content)
+    return config
 
 
 @pytest.fixture
@@ -290,11 +297,32 @@ def test_find_config_include_home_config_files(
 
 
 def test_merge_nested_dict(tmpdir: LEGACY_PATH, config_dir: LEGACY_PATH):
-    config1 = config_dir.join("repoduplicate1.yaml")
-    config1.write(loadfixture("repoduplicate1.yaml"))
-
-    config2 = config_dir.join("repoduplicate2.yaml")
-    config2.write(loadfixture("repoduplicate2.yaml"))
+    config1 = write_config(
+        config_dir=config_dir,
+        filename="repoduplicate1.yaml",
+        content=textwrap.dedent(
+            """\
+/path/to/test/:
+  subRepoDiffVCS:
+    url: svn+file:///path/to/svnrepo
+  subRepoSameVCS: git+file://path/to/gitrepo
+  vcsOn1: svn+file:///path/to/another/svn
+            """
+        ),
+    )
+    config2 = write_config(
+        config_dir=config_dir,
+        filename="repoduplicate2.yaml",
+        content=textwrap.dedent(
+            """\
+/path/to/test/:
+  subRepoDiffVCS:
+    url: git+file:///path/to/diffrepo
+  subRepoSameVCS: git+file:///path/to/gitrepo
+  vcsOn2: svn+file:///path/to/another/svn
+            """
+        ),
+    )
 
     # Duplicate path + name with different repo URL / remotes raises.
     config_files = config.find_config_files(

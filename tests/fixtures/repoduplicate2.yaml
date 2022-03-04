@@ -1,5 +1,0 @@
-/path/to/test/:
-  subRepoDiffVCS:
-    url: git+file:///path/to/diffrepo
-  subRepoSameVCS: git+file:///path/to/gitrepo
-  vcsOn2: svn+file:///path/to/another/svn
