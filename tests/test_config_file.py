@@ -4,6 +4,7 @@ import os
 import pytest
 
 import kaptan
+from _pytest.compat import LEGACY_PATH
 
 from vcspull import config, exc
 from vcspull.config import expand_dir, extract_repos
@@ -14,21 +15,21 @@ from .helpers import EnvironmentVarGuard
 
 
 @pytest.fixture
-def config_dir(tmpdir):
+def config_dir(tmpdir: LEGACY_PATH):
     conf_dir = tmpdir.join(".vcspull")
     conf_dir.ensure(dir=True)
     return conf_dir
 
 
 @pytest.fixture
-def yaml_config(config_dir):
+def yaml_config(config_dir: LEGACY_PATH):
     yaml_file = config_dir.join("repos1.yaml")
     yaml_file.write("")
     return yaml_file
 
 
 @pytest.fixture
-def json_config(config_dir):
+def json_config(config_dir: LEGACY_PATH):
     json_file = config_dir.join("repos2.json")
     json_file.write("")
     return json_file
@@ -264,7 +265,10 @@ def test_find_config_filetype_list(config_dir, yaml_config, json_config):
 
 
 def test_find_config_include_home_config_files(
-    tmpdir, config_dir, yaml_config, json_config
+    tmpdir: LEGACY_PATH,
+    config_dir: LEGACY_PATH,
+    yaml_config: LEGACY_PATH,
+    json_config: LEGACY_PATH,
 ):
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmpdir))
@@ -285,7 +289,7 @@ def test_find_config_include_home_config_files(
         assert str(json_config) in results
 
 
-def test_merge_nested_dict(tmpdir, config_dir):
+def test_merge_nested_dict(tmpdir: LEGACY_PATH, config_dir: LEGACY_PATH):
     config1 = config_dir.join("repoduplicate1.yaml")
     config1.write(loadfixture("repoduplicate1.yaml"))
 
