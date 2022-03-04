@@ -111,11 +111,55 @@ def test_expand_shell_command_after():
 
 def test_expandenv_and_homevars():
     # Assure ~ tildes and environment template vars expand.
-    config_yaml = loadfixture("expand.yaml")
-    config_json = loadfixture("expand.json")
-
-    config1 = kaptan.Kaptan(handler="yaml").import_config(config_yaml).export("dict")
-    config2 = kaptan.Kaptan(handler="json").import_config(config_json).export("dict")
+    config1 = (
+        kaptan.Kaptan(handler="yaml")
+        .import_config(
+            textwrap.dedent(
+                """\
+                '~/study/':
+                  sphinx: hg+file://{hg_repo_path}
+                  docutils: svn+file://{svn_repo_path}
+                  linux: git+file://{git_repo_path}
+                '${HOME}/github_projects/':
+                  kaptan:
+                    url: git+file://{git_repo_path}
+                    remotes:
+                      test_remote: git+file://{git_repo_path}
+                '~':
+                  .vim:
+                    url: git+file://{git_repo_path}
+                  .tmux:
+                    url: git+file://{git_repo_path}
+                """
+            )
+        )
+        .export("dict")
+    )
+    config2 = (
+        kaptan.Kaptan(handler="json")
+        .import_config(
+            textwrap.dedent(
+                """\
+                {
+                  "~/study/": {
+                    "sphinx": "hg+file://${hg_repo_path}",
+                    "docutils": "svn+file://${svn_repo_path}",
+                    "linux": "git+file://${git_repo_path}"
+                  },
+                  "${HOME}/github_projects/": {
+                    "kaptan": {
+                      "url": "git+file://${git_repo_path}",
+                      "remotes": {
+                        "test_remote": "git+file://${git_repo_path}"
+                      }
+                    }
+                  }
+                }
+                """
+            )
+        )
+        .export("dict")
+    )
 
     config1_expanded = extract_repos(config1)
     config2_expanded = extract_repos(config2)
