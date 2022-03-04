@@ -1,10 +1,11 @@
 """Tests for placing config dicts into :py:class:`Repo` objects."""
 import os
+from typing import Callable
 
 import pytest
-from py._path.local import LocalPath
 
 import kaptan
+from _pytest.compat import LEGACY_PATH
 
 from libvcs import BaseRepo, GitRepo, MercurialRepo, SubversionRepo
 from libvcs.git import GitRemote
@@ -60,7 +61,7 @@ def test_to_dictlist():
                 assert "url" == remote
 
 
-def test_vcs_url_scheme_to_object(tmpdir):
+def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     """Verify ``url`` return {Git,Mercurial,Subversion}Repo.
 
     :class:`GitRepo`, :class:`MercurialRepo` or :class:`SubversionRepo`
@@ -100,7 +101,7 @@ def test_vcs_url_scheme_to_object(tmpdir):
     assert isinstance(svn_repo, BaseRepo)
 
 
-def test_to_repo_objects(tmpdir):
+def test_to_repo_objects(tmpdir: LEGACY_PATH):
     """:py:obj:`dict` objects into Repo objects."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
     for repo_dict in repo_list:
@@ -124,7 +125,10 @@ def test_to_repo_objects(tmpdir):
                 assert "push_url" in remote_dict
 
 
-def test_makes_recursive(tmpdir, git_dummy_repo_dir):
+def test_makes_recursive(
+    tmpdir: LEGACY_PATH,
+    git_dummy_repo_dir: LEGACY_PATH,
+):
     """Ensure that directories in pull are made recursively."""
 
     YAML_CONFIG = """
@@ -165,12 +169,15 @@ def test_makes_recursive(tmpdir, git_dummy_repo_dir):
         """,
     ],
 )
-def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
-    # type: (LocalPath, LocalPath)
+def test_config_variations(
+    tmpdir: LEGACY_PATH,
+    create_git_dummy_repo: Callable[[str], LEGACY_PATH],
+    config_tpl: str,
+):
     """Test config output with varation of config formats"""
 
     dummy_repo_name = "dummy_repo"
-    dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
+    dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
     def write_config(repo_dir, clone_name):
 
@@ -229,12 +236,16 @@ def test_config_variations(tmpdir, create_git_dummy_repo, config_tpl):
         ],
     ],
 )
-def test_updating_remote(tmpdir, create_git_dummy_repo, config_tpl, has_extra_remotes):
-    # type: (LocalPath, LocalPath)
+def test_updating_remote(
+    tmpdir: LEGACY_PATH,
+    create_git_dummy_repo: Callable[[str], LEGACY_PATH],
+    config_tpl: str,
+    has_extra_remotes,
+):
     """Ensure additions/changes to yaml config are reflected"""
 
     dummy_repo_name = "dummy_repo"
-    dummy_repo = create_git_dummy_repo(dummy_repo_name)  # type: LocalPath
+    dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
     repo_parent = tmpdir.join("study/myrepo")
     repo_parent.ensure(dir=True)
