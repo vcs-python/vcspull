@@ -1,6 +1,8 @@
 """Helpers for vcspull."""
 import os
 
+from _pytest.compat import LEGACY_PATH
+
 
 class EnvironmentVarGuard(object):
 
@@ -36,3 +38,9 @@ class EnvironmentVarGuard(object):
             self._environ[envvar] = value
         for unset in self._unset:
             del self._environ[unset]
+
+
+def write_config(config_dir: LEGACY_PATH, filename: str, content: str):
+    config = config_dir.join(filename)
+    config.write(content)
+    return config
