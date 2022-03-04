@@ -108,18 +108,18 @@ def test_to_repo_objects(tmpdir: LEGACY_PATH):
         r = create_repo_from_pip_url(**repo_dict)
 
         assert isinstance(r, BaseRepo)
-        assert "name" in r
-        assert r["name"] == repo_dict["name"]
-        assert "parent_dir" in r
-        assert r["parent_dir"] == repo_dict["parent_dir"]
-        assert "url" in r
-        assert r["url"] == repo_dict["url"]
+        assert r.name
+        assert r.name == repo_dict["name"]
+        assert r.parent_dir
+        assert r.parent_dir == repo_dict["parent_dir"]
+        assert r.url
+        assert r.url == repo_dict["url"]
 
-        assert r["path"] == os.path.join(r["parent_dir"], r["name"])
+        assert r.path == os.path.join(r.parent_dir, r.name)
 
         if "remotes" in repo_dict:
-            assert isinstance(r["remotes"], list)
-            for remote_name, remote_dict in r["remotes"].items():
+            assert isinstance(r.remotes, list)
+            for remote_name, remote_dict in r.remotes.items():
                 assert isinstance(remote_dict, dict)
                 assert "fetch_url" in remote_dict
                 assert "push_url" in remote_dict
