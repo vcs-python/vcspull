@@ -17,7 +17,6 @@ from .fixtures import example as fixtures
 
 def test_filter_dir():
     """``filter_repos`` filter by dir"""
-
     repo_list = filter_repos(fixtures.config_dict_expanded, repo_dir="*github_project*")
 
     assert len(repo_list) == 1
@@ -62,7 +61,7 @@ def test_to_dictlist():
 
 
 def test_vcs_url_scheme_to_object(tmpdir):
-    """Test that ``url`` return a GitRepo/MercurialRepo/SubversionRepo.
+    """Verify ``url`` return {Git,Mercurial,Subversion}Repo.
 
     :class:`GitRepo`, :class:`MercurialRepo` or :class:`SubversionRepo`
     object based on the pip-style URL scheme.
