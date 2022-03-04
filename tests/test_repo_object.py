@@ -1,5 +1,6 @@
 """Tests for placing config dicts into :py:class:`Repo` objects."""
 import os
+import textwrap
 from typing import Callable
 
 import pytest
@@ -130,16 +131,15 @@ def test_makes_recursive(
     git_dummy_repo_dir: LEGACY_PATH,
 ):
     """Ensure that directories in pull are made recursively."""
-
-    YAML_CONFIG = """
-    {tmpdir}/study/myrepo:
-        my_url: git+file://{repo_dir}
-    """
-
-    YAML_CONFIG = YAML_CONFIG.format(tmpdir=str(tmpdir), repo_dir=git_dummy_repo_dir)
-
     conf = kaptan.Kaptan(handler="yaml")
-    conf.import_config(YAML_CONFIG)
+    conf.import_config(
+        textwrap.dedent(
+            """
+        {tmpdir}/study/myrepo:
+            my_url: git+file://{repo_dir}
+    """
+        ).format(tmpdir=str(tmpdir), repo_dir=git_dummy_repo_dir)
+    )
     conf = conf.export("dict")
     repos = extract_repos(conf)
 
