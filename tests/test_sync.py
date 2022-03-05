@@ -11,6 +11,8 @@ from libvcs.shortcuts import create_repo_from_pip_url
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
 
+from .helpers import write_config
+
 
 def test_makes_recursive(
     tmpdir: LEGACY_PATH,
@@ -65,21 +67,20 @@ def test_config_variations(
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
-    def write_config(repo_dir, clone_name):
-        config = config_tpl.format(
-            tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
+    def ensure_parent_dir(repo_dir, clone_name):
+        return write_config(
+            tmpdir,
+            "myrepos.yaml",
+            config_tpl.format(
+                tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
+            ),
         )
-        config_file = tmpdir.join("myrepos.yaml")
-        config_file.write(config)
-        repo_parent = tmpdir.join("study/myrepo")
-        repo_parent.ensure(dir=True)
-        return config_file
 
-    config_file = write_config(repo_dir=dummy_repo, clone_name="myclone")
+    config_file = ensure_parent_dir(repo_dir=dummy_repo, clone_name="myclone")
     configs = load_configs([str(config_file)])
 
     # Later: Copy dummy repo somewhere else so the commits are common
-    config_file = write_config(repo_dir=dummy_repo, clone_name="anotherclone")
+    config_file = ensure_parent_dir(repo_dir=dummy_repo, clone_name="anotherclone")
     configs = load_configs([str(config_file)])
 
     for repo_dict in filter_repos(configs, repo_dir="*", vcs_url="*", name="*"):
