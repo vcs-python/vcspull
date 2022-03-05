@@ -83,7 +83,7 @@ def test_config_variations(
     config_file = ensure_parent_dir(repo_dir=dummy_repo, clone_name="anotherclone")
     configs = load_configs([str(config_file)])
 
-    for repo_dict in filter_repos(configs, repo_dir="*", vcs_url="*", name="*"):
+    for repo_dict in filter_repos(configs):
         repo_url = repo_dict["url"].replace("git+", "")
         r = update_repo(repo_dict)
         remotes = r.remotes() or []
