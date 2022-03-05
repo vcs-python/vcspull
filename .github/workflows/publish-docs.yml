@@ -32,6 +32,8 @@ jobs:
               - 'examples/**'
             python_files:
               - 'vcspull/**'
+              - pyproject.toml
+              - poetry.lock
 
       - name: Should publish
         if: steps.changes.outputs.docs == 'true' || steps.changes.outputs.root_docs == 'true' || steps.changes.outputs.python_files == 'true'
@@ -93,7 +95,7 @@ jobs:
           pushd docs; make SPHINXBUILD='poetry run sphinx-build' html; popd
 
       - name: Push documentation to S3
-        uses: jakejarvis/s3-sync-action@master
+        uses: jakejarvis/s3-sync-action@v0.5.1
         with:
           args: --acl public-read --follow-symlinks --delete
         env:
@@ -105,7 +107,7 @@ jobs:
 
       - name: Generate list of changed files for CloudFront to invalidate
         run: |
-          FILES=$(find docs/_build/html -exec realpath --relative-to docs/_build/html {} \; | awk '{print "/"$0}' | grep "html\|searchindex.js");
+          FILES=$(find docs/_build/html -exec realpath --relative-to docs/_build/html {} \; | awk '{print "/"$0}' | grep "html\|searchindex.js\|custom.css\|.svg");
           for file in $FILES; do
             echo $file
             # add bare directory to list of updated paths when we see index.html
@@ -113,7 +115,7 @@ jobs:
           done | sort | uniq | tr '\n' ' ' > .updated_files
 
       - name: Invalidate on CloudFront
-        uses: chetan/invalidate-cloudfront-action@master
+        uses: chetan/invalidate-cloudfront-action@v2.3
         env:
           DISTRIBUTION: ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION }}
           AWS_REGION: "us-east-1"
@@ -122,7 +124,7 @@ jobs:
           PATHS_FROM: .updated_files
 
       - name: Purge cache on Cloudflare
-        uses: jakejarvis/cloudflare-purge-action@master
+        uses: jakejarvis/cloudflare-purge-action@v0.3.0
         env:
           CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
           CLOUDFLARE_ZONE: ${{ secrets.CLOUDFLARE_ZONE }}

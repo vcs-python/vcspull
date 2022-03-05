@@ -5,7 +5,7 @@
 [![Docs](https://github.com/vcs-python/vcspull/workflows/Publish%20Docs/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22Publish+Docs%22)
 [![Build Status](https://github.com/vcs-python/vcspull/workflows/tests/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22tests%22)
 [![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull)
-![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)
+[![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE)
 
 Manage your commonly used repos from YAML / JSON manifest(s). Compare to
 [myrepos](http://myrepos.branchable.com/).
@@ -19,11 +19,12 @@ machines or want to clone / update a pattern of repos without having to
   manifest to clone / update
 - supports svn, git, hg version control systems
 - automatically checkout fresh repositories
-- [Documentation](https://vcspull.git-pull.com/) and
-  [Examples](https://vcspull.git-pull.com/examples.html).
-- supports [pip](http://www.pip-installer.org/)-style URL's
-  ([RFC3986](http://tools.ietf.org/html/rfc3986.html)-based [url
-  scheme](http://www.pip-installer.org/logic.html#vcs-support))
+- [Documentation](https://vcspull.git-pull.com/),
+  [Configuration](https://vcspull.git-pull.com/configuration.html),
+  and [Config generators](https://vcspull.git-pull.com/config-generation.html)
+- supports [pip](https://pip.pypa.io/)-style URL's
+  ([RFC3986](https://datatracker.ietf.org/doc/html/rfc3986)-based [url
+  scheme](https://pip.pypa.io/en/latest/topics/vcs-support/))
 
 # how to
 
@@ -55,7 +56,7 @@ the future_
 
 (see the author's
 [.vcspull.yaml](https://github.com/tony/.dot-config/blob/master/.vcspull.yaml),
-more [examples](https://vcspull.git-pull.com/examples.html).)
+more [configuration](https://vcspull.git-pull.com/configuration.html))
 
 next, on other machines, copy your `$HOME/.vcspull.yaml` file or
 `$HOME/.vcspull/` directory them and you can clone your repos
@@ -81,7 +82,7 @@ or svn project with a git dependency:
 
 clone / update repos:
 
-    $ vcspull -c external_deps.yaml
+    $ vcspull sync -c external_deps.yaml
 
 See the [Quickstart](https://vcspull.git-pull.com/quickstart.html) for
 more.
@@ -99,22 +100,22 @@ The patterns can be filtered by by directory, repo name or vcs url.
 
 ```bash
 # any repo starting with "fla"
-$ vcspull "fla*"
+$ vcspull sync "fla*"
 # any repo with django in the name
-$ vcspull "*django*"
+$ vcspull sync "*django*"
 
 # search by vcs + url
 # since urls are in this format <vcs>+<protocol>://<url>
-$ vcspull "git+*"
+$ vcspull sync "git+*"
 
 # any git repo with python in the vcspull
-$ vcspull "git+*python*
+$ vcspull sync "git+*python*
 
 # any git repo with django in the vcs url
-$ vcspull "git+*django*"
+$ vcspull sync "git+*django*"
 
 # all repositories in your ~/code directory
-$ vcspull "$HOME/code/*"
+$ vcspull sync "$HOME/code/*"
 ```
 
 <img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/vcspull-demo.gif" class="align-center" style="width:45.0%" alt="image" />

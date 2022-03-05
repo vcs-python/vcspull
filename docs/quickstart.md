@@ -26,7 +26,7 @@ $ pip install --user -e git+https://github.com/vcs-python/vcspull.git#egg=vcspul
 
 ```{seealso}
 
-{ref}`examples`.
+{ref}`configuration` and {ref}`config-generation`.
 
 ```
 
@@ -81,7 +81,7 @@ Use `-c` to specify a config.
 
 ```{code-block} bash
 
-$ vcspull -c .deps.yaml
+$ vcspull sync -c .deps.yaml
 
 ```
 
@@ -90,10 +90,10 @@ various fashions, e.g.:
 
 ```{code-block} bash
 
-$ vcspull django
-$ vcspull django\*
+$ vcspull sync django
+$ vcspull sync django\*
 # or
-$ vcspull "django*"
+$ vcspull sync "django*"
 
 ```
 
@@ -105,10 +105,10 @@ repos by the vcs url.
 ```{code-block} bash
 
 # pull / update repositories I have with github in the repo url
-$ vcspull "git+https://github.com/yourusername/*"
+$ vcspull sync "git+https://github.com/yourusername/*"
 
 # pull / update repositories I have with bitbucket in the repo url
-$ vcspull "git+https://*bitbucket*"
+$ vcspull sync "git+https://*bitbucket*"
 
 ```
 
@@ -120,10 +120,10 @@ for patterns of where the project is on your system:
 ```{code-block} bash
 
 # pull all the repos I have inside of ~/study/python
-$ vcspull "$HOME/study/python"
+$ vcspull sync "$HOME/study/python"
 
 # pull all the repos I have in directories on my config with "python"
-$ vcspull ~/*python*"
+$ vcspull sync ~/*python*"
 
 ```
 

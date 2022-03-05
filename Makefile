@@ -21,9 +21,9 @@ test:
 	poetry run py.test $(test)
 
 start:
-	poetry run ptw .
+	$(MAKE) test && poetry run ptw .
 
-watch_test_entr:
+watch_test:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) test; else $(MAKE) test entr_warn; fi
 
 build_docs:
@@ -32,8 +32,11 @@ build_docs:
 start_docs:
 	$(MAKE) -C docs start
 
+design_docs:
+	$(MAKE) -C docs design
+
 flake8:
-	flake8 libvcs tests
+	flake8 vcspull tests
 
 watch_flake8:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) flake8; else $(MAKE) flake8 entr_warn; fi

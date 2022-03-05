@@ -4,6 +4,40 @@
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.11.0 (2022-02-28)
+
+### Development
+
+- CLI moved from `cli.py` -> `cli/__init__.py`, `cli/sync.py` 
+- CLI: Default groups removed
+
+### Documentation
+
+- Updates for `vcspull sync` changed in 1.10.0
+
+## vcspull 1.10.0 (2022-02-28)
+
+### Breaking
+
+- Sync through `vcspull sync`
+
+  Syncing is no longer ran by default when `vcspull` is typed
+
+### Improvements
+
+- Experimental completion, see {ref}`completion`:
+
+  - Completion for sync:
+
+    - `vcspull sync <tab>`
+    - `vcspull sync -c <tab> <tab>`
+
+### Documentation
+
+- Added {ref}`completion`:
+
+## vcspull 1.9.0 (2022-02-26)
+
 ### Compatibility
 
 - Drop Python 3.6 (#329)
@@ -11,7 +45,19 @@
 
 ### Documentation
 
-- GitLab config importer example script, credit @aschleifer (#336)
+_✨ Renewed_
+
+- GitLab config importer example script, credit @aschleifer (#336, #337, #341)
+
+  These are hosted on the new _config generation_ page.
+
+- Rename `examples` page to `configuration`
+- Theme has been moved to [furo]
+- Broken URLs have ben fixed
+- Added copy paste button next to code snippets
+- Inline tab examples for configuration and config generators
+
+[furo]: https://github.com/pradyunsg/furo
 
 ### Development
 
@@ -365,10 +411,10 @@ vcspull 0.0.7 (2014-01-07)
 [sphinx-argparse]: https://github.com/tony/sphinx-argparse
 [argcomplete]: https://github.com/kislyuk/argcomplete
 [tony/cookiecutter-pypackage]: https://github.com/tony/cookiecutter-pypackage.
-
 [#14]: https://github.com/vcs-python/vcspull/issues/14
 [click]: https://github.com/pallets/click
-
 [fnmatch]: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
 
+<!---
 .. vim: set filetype=markdown:
+-->

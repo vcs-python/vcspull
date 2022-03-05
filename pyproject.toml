@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vcspull"
-version = "1.8.1"
+version = "1.11.0"
 description = "synchronize your projects via yaml / json files"
 license = "MIT"
 authors = ["Tony Narlock <tony@git-pull.com>"]
@@ -51,10 +51,13 @@ colorama = ">=0.3.9"
 ### Docs ###
 sphinx = "*"
 furo = "^2022.2.23"
-sphinx-issues = "^3.0.0"
-sphinx-click = "*"
-sphinx-autodoc-typehints = "~1.17.0"
 sphinx-autobuild = "^2021.3.14"
+sphinx-autodoc-typehints = "~1.17.0"
+sphinx-click = "*"
+sphinx-issues = "^3.0.0"
+sphinx-inline-tabs = { version = "*", python = "^3.7" }
+sphinxext-opengraph = "*"
+sphinx-copybutton = "^0.5.0"
 myst_parser = "~0.17.0"
 
 ### Testing ###
@@ -75,12 +78,12 @@ isort = "*"
 flake8 = "*"
 
 [tool.poetry.extras]
-docs = ["sphinx", "sphinx-issues", "sphinx-click", "sphinx-autodoc-typehints", "myst_parser", "sphinx-autobuild", "alagitpull", "furo"]
+docs = ["sphinx", "sphinx-issues", "sphinx-click", "sphinx-autodoc-typehints", "sphinx-autobuild", "sphinx-copybutton", "sphinxext-opengraph", "sphinx-inline-tabs", "myst_parser", "furo"]
 test = ["pytest", "pytest-rerunfailures", "pytest-watcher"]
 coverage = ["codecov", "coverage", "pytest-cov"]
 format = ["black", "isort"]
 lint = ["flake8"]
 
 [build-system]
-requires = ["poetry_core>=1.0.0"]
+requires = ["poetry_core>=1.0.0", "setuptools>50"]
 build-backend = "poetry.core.masonry.api"
