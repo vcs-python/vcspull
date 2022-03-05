@@ -21,13 +21,6 @@ def write_config(config_dir: LEGACY_PATH, filename: str, content: str):
 
 
 @pytest.fixture
-def config_dir(tmpdir: LEGACY_PATH):
-    conf_dir = tmpdir.join(".vcspull")
-    conf_dir.ensure(dir=True)
-    return conf_dir
-
-
-@pytest.fixture
 def yaml_config(config_dir: LEGACY_PATH):
     yaml_file = config_dir.join("repos1.yaml")
     yaml_file.write("")

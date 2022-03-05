@@ -1,5 +1,7 @@
 import pytest
 
+from _pytest.compat import LEGACY_PATH
+
 from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs.util import run
 
@@ -50,3 +52,10 @@ def create_git_dummy_repo(tmpdir_repoparent):
 def git_dummy_repo_dir(tmpdir_repoparent, create_git_dummy_repo):
     """Create a git repo with 1 commit, used as a remote."""
     return create_git_dummy_repo("dummyrepo")
+
+
+@pytest.fixture
+def config_dir(tmpdir: LEGACY_PATH):
+    conf_dir = tmpdir.join(".vcspull")
+    conf_dir.ensure(dir=True)
+    return conf_dir
