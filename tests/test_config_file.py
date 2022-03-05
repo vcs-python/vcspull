@@ -11,13 +11,7 @@ from vcspull import config, exc
 from vcspull.config import expand_dir, extract_repos
 
 from .fixtures import example as fixtures
-from .helpers import EnvironmentVarGuard
-
-
-def write_config(config_dir: LEGACY_PATH, filename: str, content: str):
-    config = config_dir.join(filename)
-    config.write(content)
-    return config
+from .helpers import EnvironmentVarGuard, write_config
 
 
 @pytest.fixture
