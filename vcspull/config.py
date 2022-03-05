@@ -176,7 +176,7 @@ def find_config_files(
                     configs.extend(find_config_files(path, match, f))
             else:
                 match = os.path.join(path, match)
-                match += ".{filetype}".format(filetype=filetype)
+                match += f".{filetype}"
 
                 configs = glob.glob(match)
 

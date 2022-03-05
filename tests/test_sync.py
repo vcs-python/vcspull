@@ -156,14 +156,14 @@ def test_updating_remote(
 
     base_config = {
         "name": "myclone",
-        "repo_dir": "{tmpdir}/study/myrepo/myclone".format(tmpdir=tmpdir),
-        "parent_dir": "{tmpdir}/study/myrepo".format(tmpdir=tmpdir),
-        "url": "git+file://{repo_dir}".format(repo_dir=dummy_repo),
+        "repo_dir": f"{tmpdir}/study/myrepo/myclone",
+        "parent_dir": f"{tmpdir}/study/myrepo",
+        "url": f"git+file://{dummy_repo}",
         "remotes": {
             "secondremote": GitRemote(
                 name="secondremote",
-                fetch_url="git+file://{repo_dir}".format(repo_dir=dummy_repo),
-                push_url="git+file://{repo_dir}".format(repo_dir=dummy_repo),
+                fetch_url=f"git+file://{dummy_repo}",
+                push_url=f"git+file://{dummy_repo}",
             )
         },
     }
@@ -180,7 +180,7 @@ def test_updating_remote(
     ):
         update_repo(repo_dict).remotes()["origin"]
 
-    expected_remote_url = "git+file://{repo_dir}/moo".format(repo_dir=dummy_repo)
+    expected_remote_url = f"git+file://{dummy_repo}/moo"
 
     config = merge_dict(
         base_config,
