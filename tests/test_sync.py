@@ -1,5 +1,5 @@
 import textwrap
-from typing import Callable
+from typing import Callable, List
 
 import pytest
 
@@ -37,24 +37,33 @@ def test_makes_recursive(
 
 
 @pytest.mark.parametrize(
-    "config_tpl",
+    "config_tpl,remote_list",
     [
-        """
+        [
+            """
         {tmpdir}/study/myrepo:
             {CLONE_NAME}: git+file://{repo_dir}
         """,
-        """
+            ["origin"],
+        ],
+        [
+            """
         {tmpdir}/study/myrepo:
             {CLONE_NAME}:
                repo: git+file://{repo_dir}
         """,
-        """
+            ["repo"],
+        ],
+        [
+            """
         {tmpdir}/study/myrepo:
             {CLONE_NAME}:
                 repo: git+file://{repo_dir}
                 remotes:
                     secondremote: git+file://{repo_dir}
         """,
+            ["secondremote"],
+        ],
     ],
 )
 def test_config_variations(
@@ -62,6 +71,7 @@ def test_config_variations(
     create_git_dummy_repo: Callable[[str], LEGACY_PATH],
     config_tpl: str,
     capsys: pytest.LogCaptureFixture,
+    remote_list: List[str],
 ):
     """Test config output with varation of config formats"""
     dummy_repo_name = "dummy_repo"
@@ -79,20 +89,23 @@ def test_config_variations(
     config_file = ensure_parent_dir(repo_dir=dummy_repo, clone_name="myclone")
     configs = load_configs([str(config_file)])
 
-    # Later: Copy dummy repo somewhere else so the commits are common
-    config_file = ensure_parent_dir(repo_dir=dummy_repo, clone_name="anotherclone")
-    configs = load_configs([str(config_file)])
+    # TODO: Merge repos
+    repos = filter_repos(configs, repo_dir="*")
+    assert len(repos) == 1
 
-    for repo_dict in filter_repos(configs):
+    for repo_dict in repos:
         repo_url = repo_dict["url"].replace("git+", "")
-        r = update_repo(repo_dict)
-        remotes = r.remotes() or []
-        if len(remotes.keys()) > 0:
-            captured = capsys.readouterr()
-            assert f"Updating remote {list(remotes.keys())[0]}" in captured.out
+        repo = update_repo(repo_dict)
+        remotes = repo.remotes() or []
+        remote_names = set(remotes.keys())
+        assert set(remote_list).issubset(remote_names) or {"origin"}.issubset(
+            remote_names
+        )
+        captured = capsys.readouterr()
+        assert f"Updating remote {list(remote_names)[0]}" in captured.out
 
         for remote_name, remote_info in remotes.items():
-            current_remote = r.remote(remote_name)
+            current_remote = repo.remote(remote_name)
             assert current_remote.fetch_url == repo_url
 
 
