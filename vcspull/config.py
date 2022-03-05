@@ -200,7 +200,7 @@ def load_configs(files, cwd=os.getcwd()):
 
     Todo
     ----
-    Validate scheme, check for duplciate destinations, VCS urls
+    Validate scheme, check for duplicate destinations, VCS urls
     """
     repos = []
     for f in files:

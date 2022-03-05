@@ -81,7 +81,7 @@ def test_config_variations(
     capsys: pytest.LogCaptureFixture,
     remote_list: List[str],
 ):
-    """Test config output with varation of config formats"""
+    """Test config output with variation of config formats"""
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
 

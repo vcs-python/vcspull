@@ -7,7 +7,7 @@ This module containers special formatters for processing the additional context
 information from :class:`libvcs.base.RepoLoggingAdapter`.
 
 Colorized formatters for generic logging inside the application is also
-provded.
+provided.
 
 """
 import logging
