@@ -174,7 +174,9 @@ def test_updating_remote(
 
     configs = [base_config]
 
-    for repo_dict in filter_repos(configs, repo_dir="*", vcs_url="*", name="*"):
+    for repo_dict in filter_repos(
+        configs,
+    ):
         update_repo(repo_dict).remotes()["origin"]
 
     expected_remote_url = "git+file://{repo_dir}/moo".format(repo_dir=dummy_repo)
@@ -193,7 +195,7 @@ def test_updating_remote(
     )
     configs = [config]
 
-    repo_dict = filter_repos(configs, repo_dir="*", vcs_url="*", name="myclone")[0]
+    repo_dict = filter_repos(configs, name="myclone")[0]
     r = update_repo(repo_dict)
     for remote_name, remote_info in r.remotes().items():
         current_remote_url = r.remote(remote_name).fetch_url.replace("git+", "")
