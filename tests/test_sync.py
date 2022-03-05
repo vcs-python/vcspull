@@ -36,6 +36,14 @@ def test_makes_recursive(
         repo.obtain()
 
 
+def write_config_remote(tmpdir, config_tpl, repo_dir, clone_name):
+    return write_config(
+        tmpdir,
+        "myrepos.yaml",
+        config_tpl.format(tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name),
+    )
+
+
 @pytest.mark.parametrize(
     "config_tpl,remote_list",
     [
@@ -77,16 +85,9 @@ def test_config_variations(
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
-    def ensure_parent_dir(repo_dir, clone_name):
-        return write_config(
-            tmpdir,
-            "myrepos.yaml",
-            config_tpl.format(
-                tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
-            ),
-        )
-
-    config_file = ensure_parent_dir(repo_dir=dummy_repo, clone_name="myclone")
+    config_file = write_config_remote(
+        tmpdir=tmpdir, config_tpl=config_tpl, repo_dir=dummy_repo, clone_name="myclone"
+    )
     configs = load_configs([str(config_file)])
 
     # TODO: Merge repos
