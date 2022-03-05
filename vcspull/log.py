@@ -103,7 +103,7 @@ class LogFormatter(logging.Formatter):
         try:
             record.message = record.getMessage()
         except Exception as e:
-            record.message = "Bad message (%r): %r" % (e, record.__dict__)
+            record.message = f"Bad message ({e!r}): {record.__dict__!r}"
 
         date_format = "%H:%m:%S"
         record.asctime = time.strftime(date_format, self.converter(record.created))
@@ -179,7 +179,7 @@ class RepoLogFormatter(LogFormatter):
         record.message = "".join(
             [Fore.MAGENTA, Style.BRIGHT, record.message, Fore.RESET, Style.RESET_ALL]
         )
-        return "%s|%s| %s(%s) %s" % (
+        return "{}|{}| {}({}) {}".format(
             Fore.GREEN + Style.DIM,
             record.repo_name,
             Fore.YELLOW,

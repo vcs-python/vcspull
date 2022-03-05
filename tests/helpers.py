@@ -4,7 +4,7 @@ import os
 from _pytest.compat import LEGACY_PATH
 
 
-class EnvironmentVarGuard(object):
+class EnvironmentVarGuard:
 
     """Class to help protect the environment variable properly.
 
