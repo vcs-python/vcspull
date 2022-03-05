@@ -173,14 +173,13 @@ def test_config_variations(
     tmpdir: LEGACY_PATH,
     create_git_dummy_repo: Callable[[str], LEGACY_PATH],
     config_tpl: str,
+    capsys: pytest.LogCaptureFixture,
 ):
     """Test config output with varation of config formats"""
-
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
     def write_config(repo_dir, clone_name):
-
         config = config_tpl.format(
             tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name
         )
@@ -200,8 +199,12 @@ def test_config_variations(
     for repo_dict in filter_repos(configs, repo_dir="*", vcs_url="*", name="*"):
         repo_url = repo_dict["url"].replace("git+", "")
         r = update_repo(repo_dict)
-        remotes = r.remotes or []
-        for remote_name, remote_info in remotes().items():
+        remotes = r.remotes() or []
+        if len(remotes.keys()) > 0:
+            captured = capsys.readouterr()
+            assert f"Updating remote {list(remotes.keys())[0]}" in captured.out
+
+        for remote_name, remote_info in remotes.items():
             current_remote = r.remote(remote_name)
             assert current_remote.fetch_url == repo_url
 
