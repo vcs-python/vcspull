@@ -2,8 +2,6 @@ import pathlib
 
 import pytest
 
-from _pytest.compat import LEGACY_PATH
-
 from libvcs.git import GitRepo
 from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs.util import run
