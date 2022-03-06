@@ -1,7 +1,6 @@
 """Helpers for vcspull."""
 import os
-
-from _pytest.compat import LEGACY_PATH
+import pathlib
 
 
 class EnvironmentVarGuard:
@@ -40,7 +39,7 @@ class EnvironmentVarGuard:
             del self._environ[unset]
 
 
-def write_config(config_dir: LEGACY_PATH, filename: str, content: str):
-    config = config_dir.join(filename)
-    config.write(content)
+def write_config(config_dir: pathlib.Path, filename: str, content: str) -> pathlib.Path:
+    config = config_dir / filename
+    config.write_text(content, encoding="utf-8")
     return config

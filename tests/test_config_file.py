@@ -1,5 +1,6 @@
 """Tests for vcspull config loading."""
 import os
+import pathlib
 import textwrap
 
 import pytest
@@ -14,17 +15,17 @@ from .fixtures import example as fixtures
 from .helpers import EnvironmentVarGuard, write_config
 
 
-@pytest.fixture
-def yaml_config(config_dir: LEGACY_PATH):
-    yaml_file = config_dir.join("repos1.yaml")
-    yaml_file.write("")
+@pytest.fixture(scope="function")
+def yaml_config(config_dir: pathlib.Path):
+    yaml_file = config_dir / "repos1.yaml"
+    yaml_file.write_text("")
     return yaml_file
 
 
-@pytest.fixture
-def json_config(config_dir: LEGACY_PATH):
-    json_file = config_dir.join("repos2.json")
-    json_file.write("")
+@pytest.fixture(scope="function")
+def json_config(config_dir: pathlib.Path):
+    json_file = config_dir / "repos2.json"
+    json_file.write_text("", encoding="utf-8")
     return json_file
 
 
@@ -209,16 +210,16 @@ def test_multiple_config_files_raises_exception(tmpdir: LEGACY_PATH):
 
 
 def test_in_dir(
-    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+    config_dir: pathlib.Path, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
 ):
-    expected = [yaml_config.purebasename, json_config.purebasename]
+    expected = [yaml_config.stem, json_config.stem]
     result = config.in_dir(str(config_dir))
 
     assert len(expected) == len(result)
 
 
 def test_find_config_path_string(
-    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+    config_dir: pathlib.Path, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
 ):
     config_files = config.find_config_files(path=str(config_dir))
 
@@ -234,16 +235,19 @@ def test_find_config_path_list(config_dir, yaml_config, json_config):
 
 
 def test_find_config_match_string(
-    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+    config_dir: pathlib.Path,
+    yaml_config: LEGACY_PATH,
+    json_config: LEGACY_PATH,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     config_files = config.find_config_files(
-        path=str(config_dir), match=yaml_config.purebasename
+        path=str(config_dir), match=yaml_config.stem
     )
     assert str(yaml_config) in config_files
     assert str(json_config) not in config_files
 
     config_files = config.find_config_files(
-        path=[str(config_dir)], match=json_config.purebasename
+        path=[str(config_dir)], match=json_config.stem
     )
     assert str(yaml_config) not in config_files
     assert str(json_config) in config_files
@@ -271,13 +275,13 @@ def test_find_config_match_string(
 def test_find_config_match_list(config_dir, yaml_config, json_config):
     config_files = config.find_config_files(
         path=[str(config_dir)],
-        match=[yaml_config.purebasename, json_config.purebasename],
+        match=[yaml_config.stem, json_config.stem],
     )
     assert str(yaml_config) in config_files
     assert str(json_config) in config_files
 
     config_files = config.find_config_files(
-        path=[str(config_dir)], match=[yaml_config.purebasename]
+        path=[str(config_dir)], match=[yaml_config.stem]
     )
     assert str(yaml_config) in config_files
     assert len([c for c in config_files if str(yaml_config) in c]) == 1
@@ -286,16 +290,16 @@ def test_find_config_match_list(config_dir, yaml_config, json_config):
 
 
 def test_find_config_filetype_string(
-    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+    config_dir: pathlib.Path, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
 ):
     config_files = config.find_config_files(
-        path=[str(config_dir)], match=yaml_config.purebasename, filetype="yaml"
+        path=[str(config_dir)], match=yaml_config.stem, filetype="yaml"
     )
     assert str(yaml_config) in config_files
     assert str(json_config) not in config_files
 
     config_files = config.find_config_files(
-        path=[str(config_dir)], match=yaml_config.purebasename, filetype="json"
+        path=[str(config_dir)], match=yaml_config.stem, filetype="json"
     )
     assert str(yaml_config) not in config_files
     assert str(json_config) not in config_files
@@ -314,7 +318,7 @@ def test_find_config_filetype_string(
 
 
 def test_find_config_filetype_list(
-    config_dir: LEGACY_PATH, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
+    config_dir: pathlib.Path, yaml_config: LEGACY_PATH, json_config: LEGACY_PATH
 ):
     config_files = config.find_config_files(
         path=[str(config_dir)], match=["repos*"], filetype=["*"]
@@ -337,7 +341,7 @@ def test_find_config_filetype_list(
 
 def test_find_config_include_home_config_files(
     tmpdir: LEGACY_PATH,
-    config_dir: LEGACY_PATH,
+    config_dir: pathlib.Path,
     yaml_config: LEGACY_PATH,
     json_config: LEGACY_PATH,
 ):
@@ -360,7 +364,7 @@ def test_find_config_include_home_config_files(
         assert str(json_config) in results
 
 
-def test_merge_nested_dict(tmpdir: LEGACY_PATH, config_dir: LEGACY_PATH):
+def test_merge_nested_dict(tmpdir: LEGACY_PATH, config_dir: pathlib.Path):
     config1 = write_config(
         config_dir=config_dir,
         filename="repoduplicate1.yaml",

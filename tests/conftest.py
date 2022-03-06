@@ -57,8 +57,15 @@ def git_dummy_repo_dir(tmpdir_repoparent: pathlib.Path, create_git_dummy_repo):
     return create_git_dummy_repo("dummyrepo")
 
 
-@pytest.fixture
-def config_dir(tmpdir: LEGACY_PATH):
-    conf_dir = tmpdir.join(".vcspull")
-    conf_dir.ensure(dir=True)
+@pytest.fixture(scope="function")
+def home_path(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> pathlib.Path:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    tmp_path.mkdir(exist_ok=True)
+    return tmp_path
+
+
+@pytest.fixture(scope="function")
+def config_dir(home_path: pathlib.Path):
+    conf_dir = home_path / ".vcspull"
+    conf_dir.mkdir()
     return conf_dir
