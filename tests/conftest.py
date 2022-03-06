@@ -1,3 +1,5 @@
+import pathlib
+
 import pytest
 
 from _pytest.compat import LEGACY_PATH
@@ -7,14 +9,14 @@ from libvcs.util import run
 
 
 @pytest.fixture(scope="function")
-def tmpdir_repoparent(tmpdir_factory):
+def tmpdir_repoparent(tmp_path: pathlib.Path):
     """Return temporary directory for repository checkout guaranteed unique."""
-    fn = tmpdir_factory.mktemp("repo")
+    fn = tmp_path
     return fn
 
 
 @pytest.fixture
-def git_repo_kwargs(tmpdir_repoparent, git_dummy_repo_dir):
+def git_repo_kwargs(tmpdir_repoparent: pathlib.Path, git_dummy_repo_dir):
     """Return kwargs for :func:`create_repo_from_pip_url`."""
     repo_name = "repo_clone"
     return {
@@ -35,7 +37,7 @@ def git_repo(git_repo_kwargs):
 @pytest.fixture
 def create_git_dummy_repo(tmpdir_repoparent):
     def fn(repo_name, testfile_filename="testfile.test"):
-        repo_path = str(tmpdir_repoparent.join(repo_name))
+        repo_path = str(tmpdir_repoparent / repo_name)
 
         run(["git", "init", repo_name], cwd=str(tmpdir_repoparent))
 
