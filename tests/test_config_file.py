@@ -17,14 +17,14 @@ from .helpers import EnvironmentVarGuard, write_config
 @pytest.fixture(scope="function")
 def yaml_config(config_path: pathlib.Path):
     yaml_file = config_path / "repos1.yaml"
-    yaml_file.write_text("")
+    yaml_file.touch()
     return yaml_file
 
 
 @pytest.fixture(scope="function")
 def json_config(config_path: pathlib.Path):
     json_file = config_path / "repos2.json"
-    json_file.write_text("", encoding="utf-8")
+    json_file.touch()
     return json_file
 
 
@@ -188,7 +188,7 @@ def test_find_config_files(tmp_path: pathlib.Path):
     # Test find_config_files in home directory.
 
     pull_config = tmp_path / ".vcspull.yaml"
-    pull_config.write_text("", encoding="utf-8")
+    pull_config.touch()
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
         os.environ.get("HOME") == str(tmp_path)
@@ -200,9 +200,9 @@ def test_find_config_files(tmp_path: pathlib.Path):
 
 def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path):
     json_conf_file = tmp_path / ".vcspull.json"
-    json_conf_file.write_text("", encoding="utf-8")
+    json_conf_file.touch()
     yaml_conf_file = tmp_path / ".vcspull.yaml"
-    yaml_conf_file.write_text("", encoding="utf-8")
+    yaml_conf_file.touch()
     with EnvironmentVarGuard() as env:
         with pytest.raises(exc.MultipleConfigWarning):
             env.set("HOME", str(tmp_path))
@@ -358,7 +358,7 @@ def test_find_config_include_home_config_files(
         assert str(json_config) in config_files
 
         config_file3 = tmp_path / ".vcspull.json"
-        config_file3.write_text("", encoding="utf-8")
+        config_file3.touch()
         results = config.find_config_files(
             path=[str(config_path)], match="*", include_home=True
         )
