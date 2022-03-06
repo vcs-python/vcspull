@@ -4,11 +4,23 @@
 
 - _Add your latest changes from PRs here_
 
+### Development
+
+- Run pyupgrade formatting (#353)
+- Tests: Move from pytest `tmp_dir` (`py.path.local`) to `tmp_path`
+  (`pathlib.Path`)
+
+### Documentation
+
+- Move to furo theme
+- Root: `make start_docs`, `make design_docs`
+- docs/: `make start`, `make design`
+
 ## vcspull 1.11.0 (2022-02-28)
 
 ### Development
 
-- CLI moved from `cli.py` -> `cli/__init__.py`, `cli/sync.py` 
+- CLI moved from `cli.py` -> `cli/__init__.py`, `cli/sync.py`
 - CLI: Default groups removed
 
 ### Documentation
