@@ -6,8 +6,8 @@ from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs.util import run
 
 
-@pytest.fixture
-def tmpdir_repoparent(tmpdir_factory, scope="function"):
+@pytest.fixture(scope="function")
+def tmpdir_repoparent(tmpdir_factory):
     """Return temporary directory for repository checkout guaranteed unique."""
     fn = tmpdir_factory.mktemp("repo")
     return fn
