@@ -4,6 +4,7 @@ import pytest
 
 from _pytest.compat import LEGACY_PATH
 
+from libvcs.git import GitRepo
 from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs.util import run
 
@@ -27,7 +28,7 @@ def git_repo_kwargs(tmpdir_repoparent: pathlib.Path, git_dummy_repo_dir):
 
 
 @pytest.fixture
-def git_repo(git_repo_kwargs):
+def git_repo(git_repo_kwargs) -> GitRepo:
     """Create an git repository for tests. Return repo."""
     git_repo = create_repo_from_pip_url(**git_repo_kwargs)
     git_repo.obtain(quiet=True)
@@ -35,7 +36,7 @@ def git_repo(git_repo_kwargs):
 
 
 @pytest.fixture
-def create_git_dummy_repo(tmpdir_repoparent):
+def create_git_dummy_repo(tmpdir_repoparent: pathlib.Path) -> pathlib.Path:
     def fn(repo_name, testfile_filename="testfile.test"):
         repo_path = str(tmpdir_repoparent / repo_name)
 
@@ -51,7 +52,7 @@ def create_git_dummy_repo(tmpdir_repoparent):
 
 
 @pytest.fixture
-def git_dummy_repo_dir(tmpdir_repoparent, create_git_dummy_repo):
+def git_dummy_repo_dir(tmpdir_repoparent: pathlib.Path, create_git_dummy_repo):
     """Create a git repo with 1 commit, used as a remote."""
     return create_git_dummy_repo("dummyrepo")
 
