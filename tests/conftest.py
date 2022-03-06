@@ -65,7 +65,7 @@ def home_path(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> pathli
 
 
 @pytest.fixture(scope="function")
-def config_dir(home_path: pathlib.Path):
-    conf_dir = home_path / ".vcspull"
-    conf_dir.mkdir()
-    return conf_dir
+def config_path(home_path: pathlib.Path):
+    conf_path = home_path / ".vcspull"
+    conf_path.mkdir()
+    return conf_path

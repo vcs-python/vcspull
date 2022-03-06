@@ -39,7 +39,9 @@ class EnvironmentVarGuard:
             del self._environ[unset]
 
 
-def write_config(config_dir: pathlib.Path, filename: str, content: str) -> pathlib.Path:
-    config = config_dir / filename
+def write_config(
+    config_path: pathlib.Path, filename: str, content: str
+) -> pathlib.Path:
+    config = config_path / filename
     config.write_text(content, encoding="utf-8")
     return config
