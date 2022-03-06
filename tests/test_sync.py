@@ -1,10 +1,10 @@
+import pathlib
 import textwrap
 from typing import Callable, List
 
 import pytest
 
 import kaptan
-from _pytest.compat import LEGACY_PATH
 
 from libvcs.git import GitRemote
 from libvcs.shortcuts import create_repo_from_pip_url
@@ -15,18 +15,18 @@ from .helpers import write_config
 
 
 def test_makes_recursive(
-    tmpdir: LEGACY_PATH,
-    git_dummy_repo_dir: LEGACY_PATH,
+    tmp_path: pathlib.Path,
+    git_dummy_repo_dir: pathlib.Path,
 ):
     """Ensure that directories in pull are made recursively."""
     conf = kaptan.Kaptan(handler="yaml")
     conf.import_config(
         textwrap.dedent(
             """
-        {tmpdir}/study/myrepo:
+        {tmp_path}/study/myrepo:
             my_url: git+file://{repo_dir}
     """
-        ).format(tmpdir=str(tmpdir), repo_dir=git_dummy_repo_dir)
+        ).format(tmp_path=str(tmp_path), repo_dir=git_dummy_repo_dir)
     )
     conf = conf.export("dict")
     repos = extract_repos(conf)
@@ -36,11 +36,13 @@ def test_makes_recursive(
         repo.obtain()
 
 
-def write_config_remote(tmpdir, config_tpl, repo_dir, clone_name):
+def write_config_remote(tmp_path, config_tpl, repo_dir, clone_name):
     return write_config(
-        tmpdir,
+        tmp_path,
         "myrepos.yaml",
-        config_tpl.format(tmpdir=str(tmpdir), repo_dir=repo_dir, CLONE_NAME=clone_name),
+        config_tpl.format(
+            tmp_path=str(tmp_path), repo_dir=repo_dir, CLONE_NAME=clone_name
+        ),
     )
 
 
@@ -49,14 +51,14 @@ def write_config_remote(tmpdir, config_tpl, repo_dir, clone_name):
     [
         [
             """
-        {tmpdir}/study/myrepo:
+        {tmp_path}/study/myrepo:
             {CLONE_NAME}: git+file://{repo_dir}
         """,
             ["origin"],
         ],
         [
             """
-        {tmpdir}/study/myrepo:
+        {tmp_path}/study/myrepo:
             {CLONE_NAME}:
                repo: git+file://{repo_dir}
         """,
@@ -64,7 +66,7 @@ def write_config_remote(tmpdir, config_tpl, repo_dir, clone_name):
         ],
         [
             """
-        {tmpdir}/study/myrepo:
+        {tmp_path}/study/myrepo:
             {CLONE_NAME}:
                 repo: git+file://{repo_dir}
                 remotes:
@@ -75,8 +77,8 @@ def write_config_remote(tmpdir, config_tpl, repo_dir, clone_name):
     ],
 )
 def test_config_variations(
-    tmpdir: LEGACY_PATH,
-    create_git_dummy_repo: Callable[[str], LEGACY_PATH],
+    tmp_path: pathlib.Path,
+    create_git_dummy_repo: Callable[[str], pathlib.Path],
     config_tpl: str,
     capsys: pytest.LogCaptureFixture,
     remote_list: List[str],
@@ -86,7 +88,10 @@ def test_config_variations(
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
     config_file = write_config_remote(
-        tmpdir=tmpdir, config_tpl=config_tpl, repo_dir=dummy_repo, clone_name="myclone"
+        tmp_path=tmp_path,
+        config_tpl=config_tpl,
+        repo_dir=dummy_repo,
+        clone_name="myclone",
     )
     configs = load_configs([str(config_file)])
 
@@ -115,14 +120,14 @@ def test_config_variations(
     [
         [
             """
-        {tmpdir}/study/myrepo:
+        {tmp_path}/study/myrepo:
             {CLONE_NAME}: git+file://{repo_dir}
         """,
             False,
         ],
         [
             """
-        {tmpdir}/study/myrepo:
+        {tmp_path}/study/myrepo:
             {CLONE_NAME}:
                repo: git+file://{repo_dir}
         """,
@@ -130,7 +135,7 @@ def test_config_variations(
         ],
         [
             """
-        {tmpdir}/study/myrepo:
+        {tmp_path}/study/myrepo:
             {CLONE_NAME}:
                 repo: git+file://{repo_dir}
                 remotes:
@@ -141,8 +146,8 @@ def test_config_variations(
     ],
 )
 def test_updating_remote(
-    tmpdir: LEGACY_PATH,
-    create_git_dummy_repo: Callable[[str], LEGACY_PATH],
+    tmp_path: pathlib.Path,
+    create_git_dummy_repo: Callable[[str], pathlib.Path],
     config_tpl: str,
     has_extra_remotes,
 ):
@@ -151,13 +156,13 @@ def test_updating_remote(
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
-    repo_parent = tmpdir.join("study/myrepo")
-    repo_parent.ensure(dir=True)
+    repo_parent = tmp_path / "study" / "myrepo"
+    repo_parent.mkdir(parents=True)
 
     base_config = {
         "name": "myclone",
-        "repo_dir": f"{tmpdir}/study/myrepo/myclone",
-        "parent_dir": f"{tmpdir}/study/myrepo",
+        "repo_dir": f"{tmp_path}/study/myrepo/myclone",
+        "parent_dir": f"{tmp_path}/study/myrepo",
         "url": f"git+file://{dummy_repo}",
         "remotes": {
             "secondremote": GitRemote(
