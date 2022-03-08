@@ -22,11 +22,11 @@ def test_makes_recursive(
     conf = kaptan.Kaptan(handler="yaml")
     conf.import_config(
         textwrap.dedent(
-            """
+            f"""
         {tmp_path}/study/myrepo:
-            my_url: git+file://{repo_dir}
+            my_url: git+file://{git_dummy_repo_dir}
     """
-        ).format(tmp_path=str(tmp_path), repo_dir=git_dummy_repo_dir)
+        )
     )
     conf = conf.export("dict")
     repos = extract_repos(conf)

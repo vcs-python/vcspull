@@ -11,7 +11,7 @@ from .fixtures import example as fixtures
 
 
 def test_filter_dir():
-    """``filter_repos`` filter by dir"""
+    """`filter_repos` filter by dir"""
     repo_list = filter_repos(fixtures.config_dict_expanded, repo_dir="*github_project*")
 
     assert len(repo_list) == 1
@@ -20,7 +20,7 @@ def test_filter_dir():
 
 
 def test_filter_name():
-    """``filter_repos`` filter by name"""
+    """`filter_repos` filter by name"""
     repo_list = filter_repos(fixtures.config_dict_expanded, name=".vim")
 
     assert len(repo_list) == 1
@@ -29,7 +29,7 @@ def test_filter_name():
 
 
 def test_filter_vcs():
-    """``filter_repos`` filter by vcs remote url"""
+    """`filter_repos` filter by vcs remote url"""
     repo_list = filter_repos(fixtures.config_dict_expanded, vcs_url="*kernel.org*")
 
     assert len(repo_list) == 1
@@ -38,7 +38,7 @@ def test_filter_vcs():
 
 
 def test_to_dictlist():
-    """``filter_repos`` pulls the repos in dict format from the config."""
+    """`filter_repos` pulls the repos in dict format from the config."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
 
     for r in repo_list:
@@ -56,7 +56,7 @@ def test_to_dictlist():
 
 
 def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
-    """Verify ``url`` return {Git,Mercurial,Subversion}Repo.
+    """Verify `url` return {Git,Mercurial,Subversion}Repo.
 
     :class:`GitRepo`, :class:`MercurialRepo` or :class:`SubversionRepo`
     object based on the pip-style URL scheme.
