@@ -15,7 +15,7 @@ You may recognize this from `pip`'s [VCS URL] format.
 
 For git remotes using SSH authorization such as `git+git@github.com:tony/kaptan.git` use `git+ssh`:
 
-```sh
+```console
 git+ssh://git@github.com/tony/kaptan.git
 ```
 
@@ -32,7 +32,7 @@ _~/.vcspull.yaml_:
 
 Then type:
 
-```sh
+```console
 vcspull sync kaptan
 ```
 

@@ -12,7 +12,7 @@ See the [click library's documentation on shell completion](https://click.pallet
 
 In bash (`~/.bashrc`):
 
-```{code-block} sh
+```console
 
 eval "$(_VCSPULL_COMPLETE=bash_source vcspull)"
 
@@ -20,7 +20,7 @@ eval "$(_VCSPULL_COMPLETE=bash_source vcspull)"
 
 In zsh (`~/.zshrc`):
 
-```{code-block} sh
+```console
 
 eval "$(_VCSPULL_COMPLETE=zsh_source vscpull)"
 

@@ -21,7 +21,7 @@ _Requires [jq] and [curl]._
 :language: shell
 ```
 
-```shell
+```console
 export GITLAB_TOKEN=mySecretToken
 /path/to/generate_gitlab.sh gitlab.mycompany.com desired_namespace
 ```
@@ -31,7 +31,7 @@ the current working directory as a "prefix" for the path used in the new config 
 
 Optional: Set config file output path as additional argument (_will overwrite_)
 
-```shell
+```console
 export GITLAB_TOKEN=mySecretToken
 /path/to/generate_gitlab.sh gitlab.mycompany.com desired_namespace /path/to/config.yaml
 ```
@@ -40,7 +40,7 @@ export GITLAB_TOKEN=mySecretToken
 
 Assume current directory of _/home/user/workspace/_ and script at _/home/user/workspace/scripts/generate_gitlab.sh_:
 
-```shell
+```console
 ./scripts/generate_gitlab.sh gitlab.com vcs-python
 ```
 
@@ -82,7 +82,7 @@ of the gitlab mirror, e.g. `https://gitlab.com` instead of `gitlab.com`.
 
 Assume current directory of _/home/user/workspace/_ and script at _/home/user/workspace/scripts/generate_gitlab.sh_:
 
-```sh
+```console
 ./scripts/generate_gitlab.py https://gitlab.com vcs-python
 ```
 

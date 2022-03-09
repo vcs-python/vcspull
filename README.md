@@ -30,7 +30,7 @@ machines or want to clone / update a pattern of repos without having to
 
 ## install
 
-```sh
+```console
 $ pip install --user vcspull
 ```
 
@@ -66,7 +66,7 @@ already exist.
 
 ## clone / update your repos
 
-```bash
+```console
 $ vcspull
 ```
 
@@ -82,7 +82,9 @@ or svn project with a git dependency:
 
 clone / update repos:
 
-    $ vcspull sync -c external_deps.yaml
+```console
+$ vcspull sync -c external_deps.yaml
+```
 
 See the [Quickstart](https://vcspull.git-pull.com/quickstart.html) for
 more.
@@ -98,23 +100,23 @@ first.
 
 The patterns can be filtered by by directory, repo name or vcs url.
 
-```bash
-# any repo starting with "fla"
+```console
+// any repo starting with "fla"
 $ vcspull sync "fla*"
-# any repo with django in the name
+// any repo with django in the name
 $ vcspull sync "*django*"
 
-# search by vcs + url
-# since urls are in this format <vcs>+<protocol>://<url>
+// search by vcs + url
+// since urls are in this format <vcs>+<protocol>://<url>
 $ vcspull sync "git+*"
 
-# any git repo with python in the vcspull
+// any git repo with python in the vcspull
 $ vcspull sync "git+*python*
 
-# any git repo with django in the vcs url
+// any git repo with django in the vcs url
 $ vcspull sync "git+*django*"
 
-# all repositories in your ~/code directory
+// all repositories in your ~/code directory
 $ vcspull sync "$HOME/code/*"
 ```
 

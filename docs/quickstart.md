@@ -8,7 +8,7 @@ First, install vcspull.
 
 For latest official version:
 
-```{code-block} bash
+```console
 
 $ pip install --user vcspull
 
@@ -16,7 +16,7 @@ $ pip install --user vcspull
 
 Development version:
 
-```{code-block} bash
+```console
 
 $ pip install --user -e git+https://github.com/vcs-python/vcspull.git#egg=vcspull
 
@@ -60,7 +60,7 @@ specified in [pip vcs url][pip vcs url] format.
 Now run the command, to pull all the repositories in your
 `.vcspull.yaml` / `.vcspull.json`.
 
-```{code-block} bash
+```console
 
 $ vcspull
 
@@ -79,7 +79,7 @@ be any name):
 
 Use `-c` to specify a config.
 
-```{code-block} bash
+```console
 
 $ vcspull sync -c .deps.yaml
 
@@ -88,7 +88,7 @@ $ vcspull sync -c .deps.yaml
 You can also use [fnmatch][fnmatch] to pull repositories from your config in
 various fashions, e.g.:
 
-```{code-block} bash
+```console
 
 $ vcspull sync django
 $ vcspull sync django\*
@@ -102,7 +102,7 @@ Filter by vcs URL
 Any repo beginning with `http`, `https` or `git` will be look up
 repos by the vcs url.
 
-```{code-block} bash
+```console
 
 # pull / update repositories I have with github in the repo url
 $ vcspull sync "git+https://github.com/yourusername/*"
@@ -117,7 +117,7 @@ Filter by the path of the repo on your local machine:
 Any repo beginning with `/`, `./`, `~` or `$HOME` will scan
 for patterns of where the project is on your system:
 
-```{code-block} bash
+```console
 
 # pull all the repos I have inside of ~/study/python
 $ vcspull sync "$HOME/study/python"
