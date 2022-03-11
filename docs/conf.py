@@ -1,5 +1,6 @@
 # flake8: noqa E501
 import os
+import sys
 from pathlib import Path
 
 # Get the project root dir, which is the parent dir of this
