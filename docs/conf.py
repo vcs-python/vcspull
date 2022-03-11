@@ -1,9 +1,13 @@
 # flake8: noqa E501
 import os
+from pathlib import Path
 
 # Get the project root dir, which is the parent dir of this
-cwd = os.getcwd()
-project_root = os.path.dirname(cwd)
+cwd = Path.cwd()
+project_root = cwd.parent
+
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(cwd / "_ext"))
 
 # package data
 about = {}
