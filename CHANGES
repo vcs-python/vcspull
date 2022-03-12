@@ -4,6 +4,8 @@
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.11.1 (2022-03-12)
+
 ### Security
 
 - Update libvcs 0.11.0 -> 0.11.1 to patch mercurial URL injection
