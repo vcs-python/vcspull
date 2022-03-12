@@ -4,6 +4,11 @@
 
 - _Add your latest changes from PRs here_
 
+### Security
+
+- Update libvcs 0.11.0 -> 0.11.1 to patch mercurial URL injection
+  vulnerability with URLs ([info](https://github.com/vcs-python/libvcs/pull/306))
+
 ### Development
 
 - Run pyupgrade formatting (#353)
