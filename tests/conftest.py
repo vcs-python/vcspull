@@ -22,6 +22,11 @@ def user_path(home_path: pathlib.Path):
     return p
 
 
+@pytest.fixture(autouse=True)
+def set_user_path(monkeypatch: pytest.MonkeyPatch, user_path: pathlib.Path):
+    monkeypatch.setenv("HOME", str(user_path))
+
+
 @pytest.fixture(scope="function")
 def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest):
     """Return temporary directory for repository checkout guaranteed unique."""
