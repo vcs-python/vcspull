@@ -44,7 +44,7 @@ vcspull = 'vcspull:cli.cli'
 python = "^3.7"
 click = ">=7<8.1"
 kaptan = "*"
-libvcs = "~0.11.0"
+libvcs = "~0.11.1"
 colorama = ">=0.3.9"
 
 [tool.poetry.dev-dependencies]
