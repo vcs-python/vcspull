@@ -34,6 +34,24 @@ machines or want to clone / update a pattern of repos without having to
 $ pip install --user vcspull
 ```
 
+### Developmental releases
+
+You can test the unpublished version of vcspull before its released.
+
+- [pip](https://pip.pypa.io/en/stable/):
+
+  ```console
+  $ pip install --user --upgrade --pre vcspull
+  ```
+
+- [pipx](https://pypa.github.io/pipx/docs/):
+
+  ```console
+  $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
+  ```
+
+  Then use `vcspull@next sync [config]...`.
+
 ## configure
 
 add repos you want vcspull to manage to `~/.vcspull.yaml`.
