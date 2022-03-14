@@ -1,6 +1,21 @@
 # Changelog
 
-## current
+To install the unreleased vcspull version, see [developmental releases](https://vcspull.git-pull.com/quickstart.html#developmental-releases).
+
+[pip](https://pip.pypa.io/en/stable/):
+
+```console
+$ pip install --user --upgrade --pre vcspull
+```
+
+[pipx](https://pypa.github.io/pipx/docs/):
+
+```console
+$ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
+// Usage: vcspull@next sync [config]
+```
+
+## current - unrelased
 
 - _Add your latest changes from PRs here_
 
