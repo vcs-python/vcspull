@@ -18,9 +18,9 @@
 :maxdepth: 2
 
 quickstart
+cli
 configuration
 config-generation
-cli
 api
 developing
 history
