@@ -1,6 +1,6 @@
 class VCSPullException(Exception):
 
-    """Standard exception raised by libvcs."""
+    """Standard exception raised by vcspull."""
 
 
 class MultipleConfigWarning(VCSPullException):
