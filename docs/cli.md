@@ -1,6 +1,6 @@
 (cli)=
 
-# Command Line Interface
+# Commands
 
 (completion)=
 
