@@ -21,6 +21,7 @@ quickstart
 configuration
 config-generation
 cli
+api
 developing
 history
 
