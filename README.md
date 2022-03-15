@@ -2,7 +2,7 @@
 [libvcs](https://github.com/vcs-python/libvcs)
 
 [![Python Package](https://img.shields.io/pypi/v/vcspull.svg)](http://badge.fury.io/py/vcspull)
-[![Docs](https://github.com/vcs-python/vcspull/workflows/Publish%20Docs/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22Publish+Docs%22)
+[![Docs](https://github.com/vcs-python/vcspull/workflows/docs/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22docs%22)
 [![Build Status](https://github.com/vcs-python/vcspull/workflows/tests/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22tests%22)
 [![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull)
 [![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE)
