@@ -1,4 +1,4 @@
-# $ vcspull &middot; [![Python Package](https://img.shields.io/pypi/v/vcspull.svg)](https://pypi.org/project/vcspull/) [![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE) [![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull) 
+# $ vcspull &middot; [![Python Package](https://img.shields.io/pypi/v/vcspull.svg)](https://pypi.org/project/vcspull/) [![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE) [![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull)
 
 Synchronize repos in bulk from JSON or YAML file. Compare to
 [myrepos](http://myrepos.branchable.com/). Built on [libvcs](https://github.com/vcs-python/libvcs)
@@ -16,7 +16,7 @@ machines or want to clone / update a pattern of repos without having to
   ([RFC3986](https://datatracker.ietf.org/doc/html/rfc3986)-based [url
   scheme](https://pip.pypa.io/en/latest/topics/vcs-support/))
 
-See the [documentation](https://vcspull.git-pull.com/), [configuration](https://vcspull.git-pull.com/configuration.html) examples, and [config generators](https://vcspull.git-pull.com/config-generation.html).
+See the [documentation](https://vcspull.git-pull.com/), [configuration](https://vcspull.git-pull.com/configuration/) examples, and [config generators](https://vcspull.git-pull.com/configuration/generation.html).
 
 # how to
 
@@ -155,4 +155,4 @@ See donation options at <https://git-pull.com/support.html>.
 - Open Hub: <https://www.openhub.net/p/vcspull>
 - License: [MIT](https://opensource.org/licenses/MIT).
 
-[![Docs](https://github.com/vcs-python/vcspull/workflows/docs/badge.svg)](https://vcspull.git-pull.com) [![Build Status](https://github.com/vcs-python/vcspull/workflows/tests/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22tests%22) 
+[![Docs](https://github.com/vcs-python/vcspull/workflows/docs/badge.svg)](https://vcspull.git-pull.com) [![Build Status](https://github.com/vcs-python/vcspull/workflows/tests/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22tests%22)

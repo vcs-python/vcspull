@@ -19,8 +19,7 @@
 
 quickstart
 cli
-configuration
-config-generation
+configuration/index
 api
 developing
 history
