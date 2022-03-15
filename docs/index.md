@@ -1,3 +1,7 @@
+---
+hide-toc: true
+---
+
 (index)=
 
 ```{include} ../README.md
@@ -16,12 +20,20 @@
 
 ```{toctree}
 :maxdepth: 2
+:hidden:
 
 quickstart
 cli
 configuration/index
+
+```
+
+```{toctree}
+:caption: Project
+:hidden:
+
 api
 developing
 history
-
+GitHub <https://github.com/vcs-python/vcspull>
 ```
