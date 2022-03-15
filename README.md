@@ -1,14 +1,7 @@
-`vcspull` - synchronize your repos. built on
-[libvcs](https://github.com/vcs-python/libvcs)
+# `vcspull` &middot; [![Python Package](https://img.shields.io/pypi/v/vcspull.svg)](http://badge.fury.io/py/vcspull) [![Docs](https://github.com/vcs-python/vcspull/workflows/docs/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22docs%22) [![Build Status](https://github.com/vcs-python/vcspull/workflows/tests/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22tests%22) [![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull) [![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE)
 
-[![Python Package](https://img.shields.io/pypi/v/vcspull.svg)](http://badge.fury.io/py/vcspull)
-[![Docs](https://github.com/vcs-python/vcspull/workflows/docs/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22docs%22)
-[![Build Status](https://github.com/vcs-python/vcspull/workflows/tests/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22tests%22)
-[![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull)
-[![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE)
-
-Manage your commonly used repos from YAML / JSON manifest(s). Compare to
-[myrepos](http://myrepos.branchable.com/).
+Synchronize repos in bulk from JSON or YAML file. Compare to
+[myrepos](http://myrepos.branchable.com/). Built on [libvcs](https://github.com/vcs-python/libvcs)
 
 Great if you use the same repos at the same locations across multiple
 machines or want to clone / update a pattern of repos without having to
