@@ -1,7 +1,5 @@
 (index)=
 
-# vcspull
-
 ```{include} ../README.md
 :end-before: <img
 ```
