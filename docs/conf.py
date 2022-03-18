@@ -27,6 +27,7 @@ extensions = [
     "sphinx_inline_tabs",
     "sphinx_copybutton",
     "sphinxext.opengraph",
+    "sphinxext.rediraffe",
     "myst_parser",
 ]
 myst_enable_extensions = ["colon_fence", "substitution", "replacements"]
@@ -99,6 +100,10 @@ copybutton_prompt_text = (
 )
 copybutton_prompt_is_regexp = True
 copybutton_remove_prompts = True
+
+# sphinxext-rediraffe
+rediraffe_redirects = "redirects.txt"
+rediraffe_branch = "master~1"
 
 htmlhelp_basename = "%sdoc" % about["__title__"]
 
