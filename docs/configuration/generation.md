@@ -22,8 +22,8 @@ _Requires [jq] and [curl]._
 ```
 
 ```console
-export GITLAB_TOKEN=mySecretToken
-/path/to/generate_gitlab.sh gitlab.mycompany.com desired_namespace
+$ env GITLAB_TOKEN=mySecretToken \
+  /path/to/generate_gitlab.sh gitlab.mycompany.com desired_namespace
 ```
 
 To be executed from the path where the repos should later be stored. It will use
@@ -32,8 +32,8 @@ the current working directory as a "prefix" for the path used in the new config 
 Optional: Set config file output path as additional argument (_will overwrite_)
 
 ```console
-export GITLAB_TOKEN=mySecretToken
-/path/to/generate_gitlab.sh gitlab.mycompany.com desired_namespace /path/to/config.yaml
+$ env GITLAB_TOKEN=mySecretToken \
+  /path/to/generate_gitlab.sh gitlab.mycompany.com desired_namespace /path/to/config.yaml
 ```
 
 **Demonstration**
@@ -41,7 +41,7 @@ export GITLAB_TOKEN=mySecretToken
 Assume current directory of _/home/user/workspace/_ and script at _/home/user/workspace/scripts/generate_gitlab.sh_:
 
 ```console
-./scripts/generate_gitlab.sh gitlab.com vcs-python
+$ ./scripts/generate_gitlab.sh gitlab.com vcs-python
 ```
 
 New file _vcspull.yaml_:
@@ -83,7 +83,7 @@ of the gitlab mirror, e.g. `https://gitlab.com` instead of `gitlab.com`.
 Assume current directory of _/home/user/workspace/_ and script at _/home/user/workspace/scripts/generate_gitlab.sh_:
 
 ```console
-./scripts/generate_gitlab.py https://gitlab.com vcs-python
+$ ./scripts/generate_gitlab.py https://gitlab.com vcs-python
 ```
 
 ```yaml
