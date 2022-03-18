@@ -779,6 +779,17 @@ python-versions = ">=3.6"
 sphinx = ">=2.0"
 
 [[package]]
+name = "sphinxext-rediraffe"
+version = "0.2.7"
+description = "Sphinx Extension that redirects non-existent pages to working pages."
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+sphinx = ">=2.0"
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -856,7 +867,7 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "7145670c9ee9d96c9bc45b608197c75e895469a5efb58fe689afbbad837ce212"
+content-hash = "d315d3b5b0fe34a4802219c27fc35e60e4e0468d89ee1217a5ace82d8c05600a"
 
 [metadata.files]
 alabaster = [
@@ -1238,6 +1249,10 @@ sphinxcontrib-serializinghtml = [
 sphinxext-opengraph = [
     {file = "sphinxext-opengraph-0.6.2.tar.gz", hash = "sha256:30d4dbe345da991c210626795c05918c3f9ad9f7d14d9c48812ccfa7a1ec4bab"},
     {file = "sphinxext_opengraph-0.6.2-py3-none-any.whl", hash = "sha256:bed3df675b0717b294e274fc59602ee43ccfb758418d5f194d2908c3592605e9"},
+]
+sphinxext-rediraffe = [
+    {file = "sphinxext-rediraffe-0.2.7.tar.gz", hash = "sha256:651dcbfae5ffda9ffd534dfb8025f36120e5efb6ea1a33f5420023862b9f725d"},
+    {file = "sphinxext_rediraffe-0.2.7-py3-none-any.whl", hash = "sha256:9e430a52d4403847f4ffb3a8dd6dfc34a9fe43525305131f52ed899743a5fd8c"},
 ]
 tomli = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
