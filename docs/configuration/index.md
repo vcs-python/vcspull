@@ -25,7 +25,7 @@ git+ssh://git@github.com/tony/kaptan.git
 
 _~/.vcspull.yaml_:
 
-```{literalinclude} ../examples/remotes.yaml
+```{literalinclude} ../../examples/remotes.yaml
 :language: yaml
 
 ```
@@ -44,7 +44,7 @@ vcspull sync kaptan
 
 config showing off every current feature and inline shortcut available.
 
-```{literalinclude} ../examples/christmas-tree.yaml
+```{literalinclude} ../../examples/christmas-tree.yaml
 :language: yaml
 
 ```
@@ -60,7 +60,7 @@ configs.
 
 YAML:
 
-```{literalinclude} ../examples/code-scholar.yaml
+```{literalinclude} ../../examples/code-scholar.yaml
 :language: yaml
 
 ```
