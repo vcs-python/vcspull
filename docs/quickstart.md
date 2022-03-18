@@ -13,7 +13,7 @@ $ pip install --user vcspull
 Upgrading:
 
 ```console
-$ pip install --user --user vcspull
+$ pip install --user --upgrade vcspull
 ```
 
 (developmental-releases)=
