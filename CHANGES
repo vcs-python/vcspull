@@ -17,6 +17,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ## current - unrelased
 
+### Compatibility
+
+- Python 3.7 and 3.8 dropped (#356)
+
 - _Add your latest changes from PRs here_
 
 ## vcspull 1.11.1 (2022-03-12)
