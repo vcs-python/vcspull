@@ -23,7 +23,7 @@ hide-toc: true
 :hidden:
 
 quickstart
-commands/index
+cli/index
 configuration/index
 
 ```
