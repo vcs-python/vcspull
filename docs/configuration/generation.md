@@ -17,7 +17,7 @@ first page of repos (as of Feb 26th this is 100).
 
 _Requires [jq] and [curl]._
 
-```{literalinclude} ../scripts/generate_gitlab.sh
+```{literalinclude} ../../scripts/generate_gitlab.sh
 :language: shell
 ```
 
@@ -74,7 +74,7 @@ _Requires [requests] and [pyyaml]._
 This confirms file overwrite, if already exists. It also requires passing the protocol/schema
 of the gitlab mirror, e.g. `https://gitlab.com` instead of `gitlab.com`.
 
-```{literalinclude} ../scripts/generate_gitlab.py
+```{literalinclude} ../../scripts/generate_gitlab.py
 :language: python
 ```
 
