@@ -21,6 +21,13 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - Python 3.7 and 3.8 dropped (#356)
 
+  Branch [`v1.11.x`](https://github.com/vcs-python/vcspull/tree/v1.11.x) opened for security / bug fixes.
+
+### Documentation
+
+- Sidebar reorganized into sections
+- Added documentation on fetching developmental releases of libtmux
+
 - _Add your latest changes from PRs here_
 
 ## vcspull 1.11.1 (2022-03-12)
