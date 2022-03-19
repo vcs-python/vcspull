@@ -2,36 +2,22 @@
 
 # Commands
 
-(completion)=
+```{toctree}
+:hidden:
 
-## Completion
-
-```{note}
-See the [click library's documentation on shell completion](https://click.palletsprojects.com/en/8.0.x/shell-completion/) for the most up to date way of connecting completion for vcspull.
+vcspull
 ```
 
-In bash (`~/.bashrc`):
+```{toctree}
+:caption: General commands
+:maxdepth: 1
 
-```console
-
-eval "$(_VCSPULL_COMPLETE=bash_source vcspull)"
-
+sync
 ```
 
-In zsh (`~/.zshrc`):
+```{toctree}
+:caption: More
+:maxdepth: 1
 
-```console
-
-eval "$(_VCSPULL_COMPLETE=zsh_source vscpull)"
-
-```
-
-(cli-shell)=
-
-## Shell
-
-```{eval-rst}
-.. click:: vcspull.cli:cli
-    :prog: vcspull
-    :show-nested:
+completion
 ```
