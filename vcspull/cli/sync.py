@@ -37,14 +37,14 @@ def get_repo_completions(ctx: click.core.Context, args, incomplete):
     if len(found_repos) == 0:
         found_repos = configs
 
-    return [o["name"] for o in found_repos if incomplete in o["name"]]
+    return [o["name"] for o in found_repos if o["name"].startswith(incomplete)]
 
 
 def get_config_file_completions(ctx, args, incomplete):
     return [
         click.shell_completion.CompletionItem(c)
         for c in find_config_files(include_home=True)
-        if incomplete in c
+        if c.startswith(incomplete)
     ]
 
 
