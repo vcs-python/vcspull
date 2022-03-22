@@ -5,8 +5,8 @@
 # vcspull sync
 
 ```{eval-rst}
-.. click:: vcspull.cli:cli
-    :prog: Usage
+.. click:: vcspull.cli.sync:sync
+    :prog: vcspull sync
     :commands: sync
     :nested: full
 ```
