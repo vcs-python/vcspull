@@ -62,6 +62,7 @@ myst_parser = "~0.17.0"
 ### Testing ###
 pytest = "*"
 pytest-rerunfailures = "*"
+pytest-tldr = "*"
 pytest-watcher = "^0.2.3"
 syrupy = "*"
 
@@ -79,7 +80,7 @@ flake8 = "*"
 
 [tool.poetry.extras]
 docs = ["sphinx", "sphinx-issues", "sphinx-click", "sphinx-autodoc-typehints", "sphinx-autobuild", "sphinxext-rediraffe", "sphinx-copybutton", "sphinxext-opengraph", "sphinx-inline-tabs", "myst_parser", "furo"]
-test = ["pytest", "pytest-rerunfailures", "pytest-watcher", "syrupy"]
+test = ["pytest", "pytest-rerunfailures", "pytest-tldr", "pytest-watcher", "syrupy"]
 coverage = ["codecov", "coverage", "pytest-cov"]
 format = ["black", "isort"]
 lint = ["flake8"]
