@@ -499,6 +499,17 @@ python-versions = ">= 3.6"
 pytest = ">=5.3"
 
 [[package]]
+name = "pytest-tldr"
+version = "0.2.4"
+description = "A pytest plugin that limits the output to just the things you need."
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+pytest = ">=3.5.0"
+
+[[package]]
 name = "pytest-watcher"
 version = "0.2.3"
 description = "Continiously runs pytest on changes in *.py files"
@@ -852,7 +863,7 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "0ca17a688816f1762ecb8e01743955643844a5f9a7c7dd340486e47798976355"
+content-hash = "482dd36ff9a33079f34343ee52c48272d19138916c769f9e8ea3afdc6df27b07"
 
 [metadata.files]
 alabaster = [
@@ -1123,6 +1134,10 @@ pytest-cov = [
 pytest-rerunfailures = [
     {file = "pytest-rerunfailures-10.2.tar.gz", hash = "sha256:9e1e1bad51e07642c5bbab809fc1d4ec8eebcb7de86f90f1a26e6ef9de446697"},
     {file = "pytest_rerunfailures-10.2-py3-none-any.whl", hash = "sha256:d31d8e828dfd39363ad99cd390187bf506c7a433a89f15c3126c7d16ab723fe2"},
+]
+pytest-tldr = [
+    {file = "pytest-tldr-0.2.4.tar.gz", hash = "sha256:764f928e9ecdc615c2b4e6f78cee3bb865c76a08c57fdf93ee5f0ee99f5f25ee"},
+    {file = "pytest_tldr-0.2.4-py3-none-any.whl", hash = "sha256:f538fe13764a6ea512a0b7d1c874ba8088a5c541d885cba4096fd7593cbd2943"},
 ]
 pytest-watcher = [
     {file = "pytest-watcher-0.2.3.tar.gz", hash = "sha256:1937dd97e72caafd371d8cea7b3d70c88ff4fe35e6cdecb29c41bbdcbf1dcc2b"},
