@@ -1,11 +1,12 @@
 import logging
+import os
 import sys
-from copy import deepcopy
 
 import click
 import click.shell_completion
 
-from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.states.base import BaseRepo
+from libvcs.states.constants import DEFAULT_VCS_CLASS_MAP
 
 from ..config import filter_repos, find_config_files, load_configs
 from ..log import setup_logger
@@ -19,16 +20,19 @@ def get_repo_completions(ctx: click.core.Context, args, incomplete):
     repo_terms = [incomplete]
 
     for repo_term in repo_terms:
-        dir, vcs_url, name = None, None, None
         if any(repo_term.startswith(n) for n in ["./", "/", "~", "$HOME"]):
-            dir = repo_term
-        elif any(repo_term.startswith(n) for n in ["http", "git", "svn", "hg"]):
-            vcs_url = repo_term
+            repo_dir = repo_term
         else:
             name = repo_term
 
         # collect the repos from the config files
-        found_repos.extend(filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name))
+        found_repos.extend(
+            filter_repos(
+                configs,
+                filter_repo_dir=repo_dir,
+                filter_name=name,
+            )
+        )
     if len(found_repos) == 0:
         found_repos = configs
 
@@ -41,10 +45,6 @@ def get_config_file_completions(ctx, args, incomplete):
         for c in find_config_files(include_home=True)
         if c.startswith(incomplete)
     ]
-
-
-def clamp(n, _min, _max):
-    return max(_min, min(n, _max))
 
 
 @click.command(name="sync")
@@ -70,40 +70,37 @@ def sync(repo_terms, log_level, config):
         configs = load_configs([config])
     else:
         configs = load_configs(find_config_files(include_home=True))
-    found_repos = []
+
+    found_repos = {}
 
     if repo_terms:
         for repo_term in repo_terms:
-            dir, vcs_url, name = None, None, None
+            repo_dir, name = None, None
+
             if any(repo_term.startswith(n) for n in ["./", "/", "~", "$HOME"]):
-                dir = repo_term
-            elif any(repo_term.startswith(n) for n in ["http", "git", "svn", "hg"]):
-                vcs_url = repo_term
+                repo_dir = repo_term
             else:
                 name = repo_term
 
             # collect the repos from the config files
-            found_repos.extend(
-                filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name)
+            found_repos |= filter_repos(
+                configs,
+                filter_repo_dir=repo_dir,
+                filter_name=name,
             )
     else:
         found_repos = configs
 
-    list(map(update_repo, found_repos))
+    for path, repos in found_repos.items():
+        for name, repo in repos.items():
+            r: BaseRepo = DEFAULT_VCS_CLASS_MAP[repo["vcs"]](
+                repo_dir=os.path.join(path, name),
+                options=repo["options"],
+                progress_callback=progress_cb,
+            )
+            r.update_repo(set_remotes=True)
 
 
 def progress_cb(output, timestamp):
     sys.stdout.write(output)
     sys.stdout.flush()
-
-
-def update_repo(repo_dict):
-    repo_dict = deepcopy(repo_dict)
-    if "pip_url" not in repo_dict:
-        repo_dict["pip_url"] = repo_dict.pop("url")
-    repo_dict["progress_callback"] = progress_cb
-
-    r = create_repo_from_pip_url(**repo_dict)  # Creates the repo object
-    r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
-
-    return r
