@@ -1,6 +1,10 @@
 """Helpers for vcspull."""
 import os
 import pathlib
+import textwrap
+from typing import Literal
+
+import kaptan
 
 
 class EnvironmentVarGuard:
@@ -39,9 +43,14 @@ class EnvironmentVarGuard:
             del self._environ[unset]
 
 
-def write_config(
-    config_path: pathlib.Path, filename: str, content: str
-) -> pathlib.Path:
-    config = config_path / filename
-    config.write_text(content, encoding="utf-8")
-    return config
+def write_config(config_path: pathlib.Path, content: str) -> pathlib.Path:
+    config_path.write_text(content, encoding="utf-8")
+    return config_path
+
+
+def import_raw(data: str, format: Literal["yaml", "json"]) -> kaptan.Kaptan:
+    return kaptan.Kaptan(handler=format).import_config(textwrap.dedent(data))
+
+
+def load_raw(data: str, format: Literal["yaml", "json"]) -> dict:
+    return import_raw(data=data, format=format).export("dict")

@@ -11,7 +11,7 @@ from vcspull import config, exc
 from vcspull.config import expand_dir, extract_repos
 
 from .fixtures import example as fixtures
-from .helpers import EnvironmentVarGuard, write_config
+from .helpers import EnvironmentVarGuard, import_raw, load_raw, write_config
 
 
 @pytest.fixture(scope="function")
@@ -30,9 +30,8 @@ def json_config(config_path: pathlib.Path):
 
 def test_dict_equals_yaml():
     # Verify that example YAML is returning expected dict format.
-    config = kaptan.Kaptan(handler="yaml").import_config(
-        textwrap.dedent(
-            """\
+    config = import_raw(
+        """\
             /home/me/myproject/study/:
               linux: git+git://git.kernel.org/linux/torvalds/linux.git
               freebsd: git+https://github.com/freebsd/freebsd.git
@@ -52,8 +51,8 @@ def test_dict_equals_yaml():
                 url: git+git@github.com:tony/tmux-config.git
                 shell_command_after:
                   - ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf
-            """
-        )
+            """,
+        format="yaml",
     )
     assert fixtures.config_dict == config.export("dict")
 
@@ -121,11 +120,8 @@ def test_expand_shell_command_after():
 
 def test_expandenv_and_homevars():
     # Assure ~ tildes and environment template vars expand.
-    config1 = (
-        kaptan.Kaptan(handler="yaml")
-        .import_config(
-            textwrap.dedent(
-                """\
+    config1 = load_raw(
+        """\
                 '~/study/':
                   sphinx: hg+file://{hg_repo_path}
                   docutils: svn+file://{svn_repo_path}
@@ -140,16 +136,11 @@ def test_expandenv_and_homevars():
                     url: git+file://{git_repo_path}
                   .tmux:
                     url: git+file://{git_repo_path}
-                """
-            )
-        )
-        .export("dict")
+                """,
+        format="yaml",
     )
-    config2 = (
-        kaptan.Kaptan(handler="json")
-        .import_config(
-            textwrap.dedent(
-                """\
+    config2 = load_raw(
+        """\
                 {
                   "~/study/": {
                     "sphinx": "hg+file://${hg_repo_path}",
@@ -165,10 +156,8 @@ def test_expandenv_and_homevars():
                     }
                   }
                 }
-                """
-            )
-        )
-        .export("dict")
+                """,
+        format="json",
     )
 
     config1_expanded = extract_repos(config1)
@@ -191,7 +180,7 @@ def test_find_config_files(tmp_path: pathlib.Path):
     pull_config.touch()
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
-        os.environ.get("HOME") == str(tmp_path)
+        assert pathlib.Path.home() == tmp_path
         expectedIn = str(tmp_path / ".vcspull.yaml")
         results = config.find_home_config_files()
 
@@ -206,7 +195,7 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path):
     with EnvironmentVarGuard() as env:
         with pytest.raises(exc.MultipleConfigWarning):
             env.set("HOME", str(tmp_path))
-            os.environ.get("HOME") == str(tmp_path)
+            assert pathlib.Path.home() == tmp_path
 
             config.find_home_config_files()
 
@@ -370,8 +359,7 @@ def test_find_config_include_home_config_files(
 
 def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path):
     config1 = write_config(
-        config_path=config_path,
-        filename="repoduplicate1.yaml",
+        config_path=config_path / "repoduplicate1.yaml",
         content=textwrap.dedent(
             """\
 /path/to/test/:
@@ -383,8 +371,7 @@ def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path):
         ),
     )
     config2 = write_config(
-        config_path=config_path,
-        filename="repoduplicate2.yaml",
+        config_path=config_path / "repoduplicate2.yaml",
         content=textwrap.dedent(
             """\
 /path/to/test/:
