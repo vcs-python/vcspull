@@ -2,6 +2,7 @@
 import os
 import pathlib
 import textwrap
+from typing import Literal
 
 import pytest
 
@@ -28,11 +29,18 @@ def json_config(config_path: pathlib.Path):
     return json_file
 
 
+def import_raw(data: str, format: Literal["yaml", "json"]) -> kaptan.Kaptan:
+    return kaptan.Kaptan(handler=format).import_config(textwrap.dedent(data))
+
+
+def load_raw(data: str, format: Literal["yaml", "json"]) -> dict:
+    return import_raw(data=data, format=format).export("dict")
+
+
 def test_dict_equals_yaml():
     # Verify that example YAML is returning expected dict format.
-    config = kaptan.Kaptan(handler="yaml").import_config(
-        textwrap.dedent(
-            """\
+    config = import_raw(
+        """\
             /home/me/myproject/study/:
               linux: git+git://git.kernel.org/linux/torvalds/linux.git
               freebsd: git+https://github.com/freebsd/freebsd.git
@@ -52,8 +60,8 @@ def test_dict_equals_yaml():
                 url: git+git@github.com:tony/tmux-config.git
                 shell_command_after:
                   - ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf
-            """
-        )
+            """,
+        format="yaml",
     )
     assert fixtures.config_dict == config.export("dict")
 
@@ -121,11 +129,8 @@ def test_expand_shell_command_after():
 
 def test_expandenv_and_homevars():
     # Assure ~ tildes and environment template vars expand.
-    config1 = (
-        kaptan.Kaptan(handler="yaml")
-        .import_config(
-            textwrap.dedent(
-                """\
+    config1 = load_raw(
+        """\
                 '~/study/':
                   sphinx: hg+file://{hg_repo_path}
                   docutils: svn+file://{svn_repo_path}
@@ -140,16 +145,11 @@ def test_expandenv_and_homevars():
                     url: git+file://{git_repo_path}
                   .tmux:
                     url: git+file://{git_repo_path}
-                """
-            )
-        )
-        .export("dict")
+                """,
+        format="yaml",
     )
-    config2 = (
-        kaptan.Kaptan(handler="json")
-        .import_config(
-            textwrap.dedent(
-                """\
+    config2 = load_raw(
+        """\
                 {
                   "~/study/": {
                     "sphinx": "hg+file://${hg_repo_path}",
@@ -165,10 +165,8 @@ def test_expandenv_and_homevars():
                     }
                   }
                 }
-                """
-            )
-        )
-        .export("dict")
+                """,
+        format="json",
     )
 
     config1_expanded = extract_repos(config1)
