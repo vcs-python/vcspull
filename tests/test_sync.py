@@ -36,12 +36,13 @@ def test_makes_recursive(
         repo.obtain()
 
 
-def write_config_remote(tmp_path, config_tpl, repo_dir, clone_name):
+def write_config_remote(
+    config_path: pathlib.Path, tmp_path: pathlib.Path, config_tpl, repo_dir, clone_name
+):
     return write_config(
-        tmp_path,
-        "myrepos.yaml",
-        config_tpl.format(
-            tmp_path=str(tmp_path), repo_dir=repo_dir, CLONE_NAME=clone_name
+        config_path=config_path,
+        content=config_tpl.format(
+            tmp_path=str(tmp_path.parent), repo_dir=repo_dir, CLONE_NAME=clone_name
         ),
     )
 
@@ -88,6 +89,7 @@ def test_config_variations(
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
     config_file = write_config_remote(
+        config_path=tmp_path / "myrepos.yaml",
         tmp_path=tmp_path,
         config_tpl=config_tpl,
         repo_dir=dummy_repo,

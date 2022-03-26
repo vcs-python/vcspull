@@ -2,7 +2,6 @@
 import os
 import pathlib
 import textwrap
-from typing import Literal
 
 import pytest
 
@@ -12,7 +11,7 @@ from vcspull import config, exc
 from vcspull.config import expand_dir, extract_repos
 
 from .fixtures import example as fixtures
-from .helpers import EnvironmentVarGuard, write_config
+from .helpers import EnvironmentVarGuard, import_raw, load_raw, write_config
 
 
 @pytest.fixture(scope="function")
@@ -27,14 +26,6 @@ def json_config(config_path: pathlib.Path):
     json_file = config_path / "repos2.json"
     json_file.touch()
     return json_file
-
-
-def import_raw(data: str, format: Literal["yaml", "json"]) -> kaptan.Kaptan:
-    return kaptan.Kaptan(handler=format).import_config(textwrap.dedent(data))
-
-
-def load_raw(data: str, format: Literal["yaml", "json"]) -> dict:
-    return import_raw(data=data, format=format).export("dict")
 
 
 def test_dict_equals_yaml():
@@ -368,8 +359,7 @@ def test_find_config_include_home_config_files(
 
 def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path):
     config1 = write_config(
-        config_path=config_path,
-        filename="repoduplicate1.yaml",
+        config_path=config_path / "repoduplicate1.yaml",
         content=textwrap.dedent(
             """\
 /path/to/test/:
@@ -381,8 +371,7 @@ def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path):
         ),
     )
     config2 = write_config(
-        config_path=config_path,
-        filename="repoduplicate2.yaml",
+        config_path=config_path / "repoduplicate2.yaml",
         content=textwrap.dedent(
             """\
 /path/to/test/:
