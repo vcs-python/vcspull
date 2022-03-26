@@ -1,17 +1,20 @@
+import pathlib
+
 import pytest
 
 from vcspull import config
 
 
 @pytest.fixture
-def load_yaml(tmpdir):
+def load_yaml(tmp_path: pathlib.Path):
     def fn(content, dir="randomdir", filename="randomfilename.yaml"):
-        _dir = tmpdir.join(dir)
+        _dir = tmp_path / dir
         _dir.mkdir()
-        _dir.join(filename).write(content)
+        _config = _dir / filename
+        _config.write_text(content, encoding="utf-8")
 
-        configs = config.find_config_files(path=str(_dir))
-        repos = config.load_configs(configs, str(_dir))
+        configs = config.find_config_files(path=_dir)
+        repos = config.load_configs(configs, cwd=_dir)
         return _dir, configs, repos
 
     return fn
@@ -28,8 +31,8 @@ vcspull:
     assert len(repos) == 1
     repo = repos[0]
 
-    assert str(dir.join("vcspull")) == repo["parent_dir"]
-    assert str(dir.join("vcspull", "libvcs")) == repo["dir"]
+    assert dir / "vcspull" == repo["parent_dir"]
+    assert dir / "vcspull" / "libvcs" == repo["dir"]
 
 
 def test_relative_dir(load_yaml):
@@ -40,11 +43,11 @@ def test_relative_dir(load_yaml):
    """
     )
 
-    configs = config.find_config_files(path=str(dir))
-    repos = config.load_configs(configs, str(dir))
+    configs = config.find_config_files(path=dir)
+    repos = config.load_configs(configs, dir)
 
     assert len(repos) == 1
     repo = repos[0]
 
-    assert str(dir.join("relativedir")) == repo["parent_dir"]
-    assert str(dir.join("relativedir", "docutils")) == repo["dir"]
+    assert dir / "relativedir" == repo["parent_dir"]
+    assert dir / "relativedir" / "docutils" == repo["dir"]
