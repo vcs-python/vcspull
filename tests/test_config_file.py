@@ -191,7 +191,7 @@ def test_find_config_files(tmp_path: pathlib.Path):
     pull_config.touch()
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
-        os.environ.get("HOME") == str(tmp_path)
+        assert pathlib.Path.home() == tmp_path
         expectedIn = str(tmp_path / ".vcspull.yaml")
         results = config.find_home_config_files()
 
@@ -206,7 +206,7 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path):
     with EnvironmentVarGuard() as env:
         with pytest.raises(exc.MultipleConfigWarning):
             env.set("HOME", str(tmp_path))
-            os.environ.get("HOME") == str(tmp_path)
+            assert pathlib.Path.home() == tmp_path
 
             config.find_home_config_files()
 
