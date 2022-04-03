@@ -10,9 +10,6 @@ from libvcs.shortcuts import create_repo_from_pip_url
 from ..config import filter_repos, find_config_files, load_configs
 from ..log import setup_logger
 
-MIN_ASYNC = 3  # minimum amount of repos to sync concurrently
-MAX_ASYNC = 8  # maximum processes to open:w
-
 log = logging.getLogger(__name__)
 
 
@@ -57,12 +54,6 @@ def clamp(n, _min, _max):
     "repo_terms", type=click.STRING, nargs=-1, shell_complete=get_repo_completions
 )
 @click.option(
-    "--run-async",
-    "-a",
-    is_flag=True,
-    help="Run repo syncing concurrently (experimental)",
-)
-@click.option(
     "--log-level",
     default="INFO",
     help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
@@ -74,7 +65,7 @@ def clamp(n, _min, _max):
     help="Specify config",
     shell_complete=get_config_file_completions,
 )
-def sync(repo_terms, run_async, log_level, config):
+def sync(repo_terms, log_level, config):
     setup_logger(log=log, level=log_level.upper())
 
     if config:
@@ -100,15 +91,7 @@ def sync(repo_terms, run_async, log_level, config):
     else:
         found_repos = configs
 
-    found_repos_n = len(found_repos)
-    # turn them into :class:`Repo` objects and clone/update them
-    if run_async and found_repos_n >= MIN_ASYNC:
-        from multiprocessing import Pool
-
-        p = Pool(clamp(found_repos_n, MIN_ASYNC, MAX_ASYNC))
-        p.map_async(update_repo, found_repos).get()
-    else:
-        list(map(update_repo, found_repos))
+    list(map(update_repo, found_repos))
 
 
 def progress_cb(output, timestamp):
