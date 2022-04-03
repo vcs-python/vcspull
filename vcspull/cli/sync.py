@@ -123,44 +123,6 @@ def update_repo(repo_dict):
     repo_dict["progress_callback"] = progress_cb
 
     r = create_repo_from_pip_url(**repo_dict)  # Creates the repo object
+    r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
 
-    remote_settings = repo_dict.get("remotes", {})
-    if remote_settings.get("origin", {}) == {}:
-        from libvcs.git import GitRemote
-
-        remote_settings["origin"] = GitRemote(
-            name="origin",
-            push_url=repo_dict["pip_url"],
-            fetch_url=repo_dict["pip_url"],
-        )
-
-    remotes_updated = False
-    r.update_repo()  # Creates repo if not exists and fetches
-
-    for remote_name, remote_setting in remote_settings.items():
-        config_remote_name = remote_name  # From config file
-        try:
-            current_remote = r.remote(config_remote_name)
-        except FileNotFoundError:  # git repo doesn't exist yet, so cna't be outdated
-            break
-
-        current_fetch_url = (
-            current_remote.fetch_url if current_remote is not None else None
-        )
-
-        if current_remote is None or current_fetch_url != remote_setting.fetch_url:
-            print(
-                "Updating remote {name} ({current_url}) with {new_url}".format(
-                    name=config_remote_name,
-                    current_url=current_fetch_url,
-                    new_url=remote_setting.fetch_url,
-                )
-            )
-            r.set_remote(
-                name=config_remote_name, url=remote_setting.fetch_url, overwrite=True
-            )
-            remotes_updated = True
-
-    if remotes_updated:  # Fetch again since we added / changed remotes
-        r.update_repo()
     return r

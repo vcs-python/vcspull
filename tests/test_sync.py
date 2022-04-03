@@ -71,7 +71,7 @@ def write_config_remote(
             {CLONE_NAME}:
                 repo: git+file://{repo_dir}
                 remotes:
-                    secondremote: git+file://{repo_dir}
+                  secondremote: git+file://{repo_dir}
         """,
             ["secondremote"],
         ],
@@ -109,8 +109,6 @@ def test_config_variations(
         assert set(remote_list).issubset(remote_names) or {"origin"}.issubset(
             remote_names
         )
-        captured = capsys.readouterr()
-        assert f"Updating remote {list(remote_names)[0]}" in captured.out
 
         for remote_name, remote_info in remotes.items():
             current_remote = repo.remote(remote_name)
@@ -141,7 +139,7 @@ def test_config_variations(
             {CLONE_NAME}:
                 repo: git+file://{repo_dir}
                 remotes:
-                    secondremote: git+file://{repo_dir}
+                  mirror_repo: git+file://{repo_dir}
         """,
             True,
         ],
@@ -158,65 +156,53 @@ def test_updating_remote(
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
 
+    mirror_name = "mirror_repo"
+    mirror_repo = create_git_dummy_repo(mirror_name)
+
     repo_parent = tmp_path / "study" / "myrepo"
     repo_parent.mkdir(parents=True)
 
-    base_config = {
+    initial_config = {
         "name": "myclone",
         "repo_dir": f"{tmp_path}/study/myrepo/myclone",
         "parent_dir": f"{tmp_path}/study/myrepo",
         "url": f"git+file://{dummy_repo}",
         "remotes": {
-            "secondremote": GitRemote(
-                name="secondremote",
-                fetch_url=f"git+file://{dummy_repo}",
-                push_url=f"git+file://{dummy_repo}",
-            )
+            mirror_name: {
+                "name": mirror_name,
+                "fetch_url": f"git+file://{dummy_repo}",
+                "push_url": f"git+file://{dummy_repo}",
+            }
         },
     }
 
-    def merge_dict(_dict, extra):
-        _dict = _dict.copy()
-        _dict.update(**extra)
-        return _dict
-
-    configs = [base_config]
-
     for repo_dict in filter_repos(
-        configs,
+        [initial_config],
     ):
-        update_repo(repo_dict).remotes()["origin"]
+        local_git_remotes = update_repo(repo_dict).remotes()
+        assert "origin" in local_git_remotes
 
-    expected_remote_url = f"git+file://{dummy_repo}/moo"
+    expected_remote_url = f"git+file://{mirror_repo}"
 
-    config = merge_dict(
-        base_config,
-        extra={
-            "remotes": {
-                "secondremote": GitRemote(
-                    name="secondremote",
-                    fetch_url=expected_remote_url,
-                    push_url=expected_remote_url,
-                )
-            }
-        },
-    )
-    configs = [config]
-
-    repo_dict = filter_repos(configs, name="myclone")[0]
-    r = update_repo(repo_dict)
-    for remote_name, remote_info in r.remotes().items():
-        current_remote_url = r.remote(remote_name).fetch_url.replace("git+", "")
-        config_remote_url = (
-            next(
-                (
-                    r.fetch_url
-                    for rname, r in config["remotes"].items()
-                    if rname == remote_name
-                ),
-                None,
+    config = initial_config | {
+        "remotes": {
+            mirror_name: GitRemote(
+                name=mirror_name,
+                fetch_url=expected_remote_url,
+                push_url=expected_remote_url,
             )
-            if remote_name != "origin"
-            else config["url"]
-        ).replace("git+", "")
-        assert config_remote_url == current_remote_url
+        }
+    }
+
+    repo_dict = filter_repos([config], name="myclone")[0]
+    repo = update_repo(repo_dict)
+    for remote_name, remote_info in repo.remotes().items():
+        current_remote_url = repo.remote(remote_name).fetch_url.replace("git+", "")
+        if remote_name in config["remotes"]:
+            assert (
+                config["remotes"][remote_name].fetch_url.replace("git+", "")
+                == current_remote_url
+            )
+
+        elif remote_name == "origin":
+            assert config["url"].replace("git+", "") == current_remote_url
