@@ -6,8 +6,8 @@ import pytest
 
 import kaptan
 
-from libvcs.git import GitRemote
 from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.states.git import GitRemote
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
 

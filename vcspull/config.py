@@ -12,6 +12,8 @@ import os
 
 import kaptan
 
+from libvcs.states.git import GitRemote
+
 from . import exc
 from .util import CONFIG_DIR, update_dict
 
@@ -92,7 +94,6 @@ def extract_repos(config, cwd=os.getcwd()):
                 conf["repo_dir"] = expand_dir(
                     os.path.join(conf["parent_dir"], conf["name"]), cwd
                 )
-            from libvcs.git import GitRemote
 
             if "remotes" in conf:
                 for remote_name, url in conf["remotes"].items():

@@ -5,8 +5,8 @@ import textwrap
 
 import pytest
 
-from libvcs.git import GitRepo
 from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.states.git import GitRepo
 from libvcs.util import run
 
 
