@@ -94,9 +94,7 @@ Now run the command, to pull all the repositories in your
 `.vcspull.yaml` / `.vcspull.json`.
 
 ```console
-
-$ vcspull
-
+$ vcspull sync
 ```
 
 Also, you can sync arbitrary projects, lets assume you have a mercurial
@@ -104,45 +102,46 @@ repo but need a git dependency, in your project add `.deps.yaml` (can
 be any name):
 
 ```{code-block} yaml
-
 ./vendor/:
   sdl2pp: 'git+https://github.com/libSDL2pp/libSDL2pp.git'
-
 ```
 
 Use `-c` to specify a config.
 
 ```console
-
 $ vcspull sync -c .deps.yaml
-
 ```
 
-You can also use [fnmatch][fnmatch] to pull repositories from your config in
+You can also use [fnmatch] to pull repositories from your config in
 various fashions, e.g.:
 
 ```console
-
 $ vcspull sync django
-$ vcspull sync django\*
-# or
-$ vcspull sync "django*"
-
 ```
 
-Filter by vcs URL
+```console
+$ vcspull sync django\*
+```
+
+```console
+$ vcspull sync "django*"
+```
+
+Filter by VCS URL:
 
 Any repo beginning with `http`, `https` or `git` will be look up
 repos by the vcs url.
 
+Pull / update repositories you have with github in the repo url:
+
 ```console
-
-# pull / update repositories I have with github in the repo url
 $ vcspull sync "git+https://github.com/yourusername/*"
+```
 
-# pull / update repositories I have with bitbucket in the repo url
+Pull / update repositories you have with bitbucket in the repo url:
+
+```console
 $ vcspull sync "git+https://*bitbucket*"
-
 ```
 
 Filter by the path of the repo on your local machine:
@@ -150,14 +149,16 @@ Filter by the path of the repo on your local machine:
 Any repo beginning with `/`, `./`, `~` or `$HOME` will scan
 for patterns of where the project is on your system:
 
+Pull all repos inside of _~/study/python_:
+
 ```console
-
-# pull all the repos I have inside of ~/study/python
 $ vcspull sync "$HOME/study/python"
+```
 
-# pull all the repos I have in directories on my config with "python"
-$ vcspull sync ~/*python*"
+Pull all the repos you have in directories in my config with "python":
 
+```console
+$ vcspull sync ~/*python*
 ```
 
 [pip vcs url]: http://www.pip-installer.org/en/latest/logic.html#vcs-support

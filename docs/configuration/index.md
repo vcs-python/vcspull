@@ -33,7 +33,7 @@ _~/.vcspull.yaml_:
 Then type:
 
 ```console
-vcspull sync kaptan
+$ vcspull sync kaptan
 ```
 
 ````
