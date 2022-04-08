@@ -181,9 +181,9 @@ class RepoLogFormatter(LogFormatter):
         )
         return "{}|{}| {}({}) {}".format(
             Fore.GREEN + Style.DIM,
-            record.repo_name,
+            record.keyword,
             Fore.YELLOW,
-            record.repo_name,
+            record.keyword,
             Fore.RESET,
         )
 
@@ -193,5 +193,5 @@ class RepoFilter(logging.Filter):
     """Only include repo logs for this type of record."""
 
     def filter(self, record):
-        """Only return a record if a repo_name object."""
-        return True if "repo_name" in record.__dict__ else False
+        """Only return a record if a keyword object."""
+        return True if "keyword" in record.__dict__ else False
