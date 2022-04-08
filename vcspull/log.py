@@ -183,7 +183,7 @@ class RepoLogFormatter(LogFormatter):
             Fore.GREEN + Style.DIM,
             record.repo_name,
             Fore.YELLOW,
-            record.repo_vcs,
+            record.repo_name,
             Fore.RESET,
         )
 
@@ -193,5 +193,5 @@ class RepoFilter(logging.Filter):
     """Only include repo logs for this type of record."""
 
     def filter(self, record):
-        """Only return a record if a repo_vcs object."""
-        return True if "repo_vcs" in record.__dict__ else False
+        """Only return a record if a repo_name object."""
+        return True if "repo_name" in record.__dict__ else False
