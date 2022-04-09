@@ -93,7 +93,6 @@ def default_log_template(self, record):
 
 
 class LogFormatter(logging.Formatter):
-
     template = default_log_template
 
     def __init__(self, color=True, *args, **kwargs):
@@ -168,7 +167,6 @@ def debug_log_template(self, record):
 
 
 class DebugLogFormatter(LogFormatter):
-
     """Provides greater technical details than standard log Formatter."""
 
     template = debug_log_template
@@ -189,7 +187,6 @@ class RepoLogFormatter(LogFormatter):
 
 
 class RepoFilter(logging.Filter):
-
     """Only include repo logs for this type of record."""
 
     def filter(self, record):
