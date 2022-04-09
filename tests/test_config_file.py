@@ -201,7 +201,9 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path):
 
 
 def test_in_dir(
-    config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
+    config_path: pathlib.Path,
+    yaml_config: pathlib.Path,
+    json_config: pathlib.Path,
 ):
     expected = [yaml_config.stem, json_config.stem]
     result = config.in_dir(str(config_path))
