@@ -15,7 +15,7 @@ import kaptan
 from libvcs.states.git import GitRemote
 
 from . import exc
-from .util import CONFIG_DIR, update_dict
+from .util import get_config_dir, update_dict
 
 log = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ def find_home_config_files(filetype=["json", "yaml"]):
 
 
 def find_config_files(
-    path=["~/.vcspull"], match=["*"], filetype=["json", "yaml"], include_home=False
+    path=None, match=["*"], filetype=["json", "yaml"], include_home=False
 ):
     """Return repos from a directory and match. Not recursive.
 
@@ -158,6 +158,8 @@ def find_config_files(
         list of absolute paths to config files.
     """
     configs = []
+    if path is None:
+        path = get_config_dir()
 
     if include_home is True:
         configs.extend(find_home_config_files())
@@ -264,7 +266,7 @@ def detect_duplicate_repos(repos1, repos2):
     return dupes
 
 
-def in_dir(config_dir=CONFIG_DIR, extensions=[".yml", ".yaml", ".json"]):
+def in_dir(config_dir=None, extensions=[".yml", ".yaml", ".json"]):
     """Return a list of configs in ``config_dir``.
 
     Parameters
@@ -278,6 +280,8 @@ def in_dir(config_dir=CONFIG_DIR, extensions=[".yml", ".yaml", ".json"]):
     -------
     list
     """
+    if config_dir is not None:
+        config_dir = get_config_dir()
     configs = []
 
     for filename in os.listdir(config_dir):

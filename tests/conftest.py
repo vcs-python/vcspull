@@ -22,9 +22,34 @@ def user_path(home_path: pathlib.Path):
     return p
 
 
+@pytest.fixture(autouse=True, scope="session")
+@pytest.mark.usefixtures("set_user_path")
+def xdg_config_path(user_path: pathlib.Path):
+    p = user_path / ".config"
+    p.mkdir()
+    return p
+
+
+@pytest.fixture(scope="function")
+def config_path(xdg_config_path: pathlib.Path, request: pytest.FixtureRequest):
+    conf_path = xdg_config_path / "vcspull"
+    conf_path.mkdir(exist_ok=True)
+
+    def clean():
+        shutil.rmtree(conf_path)
+
+    request.addfinalizer(clean)
+    return conf_path
+
+
 @pytest.fixture(autouse=True)
 def set_user_path(monkeypatch: pytest.MonkeyPatch, user_path: pathlib.Path):
     monkeypatch.setenv("HOME", str(user_path))
+
+
+@pytest.fixture(autouse=True)
+def set_xdg_config_path(monkeypatch: pytest.MonkeyPatch, xdg_config_path: pathlib.Path):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config_path))
 
 
 @pytest.fixture(scope="function")
@@ -78,18 +103,6 @@ def create_git_dummy_repo(repos_path: pathlib.Path) -> pathlib.Path:
 def git_dummy_repo_dir(repos_path: pathlib.Path, create_git_dummy_repo):
     """Create a git repo with 1 commit, used as a remote."""
     return create_git_dummy_repo("dummyrepo")
-
-
-@pytest.fixture(scope="function")
-def config_path(home_path: pathlib.Path, request: pytest.FixtureRequest):
-    conf_path = home_path / ".vcspull"
-    conf_path.mkdir(exist_ok=True)
-
-    def clean():
-        shutil.rmtree(conf_path)
-
-    request.addfinalizer(clean)
-    return conf_path
 
 
 @pytest.fixture(autouse=True, scope="session")

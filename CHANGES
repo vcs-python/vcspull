@@ -17,6 +17,17 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ## current - unrelased
 
+### Breaking changes
+
+- Config location uses `XDG_CONFIG_HOME` from [XDG Base Directory],
+  ({issue}`#367`).
+
+  Old path: `~/.vcspull`
+
+  New path: `XDG_CONFIG_HOME`, usually `~/.config/vcspull`
+
+  [xdg base directory]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+
 ### Compatibility
 
 - Python 3.7 and 3.8 dropped (#356)
