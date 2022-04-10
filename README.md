@@ -68,11 +68,9 @@ the future_
 [.vcspull.yaml](https://github.com/tony/.dot-config/blob/master/.vcspull.yaml),
 more [configuration](https://vcspull.git-pull.com/configuration.html))
 
-next, on other machines, copy your `$HOME/.vcspull.yaml` file or
-`$HOME/.vcspull/` directory them and you can clone your repos
-consistently. vcspull automatically handles building nested directories.
-Updating already cloned/checked out repos is done automatically if they
-already exist.
+`$HOME/.vcspull.yaml` and `$XDG_CONFIG_HOME/vcspull/` (`~/.config/vcspull`) can
+be used as a declarative manifest to clone you repos consistently across
+machines. Subsequent syncs of nitialized repos will fetch the latest commits.
 
 ## clone / update your repos
 
@@ -80,7 +78,7 @@ already exist.
 $ vcspull
 ```
 
-keep nested VCS repositories updated too, lets say you have a mercurial
+Keep nested VCS repositories updated too, lets say you have a mercurial
 or svn project with a git dependency:
 
 `external_deps.yaml` in your project root, (can be anything):
