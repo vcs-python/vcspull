@@ -36,6 +36,9 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
   Branch [`v1.11.x`](https://github.com/vcs-python/vcspull/tree/v1.11.x) opened for security / bug fixes.
 
+- `--version` learned to show libvcs version
+- `--version` learned to accept the `-V` flag
+
 ### Documentation
 
 - Sidebar reorganized into sections
