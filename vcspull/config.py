@@ -6,9 +6,10 @@ A lot of these items are todo.
 
 """
 import fnmatch
-import glob
 import logging
 import os
+import pathlib
+from typing import Literal, Optional, Union
 
 import kaptan
 
@@ -20,28 +21,31 @@ from .util import get_config_dir, update_dict
 log = logging.getLogger(__name__)
 
 
-def expand_dir(_dir, cwd=os.getcwd()):
+def expand_dir(
+    _dir: pathlib.Path, cwd: pathlib.Path = pathlib.Path.cwd()
+) -> pathlib.Path:
     """Return path with environmental variables and tilde ~ expanded.
 
     Parameters
     ----------
-    _dir : str
-    cwd : str, optional
+    _dir : pathlib.Path
+    cwd : pathlib.Path, optional
         current working dir (for deciphering relative _dir paths), defaults to
         :py:meth:`os.getcwd()`
 
     Returns
     -------
-    str :
+    pathlib.Path :
         Absolute directory path
     """
-    _dir = os.path.expanduser(os.path.expandvars(_dir))
-    if not os.path.isabs(_dir):
-        _dir = os.path.normpath(os.path.join(cwd, _dir))
+    _dir = pathlib.Path(os.path.expanduser(os.path.expandvars(str(_dir))))
+    if not _dir.is_absolute():
+        _dir = pathlib.Path(os.path.normpath(cwd / _dir))
+        assert _dir == pathlib.Path(cwd, _dir).resolve(strict=False)
     return _dir
 
 
-def extract_repos(config, cwd=os.getcwd()):
+def extract_repos(config: dict, cwd=pathlib.Path.cwd()) -> list[dict]:
     """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
@@ -51,7 +55,7 @@ def extract_repos(config, cwd=os.getcwd()):
     ----------
     config : dict
         the repo config in :py:class:`dict` format.
-    cwd : str
+    cwd : pathlib.Path
         current working dir (for deciphering relative paths)
 
     Returns
@@ -88,16 +92,14 @@ def extract_repos(config, cwd=os.getcwd()):
             if "name" not in conf:
                 conf["name"] = repo
             if "parent_dir" not in conf:
-                conf["parent_dir"] = expand_dir(directory, cwd)
+                conf["parent_dir"] = expand_dir(directory, cwd=cwd)
 
             # repo_dir -> dir in libvcs 0.12.0b25
             if "repo_dir" in conf and "dir" not in conf:
                 conf["dir"] = conf.pop("repo_dir")
 
             if "dir" not in conf:
-                conf["dir"] = expand_dir(
-                    os.path.join(conf["parent_dir"], conf["name"]), cwd
-                )
+                conf["dir"] = expand_dir(conf["parent_dir"] / conf["name"], cwd)
 
             if "remotes" in conf:
                 for remote_name, url in conf["remotes"].items():
@@ -109,14 +111,16 @@ def extract_repos(config, cwd=os.getcwd()):
     return configs
 
 
-def find_home_config_files(filetype=["json", "yaml"]):
+def find_home_config_files(
+    filetype: list[str] = ["json", "yaml"]
+) -> list[pathlib.Path]:
     """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
     configs = []
 
-    yaml_config = os.path.expanduser("~/.vcspull.yaml")
-    has_yaml_config = os.path.exists(yaml_config)
-    json_config = os.path.expanduser("~/.vcspull.json")
-    has_json_config = os.path.exists(json_config)
+    yaml_config = pathlib.Path(os.path.expanduser("~/.vcspull.yaml"))
+    has_yaml_config = yaml_config.exists()
+    json_config = pathlib.Path(os.path.expanduser("~/.vcspull.json"))
+    has_json_config = json_config.exists()
 
     if not has_yaml_config and not has_json_config:
         log.debug(
@@ -136,7 +140,10 @@ def find_home_config_files(filetype=["json", "yaml"]):
 
 
 def find_config_files(
-    path=None, match=["*"], filetype=["json", "yaml"], include_home=False
+    path: Optional[Union[list[pathlib.Path], pathlib.Path]] = None,
+    match: Union[list[str], str] = ["*"],
+    filetype: list[Literal["json", "yaml"]] = ["json", "yaml"],
+    include_home: bool = False,
 ):
     """Return repos from a directory and match. Not recursive.
 
@@ -173,7 +180,7 @@ def find_config_files(
             configs.extend(find_config_files(p, match, filetype))
             return configs
     else:
-        path = os.path.expanduser(path)
+        path = pathlib.Path(os.path.expanduser(path))
         if isinstance(match, list):
             for m in match:
                 configs.extend(find_config_files(path, m, filetype))
@@ -182,22 +189,20 @@ def find_config_files(
                 for f in filetype:
                     configs.extend(find_config_files(path, match, f))
             else:
-                match = os.path.join(path, match)
-                match += f".{filetype}"
-
-                configs = glob.glob(match)
+                match = f"{match}.{filetype}"
+                configs = path.glob(match)
 
     return configs
 
 
-def load_configs(files, cwd=os.getcwd()):
+def load_configs(files: list[Union[str, pathlib.Path]], cwd=pathlib.Path.cwd()):
     """Return repos from a list of files.
 
     Parameters
     ----------
     files : list
         paths to config file
-    cwd : str
+    cwd : pathlib.Path
         current path (pass down for :func:`extract_repos`
 
     Returns
@@ -210,11 +215,12 @@ def load_configs(files, cwd=os.getcwd()):
     Validate scheme, check for duplicate destinations, VCS urls
     """
     repos = []
-    for f in files:
-        _, ext = os.path.splitext(f)
-        conf = kaptan.Kaptan(handler=ext.lstrip(".")).import_config(f)
-
-        newrepos = extract_repos(conf.export("dict"), cwd)
+    for file in files:
+        if isinstance(file, str):
+            file = pathlib.Path(file)
+        ext = file.suffix.lstrip(".")
+        conf = kaptan.Kaptan(handler=ext).import_config(str(file))
+        newrepos = extract_repos(conf.export("dict"), cwd=cwd)
 
         if not repos:
             repos.extend(newrepos)
@@ -230,7 +236,7 @@ def load_configs(files, cwd=os.getcwd()):
     return repos
 
 
-def detect_duplicate_repos(repos1, repos2):
+def detect_duplicate_repos(repos1: list[dict], repos2: list[dict]):
     """Return duplicate repos dict if repo_dir same and vcs different.
 
     Parameters
@@ -270,7 +276,7 @@ def detect_duplicate_repos(repos1, repos2):
     return dupes
 
 
-def in_dir(config_dir=None, extensions=[".yml", ".yaml", ".json"]):
+def in_dir(config_dir=None, extensions: list[str] = [".yml", ".yaml", ".json"]):
     """Return a list of configs in ``config_dir``.
 
     Parameters
@@ -295,7 +301,12 @@ def in_dir(config_dir=None, extensions=[".yml", ".yaml", ".json"]):
     return configs
 
 
-def filter_repos(config, dir=None, vcs_url=None, name=None):
+def filter_repos(
+    config: dict,
+    dir: Union[pathlib.Path, None] = None,
+    vcs_url: Union[str, None] = None,
+    name: Union[str, None] = None,
+):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
     dir, vcs_url and name all support fnmatch.
@@ -332,7 +343,7 @@ def filter_repos(config, dir=None, vcs_url=None, name=None):
     return repo_list
 
 
-def is_config_file(filename, extensions=[".yml", ".yaml", ".json"]):
+def is_config_file(filename: str, extensions: list[str] = [".yml", ".yaml", ".json"]):
     """Return True if file has a valid config file type.
 
     Parameters

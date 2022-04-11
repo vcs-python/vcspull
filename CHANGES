@@ -29,6 +29,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
   [xdg base directory]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
 - Override config directory via `VCSPULL_CONFIGDIR` ({issue}`#367`)
+- Switch from `str` to `pathlib.Path` ({issue}`#364`)
 
 ### Compatibility
 

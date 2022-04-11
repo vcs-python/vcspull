@@ -32,12 +32,6 @@ extensions = [
 ]
 myst_enable_extensions = ["colon_fence", "substitution", "replacements"]
 
-# app setup hook
-def setup(app):
-    pass
-
-
-issues_github_path = about["__github__"].replace("https://github.com/", "")
 templates_path = ["_templates"]
 
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
@@ -100,6 +94,9 @@ copybutton_prompt_text = (
 )
 copybutton_prompt_is_regexp = True
 copybutton_remove_prompts = True
+
+# sphinx-issues
+issues_github_path = "vcs-python/libvcs"
 
 # sphinxext-rediraffe
 rediraffe_redirects = "redirects.txt"
