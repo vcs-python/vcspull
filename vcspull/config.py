@@ -90,8 +90,12 @@ def extract_repos(config, cwd=os.getcwd()):
             if "parent_dir" not in conf:
                 conf["parent_dir"] = expand_dir(directory, cwd)
 
-            if "repo_dir" not in conf:
-                conf["repo_dir"] = expand_dir(
+            # repo_dir -> dir in libvcs 0.12.0b25
+            if "repo_dir" in conf and "dir" not in conf:
+                conf["dir"] = conf.pop("repo_dir")
+
+            if "dir" not in conf:
+                conf["dir"] = expand_dir(
                     os.path.join(conf["parent_dir"], conf["name"]), cwd
                 )
 
@@ -245,22 +249,22 @@ def detect_duplicate_repos(repos1, repos2):
     dupes = []
     path_dupe_repos = []
 
-    curpaths = [r["repo_dir"] for r in repos1]
-    newpaths = [r["repo_dir"] for r in repos2]
+    curpaths = [r["dir"] for r in repos1]
+    newpaths = [r["dir"] for r in repos2]
     path_duplicates = list(set(curpaths).intersection(newpaths))
 
     if not path_duplicates:
         return None
 
     path_dupe_repos.extend(
-        [r for r in repos2 if any(r["repo_dir"] == p for p in path_duplicates)]
+        [r for r in repos2 if any(r["dir"] == p for p in path_duplicates)]
     )
 
     if not path_dupe_repos:
         return None
 
     for n in path_dupe_repos:
-        currepo = next((r for r in repos1 if r["repo_dir"] == n["repo_dir"]), None)
+        currepo = next((r for r in repos1 if r["dir"] == n["dir"]), None)
         if n["url"] != currepo["url"]:
             dupes += (n, currepo)
     return dupes
@@ -291,16 +295,16 @@ def in_dir(config_dir=None, extensions=[".yml", ".yaml", ".json"]):
     return configs
 
 
-def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
+def filter_repos(config, dir=None, vcs_url=None, name=None):
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
-    repo_dir, vcs_url and name all support fnmatch.
+    dir, vcs_url and name all support fnmatch.
 
     Parameters
     ----------
     config : dist
         the expanded repo config in :py:class:`dict` format.
-    repo_dir : str, Optional
+    dir : str, Optional
         directory of checkout location, fnmatch pattern supported
     vcs_url : str, Optional
         url of vcs remote, fn match pattern supported
@@ -314,10 +318,8 @@ def filter_repos(config, repo_dir=None, vcs_url=None, name=None):
     """
     repo_list = []
 
-    if repo_dir:
-        repo_list.extend(
-            [r for r in config if fnmatch.fnmatch(r["parent_dir"], repo_dir)]
-        )
+    if dir:
+        repo_list.extend([r for r in config if fnmatch.fnmatch(r["parent_dir"], dir)])
 
     if vcs_url:
         repo_list.extend(

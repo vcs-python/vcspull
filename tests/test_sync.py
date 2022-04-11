@@ -37,12 +37,12 @@ def test_makes_recursive(
 
 
 def write_config_remote(
-    config_path: pathlib.Path, tmp_path: pathlib.Path, config_tpl, repo_dir, clone_name
+    config_path: pathlib.Path, tmp_path: pathlib.Path, config_tpl, dir, clone_name
 ):
     return write_config(
         config_path=config_path,
         content=config_tpl.format(
-            tmp_path=str(tmp_path.parent), repo_dir=repo_dir, CLONE_NAME=clone_name
+            tmp_path=str(tmp_path.parent), dir=dir, CLONE_NAME=clone_name
         ),
     )
 
@@ -53,7 +53,7 @@ def write_config_remote(
         [
             """
         {tmp_path}/study/myrepo:
-            {CLONE_NAME}: git+file://{repo_dir}
+            {CLONE_NAME}: git+file://{dir}
         """,
             ["origin"],
         ],
@@ -61,7 +61,7 @@ def write_config_remote(
             """
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-               repo: git+file://{repo_dir}
+               repo: git+file://{dir}
         """,
             ["repo"],
         ],
@@ -69,9 +69,9 @@ def write_config_remote(
             """
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{repo_dir}
+                repo: git+file://{dir}
                 remotes:
-                  secondremote: git+file://{repo_dir}
+                  secondremote: git+file://{dir}
         """,
             ["secondremote"],
         ],
@@ -92,13 +92,13 @@ def test_config_variations(
         config_path=tmp_path / "myrepos.yaml",
         tmp_path=tmp_path,
         config_tpl=config_tpl,
-        repo_dir=dummy_repo,
+        dir=dummy_repo,
         clone_name="myclone",
     )
     configs = load_configs([str(config_file)])
 
     # TODO: Merge repos
-    repos = filter_repos(configs, repo_dir="*")
+    repos = filter_repos(configs, dir="*")
     assert len(repos) == 1
 
     for repo_dict in repos:
@@ -121,7 +121,7 @@ def test_config_variations(
         [
             """
         {tmp_path}/study/myrepo:
-            {CLONE_NAME}: git+file://{repo_dir}
+            {CLONE_NAME}: git+file://{dir}
         """,
             False,
         ],
@@ -129,7 +129,7 @@ def test_config_variations(
             """
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-               repo: git+file://{repo_dir}
+               repo: git+file://{dir}
         """,
             False,
         ],
@@ -137,9 +137,9 @@ def test_config_variations(
             """
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{repo_dir}
+                repo: git+file://{dir}
                 remotes:
-                  mirror_repo: git+file://{repo_dir}
+                  mirror_repo: git+file://{dir}
         """,
             True,
         ],
@@ -164,7 +164,7 @@ def test_updating_remote(
 
     initial_config = {
         "name": "myclone",
-        "repo_dir": f"{tmp_path}/study/myrepo/myclone",
+        "dir": f"{tmp_path}/study/myrepo/myclone",
         "parent_dir": f"{tmp_path}/study/myrepo",
         "url": f"git+file://{dummy_repo}",
         "remotes": {

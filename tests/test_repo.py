@@ -12,7 +12,7 @@ from .fixtures import example as fixtures
 
 def test_filter_dir():
     """`filter_repos` filter by dir"""
-    repo_list = filter_repos(fixtures.config_dict_expanded, repo_dir="*github_project*")
+    repo_list = filter_repos(fixtures.config_dict_expanded, dir="*github_project*")
 
     assert len(repo_list) == 1
     for r in repo_list:
@@ -65,7 +65,7 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     git_repo = create_repo_from_pip_url(
         **{
             "pip_url": "git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b",
-            "repo_dir": str(tmpdir.join("myproject1")),
+            "dir": str(tmpdir.join("myproject1")),
         }
     )
 
@@ -77,7 +77,7 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     hg_repo = create_repo_from_pip_url(
         **{
             "pip_url": "hg+https://hg.myproject.org/MyProject#egg=MyProject",
-            "repo_dir": str(tmpdir.join("myproject2")),
+            "dir": str(tmpdir.join("myproject2")),
         }
     )
 
@@ -87,7 +87,7 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     svn_repo = create_repo_from_pip_url(
         **{
             "pip_url": "svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject",
-            "repo_dir": str(tmpdir.join("myproject3")),
+            "dir": str(tmpdir.join("myproject3")),
         }
     )
 

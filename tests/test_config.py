@@ -29,7 +29,7 @@ vcspull:
     repo = repos[0]
 
     assert str(dir.join("vcspull")) == repo["parent_dir"]
-    assert str(dir.join("vcspull", "libvcs")) == repo["repo_dir"]
+    assert str(dir.join("vcspull", "libvcs")) == repo["dir"]
 
 
 def test_relative_dir(load_yaml):
@@ -47,4 +47,4 @@ def test_relative_dir(load_yaml):
     repo = repos[0]
 
     assert str(dir.join("relativedir")) == repo["parent_dir"]
-    assert str(dir.join("relativedir", "docutils")) == repo["repo_dir"]
+    assert str(dir.join("relativedir", "docutils")) == repo["dir"]

@@ -19,18 +19,16 @@ def get_repo_completions(ctx: click.core.Context, args, incomplete):
     repo_terms = [incomplete]
 
     for repo_term in repo_terms:
-        repo_dir, vcs_url, name = None, None, None
+        dir, vcs_url, name = None, None, None
         if any(repo_term.startswith(n) for n in ["./", "/", "~", "$HOME"]):
-            repo_dir = repo_term
+            dir = repo_term
         elif any(repo_term.startswith(n) for n in ["http", "git", "svn", "hg"]):
             vcs_url = repo_term
         else:
             name = repo_term
 
         # collect the repos from the config files
-        found_repos.extend(
-            filter_repos(configs, repo_dir=repo_dir, vcs_url=vcs_url, name=name)
-        )
+        found_repos.extend(filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name))
     if len(found_repos) == 0:
         found_repos = configs
 
@@ -76,9 +74,9 @@ def sync(repo_terms, log_level, config):
 
     if repo_terms:
         for repo_term in repo_terms:
-            repo_dir, vcs_url, name = None, None, None
+            dir, vcs_url, name = None, None, None
             if any(repo_term.startswith(n) for n in ["./", "/", "~", "$HOME"]):
-                repo_dir = repo_term
+                dir = repo_term
             elif any(repo_term.startswith(n) for n in ["http", "git", "svn", "hg"]):
                 vcs_url = repo_term
             else:
@@ -86,7 +84,7 @@ def sync(repo_terms, log_level, config):
 
             # collect the repos from the config files
             found_repos.extend(
-                filter_repos(configs, repo_dir=repo_dir, vcs_url=vcs_url, name=name)
+                filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name)
             )
     else:
         found_repos = configs
