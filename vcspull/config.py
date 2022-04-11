@@ -302,7 +302,7 @@ def filter_repos(config, dir=None, vcs_url=None, name=None):
 
     Parameters
     ----------
-    config : dist
+    config : dict
         the expanded repo config in :py:class:`dict` format.
     dir : str, Optional
         directory of checkout location, fnmatch pattern supported
