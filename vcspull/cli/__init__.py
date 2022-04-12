@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
     default="INFO",
     help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
 )
-@click.version_option(version=__version__, message="%(prog)s %(version)s")
+@click.version_option(__version__, "-V", "--version", message="%(prog)s %(version)s")
 def cli(log_level):
     setup_logger(log=log, level=log_level.upper())
 
