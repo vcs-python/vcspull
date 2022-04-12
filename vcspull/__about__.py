@@ -1,7 +1,7 @@
 __title__ = "vcspull"
 __package_name__ = "vcspull"
 __description__ = "synchronize your projects via yaml / json files"
-__version__ = "1.11.2"
+__version__ = "1.11.3"
 __author__ = "Tony Narlock"
 __github__ = "https://github.com/vcs-python/vcspull"
 __docs__ = "https://vcspull.git-pull.com"
