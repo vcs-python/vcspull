@@ -33,6 +33,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ### Compatibility
 
+- vcspull learned `-h` for help (thanks HN 2022-04-11)
 - Python 3.7 and 3.8 dropped (#356)
 
   Branch [`v1.11.x`](https://github.com/vcs-python/vcspull/tree/v1.11.x) opened for security / bug fixes.
