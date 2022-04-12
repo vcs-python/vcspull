@@ -5,9 +5,9 @@ import textwrap
 
 import pytest
 
+from libvcs.cmd.core import run
 from libvcs.shortcuts import create_repo_from_pip_url
 from libvcs.states.git import GitRepo
-from libvcs.util import run
 
 
 @pytest.fixture(autouse=True, scope="session")
