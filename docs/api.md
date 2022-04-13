@@ -3,8 +3,8 @@
 # API Reference
 
 :::{seealso}
-See {ref}`libvcs's API <libvcs:api>` and {ref}`Quickstart <libvcs:quickstart>` to see how you can control
-VCS systems via python API calls.
+If you case needs granular control, check out {ref}`libvcs <libvcs:index>` for its [Command API](https://libvcs.git-pull.com/cmd/) and {ref}`States API <libvcs:states>`
+and {ref}`Quickstart <libvcs:quickstart>`.
 :::
 
 ## Internals
