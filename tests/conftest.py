@@ -6,8 +6,8 @@ import textwrap
 import pytest
 
 from libvcs.cmd.core import run
+from libvcs.projects.git import GitProject
 from libvcs.shortcuts import create_repo_from_pip_url
-from libvcs.states.git import GitRepo
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -76,7 +76,7 @@ def git_repo_kwargs(repos_path: pathlib.Path, git_dummy_repo_dir):
 
 
 @pytest.fixture
-def git_repo(git_repo_kwargs) -> GitRepo:
+def git_repo(git_repo_kwargs) -> GitProject:
     """Create an git repository for tests. Return repo."""
     repo = create_repo_from_pip_url(**git_repo_kwargs)
     repo.obtain(quiet=True)

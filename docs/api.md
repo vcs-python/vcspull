@@ -3,7 +3,7 @@
 # API Reference
 
 :::{seealso}
-If you case needs granular control, check out {ref}`libvcs <libvcs:index>` for its [Command API](https://libvcs.git-pull.com/cmd/) and {ref}`States API <libvcs:states>`
+If you case needs granular control, check out {ref}`libvcs <libvcs:index>` for its [Command API](https://libvcs.git-pull.com/cmd/) and {ref}`Projects API <libvcs:projects>`
 and {ref}`Quickstart <libvcs:quickstart>`.
 :::
 

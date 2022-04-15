@@ -1,9 +1,9 @@
-"""Tests for placing config dicts into :py:class:`Repo` objects."""
+"""Tests for placing config dicts into :py:class:`Project` objects."""
 import os
 
 from _pytest.compat import LEGACY_PATH
 
-from libvcs import BaseRepo, GitRepo, MercurialRepo, SubversionRepo
+from libvcs import BaseProject, GitProject, MercurialProject, SubversionProject
 from libvcs.shortcuts import create_repo_from_pip_url
 from vcspull.config import filter_repos
 
@@ -56,9 +56,9 @@ def test_to_dictlist():
 
 
 def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
-    """Verify `url` return {Git,Mercurial,Subversion}Repo.
+    """Verify `url` return {Git,Mercurial,Subversion}Project.
 
-    :class:`GitRepo`, :class:`MercurialRepo` or :class:`SubversionRepo`
+    :class:`GitProject`, :class:`MercurialProject` or :class:`SubversionProject`
     object based on the pip-style URL scheme.
 
     """
@@ -71,8 +71,8 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
 
     # TODO cwd and name if duplicated should give an error
 
-    assert isinstance(git_repo, GitRepo)
-    assert isinstance(git_repo, BaseRepo)
+    assert isinstance(git_repo, GitProject)
+    assert isinstance(git_repo, BaseProject)
 
     hg_repo = create_repo_from_pip_url(
         **{
@@ -81,8 +81,8 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
         }
     )
 
-    assert isinstance(hg_repo, MercurialRepo)
-    assert isinstance(hg_repo, BaseRepo)
+    assert isinstance(hg_repo, MercurialProject)
+    assert isinstance(hg_repo, BaseProject)
 
     svn_repo = create_repo_from_pip_url(
         **{
@@ -91,17 +91,17 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
         }
     )
 
-    assert isinstance(svn_repo, SubversionRepo)
-    assert isinstance(svn_repo, BaseRepo)
+    assert isinstance(svn_repo, SubversionProject)
+    assert isinstance(svn_repo, BaseProject)
 
 
 def test_to_repo_objects(tmpdir: LEGACY_PATH):
-    """:py:obj:`dict` objects into Repo objects."""
+    """:py:obj:`dict` objects into Project objects."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
     for repo_dict in repo_list:
         r = create_repo_from_pip_url(**repo_dict)
 
-        assert isinstance(r, BaseRepo)
+        assert isinstance(r, BaseProject)
         assert r.name
         assert r.name == repo_dict["name"]
         assert r.parent_dir

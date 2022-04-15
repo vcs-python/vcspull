@@ -13,7 +13,7 @@ from typing import Literal, Optional, Union
 
 import kaptan
 
-from libvcs.states.git import GitRemote
+from libvcs.projects.git import GitRemote
 
 from . import exc
 from .util import get_config_dir, update_dict
