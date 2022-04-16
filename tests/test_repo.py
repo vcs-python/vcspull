@@ -4,7 +4,7 @@ import os
 from _pytest.compat import LEGACY_PATH
 
 from libvcs import BaseProject, GitProject, MercurialProject, SubversionProject
-from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.shortcuts import create_project_from_pip_url
 from vcspull.config import filter_repos
 
 from .fixtures import example as fixtures
@@ -62,7 +62,7 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     object based on the pip-style URL scheme.
 
     """
-    git_repo = create_repo_from_pip_url(
+    git_repo = create_project_from_pip_url(
         **{
             "pip_url": "git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b",
             "dir": str(tmpdir.join("myproject1")),
@@ -74,7 +74,7 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     assert isinstance(git_repo, GitProject)
     assert isinstance(git_repo, BaseProject)
 
-    hg_repo = create_repo_from_pip_url(
+    hg_repo = create_project_from_pip_url(
         **{
             "pip_url": "hg+https://hg.myproject.org/MyProject#egg=MyProject",
             "dir": str(tmpdir.join("myproject2")),
@@ -84,7 +84,7 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     assert isinstance(hg_repo, MercurialProject)
     assert isinstance(hg_repo, BaseProject)
 
-    svn_repo = create_repo_from_pip_url(
+    svn_repo = create_project_from_pip_url(
         **{
             "pip_url": "svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject",
             "dir": str(tmpdir.join("myproject3")),
@@ -99,7 +99,7 @@ def test_to_repo_objects(tmpdir: LEGACY_PATH):
     """:py:obj:`dict` objects into Project objects."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
     for repo_dict in repo_list:
-        r = create_repo_from_pip_url(**repo_dict)
+        r = create_project_from_pip_url(**repo_dict)
 
         assert isinstance(r, BaseProject)
         assert r.name

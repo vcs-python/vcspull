@@ -5,7 +5,7 @@ from copy import deepcopy
 import click
 import click.shell_completion
 
-from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.shortcuts import create_project_from_pip_url
 
 from ..config import filter_repos, find_config_files, load_configs
 from ..log import setup_logger
@@ -103,7 +103,7 @@ def update_repo(repo_dict):
         repo_dict["pip_url"] = repo_dict.pop("url")
     repo_dict["progress_callback"] = progress_cb
 
-    r = create_repo_from_pip_url(**repo_dict)  # Creates the repo object
+    r = create_project_from_pip_url(**repo_dict)  # Creates the repo object
     r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
 
     return r

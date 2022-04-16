@@ -7,7 +7,7 @@ import pytest
 
 from libvcs.cmd.core import run
 from libvcs.projects.git import GitProject
-from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.shortcuts import create_project_from_pip_url
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -67,7 +67,7 @@ def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest):
 
 @pytest.fixture
 def git_repo_kwargs(repos_path: pathlib.Path, git_dummy_repo_dir):
-    """Return kwargs for :func:`create_repo_from_pip_url`."""
+    """Return kwargs for :func:`create_project_from_pip_url`."""
     return {
         "url": "git+file://" + git_dummy_repo_dir,
         "parent_dir": str(repos_path),
@@ -78,7 +78,7 @@ def git_repo_kwargs(repos_path: pathlib.Path, git_dummy_repo_dir):
 @pytest.fixture
 def git_repo(git_repo_kwargs) -> GitProject:
     """Create an git repository for tests. Return repo."""
-    repo = create_repo_from_pip_url(**git_repo_kwargs)
+    repo = create_project_from_pip_url(**git_repo_kwargs)
     repo.obtain(quiet=True)
     return repo
 

@@ -7,7 +7,7 @@ import pytest
 import kaptan
 
 from libvcs.projects.git import GitRemote
-from libvcs.shortcuts import create_repo_from_pip_url
+from libvcs.shortcuts import create_project_from_pip_url
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
 
@@ -32,7 +32,7 @@ def test_makes_recursive(
     repos = extract_repos(conf)
 
     for r in filter_repos(repos):
-        repo = create_repo_from_pip_url(**r)
+        repo = create_project_from_pip_url(**r)
         repo.obtain()
 
 
