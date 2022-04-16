@@ -255,7 +255,7 @@ PyYAML = ">=3.13,<6"
 
 [[package]]
 name = "libvcs"
-version = "0.12.0b30"
+version = "0.12.0b31"
 description = "vcs abstraction layer"
 category = "main"
 optional = false
@@ -856,7 +856,7 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "b0b5a9c75e0d91ffe084f1f88214bea780db56fbb2d1e21a3f9a0d01f2751c40"
+content-hash = "93189d7857d170329d0ee65678c6e075af537e8496bec58e6839f9ee6fb33efd"
 
 [metadata.files]
 alabaster = [
@@ -1008,8 +1008,8 @@ kaptan = [
     {file = "kaptan-0.5.12.tar.gz", hash = "sha256:1abd1f56731422fce5af1acc28801677a51e56f5d3c3e8636db761ed143c3dd2"},
 ]
 libvcs = [
-    {file = "libvcs-0.12.0b30-py3-none-any.whl", hash = "sha256:44c85a1fd770f7ef844be759b1bcf6768e2d13b2c5d4a1e94bdf0077062b0fd7"},
-    {file = "libvcs-0.12.0b30.tar.gz", hash = "sha256:261dd659c0944bab9bd434e86a397d5f08c68ba035fdcd282f788946d6cf569c"},
+    {file = "libvcs-0.12.0b31-py3-none-any.whl", hash = "sha256:3c6f4fa7701205a16e281a5b0a03615a222e7cd2ead8f7bb0196673461db95e1"},
+    {file = "libvcs-0.12.0b31.tar.gz", hash = "sha256:ee3d1f7b7d6664bf4ad66e481a0e4ecdd9f3641ea9b7e43425272fbd30cbbc3f"},
 ]
 livereload = [
     {file = "livereload-2.6.3.tar.gz", hash = "sha256:776f2f865e59fde56490a56bcc6773b6917366bce0c267c60ee8aaf1a0959869"},
