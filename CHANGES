@@ -33,6 +33,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ### Compatibility
 
+- Allow click 8.1.x ({issue}`#372`)
 - vcspull learned `-h` for help (thanks HN 2022-04-11)
 - Python 3.7 and 3.8 dropped (#356)
 
