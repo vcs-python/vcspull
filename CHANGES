@@ -19,6 +19,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.11.4 (2022-04-17)
+
+### Compatibility
+
+- Allow click 8.1.x (backport of {issue}`#372`)
+
 ## vcspull 1.11.3 (2022-04-11)
 
 ### Compatibility
