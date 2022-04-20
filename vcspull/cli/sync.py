@@ -62,6 +62,7 @@ def clamp(n, _min, _max):
 )
 @click.option(
     "config",
+    "--config",
     "-c",
     type=click.Path(exists=True),
     help="Specify config",
