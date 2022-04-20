@@ -15,7 +15,9 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 // Usage: vcspull@next sync [config]
 ```
 
-## current - unrelased
+## current - v1.12.x (unreleased)
+
+- _Add your latest changes from PRs here_
 
 ### Breaking changes
 
@@ -52,8 +54,6 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - Sidebar reorganized into sections
 - Added documentation on fetching developmental releases of libtmux
-
-- _Add your latest changes from PRs here_
 
 ## vcspull 1.11.5 (2022-04-20)
 
