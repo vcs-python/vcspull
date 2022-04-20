@@ -14,7 +14,11 @@ log = logging.getLogger(__name__)
 
 
 def get_repo_completions(ctx: click.core.Context, args, incomplete):
-    configs = load_configs(find_config_files(include_home=True))
+    configs = (
+        load_configs(find_config_files(include_home=True))
+        if ctx.params["config"] is None
+        else load_configs(files=[ctx.params["config"]])
+    )
     found_repos = []
     repo_terms = [incomplete]
 
