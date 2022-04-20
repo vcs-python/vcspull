@@ -39,7 +39,7 @@ def get_config_file_completions(ctx, args, incomplete):
     return [
         click.shell_completion.CompletionItem(c)
         for c in find_config_files(include_home=True)
-        if c.startswith(incomplete)
+        if str(c).startswith(incomplete)
     ]
 
 
