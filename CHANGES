@@ -41,6 +41,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - `--version` learned to show libvcs version
 - `--version` learned to accept the `-V` flag
+- `vcspull sync` accepts config file params via `--config`. Before it was only
+  `-c`. Assume myrepos.yaml in your path:
+
+  ```console
+  $ vcspull sync --config myrepos.yaml
+  ```
 
 ### Documentation
 
