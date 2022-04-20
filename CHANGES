@@ -19,6 +19,19 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.11.5 (2022-04-20)
+
+### Compatibility
+
+- `vcspull sync` accepts config file params via `--config`. Before it was only
+  `-c`. Assume myrepos.yaml in your path:
+
+  ```console
+  $ vcspull sync --config myrepos.yaml
+  ```
+
+  (backport from vcspull v1.12.0b22)
+
 ## vcspull 1.11.4 (2022-04-17)
 
 ### Compatibility
