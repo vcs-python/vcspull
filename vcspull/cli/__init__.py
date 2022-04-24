@@ -17,7 +17,12 @@ from .sync import sync
 log = logging.getLogger(__name__)
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.group(
+    context_settings={
+        "help_option_names": ["-h", "--help"],
+        "allow_interspersed_args": True,
+    }
+)
 @click.option(
     "--log-level",
     default="INFO",
