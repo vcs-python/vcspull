@@ -8,7 +8,6 @@ import click.shell_completion
 from libvcs.shortcuts import create_project_from_pip_url
 
 from ..config import filter_repos, find_config_files, load_configs
-from ..log import setup_logger
 
 log = logging.getLogger(__name__)
 
@@ -56,11 +55,6 @@ def clamp(n, _min, _max):
     "repo_terms", type=click.STRING, nargs=-1, shell_complete=get_repo_completions
 )
 @click.option(
-    "--log-level",
-    default="INFO",
-    help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
-)
-@click.option(
     "config",
     "--config",
     "-c",
@@ -68,9 +62,7 @@ def clamp(n, _min, _max):
     help="Specify config",
     shell_complete=get_config_file_completions,
 )
-def sync(repo_terms, log_level, config):
-    setup_logger(log=log, level=log_level.upper())
-
+def sync(repo_terms, config):
     if config:
         configs = load_configs([config])
     else:
