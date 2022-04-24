@@ -179,7 +179,7 @@ class RepoLogFormatter(LogFormatter):
         )
         return "{}|{}| {}({}) {}".format(
             Fore.GREEN + Style.DIM,
-            record.keyword,
+            record.bin_name,
             Fore.YELLOW,
             record.keyword,
             Fore.RESET,
