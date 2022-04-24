@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vcspull"
-version = "1.12.0b24"
+version = "1.12.0b25"
 description = "synchronize your projects via yaml / json files"
 license = "MIT"
 authors = ["Tony Narlock <tony@git-pull.com>"]
