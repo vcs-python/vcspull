@@ -50,6 +50,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
   $ vcspull sync --config myrepos.yaml
   ```
 
+### Development
+
+- Publish to PyPI via CI when git tags are pushed
+
 ### Documentation
 
 - Sidebar reorganized into sections
