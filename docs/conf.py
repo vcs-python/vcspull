@@ -96,7 +96,7 @@ copybutton_prompt_is_regexp = True
 copybutton_remove_prompts = True
 
 # sphinx-issues
-issues_github_path = "vcs-python/libvcs"
+issues_github_path = "vcs-python/vcspull"
 
 # sphinxext-rediraffe
 rediraffe_redirects = "redirects.txt"
