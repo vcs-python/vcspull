@@ -24,7 +24,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 ### Breaking changes
 
 - Config location uses `XDG_CONFIG_HOME` from [XDG Base Directory],
-  ({issue}`#367`).
+  ({issue}`367`).
 
   Old path: `~/.vcspull`
 
@@ -32,12 +32,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
   [xdg base directory]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
-- Override config directory via `VCSPULL_CONFIGDIR` ({issue}`#367`)
-- Switch from `str` to `pathlib.Path` ({issue}`#364`)
+- Override config directory via `VCSPULL_CONFIGDIR` ({issue}`367`)
+- Switch from `str` to `pathlib.Path` ({issue}`364`)
 
 ### Compatibility
 
-- Allow click 8.1.x ({issue}`#372`)
+- Allow click 8.1.x ({issue}`372`)
 - vcspull learned `-h` for help (thanks HN 2022-04-11)
 - Python 3.7 and 3.8 dropped (#356)
 
@@ -78,7 +78,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ### Compatibility
 
-- Allow click 8.1.x (backport of {issue}`#372`)
+- Allow click 8.1.x (backport of {issue}`372`)
 
 ## vcspull 1.11.3 (2022-04-11)
 
