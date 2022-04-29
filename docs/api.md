@@ -3,15 +3,14 @@
 # API Reference
 
 :::{seealso}
-If you case needs granular control, check out {ref}`libvcs <libvcs:index>` for its [Command API](https://libvcs.git-pull.com/cmd/) and {ref}`Projects API <libvcs:projects>`
-and {ref}`Quickstart <libvcs:quickstart>`.
+For granular control see {ref}`libvcs <libvcs:index>`'s {ref}`Commands <libvcs:cmd>` and {ref}`Projects <libvcs:projects>`.
 :::
 
 ## Internals
 
 :::{warning}
 These APIs are purely internal not covered by versioning policies, they can and will break between versions.
-If you need an internal API stabilized please [file an issue](https://github.com/vcs-python/libvcs/issues).
+If you need an internal API stabilized please [file an issue](https://github.com/vcs-python/vcspull/issues).
 :::
 
 ## Exceptions
