@@ -82,12 +82,6 @@ html_sidebars = {
     ]
 }
 
-# sphinxext.opengraph
-ogp_site_url = about["__docs__"]
-ogp_image = "_static/img/icons/icon-192x192.png"
-ogp_desscription_length = about["__description__"]
-ogp_site_name = about["__title__"]
-
 # sphinx-copybutton
 copybutton_prompt_text = (
     r">>> |\.\.\. |> |\$ |\# | In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
@@ -101,6 +95,12 @@ issues_github_path = "vcs-python/vcspull"
 # sphinxext-rediraffe
 rediraffe_redirects = "redirects.txt"
 rediraffe_branch = "master~1"
+
+# sphinxext.opengraph
+ogp_site_url = about["__docs__"]
+ogp_image = "_static/img/icons/icon-192x192.png"
+ogp_desscription_length = about["__description__"]
+ogp_site_name = about["__title__"]
 
 htmlhelp_basename = "%sdoc" % about["__title__"]
 
