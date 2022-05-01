@@ -17,6 +17,7 @@ with open("../vcspull/__about__.py") as fp:
 
 extensions = [
     "sphinx.ext.autodoc",
+    "autoapi.extension",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
     "sphinx.ext.todo",
@@ -81,6 +82,25 @@ html_sidebars = {
         "sidebar/scroll-end.html",
     ]
 }
+
+# sphinx.ext.autodoc
+autoclass_content = "both"
+autodoc_member_order = "bysource"
+autosummary_generate = True
+
+# sphinx-autodoc-typehints
+autodoc_typehints = "description"  # show type hints in doc body instead of signature
+simplify_optional_unions = True
+
+# sphinx-autoapi
+autoapi_type = "python"
+autoapi_dirs = [project_root / "vcspull"]
+autoapi_generate_api_docs = False  # when fales, use directives
+suppress_warnings = ["autoapi.python_import_resolution", "autoapi.not_readable"]
+
+# sphinx.ext.napoleon
+napoleon_google_docstring = True
+napoleon_include_init_with_doc = True
 
 # sphinx-copybutton
 copybutton_prompt_text = (
