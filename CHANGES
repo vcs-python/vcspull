@@ -19,7 +19,16 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.12.1 (2022-05-02)
+
+### Bug fixes
+
+- Pin [click at
+  8+](https://click.palletsprojects.com/en/8.0.x/changes/#version-8-0-0)
+
 ## vcspull 1.12.0 (2022-04-24)
+
+Patch branch: [`v1.12.x`](https://github.com/vcs-python/vcspull/tree/v1.12.x)
 
 ### Breaking changes
 
@@ -34,6 +43,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - Override config directory via `VCSPULL_CONFIGDIR` ({issue}`367`)
 - Switch from `str` to `pathlib.Path` ({issue}`364`)
+- Requires click 8+
 
 ### Compatibility
 
