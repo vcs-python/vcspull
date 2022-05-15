@@ -19,6 +19,16 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - _Add your latest changes from PRs here_
 
+## vcspull 1.12.2 (2022-05-15)
+
+### Packaging
+
+- Update tags and description
+
+### Documentation
+
+- Update README
+
 ## vcspull 1.12.1 (2022-05-02)
 
 ### Bug fixes
