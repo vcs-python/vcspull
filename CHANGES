@@ -23,6 +23,16 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - libvcs: Update to 0.13.x
 
+## vcspull 1.12.2 (2022-05-15)
+
+### Packaging
+
+- Update tags and description
+
+### Documentation
+
+- Update README
+
 ## vcspull 1.12.1 (2022-05-02)
 
 ### Bug fixes
