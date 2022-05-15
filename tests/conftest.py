@@ -5,9 +5,9 @@ import textwrap
 
 import pytest
 
+from libvcs._internal.run import run
 from libvcs.projects.git import GitProject
 from libvcs.shortcuts import create_project_from_pip_url
-from libvcs.utils.run import run
 
 
 @pytest.fixture(autouse=True, scope="session")
