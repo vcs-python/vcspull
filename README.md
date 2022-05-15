@@ -1,7 +1,7 @@
 # $ vcspull &middot; [![Python Package](https://img.shields.io/pypi/v/vcspull.svg)](https://pypi.org/project/vcspull/) [![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE) [![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull)
 
-Synchronize repos in bulk from JSON or YAML file. Compare to
-[myrepos](http://myrepos.branchable.com/). Built on [libvcs](https://github.com/vcs-python/libvcs)
+Manage and sync multiple git, svn, and mercurial repos via JSON or YAML file. Compare to
+[myrepos], [mu-repo]. Built on [libvcs](https://github.com/vcs-python/libvcs)
 
 Great if you use the same repos at the same locations across multiple
 machines or want to clone / update a pattern of repos without having to
@@ -17,6 +17,9 @@ machines or want to clone / update a pattern of repos without having to
   scheme](https://pip.pypa.io/en/latest/topics/vcs-support/))
 
 See the [documentation](https://vcspull.git-pull.com/), [configuration](https://vcspull.git-pull.com/configuration/) examples, and [config generators](https://vcspull.git-pull.com/configuration/generation.html).
+
+[myrepos]: http://myrepos.branchable.com/
+[mu-repo]: http://fabioz.github.io/mu-repo/
 
 # how to
 
