@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "vcspull"
 version = "1.13.0a0"
-description = "Bulk sync git, mercurial, and svn projects"
+description = "Manage and sync multiple git, mercurial, and svn repos"
 license = "MIT"
 authors = ["Tony Narlock <tony@git-pull.com>"]
 classifiers = [
