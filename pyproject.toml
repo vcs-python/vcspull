@@ -25,7 +25,12 @@ include = [
     { path = "tests", format = "sdist" }
 ]
 readme = 'README.md'
-keywords = ["vcspull", "git", "vcs", "json", "yaml"]
+keywords = [
+    "vcspull",
+    "vcs", "git", "svn", "subversion", "hg", "mercurial",
+    "manage", "manager", "sync", "fetcher", "updater",
+    "json", "yaml"
+]
 
 homepage = "https://vcspull.git-pull.com"
 
