@@ -21,9 +21,9 @@ See the [documentation](https://vcspull.git-pull.com/), [configuration](https://
 [myrepos]: http://myrepos.branchable.com/
 [mu-repo]: http://fabioz.github.io/mu-repo/
 
-# how to
+# How to
 
-## install
+## Install
 
 ```console
 $ pip install --user vcspull
@@ -47,9 +47,9 @@ You can test the unpublished version of vcspull before its released.
 
   Then use `vcspull@next sync [config]...`.
 
-## configure
+## Configuration
 
-add repos you want vcspull to manage to `~/.vcspull.yaml`.
+Add your repos to `~/.vcspull.yaml`.
 
 _vcspull does not currently scan for repos on your system, but it may in
 the future_
@@ -75,23 +75,23 @@ more [configuration](https://vcspull.git-pull.com/configuration.html))
 be used as a declarative manifest to clone you repos consistently across
 machines. Subsequent syncs of nitialized repos will fetch the latest commits.
 
-## clone / update your repos
+## Sync your repos
 
 ```console
-$ vcspull
+$ vcspull sync
 ```
 
 Keep nested VCS repositories updated too, lets say you have a mercurial
 or svn project with a git dependency:
 
-`external_deps.yaml` in your project root, (can be anything):
+`external_deps.yaml` in your project root (any filename will do):
 
 ```yaml
 ./vendor/:
   sdl2pp: "git+https://github.com/libSDL2pp/libSDL2pp.git"
 ```
 
-clone / update repos:
+Clone / update repos via config file:
 
 ```console
 $ vcspull sync -c external_deps.yaml
@@ -100,9 +100,9 @@ $ vcspull sync -c external_deps.yaml
 See the [Quickstart](https://vcspull.git-pull.com/quickstart.html) for
 more.
 
-## pulling specific repos
+## Pulling specific repos
 
-have a lot of repos?
+Have a lot of repos?
 
 you can choose to update only select repos through
 [fnmatch](http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html)
@@ -111,23 +111,39 @@ first.
 
 The patterns can be filtered by by directory, repo name or vcs url.
 
+Any repo starting with "fla":
+
 ```console
-// any repo starting with "fla"
 $ vcspull sync "fla*"
-// any repo with django in the name
+```
+
+Any repo with django in the name:
+
+```console
 $ vcspull sync "*django*"
+```
 
-// search by vcs + url
-// since urls are in this format <vcs>+<protocol>://<url>
+Search by vcs + url, since urls are in this format <vcs>+<protocol>://<url>:
+
+```console
 $ vcspull sync "git+*"
+```
 
-// any git repo with python in the vcspull
+Any git repo with python in the vcspull:
+
+```console
 $ vcspull sync "git+*python*
+```
 
-// any git repo with django in the vcs url
+Any git repo with django in the vcs url:
+
+```console
 $ vcspull sync "git+*django*"
+```
 
-// all repositories in your ~/code directory
+All repositories in your ~/code directory:
+
+```console
 $ vcspull sync "$HOME/code/*"
 ```
 
