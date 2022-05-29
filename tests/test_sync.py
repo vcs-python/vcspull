@@ -81,7 +81,7 @@ def test_config_variations(
     tmp_path: pathlib.Path,
     create_git_dummy_repo: Callable[[str], pathlib.Path],
     config_tpl: str,
-    capsys: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
     remote_list: List[str],
 ):
     """Test config output with variation of config formats"""
