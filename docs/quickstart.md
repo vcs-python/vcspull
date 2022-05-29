@@ -58,32 +58,26 @@ via trunk (can break easily):
 ## Configuration
 
 ```{seealso}
-
 {ref}`configuration` and {ref}`config-generation`.
-
 ```
 
 We will check out the source code of [flask][flask] to `~/code/flask`.
 
 Prefer JSON? Create a `~/.vcspull.json` file:
 
-```{code-block} json
-
+```json
 {
   "~/code/": {
     "flask": "git+https://github.com/mitsuhiko/flask.git"
   }
 }
-
 ```
 
 YAML? Create a `~/.vcspull.yaml` file:
 
-```{code-block} yaml
-
+```yaml
 ~/code/:
-    "flask": "git+https://github.com/mitsuhiko/flask.git"
-
+  "flask": "git+https://github.com/mitsuhiko/flask.git"
 ```
 
 The `git+` in front of the repository URL. Mercurial repositories use
@@ -101,9 +95,9 @@ Also, you can sync arbitrary projects, lets assume you have a mercurial
 repo but need a git dependency, in your project add `.deps.yaml` (can
 be any name):
 
-```{code-block} yaml
+```yaml
 ./vendor/:
-  sdl2pp: 'git+https://github.com/libSDL2pp/libSDL2pp.git'
+  sdl2pp: "git+https://github.com/libSDL2pp/libSDL2pp.git"
 ```
 
 Use `-c` to specify a config.
