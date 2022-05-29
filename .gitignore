@@ -74,6 +74,9 @@ target/
 # docs
 doc/_build/
 
+# mypy
+.mypy_cache/
+
 *.lprof
 
 pip-wheel-metadata/
