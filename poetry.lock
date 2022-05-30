@@ -276,7 +276,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "libvcs"
-version = "0.13.0a13"
+version = "0.13.0a14"
 description = "Lite, typed, python library wrapper for git, svn, mercurial, etc."
 category = "main"
 optional = false
@@ -930,7 +930,7 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "b01c109b035d56ccef95df2176c2008d6fbc2544eb37759e07629902f66fb213"
+content-hash = "2263d94a47fd78506d929e6a1c0cabd2d8631abf86466a4d7ecf459b2ee69505"
 
 [metadata.files]
 alabaster = [
@@ -1125,8 +1125,8 @@ lazy-object-proxy = [
     {file = "lazy_object_proxy-1.7.1-pp37.pp38-none-any.whl", hash = "sha256:d66906d5785da8e0be7360912e99c9188b70f52c422f9fc18223347235691a84"},
 ]
 libvcs = [
-    {file = "libvcs-0.13.0a13-py3-none-any.whl", hash = "sha256:03a6297709eebb907331abfec5e861e6a46bb2cc5ed5e24dc05a1ca19f5afe96"},
-    {file = "libvcs-0.13.0a13.tar.gz", hash = "sha256:96298023294d50dbb6f68fefc4be8ad99f6281bcca35a30cc00a1da68d7b09cc"},
+    {file = "libvcs-0.13.0a14-py3-none-any.whl", hash = "sha256:a7d30d439125f877060f11b5c9bdf919117cb474b98ff976716ad55f0b2b9c6f"},
+    {file = "libvcs-0.13.0a14.tar.gz", hash = "sha256:96d126028b287b636dddc7b32b4874defec588d8bad8c3b1da7999075704e1a5"},
 ]
 livereload = [
     {file = "livereload-2.6.3.tar.gz", hash = "sha256:776f2f865e59fde56490a56bcc6773b6917366bce0c267c60ee8aaf1a0959869"},
