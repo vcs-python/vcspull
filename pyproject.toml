@@ -126,6 +126,16 @@ lint = [
   "types-colorama",
 ]
 
+[tool.mypy]
+python_version = 3.9
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "kaptan.*",
+]
+ignore_missing_imports = true
+
 [tool.coverage.run]
 branch = true
 parallel = true
