@@ -197,12 +197,14 @@ def test_updating_remote(
     repo_dict = filter_repos([config], name="myclone")[0]
     repo = update_repo(repo_dict)
     for remote_name, remote_info in repo.remotes().items():
-        current_remote_url = repo.remote(remote_name).fetch_url.replace("git+", "")
-        if remote_name in config["remotes"]:
-            assert (
-                config["remotes"][remote_name].fetch_url.replace("git+", "")
-                == current_remote_url
-            )
+        remote = repo.remote(remote_name)
+        if remote is not None:
+            current_remote_url = remote.fetch_url.replace("git+", "")
+            if remote_name in config["remotes"]:
+                assert (
+                    config["remotes"][remote_name].fetch_url.replace("git+", "")
+                    == current_remote_url
+                )
 
-        elif remote_name == "origin":
-            assert config["url"].replace("git+", "") == current_remote_url
+            elif remote_name == "origin":
+                assert config["url"].replace("git+", "") == current_remote_url

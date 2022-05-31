@@ -142,7 +142,9 @@ def find_home_config_files(
 def find_config_files(
     path: Optional[Union[list[pathlib.Path], pathlib.Path]] = None,
     match: Union[list[str], str] = ["*"],
-    filetype: list[Literal["json", "yaml"]] = ["json", "yaml"],
+    filetype: Union[
+        Literal["json", "yaml", "*"], list[Literal["json", "yaml", "*"]]
+    ] = ["json", "yaml"],
     include_home: bool = False,
 ):
     """Return repos from a directory and match. Not recursive.
