@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import click
 import click.shell_completion
+from click.shell_completion import CompletionItem
 
 from libvcs.shortcuts import create_project_from_pip_url
 
@@ -12,7 +13,9 @@ from ..config import filter_repos, find_config_files, load_configs
 log = logging.getLogger(__name__)
 
 
-def get_repo_completions(ctx: click.core.Context, args, incomplete):
+def get_repo_completions(
+    ctx: click.Context, param: click.Parameter, incomplete: str
+) -> list[CompletionItem]:
     configs = (
         load_configs(find_config_files(include_home=True))
         if ctx.params["config"] is None
@@ -35,7 +38,11 @@ def get_repo_completions(ctx: click.core.Context, args, incomplete):
     if len(found_repos) == 0:
         found_repos = configs
 
-    return [o["name"] for o in found_repos if o["name"].startswith(incomplete)]
+    return [
+        CompletionItem(o["name"])
+        for o in found_repos
+        if o["name"].startswith(incomplete)
+    ]
 
 
 def get_config_file_completions(ctx, args, incomplete):
