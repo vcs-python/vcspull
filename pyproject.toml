@@ -94,6 +94,11 @@ flake8-bugbear = "^22.8.23"
 flake8-comprehensions = "*"
 mypy = "*"
 
+### Lint : Annotations ###
+types-requests = "^2.28.11"
+types-PyYAML = "^6.0.11"
+types-colorama = "^0.4.15"
+
 [tool.poetry.extras]
 docs = [
   "sphinx",
@@ -111,7 +116,15 @@ docs = [
 test = ["pytest", "pytest-rerunfailures", "pytest-watcher"]
 coverage = ["codecov", "coverage", "pytest-cov"]
 format = ["black", "isort"]
-lint = ["flake8", "flake8-bugbear", "flake8-comprehensions", "mypy"]
+lint = [
+  "flake8",
+  "flake8-bugbear",
+  "flake8-comprehensions",
+  "mypy",
+  "types-requests",
+  "types-PyYAML",
+  "types-colorama",
+]
 
 [tool.coverage.run]
 branch = true

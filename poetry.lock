@@ -865,6 +865,41 @@ optional = false
 python-versions = ">= 3.7"
 
 [[package]]
+name = "types-colorama"
+version = "0.4.15"
+description = "Typing stubs for colorama"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "types-PyYAML"
+version = "6.0.11"
+description = "Typing stubs for PyYAML"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "types-requests"
+version = "2.28.11"
+description = "Typing stubs for requests"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+types-urllib3 = "<1.27"
+
+[[package]]
+name = "types-urllib3"
+version = "1.26.24"
+description = "Typing stubs for urllib3"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "typing-extensions"
 version = "4.3.0"
 description = "Backported and Experimental Type Hints for Python 3.7+"
@@ -918,7 +953,7 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "18c3e8e315bd28dfe02ee204c454ac19189a6a380c6c1b28566b2a7f2578633a"
+content-hash = "7c94ab445bfa827b520f5a911614de9b88e39bac374e7f050deed9c1d334d2be"
 
 [metadata.files]
 alabaster = [
@@ -1366,6 +1401,22 @@ tornado = [
     {file = "tornado-6.2-cp37-abi3-win32.whl", hash = "sha256:5c87076709343557ef8032934ce5f637dbb552efa7b21d08e89ae7619ed0eb23"},
     {file = "tornado-6.2-cp37-abi3-win_amd64.whl", hash = "sha256:e5f923aa6a47e133d1cf87d60700889d7eae68988704e20c75fb2d65677a8e4b"},
     {file = "tornado-6.2.tar.gz", hash = "sha256:9b630419bde84ec666bfd7ea0a4cb2a8a651c2d5cccdbdd1972a0c859dfc3c13"},
+]
+types-colorama = [
+    {file = "types-colorama-0.4.15.tar.gz", hash = "sha256:fd128b1e32f3fecec5f09df4366d21498ee86ea31fcf8b4e8f1ade6d0bbf9832"},
+    {file = "types_colorama-0.4.15-py3-none-any.whl", hash = "sha256:9cdc88dcde9e8ebafb2fdfaf5cee260452f93e5c57eb5d8b2a7f65b836d4e5d0"},
+]
+types-PyYAML = [
+    {file = "types-PyYAML-6.0.11.tar.gz", hash = "sha256:7f7da2fd11e9bc1e5e9eb3ea1be84f4849747017a59fc2eee0ea34ed1147c2e0"},
+    {file = "types_PyYAML-6.0.11-py3-none-any.whl", hash = "sha256:8f890028123607379c63550179ddaec4517dc751f4c527a52bb61934bf495989"},
+]
+types-requests = [
+    {file = "types-requests-2.28.11.tar.gz", hash = "sha256:7ee827eb8ce611b02b5117cfec5da6455365b6a575f5e3ff19f655ba603e6b4e"},
+    {file = "types_requests-2.28.11-py3-none-any.whl", hash = "sha256:af5f55e803cabcfb836dad752bd6d8a0fc8ef1cd84243061c0e27dee04ccf4fd"},
+]
+types-urllib3 = [
+    {file = "types-urllib3-1.26.24.tar.gz", hash = "sha256:a1b3aaea7dda3eb1b51699ee723aadd235488e4dc4648e030f09bc429ecff42f"},
+    {file = "types_urllib3-1.26.24-py3-none-any.whl", hash = "sha256:cf7918503d02d3576e503bbfb419b0e047c4617653bba09624756ab7175e15c9"},
 ]
 typing-extensions = [
     {file = "typing_extensions-4.3.0-py3-none-any.whl", hash = "sha256:25642c956049920a5aa49edcdd6ab1e06d7e5d467fc00e0506c44ac86fbfca02"},
