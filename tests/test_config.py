@@ -31,7 +31,7 @@ vcspull:
     assert len(repos) == 1
     repo = repos[0]
 
-    assert dir / "vcspull" == repo["parent_dir"]
+    assert dir / "vcspull" == repo["dir"].parent
     assert dir / "vcspull" / "libvcs" == repo["dir"]
 
 
@@ -49,5 +49,5 @@ def test_relative_dir(load_yaml):
     assert len(repos) == 1
     repo = repos[0]
 
-    assert dir / "relativedir" == repo["parent_dir"]
+    assert dir / "relativedir" == repo["dir"].parent
     assert dir / "relativedir" / "docutils" == repo["dir"]

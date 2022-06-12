@@ -1,5 +1,8 @@
 import os
 
+from libvcs.sync.git import GitRemote
+from vcspull.types import ConfigDict
+
 config_dict = {
     "/home/me/myproject/study/": {
         "linux": "git+git://git.kernel.org/linux/torvalds/linux.git",
@@ -30,51 +33,63 @@ config_dict = {
     },
 }
 
-config_dict_expanded = [
+config_dict_expanded: list[ConfigDict] = [
     {
+        "vcs": "git",
         "name": "linux",
-        "parent_dir": "/home/me/myproject/study/",
         "dir": os.path.join("/home/me/myproject/study/", "linux"),
         "url": "git+git://git.kernel.org/linux/torvalds/linux.git",
     },
     {
+        "vcs": "git",
         "name": "freebsd",
-        "parent_dir": "/home/me/myproject/study/",
         "dir": os.path.join("/home/me/myproject/study/", "freebsd"),
         "url": "git+https://github.com/freebsd/freebsd.git",
     },
     {
+        "vcs": "git",
         "name": "sphinx",
-        "parent_dir": "/home/me/myproject/study/",
         "dir": os.path.join("/home/me/myproject/study/", "sphinx"),
         "url": "hg+https://bitbucket.org/birkenfeld/sphinx",
     },
     {
+        "vcs": "git",
         "name": "docutils",
-        "parent_dir": "/home/me/myproject/study/",
         "dir": os.path.join("/home/me/myproject/study/", "docutils"),
         "url": "svn+http://svn.code.sf.net/p/docutils/code/trunk",
     },
     {
+        "vcs": "git",
         "name": "kaptan",
         "url": "git+git@github.com:tony/kaptan.git",
-        "parent_dir": "/home/me/myproject/github_projects/",
         "dir": os.path.join("/home/me/myproject/github_projects/", "kaptan"),
-        "remotes": [
-            {"remote_name": "upstream", "url": "git+https://github.com/emre/kaptan"},
-            {"remote_name": "ms", "url": "git+https://github.com/ms/kaptan.git"},
-        ],
+        "remotes": {
+            "upstream": GitRemote(
+                **{
+                    "name": "upstream",
+                    "fetch_url": "git+https://github.com/emre/kaptan",
+                    "push_url": "git+https://github.com/emre/kaptan",
+                }
+            ),
+            "ms": GitRemote(
+                **{
+                    "name": "ms",
+                    "fetch_url": "git+https://github.com/ms/kaptan.git",
+                    "push_url": "git+https://github.com/ms/kaptan.git",
+                }
+            ),
+        },
     },
     {
+        "vcs": "git",
         "name": ".vim",
-        "parent_dir": "/home/me/myproject",
         "dir": os.path.join("/home/me/myproject", ".vim"),
         "url": "git+git@github.com:tony/vim-config.git",
         "shell_command_after": ["ln -sf /home/me/.vim/.vimrc /home/me/.vimrc"],
     },
     {
+        "vcs": "git",
         "name": ".tmux",
-        "parent_dir": "/home/me/myproject",
         "dir": os.path.join("/home/me/myproject", ".tmux"),
         "url": "git+git@github.com:tony/tmux-config.git",
         "shell_command_after": ["ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf"],

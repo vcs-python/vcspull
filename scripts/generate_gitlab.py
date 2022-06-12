@@ -58,20 +58,20 @@ except IOError:
     print("File %s not accesible" % (config_filename))
     sys.exit(1)
 
-result = requests.get(
+response = requests.get(
     "%s/api/v4/groups/%s/projects" % (gitlab_host, gitlab_namespace),
     params={"include_subgroups": "true", "per_page": "100"},
     headers={"Authorization": "Bearer %s" % (gitlab_token)},
 )
 
-if 200 != result.status_code:
-    print("Error: ", result)
+if 200 != response.status_code:
+    print("Error: ", response)
     sys.exit(1)
 
 path_prefix = os.getcwd()
-config = {}
+config: dict = {}
 
-for group in result.json():
+for group in response.json():
     url_to_repo = group["ssh_url_to_repo"].replace(":", "/")
     namespace_path = group["namespace"]["full_path"]
     reponame = group["path"]

@@ -1,15 +1,17 @@
 import pathlib
 import textwrap
-from typing import Callable, List
+import typing as t
 
 import pytest
 
 import kaptan
 
-from libvcs.projects.git import GitRemote
-from libvcs.shortcuts import create_project_from_pip_url
+from libvcs._internal.shortcuts import create_project
+from libvcs.sync.git import GitRemote, GitSync
+from tests.conftest import DummyRepoProtocol
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
+from vcspull.types import ConfigDict
 
 from .helpers import write_config
 
@@ -30,10 +32,17 @@ def test_makes_recursive(
     )
     conf = conf.export("dict")
     repos = extract_repos(conf)
+    assert len(repos) > 0
 
-    for r in filter_repos(repos):
-        repo = create_project_from_pip_url(**r)
+    filtered_repos = filter_repos(repos, dir="*")
+    assert len(filtered_repos) > 0
+
+    for r in filtered_repos:
+        assert isinstance(r, dict)
+        repo = create_project(**r)  # type: ignore
         repo.obtain()
+
+        assert repo.dir.exists()
 
 
 def write_config_remote(
@@ -79,11 +88,11 @@ def write_config_remote(
 )
 def test_config_variations(
     tmp_path: pathlib.Path,
-    create_git_dummy_repo: Callable[[str], pathlib.Path],
+    create_git_dummy_repo: DummyRepoProtocol,
     config_tpl: str,
     capsys: pytest.CaptureFixture[str],
-    remote_list: List[str],
-):
+    remote_list: t.List[str],
+) -> None:
     """Test config output with variation of config formats"""
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_dummy_repo(dummy_repo_name)
@@ -103,8 +112,8 @@ def test_config_variations(
 
     for repo_dict in repos:
         repo_url = repo_dict["url"].replace("git+", "")
-        repo = update_repo(repo_dict)
-        remotes = repo.remotes() or []
+        repo: GitSync = update_repo(repo_dict)
+        remotes = repo.remotes() or {}
         remote_names = set(remotes.keys())
         assert set(remote_list).issubset(remote_names) or {"origin"}.issubset(
             remote_names
@@ -112,6 +121,7 @@ def test_config_variations(
 
         for remote_name, remote_info in remotes.items():
             current_remote = repo.remote(remote_name)
+            assert current_remote is not None
             assert current_remote.fetch_url == repo_url
 
 
@@ -147,10 +157,10 @@ def test_config_variations(
 )
 def test_updating_remote(
     tmp_path: pathlib.Path,
-    create_git_dummy_repo: Callable[[str], pathlib.Path],
+    create_git_dummy_repo: DummyRepoProtocol,
     config_tpl: str,
-    has_extra_remotes,
-):
+    has_extra_remotes: bool,
+) -> None:
     """Ensure additions/changes to yaml config are reflected"""
 
     dummy_repo_name = "dummy_repo"
@@ -162,17 +172,17 @@ def test_updating_remote(
     repo_parent = tmp_path / "study" / "myrepo"
     repo_parent.mkdir(parents=True)
 
-    initial_config = {
+    initial_config: ConfigDict = {
+        "vcs": "git",
         "name": "myclone",
         "dir": f"{tmp_path}/study/myrepo/myclone",
-        "parent_dir": f"{tmp_path}/study/myrepo",
         "url": f"git+file://{dummy_repo}",
         "remotes": {
-            mirror_name: {
-                "name": mirror_name,
-                "fetch_url": f"git+file://{dummy_repo}",
-                "push_url": f"git+file://{dummy_repo}",
-            }
+            mirror_name: GitRemote(
+                name=mirror_name,
+                fetch_url=f"git+file://{dummy_repo}",
+                push_url=f"git+file://{dummy_repo}",
+            )
         },
     }
 
@@ -184,27 +194,30 @@ def test_updating_remote(
 
     expected_remote_url = f"git+file://{mirror_repo}"
 
-    config = initial_config | {
-        "remotes": {
-            mirror_name: GitRemote(
-                name=mirror_name,
-                fetch_url=expected_remote_url,
-                push_url=expected_remote_url,
-            )
-        }
-    }
+    expected_config: ConfigDict = initial_config.copy()
+    assert isinstance(expected_config["remotes"], dict)
+    expected_config["remotes"][mirror_name] = GitRemote(
+        name=mirror_name,
+        fetch_url=expected_remote_url,
+        push_url=expected_remote_url,
+    )
 
-    repo_dict = filter_repos([config], name="myclone")[0]
+    repo_dict = filter_repos([expected_config], name="myclone")[0]
     repo = update_repo(repo_dict)
     for remote_name, remote_info in repo.remotes().items():
         remote = repo.remote(remote_name)
         if remote is not None:
             current_remote_url = remote.fetch_url.replace("git+", "")
-            if remote_name in config["remotes"]:
+            if remote_name in expected_config["remotes"]:
                 assert (
-                    config["remotes"][remote_name].fetch_url.replace("git+", "")
+                    expected_config["remotes"][remote_name].fetch_url.replace(
+                        "git+", ""
+                    )
                     == current_remote_url
                 )
 
-            elif remote_name == "origin":
-                assert config["url"].replace("git+", "") == current_remote_url
+            elif remote_name == "origin" and remote_name in expected_config["remotes"]:
+                assert (
+                    expected_config["remotes"]["origin"].fetch_url.replace("git+", "")
+                    == current_remote_url
+                )

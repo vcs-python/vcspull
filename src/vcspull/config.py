@@ -9,16 +9,22 @@ import fnmatch
 import logging
 import os
 import pathlib
+import typing as t
 from typing import Literal, Optional, Union
 
 import kaptan
 
-from libvcs.projects.git import GitRemote
+from libvcs._internal.types import StrPath
+from libvcs.sync.git import GitRemote
 
 from . import exc
+from .types import ConfigDict, RawConfigDict
 from .util import get_config_dir, update_dict
 
 log = logging.getLogger(__name__)
+
+if t.TYPE_CHECKING:
+    from typing_extensions import TypeGuard
 
 
 def expand_dir(
@@ -45,7 +51,7 @@ def expand_dir(
     return _dir
 
 
-def extract_repos(config: dict, cwd=pathlib.Path.cwd()) -> list[dict]:
+def extract_repos(config: RawConfigDict, cwd=pathlib.Path.cwd()) -> list[ConfigDict]:
     """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
@@ -62,11 +68,11 @@ def extract_repos(config: dict, cwd=pathlib.Path.cwd()) -> list[dict]:
     -------
     list : List of normalized repository information
     """
-    configs = []
+    configs: list[ConfigDict] = []
     for directory, repos in config.items():
+        assert isinstance(repos, dict)
         for repo, repo_data in repos.items():
-
-            conf = {}
+            conf: dict = {}
 
             """
             repo_name: http://myrepo.com/repo.git
@@ -91,21 +97,36 @@ def extract_repos(config: dict, cwd=pathlib.Path.cwd()) -> list[dict]:
 
             if "name" not in conf:
                 conf["name"] = repo
-            if "parent_dir" not in conf:
-                conf["parent_dir"] = expand_dir(directory, cwd=cwd)
-
-            # repo_dir -> dir in libvcs 0.12.0b25
-            if "repo_dir" in conf and "dir" not in conf:
-                conf["dir"] = conf.pop("repo_dir")
 
             if "dir" not in conf:
-                conf["dir"] = expand_dir(conf["parent_dir"] / conf["name"], cwd)
+                conf["dir"] = expand_dir(
+                    pathlib.Path(expand_dir(pathlib.Path(directory), cwd=cwd))
+                    / conf["name"],
+                    cwd,
+                )
 
             if "remotes" in conf:
+                assert isinstance(conf["remotes"], dict)
                 for remote_name, url in conf["remotes"].items():
-                    conf["remotes"][remote_name] = GitRemote(
-                        name=remote_name, fetch_url=url, push_url=url
-                    )
+                    if isinstance(url, GitRemote):
+                        continue
+                    if isinstance(url, str):
+                        conf["remotes"][remote_name] = GitRemote(
+                            name=remote_name, fetch_url=url, push_url=url
+                        )
+                    elif isinstance(url, dict):
+                        assert "push_url" in url
+                        assert "fetch_url" in url
+                        conf["remotes"][remote_name] = GitRemote(
+                            name=remote_name, **url
+                        )
+
+            def is_valid_config_dict(val: t.Any) -> "TypeGuard[ConfigDict]":
+                assert isinstance(val, dict)
+                return True
+
+            assert is_valid_config_dict(conf)
+
             configs.append(conf)
 
     return configs
@@ -192,12 +213,12 @@ def find_config_files(
                     configs.extend(find_config_files(path, match, f))
             else:
                 match = f"{match}.{filetype}"
-                configs = path.glob(match)
+                configs = list(path.glob(match))
 
     return configs
 
 
-def load_configs(files: list[Union[str, pathlib.Path]], cwd=pathlib.Path.cwd()):
+def load_configs(files: list[StrPath], cwd=pathlib.Path.cwd()):
     """Return repos from a list of files.
 
     Parameters
@@ -216,10 +237,11 @@ def load_configs(files: list[Union[str, pathlib.Path]], cwd=pathlib.Path.cwd()):
     ----
     Validate scheme, check for duplicate destinations, VCS urls
     """
-    repos = []
+    repos: list[ConfigDict] = []
     for file in files:
         if isinstance(file, str):
             file = pathlib.Path(file)
+        assert isinstance(file, pathlib.Path)
         ext = file.suffix.lstrip(".")
         conf = kaptan.Kaptan(handler=ext).import_config(str(file))
         newrepos = extract_repos(conf.export("dict"), cwd=cwd)
@@ -230,7 +252,7 @@ def load_configs(files: list[Union[str, pathlib.Path]], cwd=pathlib.Path.cwd()):
 
         dupes = detect_duplicate_repos(repos, newrepos)
 
-        if dupes:
+        if len(dupes) > 0:
             msg = ("repos with same path + different VCS detected!", dupes)
             raise exc.VCSPullException(msg)
         repos.extend(newrepos)
@@ -238,43 +260,41 @@ def load_configs(files: list[Union[str, pathlib.Path]], cwd=pathlib.Path.cwd()):
     return repos
 
 
-def detect_duplicate_repos(repos1: list[dict], repos2: list[dict]):
+ConfigDictTuple = tuple[ConfigDict, ConfigDict]
+
+
+def detect_duplicate_repos(
+    config1: list[ConfigDict], config2: list[ConfigDict]
+) -> list[ConfigDictTuple]:
     """Return duplicate repos dict if repo_dir same and vcs different.
 
     Parameters
     ----------
-    repos1 : dict
-        list of repo expanded dicts
+    config1 : list[ConfigDict]
 
-    repos2 : dict
-        list of repo expanded dicts
+    config2 : list[ConfigDict]
 
     Returns
     -------
-    list of dict, or None
-        Duplicate repos
+    list[ConfigDictTuple]
+        List of duplicate tuples
     """
-    dupes = []
-    path_dupe_repos = []
+    if not config1:
+        return []
 
-    curpaths = [r["dir"] for r in repos1]
-    newpaths = [r["dir"] for r in repos2]
-    path_duplicates = list(set(curpaths).intersection(newpaths))
+    dupes: list[ConfigDictTuple] = []
 
-    if not path_duplicates:
-        return None
+    repo_dirs = {
+        pathlib.Path(repo["dir"]).parent / repo["name"]: repo for repo in config1
+    }
+    repo_dirs_2 = {
+        pathlib.Path(repo["dir"]).parent / repo["name"]: repo for repo in config2
+    }
 
-    path_dupe_repos.extend(
-        [r for r in repos2 if any(r["dir"] == p for p in path_duplicates)]
-    )
+    for repo_dir, repo in repo_dirs.items():
+        if repo_dir in repo_dirs_2:
+            dupes.append((repo, repo_dirs_2[repo_dir]))
 
-    if not path_dupe_repos:
-        return None
-
-    for n in path_dupe_repos:
-        currepo = next((r for r in repos1 if r["dir"] == n["dir"]), None)
-        if n["url"] != currepo["url"]:
-            dupes += (n, currepo)
     return dupes
 
 
@@ -304,11 +324,11 @@ def in_dir(config_dir=None, extensions: list[str] = [".yml", ".yaml", ".json"]):
 
 
 def filter_repos(
-    config: dict,
-    dir: Union[pathlib.Path, None] = None,
+    config: list[ConfigDict],
+    dir: Union[pathlib.Path, Literal["*"], None] = None,
     vcs_url: Union[str, None] = None,
     name: Union[str, None] = None,
-):
+) -> list[ConfigDict]:
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
     dir, vcs_url and name all support fnmatch.
@@ -329,23 +349,35 @@ def filter_repos(
     list :
         Repos
     """
-    repo_list = []
+    repo_list: list[ConfigDict] = []
 
     if dir:
-        repo_list.extend([r for r in config if fnmatch.fnmatch(r["parent_dir"], dir)])
+        repo_list.extend(
+            [
+                r
+                for r in config
+                if fnmatch.fnmatch(str(pathlib.Path(r["dir"]).parent), str(dir))
+            ]
+        )
 
     if vcs_url:
         repo_list.extend(
-            r for r in config if fnmatch.fnmatch(r.get("url", r.get("repo")), vcs_url)
+            r
+            for r in config
+            if fnmatch.fnmatch(str(r.get("url", r.get("repo"))), vcs_url)
         )
 
     if name:
-        repo_list.extend([r for r in config if fnmatch.fnmatch(r.get("name"), name)])
+        repo_list.extend(
+            [r for r in config if fnmatch.fnmatch(str(r.get("name")), name)]
+        )
 
     return repo_list
 
 
-def is_config_file(filename: str, extensions: list[str] = [".yml", ".yaml", ".json"]):
+def is_config_file(
+    filename: str, extensions: Union[list[str], str] = [".yml", ".yaml", ".json"]
+):
     """Return True if file has a valid config file type.
 
     Parameters
