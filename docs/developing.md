@@ -11,12 +11,19 @@ Install and [git] and [poetry]
 
 Clone:
 
-    git clone https://github.com/vcs-python/vcspull.git
-    cd vcspull
+```console
+$ git clone https://github.com/vcs-python/vcspull.git
+```
+
+```console
+$ cd vcspull
+```
 
 Install packages:
 
-    poetry install -E "docs test coverage lint format"
+```console
+$ poetry install -E "docs test coverage lint format"
+```
 
 [installation documentation]: https://python-poetry.org/docs/#installation
 [git]: https://git-scm.com/
@@ -33,21 +40,29 @@ Install packages:
 
 via [pytest-watcher] (works out of the box):
 
-    make start
+```console
+$ make start
+```
 
 via [entr(1)] (requires installation):
 
-    make watch_test
+```console
+$ make watch_test
+```
 
 [pytest-watcher]: https://github.com/olzhasar/pytest-watcher
 
 #### Manual (just the command, please)
 
-    poetry run py.test
+```console
+$ poetry run py.test
+```
 
 or:
 
-    make test
+```console
+$ make test
+```
 
 #### pytest options
 
@@ -58,16 +73,22 @@ information read [docs.pytest.com] for the latest documentation.
 
 Verbose:
 
-    env PYTEST_ADDOPTS="-verbose" make start
+```console
+$ env PYTEST_ADDOPTS="-verbose" make start
+```
 
 Drop into `pdb` on first error:
 
-    env PYTEST_ADDOPTS="-x -s --pdb" make start
+```console
+$ env PYTEST_ADDOPTS="-x -s --pdb" make start
+```
 
 If you have [ipython] installed:
 
-    env PYTEST_ADDOPTS="--pdbcls=IPython.terminal.debugger:TerminalPdb" \
+```console
+$ env PYTEST_ADDOPTS="--pdbcls=IPython.terminal.debugger:TerminalPdb" \
     make start
+```
 
 [ipython]: https://ipython.org/
 
@@ -86,60 +107,115 @@ Default preview server: http://localhost:8022
 [sphinx-autobuild] will automatically build the docs, it also handles launching
 a server, rebuilding file changes, and updating content in the browser:
 
-    cd docs
-    make start
+```console
+$ cd docs
+```
+
+```console
+$ make start
+```
 
 If doing css adjustments:
 
-    cd docs
-    make design
+```console
+$ make design
+```
 
 [sphinx-autobuild]: https://github.com/executablebooks/sphinx-autobuild
 
 Rebuild docs on file change (requires [entr(1)]):
 
-    cd docs
-    make dev
+```console
+$ cd docs
+```
 
-    # If not GNU Make / no -J support, use two terminals:
-    cd docs
-    make watch
+```console
+$ make dev
+```
 
-    cd docs
-    make serve
+If not GNU Make / no -J support, use two terminals:
+
+```console
+$ make watch
+```
+
+```console
+$ make serve
+```
 
 #### Manual (just the command, please)
 
+```console
+$ cd docs
+```
+
 Build:
 
-    cd docs
-    make html
+```console
+$ make html
+```
 
 Launch server:
 
-    cd docs
-    make serve
+```console
+$ make serve
+```
 
-### Formatting code
+## Linting
 
-The project uses [black] and [isort] (one after the other) and runs [flake8] via
-CI. See the configuration in `pyproject.toml` and `setup.cfg`:
+[flake8] run via CI in our GitHub Actions. See the configuration in `pyproject.toml` and
+`setup.cfg`.
 
-Run `black` first, then `isort` to handle import nuances:
+### flake8
 
-    make black isort
+[flake8] provides fast, reliable, barebones styling and linting.
 
-[black]: https://github.com/psf/black
-[isort]: https://pypi.org/project/isort/
-[flake8]: https://flake8.pycqa.org/
+````{tab} Command
 
-### Linting code
+poetry:
 
-    make flake8
+```console
+$ poetry run flake8
+```
 
-to watch (requires [entr(1)])
+If you setup manually:
 
-    make watch_flake8
+```console
+$ flake8
+```
+
+````
+
+````{tab} make
+
+```console
+$ make flake8
+```
+
+````
+
+````{tab} Watch
+
+```console
+$ make watch_flake8
+```
+
+requires [`entr(1)`].
+
+````
+
+````{tab} Configuration
+
+See `[flake8]` in setup.cfg.
+
+```{literalinclude} ../setup.cfg
+:language: ini
+:start-at: "[flake8]"
+:end-before: "[isort]"
+
+```
+
+````
 
 ## Publishing to PyPI
 
@@ -155,5 +231,9 @@ Update `__version__` in `__about__.py` and `pyproject.toml`::
     poetry build
     poetry publish
 
-[entr(1)]: http://eradman.com/entrproject/
 [poetry]: https://python-poetry.org/
+[entr(1)]: http://eradman.com/entrproject/
+[`entr(1)`]: http://eradman.com/entrproject/
+[black]: https://github.com/psf/black
+[isort]: https://pypi.org/project/isort/
+[flake8]: https://flake8.pycqa.org/
