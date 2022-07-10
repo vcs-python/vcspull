@@ -19,6 +19,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - _Add your latest changes from PRs here_
 
+### What's new
+
+- Refreshed logo
+
 ### Development
 
 - libvcs: Update to 0.13.x
