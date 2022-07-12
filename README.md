@@ -7,7 +7,7 @@ Great if you use the same repos at the same locations across multiple
 machines or want to clone / update a pattern of repos without having to
 `cd` into each one.
 
-- clone /update to the latest repos with `$ vcspull`
+- clone / update to the latest repos with `$ vcspull`
 - use filters to specify a location, repo url or pattern in the
   manifest to clone / update
 - supports svn, git, hg version control systems
