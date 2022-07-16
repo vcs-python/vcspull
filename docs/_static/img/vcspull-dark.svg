@@ -2,17 +2,22 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="108.83195mm"
-   height="108.83383mm"
-   viewBox="0 0 108.83195 108.83383"
+   width="512"
+   height="512"
+   viewBox="0 0 135.46667 135.46667"
    version="1.1"
    id="svg5"
-   inkscape:version="1.2 (dc2aedaf03, 2022-05-15)"
+   inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
    sodipodi:docname="vcspull-dark.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <title
+     id="title901">vcspull (logo)</title>
   <sodipodi:namedview
      id="namedview7"
      pagecolor="#505050"
@@ -27,49 +32,17 @@
      showborder="true"
      borderlayer="true"
      inkscape:zoom="0.94867184"
-     inkscape:cx="205.55053"
-     inkscape:cy="249.2959"
+     inkscape:cx="252.45822"
+     inkscape:cy="250.35001"
      inkscape:window-width="1350"
      inkscape:window-height="1230"
-     inkscape:window-x="260"
-     inkscape:window-y="260"
+     inkscape:window-x="924"
+     inkscape:window-y="128"
      inkscape:window-maximized="0"
      inkscape:current-layer="layer1"
      inkscape:deskcolor="#505050" />
   <defs
      id="defs2">
-    <clipPath
-       clipPathUnits="userSpaceOnUse"
-       id="clipPath1169">
-      <path
-         d="M 0,500 H 500 V 0 H 0 Z"
-         id="path1167" />
-    </clipPath>
-    <linearGradient
-       x1="0"
-       y1="0"
-       x2="1"
-       y2="0"
-       gradientUnits="userSpaceOnUse"
-       gradientTransform="matrix(0,86.542561,-86.542561,0,109.17781,96.083295)"
-       spreadMethod="pad"
-       id="linearGradient1191">
-      <stop
-         style="stop-opacity:1;stop-color:#858585"
-         offset="0"
-         id="stop1187" />
-      <stop
-         style="stop-opacity:1;stop-color:#7e7e7e"
-         offset="1"
-         id="stop1189" />
-    </linearGradient>
-    <clipPath
-       clipPathUnits="userSpaceOnUse"
-       id="clipPath1201">
-      <path
-         d="M 0,500 H 500 V 0 H 0 Z"
-         id="path1199" />
-    </clipPath>
     <linearGradient
        x1="0"
        y1="0"
@@ -88,13 +61,6 @@
          offset="1"
          id="stop1221" />
     </linearGradient>
-    <clipPath
-       clipPathUnits="userSpaceOnUse"
-       id="clipPath1233">
-      <path
-         d="M 0,500 H 500 V 0 H 0 Z"
-         id="path1231" />
-    </clipPath>
     <linearGradient
        x1="0"
        y1="0"
@@ -113,13 +79,6 @@
          offset="1"
          id="stop1253" />
     </linearGradient>
-    <clipPath
-       clipPathUnits="userSpaceOnUse"
-       id="clipPath1265">
-      <path
-         d="M 0,500 H 500 V 0 H 0 Z"
-         id="path1263" />
-    </clipPath>
   </defs>
   <g
      inkscape:label="Layer 1"
@@ -127,7 +86,7 @@
      id="layer1"
      transform="translate(-45.411955,-68.2879)">
     <path
-       d="m 154.24381,122.70396 c 0,30.05323 -24.36283,54.41606 -54.41606,54.41606 -30.052962,0 -54.415795,-24.36283 -54.415795,-54.41606 0,-30.052962 24.362833,-54.41606 54.415795,-54.41606 30.05323,0 54.41606,24.363098 54.41606,54.41606"
+       d="m 180.87862,136.02124 c 0,37.40817 -30.32523,67.73333 -67.7335,67.73333 -37.407927,0 -67.733164,-30.32516 -67.733164,-67.73333 0,-37.407848 30.325237,-67.733341 67.733164,-67.733341 37.40827,0 67.7335,30.325493 67.7335,67.733341"
        style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.264583"
        id="Circle-object-shape"
        inkscape:label="Circle-object-shape">
@@ -136,12 +95,14 @@
     </path>
     <g
        id="Arrow_1-object-Group"
-       inkscape:label="Arrow 1-object-Group">
+       inkscape:label="Arrow 1-object-Group"
+       transform="matrix(1.2447336,0,0,1.2447306,-11.11383,-16.71214)"
+       style="stroke-width:0.803385">
       <title
          id="title1865">Arrow 1 object (Group)</title>
       <path
          d="M 76.007529,86.855562 C 69.342674,91.551916 64.296806,98.036854 61.405175,105.61717 v 0 5.82083 h 5.728229 C 72.790195,98.875583 85.484903,90.57825 99.38082,90.57825 v 0 c 14.94605,0 27.91407,9.313068 33.02582,22.70945 v 0 l -6.09865,-0.0421 v 5.82084 l 10.43332,13.78002 10.68758,-13.63371 v -5.8211 l -7.97269,-0.055 C 136.20659,93.889245 119.32141,79.466014 99.38082,79.466014 v 0 c -8.424333,0 -16.507619,2.555611 -23.373291,7.389548"
-         style="fill:url(#linearGradient1223);stroke:none;stroke-width:0.264583"
+         style="fill:url(#linearGradient1223);stroke:none;stroke-width:0.212562"
          id="Arrow-1-Shadow-object-Shape"
          inkscape:label="Arrow-1-Shadow-object-Shape">
         <title
@@ -149,7 +110,7 @@
       </path>
       <path
          d="m 139.45636,113.33657 c -3.24961,-19.447139 -20.13506,-33.8709 -40.075643,-33.8709 -8.424333,0 -16.507354,2.55614 -23.373292,7.389813 -6.664854,4.696354 -11.710458,11.181291 -14.602354,18.761607 H 67.1333 c 5.656792,-12.56242 18.3515,-20.859753 32.247417,-20.859753 17.031753,0 31.496533,12.092781 34.691903,28.541923 l -7.76446,-0.0537 10.43305,13.78003 10.6881,-13.63398 z"
-         style="fill:#7f7f7f;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.264583"
+         style="fill:#7f7f7f;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.212562"
          id="Arrow-1-object-Shape"
          inkscape:label="Arrow-1-object-Shape">
         <title
@@ -158,12 +119,14 @@
     </g>
     <g
        id="Arrow_2-object-Group"
-       inkscape:label="Arrow 2-object-Group">
+       inkscape:label="Arrow 2-object-Group"
+       transform="matrix(1.2447336,0,0,1.2447306,-11.11383,-16.71214)"
+       style="stroke-width:0.803385">
       <title
          id="title2458">Arrow 2 object (Group)</title>
       <path
          d="m 51.400221,126.8685 v 5.82083 l 7.972689,0.055 c 3.249612,19.4474 20.135056,33.87116 40.075643,33.87116 v 0 c 8.424597,0 16.507357,-2.55588 23.373557,-7.38981 v 0 c 6.66459,-4.69662 11.71019,-11.18156 14.60209,-18.76187 v 0 l -5.3e-4,-5.81925 c 2.6e-4,-5.3e-4 2.6e-4,-0.001 5.3e-4,-0.002 v 0 h -5.3e-4 v -2.7e-4 h -5.72797 v 0.002 c -5.65705,12.56162 -18.35176,20.85843 -32.247147,20.85843 v 0 c -14.946047,0 -27.914335,-9.31281 -33.02582,-22.70946 v 0 l 6.098646,0.0423 v -5.8211 L 62.088064,113.23452 Z"
-         style="fill:url(#linearGradient1255);stroke:none;stroke-width:0.264583"
+         style="fill:url(#linearGradient1255);stroke:none;stroke-width:0.212562"
          id="Arrow-2-Shadow-object-Shape"
          inkscape:label="Arrow-2-Shadow-object-Shape">
         <title
@@ -171,7 +134,7 @@
       </path>
       <path
          d="m 131.6961,134.64302 c -5.65679,12.56242 -18.3515,20.85975 -32.247416,20.85975 -17.031758,0 -31.496794,-12.09278 -34.692166,-28.54193 l 7.764726,0.0537 -10.433049,-13.78003 -10.687844,13.63398 7.972689,0.055 c 3.249613,19.4474 20.134792,33.8709 40.075644,33.8709 8.424336,0 16.507356,-2.55561 23.373296,-7.38982 6.66458,-4.69635 11.71045,-11.18129 14.60208,-18.7616 z"
-         style="fill:#7f7f7f;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.264583"
+         style="fill:#7f7f7f;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.212562"
          id="Arrow-2-object-Shape"
          inkscape:label="Arrow-2-object-Shape">
         <title
@@ -179,4 +142,13 @@
       </path>
     </g>
   </g>
+  <metadata
+     id="metadata899">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>vcspull (logo)</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
 </svg>
