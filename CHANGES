@@ -29,6 +29,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 - Remove `.pre-commit-config.yaml`: Let's not automate what the contributor could /
   should do themselves.
 
+### Documentation
+
+- Render changelog in sphinx-autoissues (#378)
+
 ### Bug fixes
 
 - Fix cloning of mercurial repositories
