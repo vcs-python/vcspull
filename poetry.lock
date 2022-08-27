@@ -765,22 +765,6 @@ doc = ["furo", "myst-parser"]
 test = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
-name = "sphinx-issues"
-version = "3.0.1"
-description = "A Sphinx extension for linking to your project's issue tracker"
-category = "dev"
-optional = false
-python-versions = ">=3.6"
-
-[package.dependencies]
-sphinx = "*"
-
-[package.extras]
-dev = ["flake8 (==3.9.2)", "flake8-bugbear (==20.11.1)", "pre-commit (>=2.7,<3.0)", "pytest (>=6.2.0)", "tox"]
-lint = ["flake8 (==3.9.2)", "flake8-bugbear (==20.11.1)", "pre-commit (>=2.7,<3.0)"]
-tests = ["pytest (>=6.2.0)"]
-
-[[package]]
 name = "sphinxcontrib-applehelp"
 version = "1.0.2"
 description = "sphinxcontrib-applehelp is a sphinx extension which outputs Apple help books"
@@ -959,7 +943,7 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "adfd111b9136c6ab568d3ff63f858ad0c6ab200c0d98ed856f285905a2872c45"
+content-hash = "24f513b49a8c7c2d1f4aa69b86c934fb38ce0b31c1d19e337d09f1febe5c5df7"
 
 [metadata.files]
 alabaster = [
@@ -1397,10 +1381,6 @@ sphinx-copybutton = [
 sphinx-inline-tabs = [
     {file = "sphinx_inline_tabs-2022.1.2b11-py3-none-any.whl", hash = "sha256:bb4e807769ef52301a186d0678da719120b978a1af4fd62a1e9453684e962dbc"},
     {file = "sphinx_inline_tabs-2022.1.2b11.tar.gz", hash = "sha256:afb9142772ec05ccb07f05d8181b518188fc55631b26ee803c694e812b3fdd73"},
-]
-sphinx-issues = [
-    {file = "sphinx-issues-3.0.1.tar.gz", hash = "sha256:b7c1dc1f4808563c454d11c1112796f8c176cdecfee95f0fd2302ef98e21e3d6"},
-    {file = "sphinx_issues-3.0.1-py3-none-any.whl", hash = "sha256:8b25dc0301159375468f563b3699af7a63720fd84caf81c1442036fcd418b20c"},
 ]
 sphinxcontrib-applehelp = [
     {file = "sphinxcontrib-applehelp-1.0.2.tar.gz", hash = "sha256:a072735ec80e7675e3f432fcae8610ecf509c5f1869d17e2eecff44389cdbc58"},

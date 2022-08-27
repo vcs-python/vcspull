@@ -68,7 +68,6 @@ sphinx-autoapi = "*"
 sphinx-autobuild = "*"
 sphinx-autodoc-typehints = "*"
 sphinx-click = "*"
-sphinx-issues = "*"
 sphinx-inline-tabs = "*"
 sphinxext-opengraph = "*"
 sphinx-copybutton = "*"
@@ -97,7 +96,6 @@ mypy = "*"
 [tool.poetry.extras]
 docs = [
   "sphinx",
-  "sphinx-issues",
   "sphinx-click",
   "sphinx-autoapi",
   "sphinx-autodoc-typehints",
