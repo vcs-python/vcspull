@@ -29,6 +29,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 - Remove `.pre-commit-config.yaml`: Let's not automate what the contributor could /
   should do themselves.
 
+### Documentation
+
+- Render changelog in sphinx-autoissues (#378)
+
 ### Bug fixes
 
 - Fix cloning of mercurial repositories
@@ -63,7 +67,7 @@ Patch branch: [`v1.12.x`](https://github.com/vcs-python/vcspull/tree/v1.12.x)
 ### Breaking changes
 
 - Config location uses `XDG_CONFIG_HOME` from [XDG Base Directory],
-  ({issue}`367`).
+  (#367).
 
   Old path: `~/.vcspull`
 
@@ -71,13 +75,13 @@ Patch branch: [`v1.12.x`](https://github.com/vcs-python/vcspull/tree/v1.12.x)
 
   [xdg base directory]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
-- Override config directory via `VCSPULL_CONFIGDIR` ({issue}`367`)
-- Switch from `str` to `pathlib.Path` ({issue}`364`)
+- Override config directory via `VCSPULL_CONFIGDIR` (#367)
+- Switch from `str` to `pathlib.Path` (#364)
 - Requires click 8+
 
 ### Compatibility
 
-- Allow click 8.1.x ({issue}`372`)
+- Allow click 8.1.x (#372)
 - vcspull learned `-h` for help (thanks HN 2022-04-11)
 - Python 3.7 and 3.8 dropped (#356)
 
@@ -118,7 +122,7 @@ Patch branch: [`v1.12.x`](https://github.com/vcs-python/vcspull/tree/v1.12.x)
 
 ### Compatibility
 
-- Allow click 8.1.x (backport of {issue}`372`)
+- Allow click 8.1.x (backport of #372)
 
 ## vcspull 1.11.3 (2022-04-11)
 

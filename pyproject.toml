@@ -68,11 +68,11 @@ sphinx-autoapi = "*"
 sphinx-autobuild = "*"
 sphinx-autodoc-typehints = "*"
 sphinx-click = "*"
-sphinx-issues = "*"
 sphinx-inline-tabs = "*"
 sphinxext-opengraph = "*"
 sphinx-copybutton = "*"
 sphinxext-rediraffe = "*"
+sphinx-autoissues = "*"
 myst_parser = "*"
 
 ### Testing ###
@@ -96,13 +96,13 @@ mypy = "*"
 [tool.poetry.extras]
 docs = [
   "sphinx",
-  "sphinx-issues",
   "sphinx-click",
   "sphinx-autoapi",
   "sphinx-autodoc-typehints",
   "sphinx-autobuild",
   "sphinxext-rediraffe",
   "sphinx-copybutton",
+  "sphinx-autoissues",
   "sphinxext-opengraph",
   "sphinx-inline-tabs",
   "myst_parser",
