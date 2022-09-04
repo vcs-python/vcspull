@@ -28,6 +28,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 - libvcs: Update to 0.13.x
 - Remove `.pre-commit-config.yaml`: Let's not automate what the contributor could /
   should do themselves.
+- Add [flake8-bugbear](https://github.com/PyCQA/flake8-bugbear) (#379)
 
 ### Documentation
 
