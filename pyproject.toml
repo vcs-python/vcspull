@@ -64,6 +64,7 @@ colorama = ">=0.3.9"
 ### Docs ###
 sphinx = "*"
 furo = "*"
+gp-libs = "*"
 sphinx-autoapi = "*"
 sphinx-autobuild = "*"
 sphinx-autodoc-typehints = "*"
@@ -109,6 +110,7 @@ docs = [
   "sphinx-inline-tabs",
   "myst_parser",
   "furo",
+  "gp-libs",
 ]
 test = ["pytest", "pytest-rerunfailures", "pytest-watcher"]
 coverage = ["codecov", "coverage", "pytest-cov"]
