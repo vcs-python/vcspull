@@ -64,7 +64,7 @@ colorama = ">=0.3.9"
 ### Docs ###
 sphinx = "*"
 furo = "*"
-sphinx-autoapi = "*"
+gp-libs = "0.0.1a10"
 sphinx-autobuild = "*"
 sphinx-autodoc-typehints = "*"
 sphinx-click = "*"
@@ -72,7 +72,6 @@ sphinx-inline-tabs = "*"
 sphinxext-opengraph = "*"
 sphinx-copybutton = "*"
 sphinxext-rediraffe = "*"
-sphinx-autoissues = "*"
 myst_parser = "*"
 
 ### Testing ###
@@ -99,16 +98,15 @@ mypy = "*"
 docs = [
   "sphinx",
   "sphinx-click",
-  "sphinx-autoapi",
   "sphinx-autodoc-typehints",
   "sphinx-autobuild",
   "sphinxext-rediraffe",
   "sphinx-copybutton",
-  "sphinx-autoissues",
   "sphinxext-opengraph",
   "sphinx-inline-tabs",
   "myst_parser",
   "furo",
+  "gp-libs",
 ]
 test = ["pytest", "pytest-rerunfailures", "pytest-watcher"]
 coverage = ["codecov", "coverage", "pytest-cov"]
