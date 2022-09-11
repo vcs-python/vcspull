@@ -19,7 +19,7 @@ classifiers = [
   "Topic :: System :: Shells",
 ]
 packages = [
-  { include = "vcspull" },
+  { include = "*", from = "src" },
 ]
 include = [
   { path = "tests", format = "sdist" },
