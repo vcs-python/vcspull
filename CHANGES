@@ -25,6 +25,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ### Development
 
+- Move to `src/` directory structure (#382)
 - libvcs: Update to 0.13.x
 - Remove `.pre-commit-config.yaml`: Let's not automate what the contributor could /
   should do themselves.
