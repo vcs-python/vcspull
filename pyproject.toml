@@ -65,7 +65,6 @@ colorama = ">=0.3.9"
 sphinx = "*"
 furo = "*"
 gp-libs = "*"
-sphinx-autoapi = "*"
 sphinx-autobuild = "*"
 sphinx-autodoc-typehints = "*"
 sphinx-click = "*"
@@ -100,7 +99,6 @@ mypy = "*"
 docs = [
   "sphinx",
   "sphinx-click",
-  "sphinx-autoapi",
   "sphinx-autodoc-typehints",
   "sphinx-autobuild",
   "sphinxext-rediraffe",
