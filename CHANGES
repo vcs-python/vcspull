@@ -47,6 +47,8 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
   - Split out release to separate job so the PyPI Upload docker image isn't pulled on normal runs
   - Clean up CodeQL
 
+- Upgraded poetry 1.1.x to 1.2.x
+
 ## vcspull 1.12.3 (2022-06-01)
 
 ### Bug fixes
