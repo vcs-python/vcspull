@@ -154,6 +154,8 @@ All repositories in your ~/code directory:
 $ vcspull sync "$HOME/code/*"
 ```
 
+[libvcs]: https://github.com/vcs-python/libvcs
+
 <img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/vcspull-demo.gif" class="align-center" style="width:45.0%" alt="image" />
 
 # Donations
@@ -178,7 +180,5 @@ See donation options at <https://git-pull.com/support.html>.
 - pypi: <https://pypi.python.org/pypi/vcspull>
 - Open Hub: <https://www.openhub.net/p/vcspull>
 - License: [MIT](https://opensource.org/licenses/MIT).
-
-[libvcs]: https://github.com/vcs-python/libvcs
 
 [![Docs](https://github.com/vcs-python/vcspull/workflows/docs/badge.svg)](https://vcspull.git-pull.com) [![Build Status](https://github.com/vcs-python/vcspull/workflows/tests/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22tests%22)
