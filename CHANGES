@@ -57,6 +57,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - Remove unused `.tmuxp-before-script.sh`, which was used as a `before_script`
   in `.tmuxp.yaml`
+- Move `.coveragerc` into `pyproject.toml` (#384)
 
 ## vcspull 1.12.3 (2022-06-01)
 
