@@ -55,6 +55,9 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
   Redundant since poetry has pyproject.toml with `include`
 
+- Remove unused `.tmuxp-before-script.sh`, which was used as a `before_script`
+  in `.tmuxp.yaml`
+
 ## vcspull 1.12.3 (2022-06-01)
 
 ### Bug fixes
