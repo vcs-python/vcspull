@@ -47,6 +47,11 @@ You can test the unpublished version of vcspull before its released.
 
   Then use `vcspull@next sync [config]...`.
 
+### Developing
+
+The current master is targetting libvcs @
+[v0.13.x](https://github.com/vcs-python/libvcs/tree/v0.13.x)
+
 ## Configuration
 
 Add your repos to `~/.vcspull.yaml`.
