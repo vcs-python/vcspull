@@ -1,7 +1,7 @@
 # $ vcspull &middot; [![Python Package](https://img.shields.io/pypi/v/vcspull.svg)](https://pypi.org/project/vcspull/) [![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE) [![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull)
 
 Manage and sync multiple git, svn, and mercurial repos via JSON or YAML file. Compare to
-[myrepos], [mu-repo]. Built on [libvcs](https://github.com/vcs-python/libvcs).
+[myrepos], [mu-repo]. Built on [libvcs].
 
 Great if you use the same repos at the same locations across multiple
 machines or want to clone / update a pattern of repos without having to
@@ -20,6 +20,13 @@ See the [documentation](https://vcspull.git-pull.com/), [configuration](https://
 
 [myrepos]: http://myrepos.branchable.com/
 [mu-repo]: http://fabioz.github.io/mu-repo/
+
+# Development branches
+
+vcspull `master` is currently targetting to [libvcs] @
+[v0.13.x](https://github.com/vcs-python/libvcs/tree/v0.13.x)
+
+In the coming weeks, it will be pointing to libvcs master again.
 
 # How to
 
@@ -46,11 +53,6 @@ You can test the unpublished version of vcspull before its released.
   ```
 
   Then use `vcspull@next sync [config]...`.
-
-### Developing
-
-The current master is targetting libvcs @
-[v0.13.x](https://github.com/vcs-python/libvcs/tree/v0.13.x)
 
 ## Configuration
 
@@ -176,5 +178,7 @@ See donation options at <https://git-pull.com/support.html>.
 - pypi: <https://pypi.python.org/pypi/vcspull>
 - Open Hub: <https://www.openhub.net/p/vcspull>
 - License: [MIT](https://opensource.org/licenses/MIT).
+
+[libvcs]: https://github.com/vcs-python/libvcs
 
 [![Docs](https://github.com/vcs-python/vcspull/workflows/docs/badge.svg)](https://vcspull.git-pull.com) [![Build Status](https://github.com/vcs-python/vcspull/workflows/tests/badge.svg)](https://github.com/vcs-python/vcspull/actions?query=workflow%3A%22tests%22)
