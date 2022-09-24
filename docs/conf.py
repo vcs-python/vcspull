@@ -29,7 +29,6 @@ extensions = [
     "sphinxext.opengraph",
     "sphinxext.rediraffe",
     "myst_parser",
-    "sphinx_toctree_autodoc_fix",
     "linkify_issues",
 ]
 myst_enable_extensions = [
@@ -95,6 +94,7 @@ issue_url_tpl = "https://github.com/vcs-python/vcspull/issues/{issue_id}"
 # sphinx.ext.autodoc
 autoclass_content = "both"
 autodoc_member_order = "bysource"
+toc_object_entries_show_parents = "hide"
 
 # sphinx-autodoc-typehints
 autodoc_typehints = "description"  # show type hints in doc body instead of signature
