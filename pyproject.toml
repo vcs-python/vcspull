@@ -113,6 +113,29 @@ coverage = ["codecov", "coverage", "pytest-cov"]
 format = ["black", "isort"]
 lint = ["flake8", "flake8-bugbear", "flake8-comprehensions", "mypy"]
 
+[tool.coverage.run]
+branch = true
+parallel = true
+omit = [
+  "*/_*",
+  "*/_compat.py",
+  "docs/conf.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "raise NotImplementedError",
+  "return NotImplemented",
+  "def parse_args",
+  "if TYPE_CHECKING:",
+  "if t.TYPE_CHECKING:",
+  "@overload( |$)",
+]
+
 [build-system]
 requires = ["poetry_core>=1.0.0", "setuptools>50"]
 build-backend = "poetry.core.masonry.api"
