@@ -49,6 +49,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - Upgraded poetry 1.1.x to 1.2.x
 
+### Packaging
+
+- Remove `MANIFEST.in`
+
+  Redundant since poetry has pyproject.toml with `include`
+
 ## vcspull 1.12.3 (2022-06-01)
 
 ### Bug fixes
