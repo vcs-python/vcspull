@@ -60,6 +60,7 @@ def clamp(n, _min, _max):
 
 
 EXIT_ON_ERROR_MSG = "Exiting via error (--exit-on-error passed)"
+NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
 @click.command(name="sync")
@@ -100,6 +101,9 @@ def sync(repo_terms, config, exit_on_error: bool) -> None:
                 name = repo_term
 
             # collect the repos from the config files
+            found = filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name)
+            if len(found) == 0:
+                click.echo(NO_REPOS_FOR_TERM_MSG.format(name=name))
             found_repos.extend(
                 filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name)
             )

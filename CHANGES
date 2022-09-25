@@ -24,6 +24,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 - Refreshed logo
 - `vcspull sync`:
 
+  - Terms with no match in config will show a notice (#394)
+
+    > No repo found in config(s) for "non_existent_repo"
+
   - Syncing will now skip to the next repos if an error is encountered
 
   - Learned `--exit-on-error` / `-x`
