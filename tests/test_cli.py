@@ -7,7 +7,9 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
+from libvcs._internal.run import run
 from libvcs.sync.git import GitSync
+from tests.conftest import DummyRepoProtocol
 from vcspull.__about__ import __version__
 from vcspull.cli import cli
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
@@ -353,3 +355,67 @@ def test_sync_broken(
                 expected_not_in_output = [expected_not_in_output]
             for needle in expected_not_in_output:
                 assert needle not in output
+
+
+# @pytest.mark.skip("No recreation yet, #366")
+def test_broken_submodule(
+    home_path: pathlib.Path,
+    config_path: pathlib.Path,
+    tmp_path: pathlib.Path,
+    git_repo: GitSync,
+    create_git_dummy_repo: DummyRepoProtocol,
+) -> None:
+    runner = CliRunner()
+
+    broken_repo = create_git_dummy_repo(
+        repo_name="broken_repo", testfile_filename="dummy_file.txt"
+    )
+
+    # Try to recreated gitmodules by hand
+
+    # gitmodules_file = pathlib.Path(broken_repo) / ".gitmodules"
+    #     gitmodules_file.write_text(
+    #         """
+    # [submodule "broken_submodule"]
+    #         path = broken_submodule
+    #         url = ./
+    #     """,
+    #         encoding="utf-8",
+    #     )
+
+    run(
+        [
+            "git",
+            "submodule",
+            "add",
+            "--quiet",
+            "--force",
+            "--",
+            "./",
+            "broken_submodule",
+        ],
+        cwd=str(broken_repo),
+    )
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config = {
+            "~/github_projects/": {
+                "my_git_repo": {
+                    "url": f"git+file://{git_repo.dir}",
+                    "remotes": {"test_remote": f"git+file://{git_repo.dir}"},
+                },
+                "broken_repo": {
+                    "url": f"git+file://{broken_repo}",
+                },
+            }
+        }
+        yaml_config = config_path / ".vcspull.yaml"
+        yaml_config_data = yaml.dump(config, default_flow_style=False)
+        yaml_config.write_text(yaml_config_data, encoding="utf-8")
+
+        # CLI can sync
+        result = runner.invoke(cli, ["sync", "broken_repo"])
+        output = "".join(list(result.output))
+
+        assert "No url found for submodule" == output
+        assert result.exit_code == 1
