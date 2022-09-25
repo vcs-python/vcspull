@@ -1,5 +1,5 @@
 """Tests for placing config dicts into :py:class:`Project` objects."""
-from _pytest.compat import LEGACY_PATH
+import pathlib
 
 from libvcs import BaseSync, GitSync, HgSync, SvnSync
 from libvcs._internal.shortcuts import create_project
@@ -54,7 +54,7 @@ def test_to_dictlist():
                 assert "url" == remote
 
 
-def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
+def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path):
     """Verify `url` return {Git,Mercurial,Subversion}Project.
 
     :class:`GitSync`, :class:`HgSync` or :class:`SvnSync`
@@ -64,7 +64,7 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     git_repo = create_project(
         vcs="git",
         url="git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b",
-        dir=str(tmpdir.join("myproject1")),
+        dir=str(tmp_path / "myproject1"),
     )
 
     # TODO cwd and name if duplicated should give an error
@@ -75,7 +75,7 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     hg_repo = create_project(
         vcs="hg",
         url="hg+https://hg.myproject.org/MyProject#egg=MyProject",
-        dir=str(tmpdir.join("myproject2")),
+        dir=str(tmp_path / "myproject2"),
     )
 
     assert isinstance(hg_repo, HgSync)
@@ -84,14 +84,14 @@ def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
     svn_repo = create_project(
         vcs="svn",
         url="svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject",
-        dir=str(tmpdir.join("myproject3")),
+        dir=str(tmp_path / "myproject3"),
     )
 
     assert isinstance(svn_repo, SvnSync)
     assert isinstance(svn_repo, BaseSync)
 
 
-def test_to_repo_objects(tmpdir: LEGACY_PATH):
+def test_to_repo_objects(tmp_path: pathlib.Path):
     """:py:obj:`dict` objects into Project objects."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
     for repo_dict in repo_list:
