@@ -359,13 +359,17 @@ def test_sync_broken(
 
 # @pytest.mark.skip("No recreation yet, #366")
 def test_broken_submodule(
-    home_path: pathlib.Path,
+    user_path: pathlib.Path,
     config_path: pathlib.Path,
     tmp_path: pathlib.Path,
     git_repo: GitSync,
     create_git_dummy_repo: DummyRepoProtocol,
 ) -> None:
     runner = CliRunner()
+
+    deleted_submodule_repo = create_git_dummy_repo(
+        repo_name="deleted_submodule_repo", testfile_filename="dummy_file.txt"
+    )
 
     broken_repo = create_git_dummy_repo(
         repo_name="broken_repo", testfile_filename="dummy_file.txt"
@@ -374,28 +378,50 @@ def test_broken_submodule(
     # Try to recreated gitmodules by hand
 
     # gitmodules_file = pathlib.Path(broken_repo) / ".gitmodules"
-    #     gitmodules_file.write_text(
-    #         """
-    # [submodule "broken_submodule"]
-    #         path = broken_submodule
-    #         url = ./
+    # gitmodules_file.write_text(
+    #     """
+    # [submodule "deleted_submodule_repo"]
+    #         path = deleted_submodule_repo
+    #         url = ../deleted_submodule_repo
     #     """,
-    #         encoding="utf-8",
-    #     )
+    #     encoding="utf-8",
+    # )
+    #
+    # run(
+    #     [
+    #         "git",
+    #         "submodule",
+    #         "init",
+    #         "--",
+    #         # "deleted_submodule_repo",
+    #     ],
+    #     cwd=str(broken_repo),
+    # )
 
     run(
         [
             "git",
             "submodule",
             "add",
-            "--quiet",
-            "--force",
             "--",
-            "./",
+            "../deleted_submodule_repo",
             "broken_submodule",
         ],
         cwd=str(broken_repo),
     )
+
+    # Assure submodule exists
+    gitmodules_file = pathlib.Path(broken_repo) / ".gitmodules"
+    assert gitmodules_file.exists()
+    assert "../deleted_submodule_repo" in gitmodules_file.read_text()
+
+    github_projects = user_path / "github_projects"
+    broken_repo_checkout = github_projects / "broken_repo"
+    assert not broken_repo_checkout.exists()
+
+    # Delete the submodule dependency
+    shutil.rmtree(deleted_submodule_repo)
+    assert not pathlib.Path(deleted_submodule_repo).exists()
 
     with runner.isolated_filesystem(temp_dir=tmp_path):
         config = {
@@ -416,6 +442,8 @@ def test_broken_submodule(
         # CLI can sync
         result = runner.invoke(cli, ["sync", "broken_repo"])
         output = "".join(list(result.output))
+
+        assert broken_repo_checkout.exists()
 
         assert "No url found for submodule" == output
         assert result.exit_code == 1
