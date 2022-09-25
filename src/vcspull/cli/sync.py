@@ -59,6 +59,9 @@ def clamp(n, _min, _max):
     return max(_min, min(n, _max))
 
 
+EXIT_ON_ERROR_MSG = "Exiting via error (--exit-on-error passed)"
+
+
 @click.command(name="sync")
 @click.argument(
     "repo_terms", type=click.STRING, nargs=-1, shell_complete=get_repo_completions
@@ -71,7 +74,15 @@ def clamp(n, _min, _max):
     help="Specify config",
     shell_complete=get_config_file_completions,
 )
-def sync(repo_terms, config):
+@click.option(
+    "exit_on_error",
+    "--exit-on-error",
+    "-x",
+    is_flag=True,
+    default=False,
+    help="Exit immediately when encountering an error syncing multiple repos",
+)
+def sync(repo_terms, config, exit_on_error: bool) -> None:
     if config:
         configs = load_configs([config])
     else:
@@ -95,7 +106,19 @@ def sync(repo_terms, config):
     else:
         found_repos = configs
 
-    list(map(update_repo, found_repos))
+    for repo in found_repos:
+        try:
+            update_repo(repo)
+        except Exception:
+            click.echo(
+                f'Failed syncing {repo.get("name")}',
+            )
+            if log.isEnabledFor(logging.DEBUG):
+                import traceback
+
+                traceback.print_exc()
+            if exit_on_error:
+                raise click.ClickException(EXIT_ON_ERROR_MSG)
 
 
 def progress_cb(output, timestamp):

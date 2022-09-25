@@ -19,8 +19,8 @@ log = logging.getLogger(__name__)
 
 @click.group(
     context_settings={
+        "obj": {},
         "help_option_names": ["-h", "--help"],
-        "allow_interspersed_args": True,
     }
 )
 @click.option(
