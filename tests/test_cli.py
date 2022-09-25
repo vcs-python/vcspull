@@ -61,7 +61,7 @@ SYNC_CLI_EXISTENT_REPO_FIXTURES = [
 )
 def test_sync_cli_filter_non_existent(
     tmp_path: pathlib.Path,
-    capsys: pytest.CaptureFixture,
+    capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
@@ -192,7 +192,7 @@ SYNC_REPO_FIXTURES = [
 )
 def test_sync(
     tmp_path: pathlib.Path,
-    capsys: pytest.CaptureFixture,
+    capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
@@ -324,7 +324,7 @@ SYNC_BROKEN_REPO_FIXTURES = [
 )
 def test_sync_broken(
     tmp_path: pathlib.Path,
-    capsys: pytest.CaptureFixture,
+    capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
     user_path: pathlib.Path,
     config_path: pathlib.Path,

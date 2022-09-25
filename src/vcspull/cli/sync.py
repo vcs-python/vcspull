@@ -1,10 +1,14 @@
 import argparse
 import logging
+import pathlib
 import sys
 import typing as t
 from copy import deepcopy
+from datetime import datetime
 
 from libvcs._internal.shortcuts import create_project
+from libvcs._internal.types import VCSLiteral
+from libvcs.sync.git import GitSync
 from libvcs.url import registry as url_tools
 
 from ..config import filter_repos, find_config_files, load_configs
@@ -12,7 +16,7 @@ from ..config import filter_repos, find_config_files, load_configs
 log = logging.getLogger(__name__)
 
 
-def clamp(n, _min, _max):
+def clamp(n: int, _min: int, _max: int) -> int:
     return max(_min, min(n, _max))
 
 
@@ -51,8 +55,8 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
 
 
 def sync(
-    repo_patterns,
-    config,
+    repo_patterns: t.List[str],
+    config: pathlib.Path,
     exit_on_error: bool,
     parser: t.Optional[
         argparse.ArgumentParser
@@ -102,12 +106,28 @@ def sync(
                     raise SystemExit(EXIT_ON_ERROR_MSG)
 
 
-def progress_cb(output, timestamp):
+def progress_cb(output: str, timestamp: datetime) -> None:
     sys.stdout.write(output)
     sys.stdout.flush()
 
 
-def update_repo(repo_dict):
+def guess_vcs(url: str) -> t.Optional[VCSLiteral]:
+    vcs_matches = url_tools.registry.match(url=url, is_explicit=True)
+
+    if len(vcs_matches) == 0:
+        log.warning(f"No vcs found for {url}")
+        return None
+    if len(vcs_matches) > 1:
+        log.warning(f"No exact matches for {url}")
+        return None
+
+    return t.cast(VCSLiteral, vcs_matches[0].vcs)
+
+
+def update_repo(
+    repo_dict: t.Any,
+    # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
+) -> GitSync:
     repo_dict = deepcopy(repo_dict)
     if "pip_url" not in repo_dict:
         repo_dict["pip_url"] = repo_dict.pop("url")
@@ -116,16 +136,16 @@ def update_repo(repo_dict):
     repo_dict["progress_callback"] = progress_cb
 
     if repo_dict.get("vcs") is None:
-        vcs_matches = url_tools.registry.match(url=repo_dict["url"], is_explicit=True)
+        vcs = guess_vcs(url=repo_dict["url"])
+        if vcs is None:
+            raise Exception(
+                f'Could not automatically determine VCS for {repo_dict["url"]}'
+            )
 
-        if len(vcs_matches) == 0:
-            raise Exception(f"No vcs found for {repo_dict}")
-        if len(vcs_matches) > 1:
-            raise Exception(f"No exact matches for {repo_dict}")
-
-        repo_dict["vcs"] = vcs_matches[0].vcs
+        repo_dict["vcs"] = vcs
 
     r = create_project(**repo_dict)  # Creates the repo object
     r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
 
-    return r
+    # TODO: Fix this
+    return r  # type:ignore

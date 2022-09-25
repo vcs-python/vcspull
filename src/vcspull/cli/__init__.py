@@ -7,6 +7,8 @@ vcspull.cli
 import argparse
 import logging
 import textwrap
+import typing as t
+from typing import overload
 
 from libvcs.__about__ import __version__ as libvcs_version
 
@@ -30,7 +32,21 @@ SYNC_DESCRIPTION = textwrap.dedent(
 ).strip()
 
 
-def create_parser(return_subparsers: bool = False):
+@overload
+def create_parser(
+    return_subparsers: t.Literal[True],
+) -> t.Tuple[argparse.ArgumentParser, t.Any]:
+    ...
+
+
+@overload
+def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParser:
+    ...
+
+
+def create_parser(
+    return_subparsers: bool = False,
+) -> t.Union[argparse.ArgumentParser, t.Tuple[argparse.ArgumentParser, t.Any]]:
     parser = argparse.ArgumentParser(
         prog="vcspull",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -64,9 +80,9 @@ def create_parser(return_subparsers: bool = False):
     return parser
 
 
-def cli(args=None):
+def cli(_args: t.Optional[t.List[str]] = None) -> None:
     parser, sync_parser = create_parser(return_subparsers=True)
-    args = parser.parse_args(args)
+    args = parser.parse_args(_args)
 
     setup_logger(log=log, level=args.log_level.upper())
 

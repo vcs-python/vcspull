@@ -8,7 +8,7 @@ from vcspull.config import filter_repos
 from .fixtures import example as fixtures
 
 
-def test_filter_dir():
+def test_filter_dir() -> None:
     """`filter_repos` filter by dir"""
     repo_list = filter_repos(fixtures.config_dict_expanded, dir="*github_project*")
 
@@ -17,7 +17,7 @@ def test_filter_dir():
         assert r["name"] == "kaptan"
 
 
-def test_filter_name():
+def test_filter_name() -> None:
     """`filter_repos` filter by name"""
     repo_list = filter_repos(fixtures.config_dict_expanded, name=".vim")
 
@@ -26,7 +26,7 @@ def test_filter_name():
         assert r["name"] == ".vim"
 
 
-def test_filter_vcs():
+def test_filter_vcs() -> None:
     """`filter_repos` filter by vcs remote url"""
     repo_list = filter_repos(fixtures.config_dict_expanded, vcs_url="*kernel.org*")
 
@@ -35,7 +35,7 @@ def test_filter_vcs():
         assert r["name"] == "linux"
 
 
-def test_to_dictlist():
+def test_to_dictlist() -> None:
     """`filter_repos` pulls the repos in dict format from the config."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
 
@@ -54,7 +54,7 @@ def test_to_dictlist():
                 assert "url" == remote
 
 
-def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path):
+def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path) -> None:
     """Verify `url` return {Git,Mercurial,Subversion}Project.
 
     :class:`GitSync`, :class:`HgSync` or :class:`SvnSync`
@@ -91,7 +91,7 @@ def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path):
     assert isinstance(svn_repo, BaseSync)
 
 
-def test_to_repo_objects(tmp_path: pathlib.Path):
+def test_to_repo_objects(tmp_path: pathlib.Path) -> None:
     """:py:obj:`dict` objects into Project objects."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
     for repo_dict in repo_list:

@@ -34,18 +34,20 @@ def cwd_default(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None
 
 @pytest.fixture(autouse=True, scope="session")
 @pytest.mark.usefixtures("set_home")
-def xdg_config_path(user_path: pathlib.Path):
+def xdg_config_path(user_path: pathlib.Path) -> pathlib.Path:
     p = user_path / ".config"
     p.mkdir()
     return p
 
 
 @pytest.fixture(scope="function")
-def config_path(xdg_config_path: pathlib.Path, request: pytest.FixtureRequest):
+def config_path(
+    xdg_config_path: pathlib.Path, request: pytest.FixtureRequest
+) -> pathlib.Path:
     conf_path = xdg_config_path / "vcspull"
     conf_path.mkdir(exist_ok=True)
 
-    def clean():
+    def clean() -> None:
         shutil.rmtree(conf_path)
 
     request.addfinalizer(clean)
@@ -53,17 +55,19 @@ def config_path(xdg_config_path: pathlib.Path, request: pytest.FixtureRequest):
 
 
 @pytest.fixture(autouse=True)
-def set_xdg_config_path(monkeypatch: pytest.MonkeyPatch, xdg_config_path: pathlib.Path):
+def set_xdg_config_path(
+    monkeypatch: pytest.MonkeyPatch, xdg_config_path: pathlib.Path
+) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config_path))
 
 
 @pytest.fixture(scope="function")
-def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest):
+def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest) -> pathlib.Path:
     """Return temporary directory for repository checkout guaranteed unique."""
     dir = user_path / "repos"
     dir.mkdir(exist_ok=True)
 
-    def clean():
+    def clean() -> None:
         shutil.rmtree(dir)
 
     request.addfinalizer(clean)

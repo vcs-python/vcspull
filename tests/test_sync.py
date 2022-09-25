@@ -11,6 +11,7 @@ from vcspull._internal.config_reader import ConfigReader
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
 from vcspull.types import ConfigDict
+from vcspull.validator import is_valid_config
 
 from .helpers import write_config
 
@@ -18,7 +19,7 @@ from .helpers import write_config
 def test_makes_recursive(
     tmp_path: pathlib.Path,
     git_remote_repo: pathlib.Path,
-):
+) -> None:
     """Ensure that directories in pull are made recursively."""
     conf = ConfigReader._load(
         format="yaml",
@@ -29,23 +30,28 @@ def test_makes_recursive(
     """
         ),
     )
-    repos = extract_repos(conf)
-    assert len(repos) > 0
+    if is_valid_config(conf):
+        repos = extract_repos(config=conf)
+        assert len(repos) > 0
 
-    filtered_repos = filter_repos(repos, dir="*")
-    assert len(filtered_repos) > 0
+        filtered_repos = filter_repos(repos, dir="*")
+        assert len(filtered_repos) > 0
 
-    for r in filtered_repos:
-        assert isinstance(r, dict)
-        repo = create_project(**r)  # type: ignore
-        repo.obtain()
+        for r in filtered_repos:
+            assert isinstance(r, dict)
+            repo = create_project(**r)  # type: ignore
+            repo.obtain()
 
-        assert repo.dir.exists()
+            assert repo.dir.exists()
 
 
 def write_config_remote(
-    config_path: pathlib.Path, tmp_path: pathlib.Path, config_tpl, dir, clone_name
-):
+    config_path: pathlib.Path,
+    tmp_path: pathlib.Path,
+    config_tpl: str,
+    dir: pathlib.Path,
+    clone_name: str,
+) -> pathlib.Path:
     return write_config(
         config_path=config_path,
         content=config_tpl.format(
@@ -102,7 +108,7 @@ def test_config_variations(
         dir=dummy_repo,
         clone_name="myclone",
     )
-    configs = load_configs([str(config_file)])
+    configs = load_configs([config_file])
 
     # TODO: Merge repos
     repos = filter_repos(configs, dir="*")
@@ -173,7 +179,7 @@ def test_updating_remote(
     initial_config: ConfigDict = {
         "vcs": "git",
         "name": "myclone",
-        "dir": f"{tmp_path}/study/myrepo/myclone",
+        "dir": tmp_path / "study/myrepo/myclone",
         "url": f"git+file://{dummy_repo}",
         "remotes": {
             mirror_name: GitRemote(
@@ -201,6 +207,7 @@ def test_updating_remote(
     )
 
     repo_dict = filter_repos([expected_config], name="myclone")[0]
+    assert isinstance(repo_dict, dict)
     repo = update_repo(repo_dict)
     for remote_name, remote_info in repo.remotes().items():
         remote = repo.remote(remote_name)

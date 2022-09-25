@@ -6,6 +6,7 @@ vcspull.util
 """
 import os
 import pathlib
+import typing as t
 from collections.abc import Mapping
 
 LEGACY_CONFIG_DIR = os.path.expanduser("~/.vcspull/")  # remove dupes of this
@@ -45,7 +46,13 @@ def get_config_dir() -> pathlib.Path:
     return pathlib.Path(path)
 
 
-def update_dict(d, u):
+T = t.TypeVar("T", bound=t.Dict[str, t.Any])
+
+
+def update_dict(
+    d: T,
+    u: T,
+) -> T:
     """Return updated dict.
 
     Parameters

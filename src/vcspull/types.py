@@ -1,3 +1,4 @@
+import pathlib
 import typing as t
 
 from typing_extensions import NotRequired, TypedDict
@@ -21,7 +22,11 @@ RawConfig = dict[str, RawConfigDir]
 class ConfigDict(TypedDict):
     vcs: t.Optional[VCSLiteral]
     name: str
-    dir: StrPath
+    dir: pathlib.Path
     url: str
     remotes: NotRequired[t.Optional[GitSyncRemoteDict]]
     shell_command_after: NotRequired[t.Optional[t.List[str]]]
+
+
+ConfigDir = dict[str, ConfigDict]
+Config = dict[str, ConfigDir]

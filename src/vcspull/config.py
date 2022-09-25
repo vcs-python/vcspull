@@ -11,11 +11,11 @@ import os
 import pathlib
 import typing as t
 
-from libvcs._internal.types import StrPath
 from libvcs.sync.git import GitRemote
-from vcspull._internal.config_reader import ConfigReader
+from vcspull.validator import is_valid_config
 
 from . import exc
+from ._internal.config_reader import ConfigReader
 from .types import ConfigDict, RawConfigDict
 from .util import get_config_dir, update_dict
 
@@ -49,7 +49,9 @@ def expand_dir(
     return _dir
 
 
-def extract_repos(config: RawConfigDict, cwd=pathlib.Path.cwd()) -> list[ConfigDict]:
+def extract_repos(
+    config: RawConfigDict, cwd: pathlib.Path = pathlib.Path.cwd()
+) -> list[ConfigDict]:
     """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
@@ -70,7 +72,7 @@ def extract_repos(config: RawConfigDict, cwd=pathlib.Path.cwd()) -> list[ConfigD
     for directory, repos in config.items():
         assert isinstance(repos, dict)
         for repo, repo_data in repos.items():
-            conf: dict = {}
+            conf: t.Dict[str, t.Any] = {}
 
             """
             repo_name: http://myrepo.com/repo.git
@@ -134,7 +136,7 @@ def find_home_config_files(
     filetype: list[str] = ["json", "yaml"]
 ) -> list[pathlib.Path]:
     """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
-    configs = []
+    configs: list[pathlib.Path] = []
 
     yaml_config = pathlib.Path(os.path.expanduser("~/.vcspull.yaml"))
     has_yaml_config = yaml_config.exists()
@@ -165,7 +167,7 @@ def find_config_files(
         t.Literal["json", "yaml", "*"], list[t.Literal["json", "yaml", "*"]]
     ] = ["json", "yaml"],
     include_home: bool = False,
-):
+) -> t.List[pathlib.Path]:
     """Return repos from a directory and match. Not recursive.
 
     Parameters
@@ -189,34 +191,36 @@ def find_config_files(
     list :
         list of absolute paths to config files.
     """
-    configs = []
+    config_files = []
     if path is None:
         path = get_config_dir()
 
     if include_home is True:
-        configs.extend(find_home_config_files())
+        config_files.extend(find_home_config_files())
 
     if isinstance(path, list):
         for p in path:
-            configs.extend(find_config_files(p, match, filetype))
-            return configs
+            config_files.extend(find_config_files(p, match, filetype))
+            return config_files
     else:
         path = pathlib.Path(os.path.expanduser(path))
         if isinstance(match, list):
             for m in match:
-                configs.extend(find_config_files(path, m, filetype))
+                config_files.extend(find_config_files(path, m, filetype))
         else:
             if isinstance(filetype, list):
                 for f in filetype:
-                    configs.extend(find_config_files(path, match, f))
+                    config_files.extend(find_config_files(path, match, f))
             else:
                 match = f"{match}.{filetype}"
-                configs = list(path.glob(match))
+                config_files = list(path.glob(match))
 
-    return configs
+    return config_files
 
 
-def load_configs(files: list[StrPath], cwd=pathlib.Path.cwd()):
+def load_configs(
+    files: list[pathlib.Path], cwd: pathlib.Path = pathlib.Path.cwd()
+) -> t.List[ConfigDict]:
     """Return repos from a list of files.
 
     Parameters
@@ -241,6 +245,7 @@ def load_configs(files: list[StrPath], cwd=pathlib.Path.cwd()):
             file = pathlib.Path(file)
         assert isinstance(file, pathlib.Path)
         conf = ConfigReader._from_file(file)
+        assert is_valid_config(conf)
         newrepos = extract_repos(conf, cwd=cwd)
 
         if not repos:
@@ -295,7 +300,10 @@ def detect_duplicate_repos(
     return dupes
 
 
-def in_dir(config_dir=None, extensions: list[str] = [".yml", ".yaml", ".json"]):
+def in_dir(
+    config_dir: t.Optional[pathlib.Path] = None,
+    extensions: list[str] = [".yml", ".yaml", ".json"],
+) -> t.List[str]:
     """Return a list of configs in ``config_dir``.
 
     Parameters
@@ -321,8 +329,8 @@ def in_dir(config_dir=None, extensions: list[str] = [".yml", ".yaml", ".json"]):
 
 
 def filter_repos(
-    config: list[ConfigDict],
-    dir: t.Union[pathlib.Path, t.Literal["*"], None] = None,
+    config: t.List[ConfigDict],
+    dir: t.Union[pathlib.Path, t.Literal["*"], str, None] = None,
     vcs_url: t.Union[str, None] = None,
     name: t.Union[str, None] = None,
 ) -> list[ConfigDict]:
@@ -374,7 +382,7 @@ def filter_repos(
 
 def is_config_file(
     filename: str, extensions: t.Union[list[str], str] = [".yml", ".yaml", ".json"]
-):
+) -> bool:
     """Return True if file has a valid config file type.
 
     Parameters
