@@ -163,7 +163,7 @@ $ make serve
 
 ## Linting
 
-[flake8] run via CI in our GitHub Actions. See the configuration in `pyproject.toml` and
+[flake8] and [mypy] run via CI in our GitHub Actions. See the configuration in `pyproject.toml` and
 `setup.cfg`.
 
 ### flake8
@@ -217,6 +217,55 @@ See `[flake8]` in setup.cfg.
 
 ````
 
+### mypy
+
+[mypy] is used for static type checking.
+
+````{tab} Command
+
+poetry:
+
+```console
+$ poetry run mypy .
+```
+
+If you setup manually:
+
+```console
+$ mypy .
+```
+
+````
+
+````{tab} make
+
+```console
+$ make mypy
+```
+
+````
+
+````{tab} Watch
+
+```console
+$ make watch_mypy
+```
+
+requires [`entr(1)`].
+````
+
+````{tab} Configuration
+
+See `[flake8]` in setup.cfg.
+
+```{literalinclude} ../setup.cfg
+:language: ini
+:start-at: "[mypy]"
+
+```
+
+````
+
 ## Publishing to PyPI
 
 As of 0.10, [poetry] handles virtualenv creation, package requirements, versioning,
@@ -237,3 +286,4 @@ Update `__version__` in `__about__.py` and `pyproject.toml`::
 [black]: https://github.com/psf/black
 [isort]: https://pypi.org/project/isort/
 [flake8]: https://flake8.pycqa.org/
+[mypy]: http://mypy-lang.org/

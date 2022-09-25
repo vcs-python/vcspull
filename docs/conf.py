@@ -12,7 +12,7 @@ sys.path.insert(0, str(src_root))
 sys.path.insert(0, str(cwd / "_ext"))
 
 # package data
-about = {}
+about: dict[str, str] = {}
 with open(src_root / "vcspull" / "__about__.py") as fp:
     exec(fp.read(), about)
 
@@ -60,7 +60,7 @@ html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 html_extra_path = ["manifest.json"]
 html_theme = "furo"
-html_theme_path = []
+html_theme_path: list = []
 html_theme_options = {
     "light_logo": "img/vcspull.svg",
     "dark_logo": "img/vcspull-dark.svg",

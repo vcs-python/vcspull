@@ -6,7 +6,9 @@ import click
 import click.shell_completion
 from click.shell_completion import CompletionItem
 
-from libvcs.shortcuts import create_project_from_pip_url
+from libvcs._internal.shortcuts import create_project
+from libvcs.url import registry as url_tools
+from vcspull.types import ConfigDict
 
 from ..config import filter_repos, find_config_files, load_configs
 
@@ -21,13 +23,13 @@ def get_repo_completions(
         if ctx.params["config"] is None
         else load_configs(files=[ctx.params["config"]])
     )
-    found_repos = []
+    found_repos: list[ConfigDict] = []
     repo_terms = [incomplete]
 
     for repo_term in repo_terms:
         dir, vcs_url, name = None, None, None
         if any(repo_term.startswith(n) for n in ["./", "/", "~", "$HOME"]):
-            dir = repo_term
+            dir = dir
         elif any(repo_term.startswith(n) for n in ["http", "git", "svn", "hg"]):
             vcs_url = repo_term
         else:
@@ -105,9 +107,21 @@ def update_repo(repo_dict):
     repo_dict = deepcopy(repo_dict)
     if "pip_url" not in repo_dict:
         repo_dict["pip_url"] = repo_dict.pop("url")
+    if "url" not in repo_dict:
+        repo_dict["url"] = repo_dict.pop("pip_url")
     repo_dict["progress_callback"] = progress_cb
 
-    r = create_project_from_pip_url(**repo_dict)  # Creates the repo object
+    if repo_dict.get("vcs") is None:
+        vcs_matches = url_tools.registry.match(url=repo_dict["url"], is_explicit=True)
+
+        if len(vcs_matches) == 0:
+            raise Exception(f"No vcs found for {repo_dict}")
+        if len(vcs_matches) > 1:
+            raise Exception(f"No exact matches for {repo_dict}")
+
+        repo_dict["vcs"] = vcs_matches[0].vcs
+
+    r = create_project(**repo_dict)  # Creates the repo object
     r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
 
     return r

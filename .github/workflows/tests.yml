@@ -33,6 +33,9 @@ jobs:
       - name: Lint with flake8
         run: poetry run flake8
 
+      - name: Lint with mypy
+        run: poetry run mypy .
+
       - name: Test with pytest
         run: poetry run py.test --cov=./ --cov-append --cov-report=xml
         env:

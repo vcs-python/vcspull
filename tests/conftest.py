@@ -2,12 +2,13 @@ import getpass
 import pathlib
 import shutil
 import textwrap
+import typing as t
 
 import pytest
 
 from libvcs._internal.run import run
-from libvcs.projects.git import GitProject
-from libvcs.shortcuts import create_project_from_pip_url
+from libvcs._internal.shortcuts import create_project
+from libvcs.sync.git import GitSync
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -67,7 +68,7 @@ def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest):
 
 @pytest.fixture
 def git_repo_kwargs(repos_path: pathlib.Path, git_dummy_repo_dir):
-    """Return kwargs for :func:`create_project_from_pip_url`."""
+    """Return kwargs for :func:`create_project`."""
     return {
         "url": "git+file://" + git_dummy_repo_dir,
         "parent_dir": str(repos_path),
@@ -76,16 +77,26 @@ def git_repo_kwargs(repos_path: pathlib.Path, git_dummy_repo_dir):
 
 
 @pytest.fixture
-def git_repo(git_repo_kwargs) -> GitProject:
+def git_repo(git_repo_kwargs) -> GitSync:
     """Create an git repository for tests. Return repo."""
-    repo = create_project_from_pip_url(**git_repo_kwargs)
+    repo = create_project(vcs="git", **git_repo_kwargs)
     repo.obtain(quiet=True)
     return repo
 
 
+class DummyRepoProtocol(t.Protocol):
+    """Callback for repo fixture factory."""
+
+    def __call__(self, repo_name: str, testfile_filename: str = ...) -> str:
+        """Callback signature for subprocess communication."""
+        ...
+
+
 @pytest.fixture
-def create_git_dummy_repo(repos_path: pathlib.Path) -> pathlib.Path:
-    def fn(repo_name, testfile_filename="testfile.test"):
+def create_git_dummy_repo(
+    repos_path: pathlib.Path,
+) -> t.Generator[DummyRepoProtocol, None, None]:
+    def fn(repo_name: str, testfile_filename: str = "testfile.test"):
         repo_path = str(repos_path / repo_name)
 
         run(["git", "init", repo_name], cwd=str(repos_path))
@@ -100,7 +111,9 @@ def create_git_dummy_repo(repos_path: pathlib.Path) -> pathlib.Path:
 
 
 @pytest.fixture
-def git_dummy_repo_dir(repos_path: pathlib.Path, create_git_dummy_repo):
+def git_dummy_repo_dir(
+    repos_path: pathlib.Path, create_git_dummy_repo: DummyRepoProtocol
+):
     """Create a git repo with 1 commit, used as a remote."""
     return create_git_dummy_repo("dummyrepo")
 

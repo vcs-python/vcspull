@@ -1,10 +1,8 @@
 """Tests for placing config dicts into :py:class:`Project` objects."""
-import os
+import pathlib
 
-from _pytest.compat import LEGACY_PATH
-
-from libvcs import BaseProject, GitProject, MercurialProject, SubversionProject
-from libvcs.shortcuts import create_project_from_pip_url
+from libvcs import BaseSync, GitSync, HgSync, SvnSync
+from libvcs._internal.shortcuts import create_project
 from vcspull.config import filter_repos
 
 from .fixtures import example as fixtures
@@ -46,6 +44,7 @@ def test_to_dictlist():
         assert "name" in r
         assert "parent_dir" in r
         assert "url" in r
+        assert "vcs" in r
 
         if "remotes" in r:
             assert isinstance(r["remotes"], list)
@@ -55,64 +54,60 @@ def test_to_dictlist():
                 assert "url" == remote
 
 
-def test_vcs_url_scheme_to_object(tmpdir: LEGACY_PATH):
+def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path):
     """Verify `url` return {Git,Mercurial,Subversion}Project.
 
-    :class:`GitProject`, :class:`MercurialProject` or :class:`SubversionProject`
+    :class:`GitSync`, :class:`HgSync` or :class:`SvnSync`
     object based on the pip-style URL scheme.
 
     """
-    git_repo = create_project_from_pip_url(
-        **{
-            "pip_url": "git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b",
-            "dir": str(tmpdir.join("myproject1")),
-        }
+    git_repo = create_project(
+        vcs="git",
+        url="git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b",
+        dir=str(tmp_path / "myproject1"),
     )
 
     # TODO cwd and name if duplicated should give an error
 
-    assert isinstance(git_repo, GitProject)
-    assert isinstance(git_repo, BaseProject)
+    assert isinstance(git_repo, GitSync)
+    assert isinstance(git_repo, BaseSync)
 
-    hg_repo = create_project_from_pip_url(
-        **{
-            "pip_url": "hg+https://hg.myproject.org/MyProject#egg=MyProject",
-            "dir": str(tmpdir.join("myproject2")),
-        }
+    hg_repo = create_project(
+        vcs="hg",
+        url="hg+https://hg.myproject.org/MyProject#egg=MyProject",
+        dir=str(tmp_path / "myproject2"),
     )
 
-    assert isinstance(hg_repo, MercurialProject)
-    assert isinstance(hg_repo, BaseProject)
+    assert isinstance(hg_repo, HgSync)
+    assert isinstance(hg_repo, BaseSync)
 
-    svn_repo = create_project_from_pip_url(
-        **{
-            "pip_url": "svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject",
-            "dir": str(tmpdir.join("myproject3")),
-        }
+    svn_repo = create_project(
+        vcs="svn",
+        url="svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject",
+        dir=str(tmp_path / "myproject3"),
     )
 
-    assert isinstance(svn_repo, SubversionProject)
-    assert isinstance(svn_repo, BaseProject)
+    assert isinstance(svn_repo, SvnSync)
+    assert isinstance(svn_repo, BaseSync)
 
 
-def test_to_repo_objects(tmpdir: LEGACY_PATH):
+def test_to_repo_objects(tmp_path: pathlib.Path):
     """:py:obj:`dict` objects into Project objects."""
     repo_list = filter_repos(fixtures.config_dict_expanded)
     for repo_dict in repo_list:
-        r = create_project_from_pip_url(**repo_dict)
+        r = create_project(**repo_dict)  # type: ignore
 
-        assert isinstance(r, BaseProject)
-        assert r.name
-        assert r.name == repo_dict["name"]
-        assert r.parent_dir
-        assert r.parent_dir == repo_dict["parent_dir"]
+        assert isinstance(r, BaseSync)
+        assert r.repo_name
+        assert r.repo_name == repo_dict["name"]
+        assert r.dir.parent
         assert r.url
         assert r.url == repo_dict["url"]
 
-        assert r.path == os.path.join(r.parent_dir, r.name)
+        assert r.dir == r.dir / r.repo_name
 
-        if "remotes" in repo_dict:
-            assert isinstance(r.remotes, list)
+        if hasattr(r, "remotes") and isinstance(r, GitSync):
+            assert isinstance(r.remotes, dict)
             for remote_name, remote_dict in r.remotes.items():
                 assert isinstance(remote_dict, dict)
                 assert "fetch_url" in remote_dict
