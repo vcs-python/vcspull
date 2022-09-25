@@ -4,6 +4,41 @@
 
 # vcspull sync
 
+## Filtering repos
+
+As of 1.13.x, `$ vcspull sync` with no args passed will show a help dialog:
+
+```console
+$ vcspull sync
+Usage: vcspull sync [OPTIONS] [REPO_TERMS]...
+```
+
+### Sync all repos
+
+Depending on how your terminal works with shell escapes for expands such as the [wild card / asterisk], you may not need to quote `*`.
+
+```console
+$ vcspull sync '*'
+```
+
+[wild card / asterisk]: https://tldp.org/LDP/abs/html/special-chars.html#:~:text=wild%20card%20%5Basterisk%5D.
+
+### Filtering
+
+Filter all repos start with "django-":
+
+```console
+$ vcspull sync 'django-*'
+```
+
+### Multiple terms
+
+Filter all repos start with "django-":
+
+```console
+$ vcspull sync 'django-anymail' 'django-guardian'
+```
+
 ## Error handling
 
 ### Repos not found in config
