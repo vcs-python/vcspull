@@ -174,7 +174,7 @@ Patch branch: [`v1.12.x`](https://github.com/vcs-python/vcspull/tree/v1.12.x)
 ### Documentation
 
 - Sidebar reorganized into sections
-- Added documentation on fetching developmental releases of libtmux
+- Added documentation on fetching developmental releases of libvcs
 
 ## vcspull 1.11.5 (2022-04-20)
 
@@ -305,7 +305,7 @@ _✨ Renewed_
 
 ## vcspull 1.7.0 (2021-06-14)
 
-- #308: Update to libtmux 0.9.0 (python 3.6+ only)
+- #308: Update to libvcs 0.9.0 (python 3.6+ only)
 
 ## vcspull 1.6.1 (2021-06-14)
 
