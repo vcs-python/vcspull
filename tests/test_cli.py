@@ -8,6 +8,7 @@ import yaml
 from click.testing import CliRunner
 
 from libvcs.sync.git import GitSync
+from vcspull.__about__ import __version__
 from vcspull.cli import cli
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
 
@@ -99,11 +100,96 @@ def test_sync_cli_repo_term_non_existent(
                 assert needle not in output
 
 
+class SyncFixture(t.NamedTuple):
+    test_id: str
+    sync_args: list[str]
+    expected_exit_code: int
+    expected_in_output: "ExpectedOutput" = None
+    expected_not_in_output: "ExpectedOutput" = None
+
+
+SYNC_REPO_FIXTURES = [
+    # Empty (root command)
+    SyncFixture(
+        test_id="empty",
+        sync_args=[],
+        expected_exit_code=0,
+        expected_in_output=["Options:", "Commands:"],
+    ),
+    # Version
+    SyncFixture(
+        test_id="--version",
+        sync_args=["--version"],
+        expected_exit_code=0,
+        expected_in_output=[__version__, ", libvcs"],
+    ),
+    SyncFixture(
+        test_id="-V",
+        sync_args=["-V"],
+        expected_exit_code=0,
+        expected_in_output=[__version__, ", libvcs"],
+    ),
+    # Help
+    SyncFixture(
+        test_id="--help",
+        sync_args=["--help"],
+        expected_exit_code=0,
+        expected_in_output=["Options:", "Commands:"],
+    ),
+    SyncFixture(
+        test_id="-h",
+        sync_args=["-h"],
+        expected_exit_code=0,
+        expected_in_output=["Options:", "Commands:"],
+    ),
+    # Sync
+    SyncFixture(
+        test_id="sync--empty",
+        sync_args=["sync"],
+        expected_exit_code=0,
+        expected_in_output="Options:",
+        expected_not_in_output="Commands:",
+    ),
+    # Sync: Help
+    SyncFixture(
+        test_id="sync---help",
+        sync_args=["sync", "--help"],
+        expected_exit_code=0,
+        expected_in_output="Options:",
+        expected_not_in_output="Commands:",
+    ),
+    SyncFixture(
+        test_id="sync--h",
+        sync_args=["sync", "-h"],
+        expected_exit_code=0,
+        expected_in_output="Options:",
+        expected_not_in_output="Commands:",
+    ),
+    # Sync: Repo terms
+    SyncFixture(
+        test_id="sync--one-repo-term",
+        sync_args=["sync", "my_git_repo"],
+        expected_exit_code=0,
+        expected_in_output="my_git_repo",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(SyncFixture._fields),
+    SYNC_REPO_FIXTURES,
+    ids=[test.test_id for test in SYNC_REPO_FIXTURES],
+)
 def test_sync(
     user_path: pathlib.Path,
     config_path: pathlib.Path,
     tmp_path: pathlib.Path,
     git_repo: GitSync,
+    test_id: str,
+    sync_args: list[str],
+    expected_exit_code: int,
+    expected_in_output: "ExpectedOutput",
+    expected_not_in_output: "ExpectedOutput",
 ) -> None:
     runner = CliRunner()
     with runner.isolated_filesystem(temp_dir=tmp_path):
@@ -124,10 +210,21 @@ def test_sync(
         yaml_config.write_text(yaml_config_data, encoding="utf-8")
 
         # CLI can sync
-        result = runner.invoke(cli, ["sync", "my_git_repo"])
-        assert result.exit_code == 0
+        result = runner.invoke(cli, sync_args)
+        assert result.exit_code == expected_exit_code
         output = "".join(list(result.output))
-        assert "my_git_repo" in output
+
+        if expected_in_output is not None:
+            if isinstance(expected_in_output, str):
+                expected_in_output = [expected_in_output]
+            for needle in expected_in_output:
+                assert needle in output
+
+        if expected_not_in_output is not None:
+            if isinstance(expected_not_in_output, str):
+                expected_not_in_output = [expected_not_in_output]
+            for needle in expected_not_in_output:
+                assert needle not in output
 
 
 class SyncBrokenFixture(t.NamedTuple):
