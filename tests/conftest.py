@@ -71,7 +71,7 @@ def git_repo_kwargs(repos_path: pathlib.Path, git_dummy_repo_dir):
     """Return kwargs for :func:`create_project`."""
     return {
         "url": "git+file://" + git_dummy_repo_dir,
-        "parent_dir": str(repos_path),
+        "dir": str(repos_path / "repo_name"),
         "name": "repo_name",
     }
 
