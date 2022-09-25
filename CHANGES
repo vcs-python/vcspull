@@ -218,7 +218,13 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - Move to `src/` directory structure (#382)
 - libvcs: Update to 0.17.x (#373)
-- Basic mypy annotations (#373)
+- mypy:
+
+  - Basic mypy annotations (#373)
+  - [`mypy --strict`] compliant (#386)
+
+  [`mypy --strict`]: https://mypy.readthedocs.io/en/stable/command_line.html#cmdoption-mypy-strict
+
 - Remove `.pre-commit-config.yaml`: Let's not automate what the contributor could /
   should do themselves.
 - Add [flake8-bugbear](https://github.com/PyCQA/flake8-bugbear) (#379)
