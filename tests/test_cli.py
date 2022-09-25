@@ -1,4 +1,5 @@
 import pathlib
+import shutil
 import typing as t
 
 import pytest
@@ -20,7 +21,7 @@ def test_sync_cli_non_existent(tmp_path: pathlib.Path) -> None:
 
 
 def test_sync(
-    home_path: pathlib.Path,
+    user_path: pathlib.Path,
     config_path: pathlib.Path,
     tmp_path: pathlib.Path,
     git_repo: GitSync,
@@ -132,7 +133,7 @@ SYNC_BROKEN_REPO_FIXTURES = [
     ids=[test.test_id for test in SYNC_BROKEN_REPO_FIXTURES],
 )
 def test_sync_broken(
-    home_path: pathlib.Path,
+    user_path: pathlib.Path,
     config_path: pathlib.Path,
     tmp_path: pathlib.Path,
     git_repo: GitSync,
@@ -144,10 +145,10 @@ def test_sync_broken(
 ) -> None:
     runner = CliRunner()
 
-    github_projects = home_path / "github_projects"
+    github_projects = user_path / "github_projects"
     my_git_repo = github_projects / "my_git_repo"
     if my_git_repo.is_dir():
-        my_git_repo.rmdir()
+        shutil.rmtree(my_git_repo)
 
     with runner.isolated_filesystem(temp_dir=tmp_path):
         config = {
