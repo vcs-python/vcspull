@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vcspull"
-version = "1.13.0a14"
+version = "1.13.0a15"
 description = "Manage and sync multiple git, mercurial, and svn repos"
 license = "MIT"
 authors = ["Tony Narlock <tony@git-pull.com>"]
