@@ -86,25 +86,25 @@ SYNC_BROKEN_REPO_FIXTURES = [
     ),
     SyncBrokenFixture(
         test_id="normal-first-broken",
-        sync_args=["non_existent_repo", "my_git_repo"],
+        sync_args=["my_git_repo_not_found", "my_git_repo"],
         expected_exit_code=0,
         expected_not_in_output=EXIT_ON_ERROR_MSG,
     ),
     SyncBrokenFixture(
         test_id="normal-last-broken",
-        sync_args=["my_git_repo", "non_existent_repo"],
+        sync_args=["my_git_repo", "my_git_repo_not_found"],
         expected_exit_code=0,
         expected_not_in_output=EXIT_ON_ERROR_MSG,
     ),
     SyncBrokenFixture(
         test_id="exit-on-error--exit-on-error-first-broken",
-        sync_args=["non_existent_repo", "my_git_repo", "--exit-on-error"],
+        sync_args=["my_git_repo_not_found", "my_git_repo", "--exit-on-error"],
         expected_exit_code=1,
         expected_in_output=EXIT_ON_ERROR_MSG,
     ),
     SyncBrokenFixture(
         test_id="exit-on-error--x-first-broken",
-        sync_args=["non_existent_repo", "my_git_repo", "-x"],
+        sync_args=["my_git_repo_not_found", "my_git_repo", "-x"],
         expected_exit_code=1,
         expected_in_output=EXIT_ON_ERROR_MSG,
         expected_not_in_output="master",
@@ -114,13 +114,13 @@ SYNC_BROKEN_REPO_FIXTURES = [
     #
     SyncBrokenFixture(
         test_id="exit-on-error--exit-on-error-last-broken",
-        sync_args=["my_git_repo", "non_existent_repo", "-x"],
+        sync_args=["my_git_repo", "my_git_repo_not_found", "-x"],
         expected_exit_code=1,
         expected_in_output=[EXIT_ON_ERROR_MSG, "Already on 'master'"],
     ),
     SyncBrokenFixture(
         test_id="exit-on-error--x-last-item",
-        sync_args=["my_git_repo", "non_existent_repo", "--exit-on-error"],
+        sync_args=["my_git_repo", "my_git_repo_not_found", "--exit-on-error"],
         expected_exit_code=1,
         expected_in_output=[EXIT_ON_ERROR_MSG, "Already on 'master'"],
     ),
@@ -157,7 +157,7 @@ def test_sync_broken(
                     "url": f"git+file://{git_repo.dir}",
                     "remotes": {"test_remote": f"git+file://{git_repo.dir}"},
                 },
-                "non_existent_repo": {
+                "my_git_repo_not_found": {
                     "url": "git+file:///dev/null",
                 },
             }
