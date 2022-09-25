@@ -5,12 +5,17 @@ vcspull.config
 A lot of these items are todo.
 
 """
+import dataclasses
 import fnmatch
 import logging
 import os
 import pathlib
 import typing as t
 
+import yaml
+
+from libvcs._internal.query_list import QueryList
+from libvcs._internal.shortcuts import create_project
 from libvcs.sync.git import GitRemote
 from vcspull.validator import is_valid_config
 
@@ -23,6 +28,85 @@ log = logging.getLogger(__name__)
 
 if t.TYPE_CHECKING:
     from typing_extensions import TypeGuard
+
+    from libvcs.sync.git import GitSync
+    from libvcs.sync.hg import HgSync
+    from libvcs.sync.svn import SvnSync
+
+    Repo = t.Union["GitSync", "HgSync", "SvnSync"]
+
+
+@dataclasses.dataclass
+class Config:
+    repo_dict_map: list["Repo"]
+    repos: list["Repo"] = dataclasses.field(init=False, default_factory=list)
+
+    def __post_init__(self) -> None:
+        for repo in self.repo_dict_map:
+            if isinstance(repo, dict):
+                self.repos.append(create_project(**repo))
+
+    def filter_repos(self, **kwargs: object) -> list["Repo"]:
+        return QueryList(self.repos).filter(**kwargs)
+
+    @classmethod
+    def from_yaml_file(
+        cls, file_path: pathlib.Path, cwd: pathlib.Path = pathlib.Path.cwd()
+    ) -> "Config":
+        # load yaml
+        raw_config = yaml.load(open(file_path).read(), Loader=yaml.Loader)
+        repos: list[ConfigDict] = []
+        for directory, repo_map in raw_config.items():
+            assert isinstance(repo_map, dict)
+            for repo, repo_data in repo_map.items():
+                conf: dict[str, t.Any] = {}
+
+                if isinstance(repo_data, str):
+                    conf["url"] = repo_data
+                else:
+                    conf = update_dict(conf, repo_data)
+
+                if "repo" in conf:
+                    if "url" not in conf:
+                        conf["url"] = conf.pop("repo")
+                    else:
+                        conf.pop("repo", None)
+
+                if "name" not in conf:
+                    conf["name"] = repo
+
+                if "dir" not in conf:
+                    conf["dir"] = expand_dir(
+                        pathlib.Path(expand_dir(pathlib.Path(directory), cwd=cwd))
+                        / conf["name"],
+                        cwd,
+                    )
+
+                if "remotes" in conf:
+                    assert isinstance(conf["remotes"], dict)
+                    for remote_name, url in conf["remotes"].items():
+                        if isinstance(url, GitRemote):
+                            continue
+                        if isinstance(url, str):
+                            conf["remotes"][remote_name] = GitRemote(
+                                name=remote_name, fetch_url=url, push_url=url
+                            )
+                        elif isinstance(url, dict):
+                            assert "push_url" in url
+                            assert "fetch_url" in url
+                            conf["remotes"][remote_name] = GitRemote(
+                                name=remote_name, **url
+                            )
+
+                def is_valid_config_dict(val: t.Any) -> "TypeGuard[ConfigDict]":
+                    assert isinstance(val, dict)
+                    return True
+
+                assert is_valid_config_dict(conf)
+                repos.append(conf)
+
+        # assert validate_config(config)  # mypy happy
+        return cls(repo_dict_map=repos)  # type:ignore
 
 
 def expand_dir(
