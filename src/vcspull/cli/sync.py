@@ -64,6 +64,7 @@ NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
 @click.command(name="sync")
+@click.pass_context
 @click.argument(
     "repo_terms", type=click.STRING, nargs=-1, shell_complete=get_repo_completions
 )
@@ -83,7 +84,7 @@ NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
     default=False,
     help="Exit immediately when encountering an error syncing multiple repos",
 )
-def sync(repo_terms, config, exit_on_error: bool) -> None:
+def sync(ctx, repo_terms, config, exit_on_error: bool) -> None:
     if config:
         configs = load_configs([config])
     else:
@@ -108,7 +109,8 @@ def sync(repo_terms, config, exit_on_error: bool) -> None:
                 filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name)
             )
     else:
-        found_repos = configs
+        click.echo(ctx.get_help(), color=ctx.color)
+        ctx.exit()
 
     for repo in found_repos:
         try:
