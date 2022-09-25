@@ -29,7 +29,7 @@ def setup_logger(log=None, level="INFO"):
 
     Parameters
     ----------
-    log : :py:class:`Logger`
+    log : :py:class:`logging.Logger`
         instance of logger
     """
     if not log:
