@@ -21,13 +21,6 @@ See the [documentation](https://vcspull.git-pull.com/), [configuration](https://
 [myrepos]: http://myrepos.branchable.com/
 [mu-repo]: http://fabioz.github.io/mu-repo/
 
-# Development branches
-
-vcspull `master` is currently targetting to [libvcs] @
-[v0.13.x](https://github.com/vcs-python/libvcs/tree/v0.13.x)
-
-In the coming weeks, it will be pointing to libvcs master again.
-
 # How to
 
 ## Install
