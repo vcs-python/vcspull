@@ -67,6 +67,11 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
     $ vcspull --log-level DEBUG sync --exit-on-error grako django
     ```
 
+  - Syncing in git repositories with untracked files has been improved (via
+    libvcs 0.17)
+
+    See also https://github.com/vcs-python/libvcs/pull/425
+
 ### Development
 
 - Move to `src/` directory structure (#382)
