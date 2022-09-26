@@ -7,7 +7,9 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
+from libvcs._internal.run import run
 from libvcs.sync.git import GitSync
+from tests.conftest import DummyRepoProtocol
 from vcspull.__about__ import __version__
 from vcspull.cli import cli
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
@@ -353,3 +355,95 @@ def test_sync_broken(
                 expected_not_in_output = [expected_not_in_output]
             for needle in expected_not_in_output:
                 assert needle not in output
+
+
+# @pytest.mark.skip("No recreation yet, #366")
+def test_broken_submodule(
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    tmp_path: pathlib.Path,
+    git_repo: GitSync,
+    create_git_dummy_repo: DummyRepoProtocol,
+) -> None:
+    runner = CliRunner()
+
+    deleted_submodule_repo = create_git_dummy_repo(
+        repo_name="deleted_submodule_repo", testfile_filename="dummy_file.txt"
+    )
+
+    broken_repo = create_git_dummy_repo(
+        repo_name="broken_repo", testfile_filename="dummy_file.txt"
+    )
+
+    # Try to recreated gitmodules by hand
+
+    # gitmodules_file = pathlib.Path(broken_repo) / ".gitmodules"
+    # gitmodules_file.write_text(
+    #     """
+    # [submodule "deleted_submodule_repo"]
+    #         path = deleted_submodule_repo
+    #         url = ../deleted_submodule_repo
+    #     """,
+    #     encoding="utf-8",
+    # )
+    #
+    # run(
+    #     [
+    #         "git",
+    #         "submodule",
+    #         "init",
+    #         "--",
+    #         # "deleted_submodule_repo",
+    #     ],
+    #     cwd=str(broken_repo),
+    # )
+
+    run(
+        [
+            "git",
+            "submodule",
+            "add",
+            "--",
+            "../deleted_submodule_repo",
+            "broken_submodule",
+        ],
+        cwd=str(broken_repo),
+    )
+
+    # Assure submodule exists
+    gitmodules_file = pathlib.Path(broken_repo) / ".gitmodules"
+    assert gitmodules_file.exists()
+    assert "../deleted_submodule_repo" in gitmodules_file.read_text()
+
+    github_projects = user_path / "github_projects"
+    broken_repo_checkout = github_projects / "broken_repo"
+    assert not broken_repo_checkout.exists()
+
+    # Delete the submodule dependency
+    shutil.rmtree(deleted_submodule_repo)
+    assert not pathlib.Path(deleted_submodule_repo).exists()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config = {
+            "~/github_projects/": {
+                "my_git_repo": {
+                    "url": f"git+file://{git_repo.dir}",
+                    "remotes": {"test_remote": f"git+file://{git_repo.dir}"},
+                },
+                "broken_repo": {
+                    "url": f"git+file://{broken_repo}",
+                },
+            }
+        }
+        yaml_config = config_path / ".vcspull.yaml"
+        yaml_config_data = yaml.dump(config, default_flow_style=False)
+        yaml_config.write_text(yaml_config_data, encoding="utf-8")
+
+        # CLI can sync
+        result = runner.invoke(cli, ["sync", "broken_repo"])
+        output = "".join(list(result.output))
+
+        assert broken_repo_checkout.exists()
+
+        assert "No url found for submodule" == output
+        assert result.exit_code == 1
