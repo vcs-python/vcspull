@@ -92,7 +92,7 @@ html_sidebars = {
 }
 
 # linkify_issues
-issue_url_tpl = "https://github.com/vcs-python/vcspull/issues/{issue_id}"
+issue_url_tpl = about["__github__"] + "/issues/{issue_id}"
 
 # sphinx.ext.autodoc
 autoclass_content = "both"
