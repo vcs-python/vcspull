@@ -18,7 +18,7 @@ from .helpers import write_config
 
 def test_makes_recursive(
     tmp_path: pathlib.Path,
-    git_dummy_repo_dir: pathlib.Path,
+    git_remote_repo: pathlib.Path,
 ):
     """Ensure that directories in pull are made recursively."""
     conf = kaptan.Kaptan(handler="yaml")
@@ -26,7 +26,7 @@ def test_makes_recursive(
         textwrap.dedent(
             f"""
         {tmp_path}/study/myrepo:
-            my_url: git+file://{git_dummy_repo_dir}
+            my_url: git+file://{git_remote_repo}
     """
         )
     )
