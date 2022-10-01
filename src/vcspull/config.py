@@ -10,12 +10,10 @@ import logging
 import os
 import pathlib
 import typing as t
-from typing import Literal, Optional, Union
-
-import kaptan
 
 from libvcs._internal.types import StrPath
 from libvcs.sync.git import GitRemote
+from vcspull._internal.config_reader import ConfigReader
 
 from . import exc
 from .types import ConfigDict, RawConfigDict
@@ -161,10 +159,10 @@ def find_home_config_files(
 
 
 def find_config_files(
-    path: Optional[Union[list[pathlib.Path], pathlib.Path]] = None,
-    match: Union[list[str], str] = ["*"],
-    filetype: Union[
-        Literal["json", "yaml", "*"], list[Literal["json", "yaml", "*"]]
+    path: t.Optional[t.Union[list[pathlib.Path], pathlib.Path]] = None,
+    match: t.Union[list[str], str] = ["*"],
+    filetype: t.Union[
+        t.Literal["json", "yaml", "*"], list[t.Literal["json", "yaml", "*"]]
     ] = ["json", "yaml"],
     include_home: bool = False,
 ):
@@ -242,9 +240,8 @@ def load_configs(files: list[StrPath], cwd=pathlib.Path.cwd()):
         if isinstance(file, str):
             file = pathlib.Path(file)
         assert isinstance(file, pathlib.Path)
-        ext = file.suffix.lstrip(".")
-        conf = kaptan.Kaptan(handler=ext).import_config(str(file))
-        newrepos = extract_repos(conf.export("dict"), cwd=cwd)
+        conf = ConfigReader._from_file(file)
+        newrepos = extract_repos(conf, cwd=cwd)
 
         if not repos:
             repos.extend(newrepos)
@@ -325,9 +322,9 @@ def in_dir(config_dir=None, extensions: list[str] = [".yml", ".yaml", ".json"]):
 
 def filter_repos(
     config: list[ConfigDict],
-    dir: Union[pathlib.Path, Literal["*"], None] = None,
-    vcs_url: Union[str, None] = None,
-    name: Union[str, None] = None,
+    dir: t.Union[pathlib.Path, t.Literal["*"], None] = None,
+    vcs_url: t.Union[str, None] = None,
+    name: t.Union[str, None] = None,
 ) -> list[ConfigDict]:
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
@@ -376,7 +373,7 @@ def filter_repos(
 
 
 def is_config_file(
-    filename: str, extensions: Union[list[str], str] = [".yml", ".yaml", ".json"]
+    filename: str, extensions: t.Union[list[str], str] = [".yml", ".yaml", ".json"]
 ):
     """Return True if file has a valid config file type.
 

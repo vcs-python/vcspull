@@ -5,13 +5,12 @@ import textwrap
 
 import pytest
 
-import kaptan
-
 from vcspull import config, exc
+from vcspull._internal.config_reader import ConfigReader
 from vcspull.config import expand_dir, extract_repos
 
 from .fixtures import example as fixtures
-from .helpers import EnvironmentVarGuard, import_raw, load_raw, write_config
+from .helpers import EnvironmentVarGuard, load_raw, write_config
 
 
 @pytest.fixture(scope="function")
@@ -30,8 +29,9 @@ def json_config(config_path: pathlib.Path):
 
 def test_dict_equals_yaml():
     # Verify that example YAML is returning expected dict format.
-    config = import_raw(
-        """\
+    config = ConfigReader._load(
+        format="yaml",
+        content="""\
             /home/me/myproject/study/:
               linux: git+git://git.kernel.org/linux/torvalds/linux.git
               freebsd: git+https://github.com/freebsd/freebsd.git
@@ -52,37 +52,32 @@ def test_dict_equals_yaml():
                 shell_command_after:
                   - ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf
             """,
-        format="yaml",
     )
-    assert fixtures.config_dict == config.export("dict")
+    assert fixtures.config_dict == config
 
 
 def test_export_json(tmp_path: pathlib.Path):
     json_config = tmp_path / ".vcspull.json"
-    json_config_file = str(json_config)
 
-    config = kaptan.Kaptan()
-    config.import_config(fixtures.config_dict)
+    config = ConfigReader(content=fixtures.config_dict)
 
-    json_config_data = config.export("json", indent=2)
+    json_config_data = config.dump("json", indent=2)
 
     json_config.write_text(json_config_data, encoding="utf-8")
 
-    new_config = kaptan.Kaptan().import_config(json_config_file).get()
+    new_config = ConfigReader._from_file(json_config)
     assert fixtures.config_dict == new_config
 
 
 def test_export_yaml(tmp_path: pathlib.Path):
     yaml_config = tmp_path / ".vcspull.yaml"
-    yaml_config_file = str(yaml_config)
 
-    config = kaptan.Kaptan()
-    config.import_config(fixtures.config_dict)
+    config = ConfigReader(content=fixtures.config_dict)
 
-    yaml_config_data = config.export("yaml", indent=2)
+    yaml_config_data = config.dump("yaml", indent=2)
     yaml_config.write_text(yaml_config_data, encoding="utf-8")
 
-    new_config = kaptan.Kaptan().import_config(yaml_config_file).get()
+    new_config = ConfigReader._from_file(yaml_config)
     assert fixtures.config_dict == new_config
 
 
