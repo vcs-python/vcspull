@@ -4,11 +4,10 @@ import typing as t
 
 import pytest
 
-import kaptan
-
 from libvcs._internal.shortcuts import create_project
 from libvcs.pytest_plugin import CreateProjectCallbackFixtureProtocol
 from libvcs.sync.git import GitRemote, GitSync
+from vcspull._internal.config_reader import ConfigReader
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
 from vcspull.types import ConfigDict
@@ -21,16 +20,15 @@ def test_makes_recursive(
     git_remote_repo: pathlib.Path,
 ):
     """Ensure that directories in pull are made recursively."""
-    conf = kaptan.Kaptan(handler="yaml")
-    conf.import_config(
-        textwrap.dedent(
+    conf = ConfigReader._load(
+        format="yaml",
+        content=textwrap.dedent(
             f"""
         {tmp_path}/study/myrepo:
             my_url: git+file://{git_remote_repo}
     """
-        )
+        ),
     )
-    conf = conf.export("dict")
     repos = extract_repos(conf)
     assert len(repos) > 0
 

@@ -11,10 +11,9 @@ import os
 import pathlib
 import typing as t
 
-import kaptan
-
 from libvcs._internal.types import StrPath
 from libvcs.sync.git import GitRemote
+from vcspull._internal.config_reader import ConfigReader
 
 from . import exc
 from .types import ConfigDict, RawConfigDict
@@ -241,9 +240,8 @@ def load_configs(files: list[StrPath], cwd=pathlib.Path.cwd()):
         if isinstance(file, str):
             file = pathlib.Path(file)
         assert isinstance(file, pathlib.Path)
-        ext = file.suffix.lstrip(".")
-        conf = kaptan.Kaptan(handler=ext).import_config(str(file))
-        newrepos = extract_repos(conf.export("dict"), cwd=cwd)
+        conf = ConfigReader._from_file(file)
+        newrepos = extract_repos(conf, cwd=cwd)
 
         if not repos:
             repos.extend(newrepos)
