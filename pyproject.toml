@@ -67,7 +67,7 @@ colorama = ">=0.3.9"
 ### Docs ###
 sphinx = "*"
 furo = "*"
-gp-libs = "0.0.1a12"
+gp-libs = "0.0.1a16"
 sphinx-autobuild = "*"
 sphinx-autodoc-typehints = "*"
 sphinx-click = "*"
