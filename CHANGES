@@ -22,6 +22,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 ### Internal
 
 - Move test fixtures over to libvcs's pytest plugin (#398)
+- Move conftest.py to root directory (#399)
 
 ## vcspull v1.13.0 (2022-09-25)
 

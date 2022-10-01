@@ -23,6 +23,10 @@ packages = [
 ]
 include = [
   { path = "tests", format = "sdist" },
+  { path = ".tmuxp.yaml", format = "sdist" },
+  { path = "docs", format = "sdist" },
+  { path = "examples", format = "sdist" },
+  { path = "conftest.py", format = "sdist" },
 ]
 readme = 'README.md'
 keywords = [
