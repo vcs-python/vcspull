@@ -19,6 +19,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - _Add your latest changes from PRs here_
 
+### Internal
+
+- Move test fixtures over to libvcs's pytest plugin (#398)
+
 ## vcspull v1.13.0 (2022-09-25)
 
 ### What's new
