@@ -7,8 +7,8 @@ import pytest
 import kaptan
 
 from libvcs._internal.shortcuts import create_project
+from libvcs.pytest_plugin import CreateProjectCallbackFixtureProtocol
 from libvcs.sync.git import GitRemote, GitSync
-from tests.conftest import DummyRepoProtocol
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
 from vcspull.types import ConfigDict
@@ -88,14 +88,14 @@ def write_config_remote(
 )
 def test_config_variations(
     tmp_path: pathlib.Path,
-    create_git_dummy_repo: DummyRepoProtocol,
+    create_git_remote_repo: CreateProjectCallbackFixtureProtocol,
     config_tpl: str,
     capsys: pytest.CaptureFixture[str],
     remote_list: t.List[str],
 ) -> None:
     """Test config output with variation of config formats"""
     dummy_repo_name = "dummy_repo"
-    dummy_repo = create_git_dummy_repo(dummy_repo_name)
+    dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
 
     config_file = write_config_remote(
         config_path=tmp_path / "myrepos.yaml",
@@ -157,17 +157,17 @@ def test_config_variations(
 )
 def test_updating_remote(
     tmp_path: pathlib.Path,
-    create_git_dummy_repo: DummyRepoProtocol,
+    create_git_remote_repo: CreateProjectCallbackFixtureProtocol,
     config_tpl: str,
     has_extra_remotes: bool,
 ) -> None:
     """Ensure additions/changes to yaml config are reflected"""
 
     dummy_repo_name = "dummy_repo"
-    dummy_repo = create_git_dummy_repo(dummy_repo_name)
+    dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
 
     mirror_name = "mirror_repo"
-    mirror_repo = create_git_dummy_repo(mirror_name)
+    mirror_repo = create_git_remote_repo(remote_repo_name=mirror_name)
 
     repo_parent = tmp_path / "study" / "myrepo"
     repo_parent.mkdir(parents=True)
