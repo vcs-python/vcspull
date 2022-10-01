@@ -76,14 +76,6 @@ def git_repo_kwargs(repos_path: pathlib.Path, git_dummy_repo_dir):
     }
 
 
-@pytest.fixture
-def git_repo(git_repo_kwargs) -> GitSync:
-    """Create an git repository for tests. Return repo."""
-    repo = create_project(vcs="git", **git_repo_kwargs)
-    repo.obtain(quiet=True)
-    return repo
-
-
 class DummyRepoProtocol(t.Protocol):
     """Callback for repo fixture factory."""
 
