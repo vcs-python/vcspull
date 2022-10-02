@@ -256,11 +256,12 @@ requires [`entr(1)`].
 
 ````{tab} Configuration
 
-See `[flake8]` in setup.cfg.
+See `[tool.mypy]` in pyproject.toml.
 
-```{literalinclude} ../setup.cfg
-:language: ini
-:start-at: "[mypy]"
+```{literalinclude} ../pyproject.toml
+:language: toml
+:start-at: "[tool.mypy]"
+:end-before: "[tool"
 
 ```
 
