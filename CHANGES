@@ -27,8 +27,6 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - Move from click to {mod}`argparse` (#400)
 
-  Click was more difficult to control and workwith, ironically.
-
 ### Packaging
 
 - Drop click dependency (#400)
