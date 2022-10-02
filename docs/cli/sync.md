@@ -4,6 +4,16 @@
 
 # vcspull sync
 
+## Command
+
+```{eval-rst}
+.. argparse::
+    :module: vcspull.cli
+    :func: create_parser
+    :prog: vcspull
+    :path: sync
+```
+
 ## Filtering repos
 
 As of 1.13.x, `$ vcspull sync` with no args passed will show a help dialog:
@@ -79,11 +89,4 @@ Print traceback for errored repos:
 
 ```console
 $ vcspull --log-level DEBUG sync --exit-on-error grako django
-```
-
-```{eval-rst}
-.. click:: vcspull.cli.sync:sync
-    :prog: vcspull sync
-    :commands: sync
-    :nested: full
 ```

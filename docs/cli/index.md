@@ -14,10 +14,3 @@ vcspull
 
 sync
 ```
-
-```{toctree}
-:caption: More
-:maxdepth: 1
-
-completion
-```
