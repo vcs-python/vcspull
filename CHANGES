@@ -15,15 +15,17 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 // Usage: vcspull@next sync [config]
 ```
 
-## vcspull v1.15.x (unreleased)
+## vcspull v1.16.x (unreleased)
 
 - _Add your latest changes from PRs here_
+
+## vcspull v1.15.0 (2022-10-02)
 
 **Maintenance release, no features or fixes**
 
 ### Internal
 
-- Move from click to :mod:{argparse}
+- Move from click to {mod}`argparse` (#400)
 
   Click was more difficult to control and workwith, ironically.
 
