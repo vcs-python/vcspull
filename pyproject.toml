@@ -73,6 +73,7 @@ sphinx-inline-tabs = "*"
 sphinxext-opengraph = "*"
 sphinx-copybutton = "*"
 sphinxext-rediraffe = "*"
+sphinx-argparse = "^0.3.1"
 myst_parser = "*"
 
 ### Testing ###
@@ -103,6 +104,7 @@ types-colorama = "*"
 [tool.poetry.extras]
 docs = [
   "sphinx",
+  "sphinx-argparse",
   "sphinx-autodoc-typehints",
   "sphinx-autobuild",
   "sphinxext-rediraffe",
@@ -125,9 +127,6 @@ lint = [
   "types-PyYAML",
   "types-colorama",
 ]
-
-[tool.poetry.group.dev.dependencies]
-sphinx-argparse = "^0.3.1"
 
 [tool.mypy]
 python_version = 3.9
