@@ -5,7 +5,12 @@
 # vcspull
 
 ```{eval-rst}
-.. click:: vcspull.cli:cli
-    :prog: Usage
-    :nested: none
+.. argparse::
+    :module: vcspull.cli
+    :func: create_parser
+    :prog: vcspull
+    :nosubcommands:
+
+    subparser_name : @replace
+        See :ref:`cli-sync`
 ```

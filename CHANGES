@@ -19,6 +19,18 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - _Add your latest changes from PRs here_
 
+**Maintenance release, no features or fixes**
+
+### Internal
+
+- Move from click to :mod:{argparse}
+
+  Click was more difficult to control and workwith, ironically.
+
+### Packaging
+
+- Drop click dependency (#400)
+
 ## vcspull v1.14.0 (2022-10-01)
 
 **Maintenance release, no features or fixes**
@@ -230,7 +242,7 @@ Patch branch: [`v1.12.x`](https://github.com/vcs-python/vcspull/tree/v1.12.x)
 
 ### Fix
 
-- Tab-completion for repository names and configurations
+- Tab-completion for repository names and configurations (retracted in v1.15)
 
 ## vcspull 1.11.1 (2022-03-12)
 
@@ -272,7 +284,7 @@ Patch branch: [`v1.12.x`](https://github.com/vcs-python/vcspull/tree/v1.12.x)
 
 ### Improvements
 
-- Experimental completion, see {ref}`completion`:
+- Experimental completion (retracted in v1.15):
 
   - Completion for sync:
 
@@ -281,7 +293,7 @@ Patch branch: [`v1.12.x`](https://github.com/vcs-python/vcspull/tree/v1.12.x)
 
 ### Documentation
 
-- Added {ref}`completion`:
+- Added completion:
 
 ## vcspull 1.9.0 (2022-02-26)
 

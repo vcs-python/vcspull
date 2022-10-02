@@ -4,39 +4,52 @@ vcspull.cli
 ~~~~~~~~~~~
 
 """
+import argparse
 import logging
-
-import click
 
 from libvcs.__about__ import __version__ as libvcs_version
 
 from ..__about__ import __version__
 from ..log import setup_logger
-from .sync import sync
+from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
 
 
-@click.group(
-    context_settings={
-        "obj": {},
-        "help_option_names": ["-h", "--help"],
-    }
-)
-@click.option(
-    "--log-level",
-    default="INFO",
-    help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
-)
-@click.version_option(
-    __version__,
-    "-V",
-    "--version",
-    message=f"%(prog)s %(version)s, libvcs {libvcs_version}",
-)
-def cli(log_level):
-    setup_logger(log=log, level=log_level.upper())
+def create_parser():
+    parser = argparse.ArgumentParser(prog="vcspull")
+    parser.add_argument(
+        "--version",
+        "-V",
+        action="version",
+        version=f"%(prog)s {__version__}, libvcs {libvcs_version}",
+    )
+    parser.add_argument(
+        "--log-level",
+        action="store",
+        default="INFO",
+        help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
+    subparsers = parser.add_subparsers(dest="subparser_name")
+    sync_parser = subparsers.add_parser("sync")
+    create_sync_subparser(sync_parser)
+
+    return parser
 
 
-# Register sub-commands here
-cli.add_command(sync)
+def cli(args=None):
+    parser = create_parser()
+    args = parser.parse_args(args)
+
+    setup_logger(log=log, level=args.log_level.upper())
+
+    if args.subparser_name is None:
+        parser.print_help()
+        return
+    elif args.subparser_name == "sync":
+        sync(
+            repo_terms=args.repo_terms,
+            config=args.config,
+            exit_on_error=args.exit_on_error,
+            parser=parser,
+        )

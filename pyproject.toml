@@ -59,7 +59,6 @@ vcspull = 'vcspull:cli.cli'
 
 [tool.poetry.dependencies]
 python = "^3.9"
-click = "~8"
 libvcs = "~0.17.0"
 colorama = ">=0.3.9"
 
@@ -70,7 +69,6 @@ furo = "*"
 gp-libs = "0.0.1a16"
 sphinx-autobuild = "*"
 sphinx-autodoc-typehints = "*"
-sphinx-click = "*"
 sphinx-inline-tabs = "*"
 sphinxext-opengraph = "*"
 sphinx-copybutton = "*"
@@ -105,7 +103,6 @@ types-colorama = "*"
 [tool.poetry.extras]
 docs = [
   "sphinx",
-  "sphinx-click",
   "sphinx-autodoc-typehints",
   "sphinx-autobuild",
   "sphinxext-rediraffe",
@@ -128,6 +125,9 @@ lint = [
   "types-PyYAML",
   "types-colorama",
 ]
+
+[tool.poetry.group.dev.dependencies]
+sphinx-argparse = "^0.3.1"
 
 [tool.mypy]
 python_version = 3.9
