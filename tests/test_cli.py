@@ -125,7 +125,7 @@ SYNC_REPO_FIXTURES = [
         test_id="empty",
         sync_args=[],
         expected_exit_code=0,
-        expected_in_out=["options:", "positional arguments:"],
+        expected_in_out=["{sync", "positional arguments:"],
     ),
     # Version
     SyncFixture(
@@ -145,13 +145,13 @@ SYNC_REPO_FIXTURES = [
         test_id="--help",
         sync_args=["--help"],
         expected_exit_code=0,
-        expected_in_out=["options:", "positional arguments:"],
+        expected_in_out=["{sync", "positional arguments:"],
     ),
     SyncFixture(
         test_id="-h",
         sync_args=["-h"],
         expected_exit_code=0,
-        expected_in_out=["options:", "positional arguments:"],
+        expected_in_out=["{sync", "positional arguments:"],
     ),
     # Sync
     SyncFixture(
@@ -168,14 +168,14 @@ SYNC_REPO_FIXTURES = [
         test_id="sync---help",
         sync_args=["sync", "--help"],
         expected_exit_code=0,
-        expected_in_out=["options:", "repo_terms", "--exit-on-error"],
+        expected_in_out=["repo_terms", "--exit-on-error"],
         expected_not_in_out="--version",
     ),
     SyncFixture(
         test_id="sync--h",
         sync_args=["sync", "-h"],
         expected_exit_code=0,
-        expected_in_out=["options:", "repo_terms", "--exit-on-error"],
+        expected_in_out=["repo_terms", "--exit-on-error"],
         expected_not_in_out="--version",
     ),
     # Sync: Repo terms
