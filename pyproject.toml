@@ -126,6 +126,9 @@ lint = [
   "types-colorama",
 ]
 
+[tool.poetry.group.dev.dependencies]
+sphinx-argparse = "^0.3.1"
+
 [tool.mypy]
 python_version = 3.9
 warn_unused_configs = true
