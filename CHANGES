@@ -19,6 +19,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - _Add your latest changes from PRs here_
 
+## vcspull v1.15.2 (unreleased)
+
+### Packaging
+
+- Add missing pyyaml dependency (needed after #397's transition to `ConfigReader`)
+
 ## vcspull v1.15.1 (2022-10-02)
 
 ### Bug fix
