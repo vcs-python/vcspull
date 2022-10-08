@@ -35,5 +35,6 @@ configuration/index
 api
 developing
 history
+migration
 GitHub <https://github.com/vcs-python/vcspull>
 ```
