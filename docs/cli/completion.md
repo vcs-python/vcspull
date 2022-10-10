@@ -12,7 +12,7 @@
 See the [shtab library's documentation on shell completion](https://docs.iterative.ai/shtab/use/#cli-usage) for the most up to date way of connecting completion for vcspull.
 ```
 
-Provisional support for completions in vcspull 1.17+ are powered by [shtab](https://docs.iterative.ai/shtab/). This must be **installed separately**, as it's **not currently bundled with vcspull**.
+Provisional support for completions in vcspull 1.15+ are powered by [shtab](https://docs.iterative.ai/shtab/). This must be **installed separately**, as it's **not currently bundled with vcspull**.
 
 ```console
 $ pip install shtab --user
@@ -51,7 +51,7 @@ shtab --shell=tcsh -u vcspull.cli.create_parser \
 See the [click library's documentation on shell completion](https://click.palletsprojects.com/en/8.0.x/shell-completion/) for the most up to date way of connecting completion for vcspull.
 ```
 
-vcspull 0.1 to 1.14 use [click](https://click.palletsprojects.com)'s completion:
+vcspull 0.9 to 1.14 use [click](https://click.palletsprojects.com)'s completion:
 
 :::{tab} bash
 
