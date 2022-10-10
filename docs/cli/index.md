@@ -9,6 +9,13 @@
 sync
 ```
 
+```{toctree}
+:caption: Completion
+:maxdepth: 1
+
+completion
+```
+
 (cli-main)=
 
 (vcspull-main)=

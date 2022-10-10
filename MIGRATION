@@ -21,7 +21,20 @@ well.
 
 ## Next release
 
-_Add migration notes here_
+_Notes on the upcoming release will be added here_
+
+<!-- Maintainers, insert changes / features for the next release here -->
+
+## vcspull 1.15.0 (2022-10-09)
+
+**Completions have changed** (#400)
+
+Completions now use a different tool: [shtab]. See the [completions page] for more information.
+
+If you were using earlier versions of vcspull (earlier than 1.15.0), you may need to uninstall the old completions, first.
+
+[completions page]: https://vcspull.git-pull.com/cli/completion.html
+[shtab]: https://docs.iterative.ai/shtab/
 
 <!---
 # vim: set filetype=markdown:
