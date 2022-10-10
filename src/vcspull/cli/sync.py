@@ -21,18 +21,18 @@ NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-    parser.add_argument("--config", "-c", help="Specify config")
+    parser.add_argument("--config", "-c", help="specify config")
     parser.add_argument(
         "repo_terms",
         nargs="+",
-        help="Filters of repo terms, separated by spaces, supports globs / fnmatch (1)",
+        help="filters: repo terms, separated by spaces, supports globs / fnmatch (1)",
     )
     parser.add_argument(
         "--exit-on-error",
         "-x",
         action="store_true",
         dest="exit_on_error",
-        help="Exit immediately when encountering an error syncing multiple repos",
+        help="exit immediately when encountering an error syncing multiple repos",
     )
     return parser
 

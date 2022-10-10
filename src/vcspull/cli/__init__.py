@@ -28,10 +28,10 @@ def create_parser():
         "--log-level",
         action="store",
         default="INFO",
-        help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        help="log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     )
     subparsers = parser.add_subparsers(dest="subparser_name")
-    sync_parser = subparsers.add_parser("sync")
+    sync_parser = subparsers.add_parser("sync", help="synchronize repos")
     create_sync_subparser(sync_parser)
 
     return parser
