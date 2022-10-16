@@ -21,7 +21,7 @@ NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-    parser.add_argument("--config", "-c", help="specify config")
+    config_file = parser.add_argument("--config", "-c", help="specify config")
     parser.add_argument(
         "repo_terms",
         nargs="+",
@@ -34,6 +34,12 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         dest="exit_on_error",
         help="exit immediately when encountering an error syncing multiple repos",
     )
+    try:
+        import shtab
+
+        config_file.complete = shtab.FILE  # type: ignore
+    except ImportError:
+        pass
     return parser
 
 
