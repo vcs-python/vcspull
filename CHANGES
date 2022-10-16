@@ -21,6 +21,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Internal
+
+- `sync()`: Rename `repo_terms` to `repo_patterns` (#406)
+
 ## vcspull v1.15.8 (2022-10-16)
 
 ### CLI
