@@ -28,6 +28,7 @@ completion
     :func: create_parser
     :prog: vcspull
     :nosubcommands:
+    :nodescription:
 
     subparser_name : @replace
         See :ref:`cli-sync`

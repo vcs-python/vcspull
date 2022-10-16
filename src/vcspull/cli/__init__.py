@@ -30,7 +30,7 @@ SYNC_DESCRIPTION = textwrap.dedent(
 ).strip()
 
 
-def create_parser():
+def create_parser(return_subparsers: bool = False):
     parser = argparse.ArgumentParser(
         prog="vcspull",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -59,11 +59,13 @@ def create_parser():
     )
     create_sync_subparser(sync_parser)
 
-    return parser, sync_parser
+    if return_subparsers:
+        return parser, sync_parser
+    return parser
 
 
 def cli(args=None):
-    parser, sync_parser = create_parser()
+    parser, sync_parser = create_parser(return_subparsers=True)
     args = parser.parse_args(args)
 
     setup_logger(log=log, level=args.log_level.upper())

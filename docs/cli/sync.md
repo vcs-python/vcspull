@@ -12,6 +12,7 @@
     :func: create_parser
     :prog: vcspull
     :path: sync
+    :nodescription:
 ```
 
 ## Filtering repos
