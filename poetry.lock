@@ -857,7 +857,7 @@ python-versions = ">= 3.7"
 
 [[package]]
 name = "types-colorama"
-version = "0.4.15"
+version = "0.4.15.1"
 description = "Typing stubs for colorama"
 category = "dev"
 optional = false
@@ -1394,8 +1394,8 @@ tornado = [
     {file = "tornado-6.2.tar.gz", hash = "sha256:9b630419bde84ec666bfd7ea0a4cb2a8a651c2d5cccdbdd1972a0c859dfc3c13"},
 ]
 types-colorama = [
-    {file = "types-colorama-0.4.15.tar.gz", hash = "sha256:fd128b1e32f3fecec5f09df4366d21498ee86ea31fcf8b4e8f1ade6d0bbf9832"},
-    {file = "types_colorama-0.4.15-py3-none-any.whl", hash = "sha256:9cdc88dcde9e8ebafb2fdfaf5cee260452f93e5c57eb5d8b2a7f65b836d4e5d0"},
+    {file = "types-colorama-0.4.15.1.tar.gz", hash = "sha256:bc43687a0bf3f42115a56400bd53c618592cc611e66ff57d5cc95024cb44fb1a"},
+    {file = "types_colorama-0.4.15.1-py3-none-any.whl", hash = "sha256:f35f0fc7b4e16d25cbd801b1f6e9d2123674d2561227624d0d7c5f97fac9a901"},
 ]
 types-PyYAML = [
     {file = "types-PyYAML-6.0.12.tar.gz", hash = "sha256:f6f350418125872f3f0409d96a62a5a5ceb45231af5cc07ee0034ec48a3c82fa"},
