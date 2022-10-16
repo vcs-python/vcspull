@@ -59,7 +59,7 @@ SYNC_CLI_EXISTENT_REPO_FIXTURES = [
     SYNC_CLI_EXISTENT_REPO_FIXTURES,
     ids=[test.test_id for test in SYNC_CLI_EXISTENT_REPO_FIXTURES],
 )
-def test_sync_cli_repo_term_non_existent(
+def test_sync_cli_filter_non_existent(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
@@ -158,9 +158,7 @@ SYNC_REPO_FIXTURES = [
         test_id="sync--empty",
         sync_args=["sync"],
         expected_exit_code=1,
-        expected_in_out=(
-            "sync: error: the following arguments are required: repo_terms"
-        ),
+        expected_in_out=("sync: error: the following arguments are required: filter"),
         expected_not_in_out="positional arguments:",
     ),
     # Sync: Help
@@ -168,14 +166,14 @@ SYNC_REPO_FIXTURES = [
         test_id="sync---help",
         sync_args=["sync", "--help"],
         expected_exit_code=0,
-        expected_in_out=["repo_terms", "--exit-on-error"],
+        expected_in_out=["filter", "--exit-on-error"],
         expected_not_in_out="--version",
     ),
     SyncFixture(
         test_id="sync--h",
         sync_args=["sync", "-h"],
         expected_exit_code=0,
-        expected_in_out=["repo_terms", "--exit-on-error"],
+        expected_in_out=["filter", "--exit-on-error"],
         expected_not_in_out="--version",
     ),
     # Sync: Repo terms
