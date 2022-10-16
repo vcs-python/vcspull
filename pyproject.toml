@@ -106,7 +106,7 @@ types-PyYAML = "*"
 types-colorama = "*"
 
 ### Quirks ###
-importlib-metadata = "<5"  # https://github.com/PyCQA/flake8/issues/1701
+importlib-metadata = "<5" # https://github.com/PyCQA/flake8/issues/1701
 
 [tool.poetry.extras]
 docs = [
@@ -138,6 +138,12 @@ lint = [
 [tool.mypy]
 python_version = 3.9
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "shtab",
+]
+ignore_missing_imports = true
 
 [tool.coverage.run]
 branch = true
