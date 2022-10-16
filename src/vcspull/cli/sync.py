@@ -38,7 +38,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         "-x",
         action="store_true",
         dest="exit_on_error",
-        help="exit immediately when encountering an error syncing multiple repos",
+        help="exit immediately encountering error (when syncing multiple repos)",
     )
     try:
         import shtab
