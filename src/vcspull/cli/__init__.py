@@ -23,14 +23,14 @@ def create_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent(
             """
-            sync vcspull repos
+            sync vcs repos
 
             examples:
               vcspull sync "*"
               vcspull sync "django-*"
               vcspull sync "django-*" flask
-              vcspull sync -c "myrepos.yaml" "*"
-              vcspull sync -c "myrepos.yaml" myproject
+              vcspull sync -c ./myrepos.yaml "*"
+              vcspull sync -c ./myrepos.yaml myproject
         """
         ).strip(),
     )
