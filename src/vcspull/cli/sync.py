@@ -24,7 +24,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
     config_file = parser.add_argument("--config", "-c", help="specify config")
     parser.add_argument(
         "repo_terms",
-        nargs="+",
+        nargs="*",
         help="filters: repo terms, separated by spaces, supports globs / fnmatch (1)",
     )
     parser.add_argument(
@@ -34,6 +34,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         dest="exit_on_error",
         help="exit immediately when encountering an error syncing multiple repos",
     )
+
     try:
         import shtab
 
@@ -51,6 +52,11 @@ def sync(
         argparse.ArgumentParser
     ] = None,  # optional so sync can be unit tested
 ) -> None:
+    if isinstance(repo_terms, list) and len(repo_terms) == 0:
+        if parser is not None:
+            parser.print_help()
+        sys.exit(2)
+
     if config:
         configs = load_configs([config])
     else:

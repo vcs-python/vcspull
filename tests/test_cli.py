@@ -157,11 +157,8 @@ SYNC_REPO_FIXTURES = [
     SyncFixture(
         test_id="sync--empty",
         sync_args=["sync"],
-        expected_exit_code=1,
-        expected_in_out=(
-            "sync: error: the following arguments are required: repo_terms"
-        ),
-        expected_not_in_out="positional arguments:",
+        expected_exit_code=0,
+        expected_in_out=["positional arguments:"],
     ),
     # Sync: Help
     SyncFixture(

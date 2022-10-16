@@ -21,6 +21,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull v1.15.5 (unreleased)
+
+### CLI
+
+- `vcspull sync`: Fix showing of help when no arguments passed (#405)
+
 ## vcspull v1.15.4 (2022-10-16)
 
 ### CLI
