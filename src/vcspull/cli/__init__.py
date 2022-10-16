@@ -6,6 +6,7 @@ vcspull.cli
 """
 import argparse
 import logging
+import textwrap
 
 from libvcs.__about__ import __version__ as libvcs_version
 
@@ -17,7 +18,22 @@ log = logging.getLogger(__name__)
 
 
 def create_parser():
-    parser = argparse.ArgumentParser(prog="vcspull")
+    parser = argparse.ArgumentParser(
+        prog="vcspull",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=textwrap.dedent(
+            """
+            sync vcspull repos
+
+            examples:
+              vcspull sync "*"
+              vcspull sync "django-*"
+              vcspull sync "django-*" flask
+              vcspull sync -c "myrepos.yaml" "*"
+              vcspull sync -c "myrepos.yaml" myproject
+        """
+        ).strip(),
+    )
     parser.add_argument(
         "--version",
         "-V",
