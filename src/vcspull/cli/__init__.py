@@ -42,9 +42,10 @@ def create_parser():
     )
     parser.add_argument(
         "--log-level",
+        metavar="level",
         action="store",
         default="INFO",
-        help="log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        help="log level (debug, info, warning, error, critical)",
     )
 
     subparsers = parser.add_subparsers(dest="subparser_name")
