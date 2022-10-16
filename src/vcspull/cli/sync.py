@@ -28,7 +28,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         help="optional filepath to specify vcspull config",
     )
     parser.add_argument(
-        "repo_terms",
+        "repo_patterns",
         metavar="filter",
         nargs="*",
         help="patterns / terms of repos, accepts globs / fnmatch(3)",
@@ -51,14 +51,14 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
 
 
 def sync(
-    repo_terms,
+    repo_patterns,
     config,
     exit_on_error: bool,
     parser: t.Optional[
         argparse.ArgumentParser
     ] = None,  # optional so sync can be unit tested
 ) -> None:
-    if isinstance(repo_terms, list) and len(repo_terms) == 0:
+    if isinstance(repo_patterns, list) and len(repo_patterns) == 0:
         if parser is not None:
             parser.print_help()
         sys.exit(2)
@@ -69,14 +69,14 @@ def sync(
         configs = load_configs(find_config_files(include_home=True))
     found_repos = []
 
-    for repo_term in repo_terms:
+    for repo_pattern in repo_patterns:
         dir, vcs_url, name = None, None, None
-        if any(repo_term.startswith(n) for n in ["./", "/", "~", "$HOME"]):
-            dir = repo_term
-        elif any(repo_term.startswith(n) for n in ["http", "git", "svn", "hg"]):
-            vcs_url = repo_term
+        if any(repo_pattern.startswith(n) for n in ["./", "/", "~", "$HOME"]):
+            dir = repo_pattern
+        elif any(repo_pattern.startswith(n) for n in ["http", "git", "svn", "hg"]):
+            vcs_url = repo_pattern
         else:
-            name = repo_term
+            name = repo_pattern
 
         # collect the repos from the config files
         found = filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name)
