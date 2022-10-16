@@ -48,7 +48,7 @@ def cli(args=None):
         return
     elif args.subparser_name == "sync":
         sync(
-            repo_pattern=args.repo_pattern,
+            repo_terms=args.repo_terms,
             config=args.config,
             exit_on_error=args.exit_on_error,
             parser=parser,

@@ -21,24 +21,18 @@ NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-    config_file = parser.add_argument(
-        "--config",
-        "-c",
-        metavar="config-file",
-        help="optional filepath to specify vcspull config",
-    )
+    config_file = parser.add_argument("--config", "-c", help="specify config")
     parser.add_argument(
-        "repo_pattern",
-        metavar="filter",
+        "repo_terms",
         nargs="+",
-        help="patterns / terms of repos, accepts globs / fnmatch(3)",
+        help="filters: repo terms, separated by spaces, supports globs / fnmatch (1)",
     )
     parser.add_argument(
         "--exit-on-error",
         "-x",
         action="store_true",
         dest="exit_on_error",
-        help="exit immediately encountering error (when syncing multiple repos)",
+        help="exit immediately when encountering an error syncing multiple repos",
     )
     try:
         import shtab
@@ -50,7 +44,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
 
 
 def sync(
-    repo_pattern,
+    repo_terms,
     config,
     exit_on_error: bool,
     parser: t.Optional[
@@ -63,14 +57,14 @@ def sync(
         configs = load_configs(find_config_files(include_home=True))
     found_repos = []
 
-    for repo_pattern in repo_pattern:
+    for repo_term in repo_terms:
         dir, vcs_url, name = None, None, None
-        if any(repo_pattern.startswith(n) for n in ["./", "/", "~", "$HOME"]):
-            dir = repo_pattern
-        elif any(repo_pattern.startswith(n) for n in ["http", "git", "svn", "hg"]):
-            vcs_url = repo_pattern
+        if any(repo_term.startswith(n) for n in ["./", "/", "~", "$HOME"]):
+            dir = repo_term
+        elif any(repo_term.startswith(n) for n in ["http", "git", "svn", "hg"]):
+            vcs_url = repo_term
         else:
-            name = repo_pattern
+            name = repo_term
 
         # collect the repos from the config files
         found = filter_repos(configs, dir=dir, vcs_url=vcs_url, name=name)
