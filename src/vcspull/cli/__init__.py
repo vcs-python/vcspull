@@ -16,23 +16,25 @@ from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
 
+SYNC_DESCRIPTION = textwrap.dedent(
+    """
+    sync vcs repos
+
+    examples:
+      vcspull sync "*"
+      vcspull sync "django-*"
+      vcspull sync "django-*" flask
+      vcspull sync -c ./myrepos.yaml "*"
+      vcspull sync -c ./myrepos.yaml myproject
+"""
+).strip()
+
 
 def create_parser():
     parser = argparse.ArgumentParser(
         prog="vcspull",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=textwrap.dedent(
-            """
-            sync vcs repos
-
-            examples:
-              vcspull sync "*"
-              vcspull sync "django-*"
-              vcspull sync "django-*" flask
-              vcspull sync -c ./myrepos.yaml "*"
-              vcspull sync -c ./myrepos.yaml myproject
-        """
-        ).strip(),
+        description=SYNC_DESCRIPTION,
     )
     parser.add_argument(
         "--version",
@@ -49,14 +51,19 @@ def create_parser():
     )
 
     subparsers = parser.add_subparsers(dest="subparser_name")
-    sync_parser = subparsers.add_parser("sync", help="synchronize repos")
+    sync_parser = subparsers.add_parser(
+        "sync",
+        help="synchronize repos",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=SYNC_DESCRIPTION,
+    )
     create_sync_subparser(sync_parser)
 
-    return parser
+    return parser, sync_parser
 
 
 def cli(args=None):
-    parser = create_parser()
+    parser, sync_parser = create_parser()
     args = parser.parse_args(args)
 
     setup_logger(log=log, level=args.log_level.upper())
@@ -69,5 +76,5 @@ def cli(args=None):
             repo_terms=args.repo_terms,
             config=args.config,
             exit_on_error=args.exit_on_error,
-            parser=parser,
+            parser=sync_parser,
         )
