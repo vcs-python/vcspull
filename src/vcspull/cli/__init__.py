@@ -30,6 +30,7 @@ def create_parser():
         default="INFO",
         help="log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     )
+
     subparsers = parser.add_subparsers(dest="subparser_name")
     sync_parser = subparsers.add_parser("sync", help="synchronize repos")
     create_sync_subparser(sync_parser)
