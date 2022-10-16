@@ -21,6 +21,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull v1.15.7 (unreleased)
+
+### CLI
+
+- `vcspull` and `vcspull sync` Copy updates and metavar updates (#404)
+
 ## vcspull v1.15.6 (2022-10-16)
 
 ### CLI
