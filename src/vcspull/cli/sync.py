@@ -29,8 +29,9 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
     )
     parser.add_argument(
         "repo_terms",
+        metavar="filter",
         nargs="*",
-        help="filter(s) of repo terms, separated by spaces, accepts globs / fnmatch(3)",
+        help="patterns / terms of repos, accepts globs / fnmatch(3)",
     )
     parser.add_argument(
         "--exit-on-error",
