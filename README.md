@@ -94,7 +94,7 @@ or svn project with a git dependency:
 Clone / update repos via config file:
 
 ```console
-$ vcspull sync -c external_deps.yaml
+$ vcspull sync -c external_deps.yaml '*'
 ```
 
 See the [Quickstart](https://vcspull.git-pull.com/quickstart.html) for
