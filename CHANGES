@@ -21,6 +21,29 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull v1.15.4 (unreleased)
+
+### CLI
+
+- File completions for `-c` / `--config` files (#403)
+
+  After updating, you can re-run [shtab]'s setup (see [completions page]) completion of:
+
+  ```console
+  $ vcspull sync -c [tab]
+  ```
+
+  ```console
+  $ vcspull sync --config [tab]
+  ```
+
+[completions page]: https://vcspull.git-pull.com/cli/completion.html
+[shtab]: https://docs.iterative.ai/shtab/
+
+### Documentation
+
+- Fix readme example for syncing repositories
+
 ## vcspull v1.15.3 (2022-10-09)
 
 ### Documentation

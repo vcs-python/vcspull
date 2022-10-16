@@ -25,9 +25,27 @@ _Notes on the upcoming release will be added here_
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull 1.15.4 (unreleased)
+
+### Completions for `-c` / `--config` files
+
+_via #403_
+
+After updating, you can re-run [shtab]'s setup (see [completions page]) completion of:
+
+```console
+$ vcspull sync -c [tab]
+```
+
+```console
+$ vcspull sync --config [tab]
+```
+
 ## vcspull 1.15.0 (2022-10-09)
 
-**Completions have changed** (#400)
+### Completions have changed
+
+_via #400_
 
 Completions now use a different tool: [shtab]. See the [completions page] for more information.
 
@@ -35,6 +53,64 @@ If you were using earlier versions of vcspull (earlier than 1.15.0), you may nee
 
 [completions page]: https://vcspull.git-pull.com/cli/completion.html
 [shtab]: https://docs.iterative.ai/shtab/
+
+## vcspull v1.13.0 (2022-09-25)
+
+### Pulling all repositories
+
+_via #394_
+
+Empty command will now show help output
+
+```console
+$ vcspull sync
+Usage: vcspull sync [OPTIONS] [REPO_TERMS]...
+
+Options:
+-c, --config PATH Specify config
+-x, --exit-on-error Exit immediately when encountering an error syncing
+multiple repos
+-h, --help Show this message and exit.
+```
+
+To achieve the equivalent behavior of syncing all repos, pass `'*'`:
+
+```console
+$ vcspull sync '*'
+```
+
+Depending on how shell escaping works in your shell setup with [wild card / asterisk], you may not need to quote `*`.
+
+[wild card / asterisk]: https://tldp.org/LDP/abs/html/special-chars.html#:~:text=wild%20card%20%5Basterisk%5D.
+
+### Terms with no match in config will show a notice
+
+_via #394_
+
+> No repo found in config(s) for "non_existent_repo"
+
+- Syncing will now skip to the next repos if an error is encountered
+
+- Learned `--exit-on-error` / `-x`
+
+Usage:
+
+```console
+$ vcspull sync --exit-on-error grako django
+```
+
+Print traceback for errored repos:
+
+```console
+$ vcspull --log-level DEBUG sync --exit-on-error grako django
+```
+
+### Untracked files
+
+_via https://github.com/vcs-python/libvcs/pull/425_
+
+Syncing in git repositories with untracked files has been improved (via libvcs
+0.17)
 
 <!---
 # vim: set filetype=markdown:
