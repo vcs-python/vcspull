@@ -24,6 +24,9 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 ### Internal
 
 - `sync()`: Rename `repo_terms` to `repo_patterns` (#406)
+- Bump libvcs 0.17.0 to 0.18.1
+
+  - 0.18.0 includes support for URL Matcher weights
 
 ## vcspull v1.15.8 (2022-10-16)
 
