@@ -275,14 +275,14 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "libvcs"
-version = "0.17.0"
+version = "0.18.1"
 description = "Lite, typed, python utilities for Git, SVN, Mercurial, etc."
 category = "main"
 optional = false
 python-versions = ">=3.9,<4.0"
 
 [package.dependencies]
-typing-extensions = {version = ">=4.1.1,<5.0.0", markers = "python_version == \"3.10\""}
+typing-extensions = {version = "*", markers = "python_version == \"3.10\""}
 
 [[package]]
 name = "livereload"
@@ -944,7 +944,7 @@ test = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "78ed850b17d706a251545aa1f7cb8aa35fadee57b09e7cd7858a5f4032c7ee21"
+content-hash = "5968e4ca0807027f438751d44bb8fd0a3980e12199553396bef73340c2fa34ac"
 
 [metadata.files]
 alabaster = [
@@ -1107,8 +1107,8 @@ Jinja2 = [
     {file = "Jinja2-3.1.2.tar.gz", hash = "sha256:31351a702a408a9e7595a8fc6150fc3f43bb6bf7e319770cbc0db9df9437e852"},
 ]
 libvcs = [
-    {file = "libvcs-0.17.0-py3-none-any.whl", hash = "sha256:c06ddfcd90d6b3ce80557bbaf91ee943dfbab51e00829be828c145032b78cac0"},
-    {file = "libvcs-0.17.0.tar.gz", hash = "sha256:f3ca617a688287d623a803da4e3e2fac4a4382aa7f62d3d246a669de14065660"},
+    {file = "libvcs-0.18.1-py3-none-any.whl", hash = "sha256:bf1e8f6e4c0d66ccd20bce5fc2f044db9520dc32aea25df3f68becabc0513577"},
+    {file = "libvcs-0.18.1.tar.gz", hash = "sha256:84302304df69356678408c148dd1dda3f752cebc09a21fe4f47a59d9a3c7ae46"},
 ]
 livereload = [
     {file = "livereload-2.6.3.tar.gz", hash = "sha256:776f2f865e59fde56490a56bcc6773b6917366bce0c267c60ee8aaf1a0959869"},
