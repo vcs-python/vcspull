@@ -15,11 +15,19 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 // Usage: vcspull@next sync [config]
 ```
 
-## vcspull v1.18.x (unreleased)
+## vcspull v1.19.x (unreleased)
 
 - _Notes on upcoming releases will be added here_
 
 <!-- Maintainers, insert changes / features for the next release here -->
+
+## vcspull v1.18.0 (2022-10-31)
+
+### Python 3.11 support (#409)
+
+- Bump libvcs 0.19.1 -> 0.20.0
+
+  Adds python 3.11 support
 
 ## vcspull v1.17.1 (2022-10-23)
 
