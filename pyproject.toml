@@ -139,6 +139,10 @@ lint = [
 [tool.mypy]
 python_version = 3.9
 warn_unused_configs = true
+files = [
+  "src",
+  "tests"
+]
 
 [[tool.mypy.overrides]]
 module = [
