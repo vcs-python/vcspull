@@ -8,26 +8,27 @@ import pytest
 from vcspull import config, exc
 from vcspull._internal.config_reader import ConfigReader
 from vcspull.config import expand_dir, extract_repos
+from vcspull.validator import is_valid_config
 
 from .fixtures import example as fixtures
 from .helpers import EnvironmentVarGuard, load_raw, write_config
 
 
 @pytest.fixture(scope="function")
-def yaml_config(config_path: pathlib.Path):
+def yaml_config(config_path: pathlib.Path) -> pathlib.Path:
     yaml_file = config_path / "repos1.yaml"
     yaml_file.touch()
     return yaml_file
 
 
 @pytest.fixture(scope="function")
-def json_config(config_path: pathlib.Path):
+def json_config(config_path: pathlib.Path) -> pathlib.Path:
     json_file = config_path / "repos2.json"
     json_file.touch()
     return json_file
 
 
-def test_dict_equals_yaml():
+def test_dict_equals_yaml() -> None:
     # Verify that example YAML is returning expected dict format.
     config = ConfigReader._load(
         format="yaml",
@@ -56,7 +57,7 @@ def test_dict_equals_yaml():
     assert fixtures.config_dict == config
 
 
-def test_export_json(tmp_path: pathlib.Path):
+def test_export_json(tmp_path: pathlib.Path) -> None:
     json_config = tmp_path / ".vcspull.json"
 
     config = ConfigReader(content=fixtures.config_dict)
@@ -69,7 +70,7 @@ def test_export_json(tmp_path: pathlib.Path):
     assert fixtures.config_dict == new_config
 
 
-def test_export_yaml(tmp_path: pathlib.Path):
+def test_export_yaml(tmp_path: pathlib.Path) -> None:
     yaml_config = tmp_path / ".vcspull.yaml"
 
     config = ConfigReader(content=fixtures.config_dict)
@@ -81,7 +82,7 @@ def test_export_yaml(tmp_path: pathlib.Path):
     assert fixtures.config_dict == new_config
 
 
-def test_scan_config(tmp_path: pathlib.Path):
+def test_scan_config(tmp_path: pathlib.Path) -> None:
     config_files = []
 
     exists = os.path.exists
@@ -106,14 +107,15 @@ def test_scan_config(tmp_path: pathlib.Path):
     assert len(config_files) == files
 
 
-def test_expand_shell_command_after():
+def test_expand_shell_command_after() -> None:
     # Expand shell commands from string to list.
+    assert is_valid_config(fixtures.config_dict)
     config = extract_repos(fixtures.config_dict)
 
     assert config, fixtures.config_dict_expanded
 
 
-def test_expandenv_and_homevars():
+def test_expandenv_and_homevars() -> None:
     # Assure ~ tildes and environment template vars expand.
     config1 = load_raw(
         """\
@@ -155,20 +157,23 @@ def test_expandenv_and_homevars():
         format="json",
     )
 
+    assert is_valid_config(config1)
+    assert is_valid_config(config2)
+
     config1_expanded = extract_repos(config1)
     config2_expanded = extract_repos(config2)
 
     paths = [r["dir"].parent for r in config1_expanded]
-    assert expand_dir("${HOME}/github_projects/") in paths
-    assert expand_dir("~/study/") in paths
-    assert expand_dir("~") in paths
+    assert expand_dir(pathlib.Path("${HOME}/github_projects/")) in paths
+    assert expand_dir(pathlib.Path("~/study/")) in paths
+    assert expand_dir(pathlib.Path("~")) in paths
 
     paths = [r["dir"].parent for r in config2_expanded]
-    assert expand_dir("${HOME}/github_projects/") in paths
-    assert expand_dir("~/study/") in paths
+    assert expand_dir(pathlib.Path("${HOME}/github_projects/")) in paths
+    assert expand_dir(pathlib.Path("~/study/")) in paths
 
 
-def test_find_config_files(tmp_path: pathlib.Path):
+def test_find_config_files(tmp_path: pathlib.Path) -> None:
     # Test find_config_files in home directory.
 
     pull_config = tmp_path / ".vcspull.yaml"
@@ -182,7 +187,7 @@ def test_find_config_files(tmp_path: pathlib.Path):
         assert expected_in in results
 
 
-def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path):
+def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path) -> None:
     json_conf_file = tmp_path / ".vcspull.json"
     json_conf_file.touch()
     yaml_conf_file = tmp_path / ".vcspull.yaml"
@@ -199,23 +204,27 @@ def test_in_dir(
     config_path: pathlib.Path,
     yaml_config: pathlib.Path,
     json_config: pathlib.Path,
-):
+) -> None:
     expected = [yaml_config.stem, json_config.stem]
-    result = config.in_dir(str(config_path))
+    result = config.in_dir(config_path)
 
     assert len(expected) == len(result)
 
 
 def test_find_config_path_string(
     config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
-):
+) -> None:
     config_files = config.find_config_files(path=config_path)
 
     assert yaml_config in config_files
     assert json_config in config_files
 
 
-def test_find_config_path_list(config_path, yaml_config, json_config):
+def test_find_config_path_list(
+    config_path: pathlib.Path,
+    yaml_config: pathlib.Path,
+    json_config: pathlib.Path,
+) -> None:
     config_files = config.find_config_files(path=[config_path])
 
     assert yaml_config in config_files
@@ -227,7 +236,7 @@ def test_find_config_match_string(
     yaml_config: pathlib.Path,
     json_config: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-):
+) -> None:
     config_files = config.find_config_files(path=config_path, match=yaml_config.stem)
     assert yaml_config in config_files
     assert json_config not in config_files
@@ -254,7 +263,11 @@ def test_find_config_match_string(
     assert json_config in config_files
 
 
-def test_find_config_match_list(config_path, yaml_config, json_config):
+def test_find_config_match_list(
+    config_path: pathlib.Path,
+    yaml_config: pathlib.Path,
+    json_config: pathlib.Path,
+) -> None:
     config_files = config.find_config_files(
         path=[config_path],
         match=[yaml_config.stem, json_config.stem],
@@ -273,7 +286,7 @@ def test_find_config_match_list(config_path, yaml_config, json_config):
 
 def test_find_config_filetype_string(
     config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
-):
+) -> None:
     config_files = config.find_config_files(
         path=[config_path], match=yaml_config.stem, filetype="yaml"
     )
@@ -301,7 +314,7 @@ def test_find_config_filetype_string(
 
 def test_find_config_filetype_list(
     config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
-):
+) -> None:
     config_files = config.find_config_files(
         path=[config_path], match=["repos*"], filetype=["*"]
     )
@@ -326,7 +339,7 @@ def test_find_config_include_home_config_files(
     config_path: pathlib.Path,
     yaml_config: pathlib.Path,
     json_config: pathlib.Path,
-):
+) -> None:
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
         config_files = config.find_config_files(
@@ -346,7 +359,7 @@ def test_find_config_include_home_config_files(
         assert json_config in results
 
 
-def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path):
+def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path) -> None:
     config1 = write_config(
         config_path=config_path / "repoduplicate1.yaml",
         content=textwrap.dedent(

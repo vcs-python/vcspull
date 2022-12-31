@@ -1,4 +1,4 @@
-import os
+import pathlib
 
 from libvcs.sync.git import GitRemote
 from vcspull.types import ConfigDict
@@ -37,32 +37,32 @@ config_dict_expanded: list[ConfigDict] = [
     {
         "vcs": "git",
         "name": "linux",
-        "dir": os.path.join("/home/me/myproject/study/", "linux"),
+        "dir": pathlib.Path("/home/me/myproject/study/linux"),
         "url": "git+git://git.kernel.org/linux/torvalds/linux.git",
     },
     {
         "vcs": "git",
         "name": "freebsd",
-        "dir": os.path.join("/home/me/myproject/study/", "freebsd"),
+        "dir": pathlib.Path("/home/me/myproject/study/freebsd"),
         "url": "git+https://github.com/freebsd/freebsd.git",
     },
     {
         "vcs": "git",
         "name": "sphinx",
-        "dir": os.path.join("/home/me/myproject/study/", "sphinx"),
+        "dir": pathlib.Path("/home/me/myproject/study/sphinx"),
         "url": "hg+https://bitbucket.org/birkenfeld/sphinx",
     },
     {
         "vcs": "git",
         "name": "docutils",
-        "dir": os.path.join("/home/me/myproject/study/", "docutils"),
+        "dir": pathlib.Path("/home/me/myproject/study/docutils"),
         "url": "svn+http://svn.code.sf.net/p/docutils/code/trunk",
     },
     {
         "vcs": "git",
         "name": "kaptan",
         "url": "git+git@github.com:tony/kaptan.git",
-        "dir": os.path.join("/home/me/myproject/github_projects/", "kaptan"),
+        "dir": pathlib.Path("/home/me/myproject/github_projects/kaptan"),
         "remotes": {
             "upstream": GitRemote(
                 **{
@@ -83,14 +83,14 @@ config_dict_expanded: list[ConfigDict] = [
     {
         "vcs": "git",
         "name": ".vim",
-        "dir": os.path.join("/home/me/myproject", ".vim"),
+        "dir": pathlib.Path("/home/me/myproject/.vim"),
         "url": "git+git@github.com:tony/vim-config.git",
         "shell_command_after": ["ln -sf /home/me/.vim/.vimrc /home/me/.vimrc"],
     },
     {
         "vcs": "git",
         "name": ".tmux",
-        "dir": os.path.join("/home/me/myproject", ".tmux"),
+        "dir": pathlib.Path("/home/me/myproject/.tmux"),
         "url": "git+git@github.com:tony/tmux-config.git",
         "shell_command_after": ["ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf"],
     },

@@ -1,13 +1,29 @@
 import pathlib
+import typing as t
 
 import pytest
 
 from vcspull import config
+from vcspull.types import ConfigDict
+
+
+class LoadYAMLFn(t.Protocol):
+    def __call__(
+        self,
+        content: str,
+        dir: str = "randomdir",
+        filename: str = "randomfilename.yaml",
+    ) -> t.Tuple[
+        pathlib.Path, t.List[t.Union[t.Any, pathlib.Path]], t.List[ConfigDict]
+    ]:
+        ...
 
 
 @pytest.fixture
-def load_yaml(tmp_path: pathlib.Path):
-    def fn(content, dir="randomdir", filename="randomfilename.yaml"):
+def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
+    def fn(
+        content: str, dir: str = "randomdir", filename: str = "randomfilename.yaml"
+    ) -> t.Tuple[pathlib.Path, t.List[pathlib.Path], t.List[ConfigDict]]:
         _dir = tmp_path / dir
         _dir.mkdir()
         _config = _dir / filename
@@ -20,7 +36,7 @@ def load_yaml(tmp_path: pathlib.Path):
     return fn
 
 
-def test_simple_format(load_yaml):
+def test_simple_format(load_yaml: LoadYAMLFn) -> None:
     dir, _, repos = load_yaml(
         """
 vcspull:
@@ -35,7 +51,7 @@ vcspull:
     assert dir / "vcspull" / "libvcs" == repo["dir"]
 
 
-def test_relative_dir(load_yaml):
+def test_relative_dir(load_yaml: LoadYAMLFn) -> None:
     dir, _, repos = load_yaml(
         """
 ./relativedir:
@@ -43,8 +59,8 @@ def test_relative_dir(load_yaml):
    """
     )
 
-    configs = config.find_config_files(path=dir)
-    repos = config.load_configs(configs, dir)
+    config_files = config.find_config_files(path=dir)
+    repos = config.load_configs(config_files, dir)
 
     assert len(repos) == 1
     repo = repos[0]

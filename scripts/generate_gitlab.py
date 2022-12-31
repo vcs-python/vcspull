@@ -7,6 +7,10 @@ import sys
 import requests
 import yaml
 
+from libvcs.sync.git import GitRemote
+from vcspull.cli.sync import guess_vcs
+from vcspull.types import RawConfig
+
 try:
     gitlab_token = os.environ["GITLAB_TOKEN"]
 except KeyError:
@@ -69,14 +73,14 @@ if 200 != response.status_code:
     sys.exit(1)
 
 path_prefix = os.getcwd()
-config: dict = {}
+config: RawConfig = {}
 
 for group in response.json():
     url_to_repo = group["ssh_url_to_repo"].replace(":", "/")
     namespace_path = group["namespace"]["full_path"]
     reponame = group["path"]
 
-    path = "%s/%s" % (path_prefix, namespace_path)
+    path = f"{path_prefix}/{namespace_path}"
 
     if path not in config:
         config[path] = {}
@@ -84,9 +88,22 @@ for group in response.json():
     # simplified config not working - https://github.com/vcs-python/vcspull/issues/332
     # config[path][reponame] = 'git+ssh://%s' % (url_to_repo)
 
+    vcs = guess_vcs(url_to_repo)
+    if vcs is None:
+        raise Exception(f"Could not guess VCS for URL: {url_to_repo}")
+
     config[path][reponame] = {
-        "url": "git+ssh://%s" % (url_to_repo),
-        "remotes": {"origin": "ssh://%s" % (url_to_repo)},
+        "name": reponame,
+        "dir": path / reponame,
+        "url": f"git+ssh://{url_to_repo}",
+        "remotes": {
+            "origin": GitRemote(
+                name="origin",
+                fetch_url=f"ssh://{url_to_repo}",
+                push_url=f"ssh://{url_to_repo}",
+            )
+        },
+        "vcs": vcs,
     }
 
 config_yaml = yaml.dump(config)

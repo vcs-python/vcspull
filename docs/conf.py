@@ -1,7 +1,12 @@
 # flake8: noqa E501
+import inspect
 import os
 import sys
+import typing as t
+from os.path import dirname, relpath
 from pathlib import Path
+
+import vcspull
 
 # Get the project root dir, which is the parent dir of this
 cwd = Path.cwd()
@@ -60,7 +65,7 @@ html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 html_extra_path = ["manifest.json"]
 html_theme = "furo"
-html_theme_path: list = []
+html_theme_path: list[str] = []
 html_theme_options = {
     "light_logo": "img/vcspull.svg",
     "dark_logo": "img/vcspull-dark.svg",
@@ -171,13 +176,9 @@ intersphinx_mapping = {
 }
 
 
-def linkcode_resolve(domain, info):  # NOQA: C901
-    import inspect
-    import sys
-    from os.path import dirname, relpath
-
-    import vcspull
-
+def linkcode_resolve(
+    domain: str, info: dict[str, str]
+) -> t.Union[None, str]:  # NOQA: C901
     """
     Determine the URL corresponding to Python object
 
@@ -210,7 +211,8 @@ def linkcode_resolve(domain, info):  # NOQA: C901
     except AttributeError:
         pass
     else:
-        obj = unwrap(obj)
+        if callable(obj):
+            obj = unwrap(obj)
 
     try:
         fn = inspect.getsourcefile(obj)
