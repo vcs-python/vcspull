@@ -21,6 +21,11 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+
+### Internal
+
+- mypy: Add `--strict` typings (#386)
+
 ## vcspull v1.18.0 (2022-10-31)
 
 ### Python 3.11 support (#409)
