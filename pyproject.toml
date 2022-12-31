@@ -76,7 +76,7 @@ sphinxext-opengraph = "*"
 sphinx-copybutton = "*"
 sphinxext-rediraffe = "*"
 sphinx-argparse = "^0.3.1"
-myst_parser = "*"
+myst_parser = ">=0.18.1"
 
 ### Testing ###
 pytest = "*"
