@@ -106,7 +106,7 @@ class LogFormatter(logging.Formatter):
             record.message = f"Bad message ({e!r}): {record.__dict__!r}"
 
         date_format = "%H:%m:%S"
-        formatting = self.converter(record.created)  # type:ignore
+        formatting = self.converter(record.created)
         record.asctime = time.strftime(date_format, formatting)
         prefix = self.template(record) % record.__dict__
 
