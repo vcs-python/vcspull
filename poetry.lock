@@ -525,14 +525,14 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "libvcs"
-version = "0.21.0"
+version = "0.21.1"
 description = "Lite, typed, python utilities for Git, SVN, Mercurial, etc."
 category = "main"
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "libvcs-0.21.0-py3-none-any.whl", hash = "sha256:72d9060251a0022a515a5dfc258de9c282ee4af12abecf46155d4119f4732428"},
-    {file = "libvcs-0.21.0.tar.gz", hash = "sha256:69953662f353431d928aef2968770215adc74d1b60aa3cbcaee417fa72dc91c3"},
+    {file = "libvcs-0.21.1-py3-none-any.whl", hash = "sha256:d51883c677c7f2d7d63dec31f4d605feebdec1cf98142576f2d828083fb0b650"},
+    {file = "libvcs-0.21.1.tar.gz", hash = "sha256:c0c8102f21e5c388a9e8de86bf66cf78c9d9e1cc758d3a25bded93270931b094"},
 ]
 
 [package.dependencies]
@@ -1501,4 +1501,4 @@ test = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "e00afd555899a41d4d72a28b9318abd7499a4d6123e64d8ed0e01526c6d1ab47"
+content-hash = "fdd731ad16d4a14804f90df06b46e8ca5a524e019439b2f52c97bff9200c02b9"
