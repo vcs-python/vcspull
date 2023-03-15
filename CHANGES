@@ -21,6 +21,13 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull v1.20.1 (2023-03-15)
+
+- libvcs: 0.21.0 -> 0.21.1
+
+  This removes even more `typing-extensions` runtime dependencies from
+  production builds.
+
 ## vcspull v1.20.0 (2023-03-15)
 
 ### Bug fix
