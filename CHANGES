@@ -21,6 +21,17 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull v1.20.2 (2023-04-07)
+
+_Maintenance only, no bug fixes or features_
+
+### Development
+
+- Update mypy to 1.2.0
+- libvcs: 0.21.1 -> 0.21.2
+
+  Typing update only
+
 ## vcspull v1.20.1 (2023-03-15)
 
 - libvcs: 0.21.0 -> 0.21.1
