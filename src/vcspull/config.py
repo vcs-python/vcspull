@@ -16,13 +16,14 @@ from vcspull.validator import is_valid_config
 
 from . import exc
 from ._internal.config_reader import ConfigReader
-from .types import ConfigDict, RawConfigDict
 from .util import get_config_dir, update_dict
 
 log = logging.getLogger(__name__)
 
 if t.TYPE_CHECKING:
     from typing_extensions import TypeGuard
+
+    from .types import ConfigDict, RawConfigDict
 
 
 def expand_dir(
@@ -50,8 +51,8 @@ def expand_dir(
 
 
 def extract_repos(
-    config: RawConfigDict, cwd: pathlib.Path = pathlib.Path.cwd()
-) -> list[ConfigDict]:
+    config: "RawConfigDict", cwd: pathlib.Path = pathlib.Path.cwd()
+) -> list["ConfigDict"]:
     """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
@@ -68,7 +69,7 @@ def extract_repos(
     -------
     list : List of normalized repository information
     """
-    configs: list[ConfigDict] = []
+    configs: list["ConfigDict"] = []
     for directory, repos in config.items():
         assert isinstance(repos, dict)
         for repo, repo_data in repos.items():
@@ -220,7 +221,7 @@ def find_config_files(
 
 def load_configs(
     files: list[pathlib.Path], cwd: pathlib.Path = pathlib.Path.cwd()
-) -> t.List[ConfigDict]:
+) -> t.List["ConfigDict"]:
     """Return repos from a list of files.
 
     Parameters
@@ -239,7 +240,7 @@ def load_configs(
     ----
     Validate scheme, check for duplicate destinations, VCS urls
     """
-    repos: list[ConfigDict] = []
+    repos: list["ConfigDict"] = []
     for file in files:
         if isinstance(file, str):
             file = pathlib.Path(file)
@@ -262,11 +263,11 @@ def load_configs(
     return repos
 
 
-ConfigDictTuple = tuple[ConfigDict, ConfigDict]
+ConfigDictTuple = tuple["ConfigDict", "ConfigDict"]
 
 
 def detect_duplicate_repos(
-    config1: list[ConfigDict], config2: list[ConfigDict]
+    config1: list["ConfigDict"], config2: list["ConfigDict"]
 ) -> list[ConfigDictTuple]:
     """Return duplicate repos dict if repo_dir same and vcs different.
 
@@ -329,11 +330,11 @@ def in_dir(
 
 
 def filter_repos(
-    config: t.List[ConfigDict],
+    config: t.List["ConfigDict"],
     dir: t.Union[pathlib.Path, t.Literal["*"], str, None] = None,
     vcs_url: t.Union[str, None] = None,
     name: t.Union[str, None] = None,
-) -> list[ConfigDict]:
+) -> list["ConfigDict"]:
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
     dir, vcs_url and name all support fnmatch.
@@ -354,7 +355,7 @@ def filter_repos(
     list :
         Repos
     """
-    repo_list: list[ConfigDict] = []
+    repo_list: list["ConfigDict"] = []
 
     if dir:
         repo_list.extend(

@@ -10,10 +10,12 @@ from libvcs.sync.git import GitRemote, GitSync
 from vcspull._internal.config_reader import ConfigReader
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
-from vcspull.types import ConfigDict
 from vcspull.validator import is_valid_config
 
 from .helpers import write_config
+
+if t.TYPE_CHECKING:
+    from vcspull.types import ConfigDict
 
 
 def test_makes_recursive(
@@ -176,7 +178,7 @@ def test_updating_remote(
     repo_parent = tmp_path / "study" / "myrepo"
     repo_parent.mkdir(parents=True)
 
-    initial_config: ConfigDict = {
+    initial_config: "ConfigDict" = {
         "vcs": "git",
         "name": "myclone",
         "dir": tmp_path / "study/myrepo/myclone",
@@ -198,7 +200,7 @@ def test_updating_remote(
 
     expected_remote_url = f"git+file://{mirror_repo}"
 
-    expected_config: ConfigDict = initial_config.copy()
+    expected_config: "ConfigDict" = initial_config.copy()
     assert isinstance(expected_config["remotes"], dict)
     expected_config["remotes"][mirror_name] = GitRemote(
         name=mirror_name,
