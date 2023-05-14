@@ -1,10 +1,10 @@
 import pathlib
 import typing as t
 
-from vcspull.types import RawConfigDict
-
 if t.TYPE_CHECKING:
     from typing_extensions import TypeGuard
+
+    from vcspull.types import RawConfigDict
 
 
 def is_valid_config(config: t.Dict[str, t.Any]) -> "TypeGuard[RawConfigDict]":

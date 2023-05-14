@@ -4,7 +4,9 @@ import typing as t
 import pytest
 
 from vcspull import config
-from vcspull.types import ConfigDict
+
+if t.TYPE_CHECKING:
+    from vcspull.types import ConfigDict
 
 
 class LoadYAMLFn(t.Protocol):
@@ -14,7 +16,7 @@ class LoadYAMLFn(t.Protocol):
         dir: str = "randomdir",
         filename: str = "randomfilename.yaml",
     ) -> t.Tuple[
-        pathlib.Path, t.List[t.Union[t.Any, pathlib.Path]], t.List[ConfigDict]
+        pathlib.Path, t.List[t.Union[t.Any, pathlib.Path]], t.List["ConfigDict"]
     ]:
         ...
 
@@ -23,7 +25,7 @@ class LoadYAMLFn(t.Protocol):
 def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
     def fn(
         content: str, dir: str = "randomdir", filename: str = "randomfilename.yaml"
-    ) -> t.Tuple[pathlib.Path, t.List[pathlib.Path], t.List[ConfigDict]]:
+    ) -> t.Tuple[pathlib.Path, t.List[pathlib.Path], t.List["ConfigDict"]]:
         _dir = tmp_path / dir
         _dir.mkdir()
         _config = _dir / filename

@@ -1,7 +1,10 @@
 import pathlib
+import typing as t
 
 from libvcs.sync.git import GitRemote
-from vcspull.types import ConfigDict
+
+if t.TYPE_CHECKING:
+    from vcspull.types import ConfigDict
 
 config_dict = {
     "/home/me/myproject/study/": {
@@ -33,7 +36,7 @@ config_dict = {
     },
 }
 
-config_dict_expanded: list[ConfigDict] = [
+config_dict_expanded: list["ConfigDict"] = [
     {
         "vcs": "git",
         "name": "linux",
