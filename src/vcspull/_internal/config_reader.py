@@ -172,14 +172,11 @@ class ConfigReader:
         '{\n  "session_name": "my session"\n}'
         """
         if format == "yaml":
-            return t.cast(
-                str,
-                yaml.dump(
-                    content,
-                    indent=2,
-                    default_flow_style=False,
-                    Dumper=yaml.SafeDumper,
-                ),
+            return yaml.dump(
+                content,
+                indent=2,
+                default_flow_style=False,
+                Dumper=yaml.SafeDumper,
             )
         elif format == "json":
             return json.dumps(
