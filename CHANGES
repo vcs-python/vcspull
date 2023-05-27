@@ -29,7 +29,7 @@ _Maintenance only, no bug fixes or features_
 
 ## vcspull v1.20.3 (2023-05-14)
 
-## Bug fix
+### Bug fix
 
 - Refactor `.types` imports to not require `typing-extensions` on production
   builds (fixes #412 via #414, thank you for the report @Jasha10)
