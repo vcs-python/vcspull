@@ -25,7 +25,16 @@ _Maintenance only, no bug fixes or features_
 
 ### Internal improvements
 
+- Move formatting, import sorting, and linting to [ruff].
+
+  This rust-based checker has dramatically improved performance. Linting and
+  formatting can be done almost instantly.
+
+  This change replaces black, isort, flake8 and flake8 plugins.
+
 - libvcs: 0.21.1 -> 0.21.2 (addition of ruff)
+
+[ruff]: https://ruff.rs
 
 ## vcspull v1.20.3 (2023-05-14)
 
