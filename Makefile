@@ -11,12 +11,6 @@ entr_warn:
 	@echo "See https://eradman.com/entrproject/                      "
 	@echo "----------------------------------------------------------"
 
-isort:
-	poetry run isort `${PY_FILES}`
-
-black:
-	poetry run black `${PY_FILES}`
-
 test:
 	poetry run py.test $(test)
 
@@ -35,11 +29,11 @@ start_docs:
 design_docs:
 	$(MAKE) -C docs design
 
-flake8:
-	flake8 vcspull tests
+ruff:
+	ruff .
 
-watch_flake8:
-	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) flake8; else $(MAKE) flake8 entr_warn; fi
+watch_ruff:
+	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) ruff; else $(MAKE) ruff entr_warn; fi
 
 mypy:
 	poetry run mypy `${PY_FILES}`

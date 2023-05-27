@@ -23,15 +23,15 @@ jobs:
           cache: 'poetry'
 
       - name: Install dependencies
-        run: poetry install -E "docs test coverage lint format"
+        run: poetry install -E "docs test coverage lint"
 
       - name: Print python versions
         run: |
           python -V
           poetry run python -V
 
-      - name: Lint with flake8
-        run: poetry run flake8
+      - name: Lint with ruff
+        run: poetry run ruff .
 
       - name: Lint with mypy
         run: poetry run mypy .
