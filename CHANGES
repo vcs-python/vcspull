@@ -21,6 +21,8 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull v1.21.1 (2023-05-28)
+
 _Maintenance only, no bug fixes, or new features_
 
 ### Development
