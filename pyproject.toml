@@ -75,7 +75,7 @@ sphinx-inline-tabs = "*"
 sphinxext-opengraph = "<0.8"  # https://github.com/wpilibsuite/sphinxext-opengraph/issues/100
 sphinx-copybutton = "*"
 sphinxext-rediraffe = "*"
-sphinx-argparse = "^0.3.1"
+sphinx-argparse = "*"
 myst_parser = ">=0.18.1"
 
 ### Testing ###
