@@ -68,7 +68,7 @@ PyYAML = "^6.0"
 ### Docs ###
 sphinx = "*"
 furo = "*"
-gp-libs = "0.0.1a16"
+gp-libs = "*"
 sphinx-autobuild = "*"
 sphinx-autodoc-typehints = "*"
 sphinx-inline-tabs = "*"
