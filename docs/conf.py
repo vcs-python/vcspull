@@ -1,10 +1,9 @@
-# flake8: noqa E501
+# flake8: noqa: E501
 import inspect
-import os
 import sys
 import typing as t
-from os.path import dirname, relpath
-from pathlib import Path
+from os.path import relpath
+import pathlib
 
 import vcspull
 
@@ -12,7 +11,7 @@ if t.TYPE_CHECKING:
     from sphinx.application import Sphinx
 
 # Get the project root dir, which is the parent dir of this
-cwd = Path.cwd()
+cwd = pathlib.Path.cwd()
 project_root = cwd.parent
 src_root = project_root / "src"
 
@@ -21,7 +20,7 @@ sys.path.insert(0, str(cwd / "_ext"))
 
 # package data
 about: dict[str, str] = {}
-with open(src_root / "vcspull" / "__about__.py") as fp:
+with (src_root / "vcspull" / "__about__.py").open() as fp:
     exec(fp.read(), about)
 
 extensions = [
@@ -139,13 +138,13 @@ ogp_image = "_static/img/icons/icon-192x192.png"
 ogp_desscription_length = about["__description__"]
 ogp_site_name = about["__title__"]
 
-htmlhelp_basename = "%sdoc" % about["__title__"]
+htmlhelp_basename = f"{about['__title__']}doc"
 
 latex_documents = [
     (
         "index",
-        "{}.tex".format(about["__package_name__"]),
-        "{} Documentation".format(about["__title__"]),
+        f"{about['__package_name__']}.tex",
+        f"{about['__title__']} Documentation",
         about["__author__"],
         "manual",
     )
@@ -155,7 +154,7 @@ man_pages = [
     (
         "index",
         about["__package_name__"],
-        "{} Documentation".format(about["__title__"]),
+        f"{about['__title__']} Documentation",
         about["__author__"],
         1,
     )
@@ -164,8 +163,8 @@ man_pages = [
 texinfo_documents = [
     (
         "index",
-        "{}".format(about["__package_name__"]),
-        "{} Documentation".format(about["__title__"]),
+        about["__package_name__"],
+        f"{about['__title__']} Documentation",
         about["__author__"],
         about["__package_name__"],
         about["__description__"],
@@ -234,7 +233,7 @@ def linkcode_resolve(
     else:
         linespec = ""
 
-    fn = relpath(fn, start=dirname(vcspull.__file__))
+    fn = relpath(fn, start=pathlib.Path(vcspull.__file__).parent)
 
     if "dev" in about["__version__"]:
         return "{}/blob/master/{}/{}/{}{}".format(
@@ -258,7 +257,7 @@ def linkcode_resolve(
 def remove_tabs_js(app: "Sphinx", exc: Exception) -> None:
     # Fix for sphinx-inline-tabs#18
     if app.builder.format == "html" and not exc:
-        tabs_js = Path(app.builder.outdir) / "_static" / "tabs.js"
+        tabs_js = pathlib.Path(app.builder.outdir) / "_static" / "tabs.js"
         tabs_js.unlink(missing_ok=True)
 
 
