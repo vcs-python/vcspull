@@ -323,13 +323,13 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "furo"
-version = "2023.5.20"
+version = "2023.7.26"
 description = "A clean customisable Sphinx documentation theme."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "furo-2023.5.20-py3-none-any.whl", hash = "sha256:594a8436ddfe0c071f3a9e9a209c314a219d8341f3f1af33fdf7c69544fab9e6"},
-    {file = "furo-2023.5.20.tar.gz", hash = "sha256:40e09fa17c6f4b22419d122e933089226dcdb59747b5b6c79363089827dea16f"},
+    {file = "furo-2023.7.26-py3-none-any.whl", hash = "sha256:1c7936929ec57c5ddecc7c85f07fa8b2ce536b5c89137764cca508be90e11efd"},
+    {file = "furo-2023.7.26.tar.gz", hash = "sha256:257f63bab97aa85213a1fa24303837a3c3f30be92901ec732fea74290800f59e"},
 ]
 
 [package.dependencies]
@@ -660,29 +660,29 @@ files = [
 
 [[package]]
 name = "pathspec"
-version = "0.11.1"
+version = "0.11.2"
 description = "Utility library for gitignore style pattern matching of file paths."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pathspec-0.11.1-py3-none-any.whl", hash = "sha256:d8af70af76652554bd134c22b3e8a1cc46ed7d91edcdd721ef1a0c51a84a5293"},
-    {file = "pathspec-0.11.1.tar.gz", hash = "sha256:2798de800fa92780e33acca925945e9a19a133b715067cf165b8866c15a31687"},
+    {file = "pathspec-0.11.2-py3-none-any.whl", hash = "sha256:1d6ed233af05e679efb96b1851550ea95bbb64b7c490b0f5aa52996c11e92a20"},
+    {file = "pathspec-0.11.2.tar.gz", hash = "sha256:e0d8d0ac2f12da61956eb2306b69f9469b42f4deb0f3cb6ed47b9cce9996ced3"},
 ]
 
 [[package]]
 name = "platformdirs"
-version = "3.9.1"
+version = "3.10.0"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "platformdirs-3.9.1-py3-none-any.whl", hash = "sha256:ad8291ae0ae5072f66c16945166cb11c63394c7a3ad1b1bc9828ca3162da8c2f"},
-    {file = "platformdirs-3.9.1.tar.gz", hash = "sha256:1b42b450ad933e981d56e59f1b97495428c9bd60698baab9f3eb3d00d5822421"},
+    {file = "platformdirs-3.10.0-py3-none-any.whl", hash = "sha256:d7c24979f292f916dc9cbf8648319032f551ea8c49a4c9bf2fb556a02070ec1d"},
+    {file = "platformdirs-3.10.0.tar.gz", hash = "sha256:b45696dab2d7cc691a3226759c0d3b00c47c8b6e293d96f6436f733303f77f6d"},
 ]
 
 [package.extras]
-docs = ["furo (>=2023.5.20)", "proselint (>=0.13)", "sphinx (>=7.0.1)", "sphinx-autodoc-typehints (>=1.23,!=1.23.4)"]
-test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=7.3.1)", "pytest-cov (>=4.1)", "pytest-mock (>=3.10)"]
+docs = ["furo (>=2023.7.26)", "proselint (>=0.13)", "sphinx (>=7.1.1)", "sphinx-autodoc-typehints (>=1.24)"]
+test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=7.4)", "pytest-cov (>=4.1)", "pytest-mock (>=3.11.1)"]
 
 [[package]]
 name = "pluggy"
@@ -914,13 +914,13 @@ files = [
 
 [[package]]
 name = "sphinx"
-version = "7.0.1"
+version = "7.1.1"
 description = "Python documentation generator"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "Sphinx-7.0.1.tar.gz", hash = "sha256:61e025f788c5977d9412587e733733a289e2b9fdc2fef8868ddfbfc4ccfe881d"},
-    {file = "sphinx-7.0.1-py3-none-any.whl", hash = "sha256:60c5e04756c1709a98845ed27a2eed7a556af3993afb66e77fec48189f742616"},
+    {file = "sphinx-7.1.1-py3-none-any.whl", hash = "sha256:4e6c5ea477afa0fb90815210fd1312012e1d7542589ab251ac9b53b7c0751bce"},
+    {file = "sphinx-7.1.1.tar.gz", hash = "sha256:59b8e391f0768a96cd233e8300fe7f0a8dc2f64f83dc2a54336a9a84f428ff4e"},
 ]
 
 [package.dependencies]
