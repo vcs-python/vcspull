@@ -97,6 +97,17 @@ CONFIG_VARIATION_FIXTURES = [
         """,
         remote_list=["secondremote"],
     ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style_with_unprefixed_remote",
+        config_tpl="""
+        {tmp_path}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{dir}
+                remotes:
+                  git_scheme_repo: git@codeberg.org:tmux-python/tmuxp.git
+        """,
+        remote_list=["git_scheme_repo"],
+    ),
 ]
 
 
