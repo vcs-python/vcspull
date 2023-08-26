@@ -12,6 +12,6 @@ vcspull
 import logging
 from logging import NullHandler
 
-from . import cli  # NOQA
+from . import cli
 
 logging.getLogger(__name__).addHandler(NullHandler())

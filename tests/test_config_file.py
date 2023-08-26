@@ -89,7 +89,7 @@ def test_scan_config(tmp_path: pathlib.Path) -> None:
     garbage_file = tmp_path / ".vcspull.psd"
     garbage_file.write_text("wat", encoding="utf-8")
 
-    for r, d, f in os.walk(str(tmp_path)):
+    for _r, _d, f in os.walk(str(tmp_path)):
         for filela in (
             x for x in f if x.endswith((".json", "yaml")) and x.startswith(".vcspull")
         ):
@@ -192,12 +192,11 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path) -> None:
     json_conf_file.touch()
     yaml_conf_file = tmp_path / ".vcspull.yaml"
     yaml_conf_file.touch()
-    with EnvironmentVarGuard() as env:
-        with pytest.raises(exc.MultipleConfigWarning):
-            env.set("HOME", str(tmp_path))
-            assert pathlib.Path.home() == tmp_path
+    with EnvironmentVarGuard() as env, pytest.raises(exc.MultipleConfigWarning):
+        env.set("HOME", str(tmp_path))
+        assert pathlib.Path.home() == tmp_path
 
-            config.find_home_config_files()
+        config.find_home_config_files()
 
 
 def test_in_dir(

@@ -55,7 +55,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
 
 
 def sync(
-    repo_patterns: t.List[str],
+    repo_patterns: list[str],
     config: pathlib.Path,
     exit_on_error: bool,
     parser: t.Optional[

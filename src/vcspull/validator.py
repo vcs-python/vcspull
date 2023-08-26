@@ -7,7 +7,7 @@ if t.TYPE_CHECKING:
     from vcspull.types import RawConfigDict
 
 
-def is_valid_config(config: t.Dict[str, t.Any]) -> "TypeGuard[RawConfigDict]":
+def is_valid_config(config: dict[str, t.Any]) -> "TypeGuard[RawConfigDict]":
     if not isinstance(config, dict):
         return False
 
@@ -21,12 +21,11 @@ def is_valid_config(config: t.Dict[str, t.Any]) -> "TypeGuard[RawConfigDict]":
         if not isinstance(v, dict):
             return False
 
-        for repo_name, repo in v.items():
+        for repo in v.values():
             if not isinstance(repo, (str, dict, pathlib.Path)):
                 return False
 
-            if isinstance(repo, dict):
-                if "url" not in repo and "repo" not in repo:
-                    return False
+            if isinstance(repo, dict) and "url" not in repo and "repo" not in repo:
+                return False
 
     return True

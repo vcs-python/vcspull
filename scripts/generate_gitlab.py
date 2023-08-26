@@ -6,8 +6,8 @@ import sys
 
 import requests
 import yaml
-
 from libvcs.sync.git import GitRemote
+
 from vcspull.cli.sync import guess_vcs
 from vcspull.types import RawConfig
 
@@ -58,17 +58,17 @@ try:
             sys.exit(0)
 
     config_file = open(config_filename, "w")
-except IOError:
+except OSError:
     print("File %s not accesible" % (config_filename))
     sys.exit(1)
 
 response = requests.get(
-    "%s/api/v4/groups/%s/projects" % (gitlab_host, gitlab_namespace),
+    f"{gitlab_host}/api/v4/groups/{gitlab_namespace}/projects",
     params={"include_subgroups": "true", "per_page": "100"},
     headers={"Authorization": "Bearer %s" % (gitlab_token)},
 )
 
-if 200 != response.status_code:
+if response.status_code != 200:
     print("Error: ", response)
     sys.exit(1)
 

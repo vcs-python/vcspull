@@ -15,8 +15,8 @@ class LoadYAMLFn(t.Protocol):
         content: str,
         dir: str = "randomdir",
         filename: str = "randomfilename.yaml",
-    ) -> t.Tuple[
-        pathlib.Path, t.List[t.Union[t.Any, pathlib.Path]], t.List["ConfigDict"]
+    ) -> tuple[
+        pathlib.Path, list[t.Union[t.Any, pathlib.Path]], list["ConfigDict"]
     ]:
         ...
 
@@ -25,7 +25,7 @@ class LoadYAMLFn(t.Protocol):
 def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
     def fn(
         content: str, dir: str = "randomdir", filename: str = "randomfilename.yaml"
-    ) -> t.Tuple[pathlib.Path, t.List[pathlib.Path], t.List["ConfigDict"]]:
+    ) -> tuple[pathlib.Path, list[pathlib.Path], list["ConfigDict"]]:
         _dir = tmp_path / dir
         _dir.mkdir()
         _config = _dir / filename

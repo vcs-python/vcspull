@@ -1,10 +1,9 @@
 import pathlib
 import typing as t
 
-from typing_extensions import NotRequired, TypedDict
-
 from libvcs._internal.types import StrPath, VCSLiteral
 from libvcs.sync.git import GitSyncRemoteDict
+from typing_extensions import NotRequired, TypedDict
 
 
 class RawConfigDict(t.TypedDict):
@@ -25,7 +24,7 @@ class ConfigDict(TypedDict):
     dir: pathlib.Path
     url: str
     remotes: NotRequired[t.Optional[GitSyncRemoteDict]]
-    shell_command_after: NotRequired[t.Optional[t.List[str]]]
+    shell_command_after: NotRequired[t.Optional[list[str]]]
 
 
 ConfigDir = dict[str, ConfigDict]

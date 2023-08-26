@@ -46,7 +46,7 @@ def get_config_dir() -> pathlib.Path:
     return pathlib.Path(path)
 
 
-T = t.TypeVar("T", bound=t.Dict[str, t.Any])
+T = t.TypeVar("T", bound=dict[str, t.Any])
 
 
 def update_dict(

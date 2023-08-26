@@ -8,7 +8,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def add_doctest_fixtures(
     request: pytest.FixtureRequest,
-    doctest_namespace: t.Dict[str, t.Any],
+    doctest_namespace: dict[str, t.Any],
 ) -> None:
     from _pytest.doctest import DoctestItem
 

@@ -9,7 +9,7 @@ if t.TYPE_CHECKING:
 
     FormatLiteral = Literal["json", "yaml"]
 
-    RawConfigData: TypeAlias = t.Dict[t.Any, t.Any]
+    RawConfigData: TypeAlias = dict[t.Any, t.Any]
 
 
 class ConfigReader:
@@ -26,7 +26,7 @@ class ConfigReader:
         self.content = content
 
     @staticmethod
-    def _load(format: "FormatLiteral", content: str) -> t.Dict[str, t.Any]:
+    def _load(format: "FormatLiteral", content: str) -> dict[str, t.Any]:
         """Load raw config data and directly return it.
 
         >>> ConfigReader._load("json", '{ "session_name": "my session" }')
@@ -37,14 +37,14 @@ class ConfigReader:
         """
         if format == "yaml":
             return t.cast(
-                t.Dict[str, t.Any],
+                dict[str, t.Any],
                 yaml.load(
                     content,
                     Loader=yaml.SafeLoader,
                 ),
             )
         elif format == "json":
-            return t.cast(t.Dict[str, t.Any], json.loads(content))
+            return t.cast(dict[str, t.Any], json.loads(content))
         else:
             raise NotImplementedError(f"{format} not supported in configuration")
 
@@ -72,7 +72,7 @@ class ConfigReader:
         )
 
     @classmethod
-    def _from_file(cls, path: pathlib.Path) -> t.Dict[str, t.Any]:
+    def _from_file(cls, path: pathlib.Path) -> dict[str, t.Any]:
         r"""Load data from file path directly to dictionary.
 
         **YAML file**
