@@ -45,7 +45,7 @@
   node-mime: 'git+https://github.com/broofa/node-mime.git'
   mime-magic: 'git+https://github.com/SaltwaterC/mime-magic.git'
   debug: 'git+https://github.com/visionmedia/debug.git'
-  wintson: 'git+https://github.com/flatiron/winston.git'
+  winston: 'git+https://github.com/flatiron/winston.git'
   less.js: 'git+https://github.com/cloudhead/less.js.git'
   less: 'git+https://github.com/cloudhead/less.git'
   todo: 'git+https://github.com/cloudhead/toto.git'
@@ -211,7 +211,7 @@
   python_koans: 'git+https://github.com/gregmalcolm/python_koans.git'
   python-guide: 'git+https://github.com/kennethreitz/python-guide.git'
   #introduction_to_sqlalchemy: 'git+https://bitbucket.org/zzzeek/pycon2013_student_package.git'
-  probablistic-programming-and-beyesian-methods: 'git+https://github.com/CamDavidsonPilon/Probabilistic-Programming-and-Bayesian-Methods-for-Hackers.git'
+  probabilistic-programming-and-beyesian-methods: 'git+https://github.com/CamDavidsonPilon/Probabilistic-Programming-and-Bayesian-Methods-for-Hackers.git'
   python-patterns: 'git+https://github.com/faif/python-patterns.git'
   learn-pandas: 'git+https://bitbucket.org/hrojas/learn-pandas.git'
 

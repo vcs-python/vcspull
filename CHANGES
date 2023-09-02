@@ -746,7 +746,7 @@ _✨ Renewed_
 - [config/vcs]: Exception for private / ssh GitHub repository URLs and
   message to change to correct format.
 - [docs]: Update docs to reflect updates on new commands and how to clone
-  private / priveleged GitHub repos.
+  private / privileged GitHub repos.
 
 ## vcspull 0.0.8-4 (2014-02-06)
 

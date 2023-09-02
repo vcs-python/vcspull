@@ -60,7 +60,7 @@ try:
 
     config_file = config_filename.open(mode="w")
 except OSError:
-    print(f"File {config_filename} not accesible")
+    print(f"File {config_filename} not accessible")
     sys.exit(1)
 
 response = requests.get(
