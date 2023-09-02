@@ -11,6 +11,7 @@ from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitSync
 from libvcs.url import registry as url_tools
 
+from .. import exc
 from ..config import filter_repos, find_config_files, load_configs
 
 log = logging.getLogger(__name__)
@@ -122,6 +123,11 @@ def guess_vcs(url: str) -> t.Optional[VCSLiteral]:
         return None
 
     return t.cast(VCSLiteral, vcs_matches[0].vcs)
+
+
+class CouldNotGuessVCSFromURL(exc.VCSPullException):
+    def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
+        return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
 def update_repo(
