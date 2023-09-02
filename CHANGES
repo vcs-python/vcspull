@@ -21,6 +21,14 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Development
+
+- Code quality improved via [ruff] rules (#147)
+
+  This includes fixes made by hand, and with ruff's automated fixes. Despite
+  selecting additional rules, which include import sorting, ruff runs nearly
+  instantaneously when checking the whole codebase.
+
 ## vcspull v1.21.1 (2023-05-28)
 
 _Maintenance only, no bug fixes, or new features_
