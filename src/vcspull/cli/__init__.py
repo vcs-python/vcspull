@@ -35,7 +35,7 @@ SYNC_DESCRIPTION = textwrap.dedent(
 @overload
 def create_parser(
     return_subparsers: t.Literal[True],
-) -> t.Tuple[argparse.ArgumentParser, t.Any]:
+) -> tuple[argparse.ArgumentParser, t.Any]:
     ...
 
 
@@ -46,7 +46,7 @@ def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParse
 
 def create_parser(
     return_subparsers: bool = False,
-) -> t.Union[argparse.ArgumentParser, t.Tuple[argparse.ArgumentParser, t.Any]]:
+) -> t.Union[argparse.ArgumentParser, tuple[argparse.ArgumentParser, t.Any]]:
     parser = argparse.ArgumentParser(
         prog="vcspull",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -80,7 +80,7 @@ def create_parser(
     return parser
 
 
-def cli(_args: t.Optional[t.List[str]] = None) -> None:
+def cli(_args: t.Optional[list[str]] = None) -> None:
     parser, sync_parser = create_parser(return_subparsers=True)
     args = parser.parse_args(_args)
 

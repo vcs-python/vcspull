@@ -1,12 +1,12 @@
+import contextlib
 import pathlib
 import shutil
 import typing as t
 
 import pytest
-
 import yaml
-
 from libvcs.sync.git import GitSync
+
 from vcspull.__about__ import __version__
 from vcspull.cli import cli
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
@@ -14,7 +14,7 @@ from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
 if t.TYPE_CHECKING:
     from typing_extensions import TypeAlias
 
-    ExpectedOutput: TypeAlias = t.Optional[t.Union[str, t.List[str]]]
+    ExpectedOutput: TypeAlias = t.Optional[t.Union[str, list[str]]]
 
 
 class SyncCLINonExistentRepo(t.NamedTuple):
@@ -88,10 +88,9 @@ def test_sync_cli_filter_non_existent(
 
     monkeypatch.chdir(tmp_path)
 
-    try:
+    with contextlib.suppress(SystemExit):
         cli(["sync", *sync_args])
-    except SystemExit:
-        pass
+
 
     result = capsys.readouterr()
     output = "".join(list(result.out))
@@ -222,10 +221,9 @@ def test_sync(
     yaml_config.write_text(yaml_config_data, encoding="utf-8")
 
     # CLI can sync
-    try:
+    with contextlib.suppress(SystemExit):
         cli(sync_args)
-    except SystemExit:
-        pass
+
 
     result = capsys.readouterr()
     output = "".join(list(result.out if expected_exit_code == 0 else result.err))
@@ -360,10 +358,9 @@ def test_sync_broken(
     # CLI can sync
     assert isinstance(sync_args, list)
 
-    try:
+    with contextlib.suppress(SystemExit):
         cli(["sync", *sync_args])
-    except SystemExit:
-        pass
+
 
     result = capsys.readouterr()
     out = "".join(list(result.out))

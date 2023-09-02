@@ -2,13 +2,14 @@
 
 import argparse
 import os
+import pathlib
 import sys
 
 import requests
 import yaml
-
 from libvcs.sync.git import GitRemote
-from vcspull.cli.sync import guess_vcs
+
+from vcspull.cli.sync import CouldNotGuessVCSFromURL, guess_vcs
 from vcspull.types import RawConfig
 
 try:
@@ -39,10 +40,10 @@ parser.add_argument(
 args = vars(parser.parse_args())
 gitlab_host = args["gitlab_host"]
 gitlab_namespace = args["gitlab_namespace"]
-config_filename = args["config_file_name"]
+config_filename = pathlib.Path(args["config_file_name"])
 
 try:
-    if os.path.isfile(config_filename):
+    if config_filename.is_file():
         result = input(
             "The target config file (%s) already exists, \
             do you want to overwrite it? [y/N] "
@@ -57,23 +58,24 @@ try:
             )
             sys.exit(0)
 
-    config_file = open(config_filename, "w")
-except IOError:
-    print("File %s not accesible" % (config_filename))
+    config_file = config_filename.open(mode="w")
+except OSError:
+    print(f"File {config_filename} not accesible")
     sys.exit(1)
 
 response = requests.get(
-    "%s/api/v4/groups/%s/projects" % (gitlab_host, gitlab_namespace),
+    f"{gitlab_host}/api/v4/groups/{gitlab_namespace}/projects",
     params={"include_subgroups": "true", "per_page": "100"},
     headers={"Authorization": "Bearer %s" % (gitlab_token)},
 )
 
-if 200 != response.status_code:
+if response.status_code != 200:
     print("Error: ", response)
     sys.exit(1)
 
-path_prefix = os.getcwd()
+path_prefix = pathlib.Path().cwd()
 config: RawConfig = {}
+
 
 for group in response.json():
     url_to_repo = group["ssh_url_to_repo"].replace(":", "/")
@@ -90,7 +92,7 @@ for group in response.json():
 
     vcs = guess_vcs(url_to_repo)
     if vcs is None:
-        raise Exception(f"Could not guess VCS for URL: {url_to_repo}")
+        raise CouldNotGuessVCSFromURL(url_to_repo)
 
     config[path][reponame] = {
         "name": reponame,

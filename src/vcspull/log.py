@@ -191,4 +191,4 @@ class RepoFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Only return a record if a keyword object."""
-        return True if "keyword" in record.__dict__ else False
+        return "keyword" in record.__dict__

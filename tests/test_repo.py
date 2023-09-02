@@ -3,6 +3,7 @@ import pathlib
 
 from libvcs import BaseSync, GitSync, HgSync, SvnSync
 from libvcs._internal.shortcuts import create_project
+
 from vcspull.config import filter_repos
 
 from .fixtures import example as fixtures
@@ -50,8 +51,8 @@ def test_to_dictlist() -> None:
             assert isinstance(r["remotes"], list)
             for remote in r["remotes"]:
                 assert isinstance(remote, dict)
-                assert "remote_name" == remote
-                assert "url" == remote
+                assert remote == "remote_name"
+                assert remote == "url"
 
 
 def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path) -> None:
@@ -108,7 +109,7 @@ def test_to_repo_objects(tmp_path: pathlib.Path) -> None:
 
         if hasattr(r, "remotes") and isinstance(r, GitSync):
             assert isinstance(r.remotes, dict)
-            for remote_name, remote_dict in r.remotes.items():
+            for remote_dict in r.remotes.values():
                 assert isinstance(remote_dict, dict)
                 assert "fetch_url" in remote_dict
                 assert "push_url" in remote_dict

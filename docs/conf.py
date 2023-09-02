@@ -1,9 +1,9 @@
 # flake8: noqa: E501
 import inspect
+import pathlib
 import sys
 import typing as t
 from os.path import relpath
-import pathlib
 
 import vcspull
 
@@ -178,9 +178,7 @@ intersphinx_mapping = {
 }
 
 
-def linkcode_resolve(
-    domain: str, info: dict[str, str]
-) -> t.Union[None, str]:  # NOQA: C901
+def linkcode_resolve(domain: str, info: dict[str, str]) -> t.Union[None, str]:
     """
     Determine the URL corresponding to Python object
 
@@ -203,7 +201,7 @@ def linkcode_resolve(
     for part in fullname.split("."):
         try:
             obj = getattr(obj, part)
-        except Exception:
+        except Exception:  # noqa: PERF203
             return None
 
     # strip decorators, which would resolve to the source of the decorator
@@ -228,10 +226,7 @@ def linkcode_resolve(
     except Exception:
         lineno = None
 
-    if lineno:
-        linespec = "#L%d-L%d" % (lineno, lineno + len(source) - 1)
-    else:
-        linespec = ""
+    linespec = "#L%d-L%d" % (lineno, lineno + len(source) - 1) if lineno else ""
 
     fn = relpath(fn, start=pathlib.Path(vcspull.__file__).parent)
 

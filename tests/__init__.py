@@ -1,1 +1,1 @@
-from . import fixtures  # noqa
+from . import fixtures

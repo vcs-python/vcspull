@@ -11,6 +11,7 @@ from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitSync
 from libvcs.url import registry as url_tools
 
+from .. import exc
 from ..config import filter_repos, find_config_files, load_configs
 
 log = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
 
 
 def sync(
-    repo_patterns: t.List[str],
+    repo_patterns: list[str],
     config: pathlib.Path,
     exit_on_error: bool,
     parser: t.Optional[
@@ -91,8 +92,8 @@ def sync(
     for repo in found_repos:
         try:
             update_repo(repo)
-        except Exception:
-            print(
+        except Exception as e:  # noqa: PERF203
+            log.info(
                 f'Failed syncing {repo.get("name")}',
             )
             if log.isEnabledFor(logging.DEBUG):
@@ -102,8 +103,7 @@ def sync(
             if exit_on_error:
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
-                else:
-                    raise SystemExit(EXIT_ON_ERROR_MSG)
+                raise SystemExit(EXIT_ON_ERROR_MSG) from e
 
 
 def progress_cb(output: str, timestamp: datetime) -> None:
@@ -124,6 +124,11 @@ def guess_vcs(url: str) -> t.Optional[VCSLiteral]:
     return t.cast(VCSLiteral, vcs_matches[0].vcs)
 
 
+class CouldNotGuessVCSFromURL(exc.VCSPullException):
+    def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
+        return super().__init__(f"Could not automatically determine VCS for {repo_url}")
+
+
 def update_repo(
     repo_dict: t.Any,
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
@@ -138,9 +143,7 @@ def update_repo(
     if repo_dict.get("vcs") is None:
         vcs = guess_vcs(url=repo_dict["url"])
         if vcs is None:
-            raise Exception(
-                f'Could not automatically determine VCS for {repo_dict["url"]}'
-            )
+            raise CouldNotGuessVCSFromURL(repo_url=repo_dict["url"])
 
         repo_dict["vcs"] = vcs
 

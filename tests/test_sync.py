@@ -3,10 +3,10 @@ import textwrap
 import typing as t
 
 import pytest
-
 from libvcs._internal.shortcuts import create_project
 from libvcs.pytest_plugin import CreateProjectCallbackFixtureProtocol
 from libvcs.sync.git import GitRemote, GitSync
+
 from vcspull._internal.config_reader import ConfigReader
 from vcspull.cli.sync import update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
@@ -97,7 +97,7 @@ def test_config_variations(
     create_git_remote_repo: CreateProjectCallbackFixtureProtocol,
     config_tpl: str,
     capsys: pytest.CaptureFixture[str],
-    remote_list: t.List[str],
+    remote_list: list[str],
 ) -> None:
     """Test config output with variation of config formats"""
     dummy_repo_name = "dummy_repo"
@@ -125,7 +125,7 @@ def test_config_variations(
             remote_names
         )
 
-        for remote_name, remote_info in remotes.items():
+        for remote_name in remotes:
             current_remote = repo.remote(remote_name)
             assert current_remote is not None
             assert current_remote.fetch_url == repo_url
@@ -211,7 +211,7 @@ def test_updating_remote(
     repo_dict = filter_repos([expected_config], name="myclone")[0]
     assert isinstance(repo_dict, dict)
     repo = update_repo(repo_dict)
-    for remote_name, remote_info in repo.remotes().items():
+    for remote_name in repo.remotes():
         remote = repo.remote(remote_name)
         if remote is not None:
             current_remote_url = remote.fetch_url.replace("git+", "")

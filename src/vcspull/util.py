@@ -9,7 +9,7 @@ import pathlib
 import typing as t
 from collections.abc import Mapping
 
-LEGACY_CONFIG_DIR = os.path.expanduser("~/.vcspull/")  # remove dupes of this
+LEGACY_CONFIG_DIR = pathlib.Path("~/.vcspull/").expanduser()  # remove dupes of this
 
 
 def get_config_dir() -> pathlib.Path:
@@ -27,26 +27,26 @@ def get_config_dir() -> pathlib.Path:
         absolute path to tmuxp config directory
     """
 
-    paths = []
+    paths: list[pathlib.Path] = []
     if "VCSPULL_CONFIGDIR" in os.environ:
-        paths.append(os.environ["VCSPULL_CONFIGDIR"])
+        paths.append(pathlib.Path(os.environ["VCSPULL_CONFIGDIR"]))
     if "XDG_CONFIG_HOME" in os.environ:
-        paths.append(os.path.join(os.environ["XDG_CONFIG_HOME"], "vcspull"))
+        paths.append(pathlib.Path(os.environ["XDG_CONFIG_HOME"]) / "vcspull")
     else:
-        paths.append("~/.config/vcspull/")
+        paths.append(pathlib.Path("~/.config/vcspull/"))
     paths.append(LEGACY_CONFIG_DIR)
 
     path = None
     for path in paths:
-        path = os.path.expanduser(path)
-        if os.path.isdir(path):
-            return pathlib.Path(path)
+        path = path.expanduser()
+        if path.is_dir():
+            return path
 
     # Return last path as default if none of the previous ones matched
-    return pathlib.Path(path)
+    return path
 
 
-T = t.TypeVar("T", bound=t.Dict[str, t.Any])
+T = t.TypeVar("T", bound=dict[str, t.Any])
 
 
 def update_dict(

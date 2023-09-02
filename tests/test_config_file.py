@@ -83,17 +83,19 @@ def test_export_yaml(tmp_path: pathlib.Path) -> None:
 
 
 def test_scan_config(tmp_path: pathlib.Path) -> None:
-    config_files = []
+    config_files: list[str] = []
 
     exists = os.path.exists
     garbage_file = tmp_path / ".vcspull.psd"
     garbage_file.write_text("wat", encoding="utf-8")
 
-    for r, d, f in os.walk(str(tmp_path)):
-        for filela in (
-            x for x in f if x.endswith((".json", "yaml")) and x.startswith(".vcspull")
-        ):
-            config_files.append(str(tmp_path / filela))
+    for _r, _d, file in os.walk(str(tmp_path)):
+        config_files += [
+            str(tmp_path / scanned_file)
+            for scanned_file in file
+            if scanned_file.endswith((".json", "yaml"))
+            and scanned_file.startswith(".vcspull")
+        ]
 
     files = 0
     if exists(str(tmp_path / ".vcspull.json")):
@@ -192,12 +194,11 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path) -> None:
     json_conf_file.touch()
     yaml_conf_file = tmp_path / ".vcspull.yaml"
     yaml_conf_file.touch()
-    with EnvironmentVarGuard() as env:
-        with pytest.raises(exc.MultipleConfigWarning):
-            env.set("HOME", str(tmp_path))
-            assert pathlib.Path.home() == tmp_path
+    with EnvironmentVarGuard() as env, pytest.raises(exc.MultipleConfigWarning):
+        env.set("HOME", str(tmp_path))
+        assert pathlib.Path.home() == tmp_path
 
-            config.find_home_config_files()
+        config.find_home_config_files()
 
 
 def test_in_dir(
@@ -391,5 +392,5 @@ def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path) ->
     )
     assert config1 in config_files
     assert config2 in config_files
-    with pytest.raises(Exception):
+    with pytest.raises(exc.VCSPullException):
         config.load_configs(config_files)
