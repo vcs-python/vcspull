@@ -15,19 +15,23 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 // Usage: vcspull@next sync [config]
 ```
 
-## vcspull v1.22.x (unreleased)
+## vcspull v1.23.x (unreleased)
 
 - _Notes on upcoming releases will be added here_
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull v1.22.0 (2023-09-02)
+
+_Maintenance only, no bug fixes, or new features_
+
 ### Development
 
-- Code quality improved via [ruff] rules (#147)
+- Code quality improved via [ruff] rules (#417)
 
-  This includes fixes made by hand, and with ruff's automated fixes. Despite
-  selecting additional rules, which include import sorting, ruff runs nearly
-  instantaneously when checking the whole codebase.
+  This includes fixes made by hand, and with ruff's automated fixes. With
+  the expanded set of linting rules (which include import sorting) - ruff runs are
+  still instant when checking the whole codebase.
 
 ## vcspull v1.21.1 (2023-05-28)
 
