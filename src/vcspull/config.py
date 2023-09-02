@@ -28,7 +28,8 @@ if t.TYPE_CHECKING:
 
 
 def expand_dir(
-    _dir: pathlib.Path, cwd: pathlib.Path = pathlib.Path.cwd()
+    _dir: pathlib.Path,
+    cwd: t.Union[pathlib.Path, t.Callable[[], pathlib.Path]] = pathlib.Path.cwd,
 ) -> pathlib.Path:
     """Return path with environmental variables and tilde ~ expanded.
 
@@ -44,7 +45,10 @@ def expand_dir(
     pathlib.Path :
         Absolute directory path
     """
-    _dir = pathlib.Path(os.path.expanduser(os.path.expandvars(str(_dir))))
+    _dir = pathlib.Path(os.path.expandvars(str(_dir))).expanduser()
+    if callable(cwd):
+        cwd = cwd()
+
     if not _dir.is_absolute():
         _dir = pathlib.Path(os.path.normpath(cwd / _dir))
         assert _dir == pathlib.Path(cwd, _dir).resolve(strict=False)
@@ -52,7 +56,8 @@ def expand_dir(
 
 
 def extract_repos(
-    config: "RawConfigDict", cwd: pathlib.Path = pathlib.Path.cwd()
+    config: "RawConfigDict",
+    cwd: t.Union[pathlib.Path, t.Callable[[], pathlib.Path]] = pathlib.Path.cwd,
 ) -> list["ConfigDict"]:
     """Return expanded configuration.
 
@@ -71,6 +76,9 @@ def extract_repos(
     list : List of normalized repository information
     """
     configs: list["ConfigDict"] = []
+    if callable(cwd):
+        cwd = cwd()
+
     for directory, repos in config.items():
         assert isinstance(repos, dict)
         for repo, repo_data in repos.items():
@@ -135,16 +143,16 @@ def extract_repos(
 
 
 def find_home_config_files(
-    filetype: t.Optional[list[str]] = None
+    filetype: t.Optional[list[str]] = None,
 ) -> list[pathlib.Path]:
     """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
     if filetype is None:
         filetype = ["json", "yaml"]
     configs: list[pathlib.Path] = []
 
-    yaml_config = pathlib.Path(os.path.expanduser("~/.vcspull.yaml"))
+    yaml_config = pathlib.Path("~/.vcspull.yaml").expanduser()
     has_yaml_config = yaml_config.exists()
-    json_config = pathlib.Path(os.path.expanduser("~/.vcspull.json"))
+    json_config = pathlib.Path("~/.vcspull.json").expanduser()
     has_json_config = json_config.exists()
 
     if not has_yaml_config and not has_json_config:
@@ -167,8 +175,8 @@ def find_home_config_files(
 def find_config_files(
     path: t.Optional[t.Union[list[pathlib.Path], pathlib.Path]] = None,
     match: t.Optional[t.Union[list[str], str]] = None,
-    filetype: t.Union[
-        t.Literal["json", "yaml", "*"], list[t.Literal["json", "yaml", "*"]]
+    filetype: t.Optional[
+        t.Union[t.Literal["json", "yaml", "*"], list[t.Literal["json", "yaml", "*"]]]
     ] = None,
     include_home: bool = False,
 ) -> list[pathlib.Path]:
@@ -211,7 +219,7 @@ def find_config_files(
             config_files.extend(find_config_files(p, match, filetype))
             return config_files
     else:
-        path = pathlib.Path(os.path.expanduser(path))
+        path = path.expanduser()
         if isinstance(match, list):
             for m in match:
                 config_files.extend(find_config_files(path, m, filetype))
@@ -227,7 +235,8 @@ def find_config_files(
 
 
 def load_configs(
-    files: list[pathlib.Path], cwd: pathlib.Path = pathlib.Path.cwd()
+    files: list[pathlib.Path],
+    cwd: t.Union[pathlib.Path, t.Callable[[], pathlib.Path]] = pathlib.Path.cwd,
 ) -> list["ConfigDict"]:
     """Return repos from a list of files.
 
@@ -248,6 +257,9 @@ def load_configs(
     Validate scheme, check for duplicate destinations, VCS urls
     """
     repos: list["ConfigDict"] = []
+    if callable(cwd):
+        cwd = cwd()
+
     for file in files:
         if isinstance(file, str):
             file = pathlib.Path(file)
@@ -329,11 +341,12 @@ def in_dir(
         extensions = [".yml", ".yaml", ".json"]
     if config_dir is not None:
         config_dir = get_config_dir()
-    configs = []
 
-    for filename in os.listdir(config_dir):
-        if is_config_file(filename, extensions) and not filename.startswith("."):
-            configs.append(filename)
+    configs = [
+        filename
+        for filename in os.listdir(config_dir)
+        if is_config_file(filename, extensions) and not filename.startswith(".")
+    ]
 
     return configs
 

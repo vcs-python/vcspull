@@ -92,8 +92,8 @@ def sync(
     for repo in found_repos:
         try:
             update_repo(repo)
-        except Exception:
-            print(
+        except Exception as e:  # noqa: PERF203
+            log.info(
                 f'Failed syncing {repo.get("name")}',
             )
             if log.isEnabledFor(logging.DEBUG):
@@ -103,8 +103,7 @@ def sync(
             if exit_on_error:
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
-                else:
-                    raise SystemExit(EXIT_ON_ERROR_MSG)
+                raise SystemExit(EXIT_ON_ERROR_MSG) from e
 
 
 def progress_cb(output: str, timestamp: datetime) -> None:
@@ -144,9 +143,7 @@ def update_repo(
     if repo_dict.get("vcs") is None:
         vcs = guess_vcs(url=repo_dict["url"])
         if vcs is None:
-            raise Exception(
-                f'Could not automatically determine VCS for {repo_dict["url"]}'
-            )
+            raise CouldNotGuessVCSFromURL(repo_url=repo_dict["url"])
 
         repo_dict["vcs"] = vcs
 
