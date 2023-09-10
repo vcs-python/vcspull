@@ -295,13 +295,13 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "furo"
-version = "2023.8.19"
+version = "2023.9.10"
 description = "A clean customisable Sphinx documentation theme."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "furo-2023.8.19-py3-none-any.whl", hash = "sha256:12f99f87a1873b6746228cfde18f77244e6c1ffb85d7fed95e638aae70d80590"},
-    {file = "furo-2023.8.19.tar.gz", hash = "sha256:e671ee638ab3f1b472f4033b0167f502ab407830e0db0f843b1c1028119c9cd1"},
+    {file = "furo-2023.9.10-py3-none-any.whl", hash = "sha256:513092538537dc5c596691da06e3c370714ec99bc438680edc1debffb73e5bfc"},
+    {file = "furo-2023.9.10.tar.gz", hash = "sha256:5707530a476d2a63b8cad83b4f961f3739a69f4b058bcf38a03a39fa537195b2"},
 ]
 
 [package.dependencies]
@@ -312,13 +312,13 @@ sphinx-basic-ng = "*"
 
 [[package]]
 name = "gp-libs"
-version = "0.0.1a21"
+version = "0.0.2"
 description = "Internal utilities for projects following git-pull python package spec"
 optional = false
-python-versions = ">=3.7,<4.0"
+python-versions = ">=3.8,<4.0"
 files = [
-    {file = "gp_libs-0.0.1a21-py3-none-any.whl", hash = "sha256:22e792ec056138f3838249b3eb1d954c0ba01d7eea4fa8d4e2301ca39fb7bf41"},
-    {file = "gp_libs-0.0.1a21.tar.gz", hash = "sha256:483c6edee3f7fe6a6e35787b770296301b87fabbedd08e53806d5ec6deb733b3"},
+    {file = "gp_libs-0.0.2-py3-none-any.whl", hash = "sha256:5b8e123e965fce5ea1edaebbf70069aa99a37df5c288493743e929c030ecd114"},
+    {file = "gp_libs-0.0.2.tar.gz", hash = "sha256:85cce8c79ef1083a1cf06180120347cde89ab7f679b31a92a9c1cb665ca5012e"},
 ]
 
 [package.dependencies]
