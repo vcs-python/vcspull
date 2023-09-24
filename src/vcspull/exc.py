@@ -1,5 +1,4 @@
 class VCSPullException(Exception):
-
     """Standard exception raised by vcspull."""
 
 

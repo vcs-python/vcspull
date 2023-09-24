@@ -63,7 +63,7 @@ def write_config_remote(
 
 
 @pytest.mark.parametrize(
-    "config_tpl,remote_list",
+    ("config_tpl", "remote_list"),
     [
         [
             """
@@ -132,7 +132,7 @@ def test_config_variations(
 
 
 @pytest.mark.parametrize(
-    "config_tpl,has_extra_remotes",
+    ("config_tpl", "has_extra_remotes"),
     [
         [
             """

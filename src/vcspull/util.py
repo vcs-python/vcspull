@@ -13,8 +13,7 @@ LEGACY_CONFIG_DIR = pathlib.Path("~/.vcspull/").expanduser()  # remove dupes of 
 
 
 def get_config_dir() -> pathlib.Path:
-    """
-    Return vcspull configuration directory.
+    """Return vcspull configuration directory.
 
     ``VCSPULL_CONFIGDIR`` environmental variable has precedence if set. We also
     evaluate XDG default directory from XDG_CONFIG_HOME environmental variable
@@ -26,7 +25,6 @@ def get_config_dir() -> pathlib.Path:
     str :
         absolute path to tmuxp config directory
     """
-
     paths: list[pathlib.Path] = []
     if "VCSPULL_CONFIGDIR" in os.environ:
         paths.append(pathlib.Path(os.environ["VCSPULL_CONFIGDIR"]))

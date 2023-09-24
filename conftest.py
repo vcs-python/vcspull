@@ -33,14 +33,13 @@ def cwd_default(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None
 
 
 @pytest.fixture(autouse=True, scope="session")
-@pytest.mark.usefixtures("set_home")
 def xdg_config_path(user_path: pathlib.Path) -> pathlib.Path:
     p = user_path / ".config"
     p.mkdir()
     return p
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def config_path(
     xdg_config_path: pathlib.Path, request: pytest.FixtureRequest
 ) -> pathlib.Path:
@@ -61,7 +60,7 @@ def set_xdg_config_path(
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config_path))
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest) -> pathlib.Path:
     """Return temporary directory for repository checkout guaranteed unique."""
     dir = user_path / "repos"

@@ -14,14 +14,14 @@ from .fixtures import example as fixtures
 from .helpers import EnvironmentVarGuard, load_raw, write_config
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def yaml_config(config_path: pathlib.Path) -> pathlib.Path:
     yaml_file = config_path / "repos1.yaml"
     yaml_file.touch()
     return yaml_file
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def json_config(config_path: pathlib.Path) -> pathlib.Path:
     json_file = config_path / "repos2.json"
     json_file.touch()
