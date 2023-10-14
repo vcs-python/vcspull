@@ -144,8 +144,7 @@ intersphinx_mapping = {
 
 
 def linkcode_resolve(domain: str, info: dict[str, str]) -> t.Union[None, str]:
-    """
-    Determine the URL corresponding to Python object
+    """Determine the URL corresponding to Python object.
 
     Notes
     -----

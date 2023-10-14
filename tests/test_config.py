@@ -21,7 +21,7 @@ class LoadYAMLFn(t.Protocol):
         ...
 
 
-@pytest.fixture
+@pytest.fixture()
 def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
     def fn(
         content: str, dir: str = "randomdir", filename: str = "randomfilename.yaml"

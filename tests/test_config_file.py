@@ -14,14 +14,14 @@ from .fixtures import example as fixtures
 from .helpers import EnvironmentVarGuard, load_raw, write_config
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def yaml_config(config_path: pathlib.Path) -> pathlib.Path:
     yaml_file = config_path / "repos1.yaml"
     yaml_file.touch()
     return yaml_file
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def json_config(config_path: pathlib.Path) -> pathlib.Path:
     json_file = config_path / "repos2.json"
     json_file.touch()
@@ -194,11 +194,11 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path) -> None:
     json_conf_file.touch()
     yaml_conf_file = tmp_path / ".vcspull.yaml"
     yaml_conf_file.touch()
-    with EnvironmentVarGuard() as env, pytest.raises(exc.MultipleConfigWarning):
-        env.set("HOME", str(tmp_path))
-        assert pathlib.Path.home() == tmp_path
 
-        config.find_home_config_files()
+    with EnvironmentVarGuard() as env:
+        env.set("HOME", str(tmp_path))
+        with pytest.raises(exc.MultipleConfigWarning):
+            config.find_home_config_files()
 
 
 def test_in_dir(
