@@ -21,6 +21,13 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Development
+
+- Refactor of two testsuites to used `NamedTuple` parametrization (#423):
+
+  - test_config_variations
+  - test_updating_remote
+
 ### Breaking changes
 
 - Python 3.7 Dropped (#421)

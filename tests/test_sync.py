@@ -62,41 +62,55 @@ def write_config_remote(
     )
 
 
-@pytest.mark.parametrize(
-    "config_tpl,remote_list",
-    [
-        [
-            """
+class ConfigVariationTest(t.NamedTuple):
+    test_id: str
+    config_tpl: str
+    remote_list: list[str]
+
+
+CONFIG_VARIATION_FIXTURES = [
+    ConfigVariationTest(
+        test_id="default",
+        config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}: git+file://{dir}
         """,
-            ["origin"],
-        ],
-        [
-            """
+        remote_list=["origin"],
+    ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style",
+        config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
                repo: git+file://{dir}
         """,
-            ["repo"],
-        ],
-        [
-            """
+        remote_list=["repo"],
+    ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style_with_remote",
+        config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
                 repo: git+file://{dir}
                 remotes:
                   secondremote: git+file://{dir}
         """,
-            ["secondremote"],
-        ],
-    ],
+        remote_list=["secondremote"],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ConfigVariationTest._fields),
+    CONFIG_VARIATION_FIXTURES,
+    ids=[test.test_id for test in CONFIG_VARIATION_FIXTURES],
 )
 def test_config_variations(
     tmp_path: pathlib.Path,
-    create_git_remote_repo: CreateProjectCallbackFixtureProtocol,
-    config_tpl: str,
     capsys: pytest.CaptureFixture[str],
+    create_git_remote_repo: CreateProjectCallbackFixtureProtocol,
+    test_id: str,
+    config_tpl: str,
     remote_list: list[str],
 ) -> None:
     """Test config output with variation of config formats"""
@@ -131,39 +145,53 @@ def test_config_variations(
             assert current_remote.fetch_url == repo_url
 
 
-@pytest.mark.parametrize(
-    "config_tpl,has_extra_remotes",
-    [
-        [
-            """
+class UpdatingRemoteFixture(t.NamedTuple):
+    test_id: str
+    config_tpl: str
+    has_extra_remotes: bool
+
+
+UPDATING_REMOTE_FIXTURES = [
+    UpdatingRemoteFixture(
+        test_id="no_remotes",
+        config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}: git+file://{dir}
         """,
-            False,
-        ],
-        [
-            """
+        has_extra_remotes=False,
+    ),
+    UpdatingRemoteFixture(
+        test_id="no_remotes_expanded_repo_style",
+        config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
                repo: git+file://{dir}
         """,
-            False,
-        ],
-        [
-            """
+        has_extra_remotes=False,
+    ),
+    UpdatingRemoteFixture(
+        test_id="has_remotes_expanded_repo_style",
+        config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
                 repo: git+file://{dir}
                 remotes:
                   mirror_repo: git+file://{dir}
         """,
-            True,
-        ],
-    ],
+        has_extra_remotes=True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(UpdatingRemoteFixture._fields),
+    UPDATING_REMOTE_FIXTURES,
+    ids=[test.test_id for test in UPDATING_REMOTE_FIXTURES],
 )
 def test_updating_remote(
     tmp_path: pathlib.Path,
     create_git_remote_repo: CreateProjectCallbackFixtureProtocol,
+    test_id: str,
     config_tpl: str,
     has_extra_remotes: bool,
 ) -> None:
