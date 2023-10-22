@@ -25,7 +25,6 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ### Breaking changes
 
-- Python 3.7 Dropped (#421)
 - libvcs: Bumped from 0.22.2 -> 0.24.0 (#419)
 
 ### Bug fixes
