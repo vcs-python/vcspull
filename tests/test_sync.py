@@ -108,6 +108,17 @@ CONFIG_VARIATION_FIXTURES = [
         """,
         remote_list=["git_scheme_repo"],
     ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style_with_unprefixed_remote_2",
+        config_tpl="""
+        {tmp_path}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{dir}
+                remotes:
+                  git_scheme_repo: git+git@github.com:tony/vcspull.git
+        """,
+        remote_list=["git_scheme_repo"],
+    ),
 ]
 
 
