@@ -115,7 +115,7 @@ CONFIG_VARIATION_FIXTURES = [
             {CLONE_NAME}:
                 repo: git+file://{dir}
                 remotes:
-                  git_scheme_repo: git+git@github.com:tony/vcspull.git
+                  git_scheme_repo: git@github.com:tony/vcspull.git
         """,
         remote_list=["git_scheme_repo"],
     ),
@@ -153,7 +153,6 @@ def test_config_variations(
     assert len(repos) == 1
 
     for repo_dict in repos:
-        repo_url = repo_dict["url"].replace("git+", "")
         repo: GitSync = update_repo(repo_dict)
         remotes = repo.remotes() or {}
         remote_names = set(remotes.keys())
@@ -171,9 +170,19 @@ def test_config_variations(
                 and isinstance(repo_dict["remotes"], dict)
                 and remote_name in repo_dict["remotes"]
             ):
-                assert current_remote.fetch_url == repo_dict["remotes"][
-                    remote_name
-                ].fetch_url.replace("git+", "")
+                if repo_dict["remotes"][remote_name].fetch_url.startswith(
+                    "git+file://"
+                ):
+                    assert current_remote.fetch_url == repo_dict["remotes"][
+                        remote_name
+                    ].fetch_url.replace(
+                        "git+", ""
+                    ), "Final git remote should chop git+ prefix"
+                else:
+                    assert (
+                        current_remote.fetch_url
+                        == repo_dict["remotes"][remote_name].fetch_url
+                    )
 
 
 class UpdatingRemoteFixture(t.NamedTuple):
