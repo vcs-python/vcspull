@@ -97,6 +97,28 @@ CONFIG_VARIATION_FIXTURES = [
         """,
         remote_list=["secondremote"],
     ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style_with_unprefixed_remote",
+        config_tpl="""
+        {tmp_path}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{dir}
+                remotes:
+                  git_scheme_repo: git@codeberg.org:tmux-python/tmuxp.git
+        """,
+        remote_list=["git_scheme_repo"],
+    ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style_with_unprefixed_remote_2",
+        config_tpl="""
+        {tmp_path}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{dir}
+                remotes:
+                  git_scheme_repo: git@github.com:tony/vcspull.git
+        """,
+        remote_list=["git_scheme_repo"],
+    ),
 ]
 
 
@@ -131,7 +153,6 @@ def test_config_variations(
     assert len(repos) == 1
 
     for repo_dict in repos:
-        repo_url = repo_dict["url"].replace("git+", "")
         repo: GitSync = update_repo(repo_dict)
         remotes = repo.remotes() or {}
         remote_names = set(remotes.keys())
@@ -142,7 +163,26 @@ def test_config_variations(
         for remote_name in remotes:
             current_remote = repo.remote(remote_name)
             assert current_remote is not None
-            assert current_remote.fetch_url == repo_url
+            assert repo_dict is not None
+            assert isinstance(remote_name, str)
+            if (
+                "remotes" in repo_dict
+                and isinstance(repo_dict["remotes"], dict)
+                and remote_name in repo_dict["remotes"]
+            ):
+                if repo_dict["remotes"][remote_name].fetch_url.startswith(
+                    "git+file://"
+                ):
+                    assert current_remote.fetch_url == repo_dict["remotes"][
+                        remote_name
+                    ].fetch_url.replace(
+                        "git+", ""
+                    ), "Final git remote should chop git+ prefix"
+                else:
+                    assert (
+                        current_remote.fetch_url
+                        == repo_dict["remotes"][remote_name].fetch_url
+                    )
 
 
 class UpdatingRemoteFixture(t.NamedTuple):

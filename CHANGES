@@ -21,16 +21,22 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Breaking changes
+
+- Python 3.7 Dropped (#421)
+- libvcs: Bumped from 0.22.2 -> 0.24.0 (#419)
+
+### Bug fixes
+
+- Git Remote URLs: Fix bug that would cause git remotes with `@` to be chopped off after the
+  protocol (#419, fixes #425)
+
 ### Development
 
 - Refactor of two testsuites to used `NamedTuple` parametrization (#423):
 
   - test_config_variations
   - test_updating_remote
-
-### Breaking changes
-
-- Python 3.7 Dropped (#421)
 
 ## vcspull v1.22.0 (2023-09-02)
 
