@@ -164,7 +164,16 @@ def test_config_variations(
         for remote_name in remotes:
             current_remote = repo.remote(remote_name)
             assert current_remote is not None
-            assert current_remote.fetch_url == repo_url
+            assert repo_dict is not None
+            assert isinstance(remote_name, str)
+            if (
+                "remotes" in repo_dict
+                and isinstance(repo_dict["remotes"], dict)
+                and remote_name in repo_dict["remotes"]
+            ):
+                assert current_remote.fetch_url == repo_dict["remotes"][
+                    remote_name
+                ].fetch_url.replace("git+", "")
 
 
 class UpdatingRemoteFixture(t.NamedTuple):
