@@ -21,6 +21,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Packaging
+
+- Poetry: 1.6.x -> 1.7.0
+
+  See also: https://github.com/python-poetry/poetry/blob/1.7.0/CHANGELOG.md
+
 ## vcspull v1.23.0 (2023-10-22)
 
 ### Breaking changes
