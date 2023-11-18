@@ -15,9 +15,7 @@ class LoadYAMLFn(t.Protocol):
         content: str,
         dir: str = "randomdir",
         filename: str = "randomfilename.yaml",
-    ) -> tuple[
-        pathlib.Path, list[t.Union[t.Any, pathlib.Path]], list["ConfigDict"]
-    ]:
+    ) -> tuple[pathlib.Path, list[t.Union[t.Any, pathlib.Path]], list["ConfigDict"]]:
         ...
 
 

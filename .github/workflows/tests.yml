@@ -33,6 +33,9 @@ jobs:
       - name: Lint with ruff
         run: poetry run ruff .
 
+      - name: Format with ruff
+        run: poetry run ruff format . --check
+
       - name: Lint with mypy
         run: poetry run mypy .
 

@@ -27,6 +27,15 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
   See also: https://github.com/python-poetry/poetry/blob/1.7.0/CHANGELOG.md
 
+### Development
+
+- Move formatting from `black` to [`ruff format`] (#427)
+
+  This retains the same formatting style of `black` while eliminating a
+  dev dependency by using our existing rust-based `ruff` linter.
+
+  [`ruff format`]: https://docs.astral.sh/ruff/formatter/
+
 ## vcspull v1.23.0 (2023-10-22)
 
 ### Breaking changes
