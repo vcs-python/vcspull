@@ -91,7 +91,6 @@ def test_sync_cli_filter_non_existent(
     with contextlib.suppress(SystemExit):
         cli(["sync", *sync_args])
 
-
     result = capsys.readouterr()
     output = "".join(list(result.out))
 
@@ -223,7 +222,6 @@ def test_sync(
     # CLI can sync
     with contextlib.suppress(SystemExit):
         cli(sync_args)
-
 
     result = capsys.readouterr()
     output = "".join(list(result.out if expected_exit_code == 0 else result.err))
@@ -360,7 +358,6 @@ def test_sync_broken(
 
     with contextlib.suppress(SystemExit):
         cli(["sync", *sync_args])
-
 
     result = capsys.readouterr()
     out = "".join(list(result.out))
