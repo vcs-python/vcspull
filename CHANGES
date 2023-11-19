@@ -23,6 +23,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ### Packaging
 
+- libvcs 0.24.0 -> 0.25.0 (maintenance release)
 - Poetry: 1.6.x -> 1.7.0
 
   See also: https://github.com/python-poetry/poetry/blob/1.7.0/CHANGELOG.md
