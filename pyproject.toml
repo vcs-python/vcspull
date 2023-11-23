@@ -84,6 +84,7 @@ myst_parser = ">=0.18.1"
 pytest = "*"
 pytest-rerunfailures = "*"
 pytest-watcher = "*"
+gp-libs = "*"
 
 [tool.poetry.group.coverage.dependencies]
 ### Coverage ###
