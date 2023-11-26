@@ -25,6 +25,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - libvcs 0.25.1 -> 0.26.0: Minor bug fixes, docstring updates
 
+### CI
+
+- Move CodeQL from advanced configuration file to GitHub's default
+
 ## vcspull v1.24.1 (2023-11-24)
 
 ### Packaging
