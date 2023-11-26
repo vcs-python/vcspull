@@ -4,7 +4,7 @@ import typing as t
 
 import pytest
 from libvcs._internal.shortcuts import create_project
-from libvcs.pytest_plugin import CreateProjectCallbackFixtureProtocol
+from libvcs.pytest_plugin import CreateRepoPytestFixtureFn
 from libvcs.sync.git import GitRemote, GitSync
 
 from vcspull._internal.config_reader import ConfigReader
@@ -130,7 +130,7 @@ CONFIG_VARIATION_FIXTURES = [
 def test_config_variations(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
-    create_git_remote_repo: CreateProjectCallbackFixtureProtocol,
+    create_git_remote_repo: CreateRepoPytestFixtureFn,
     test_id: str,
     config_tpl: str,
     remote_list: list[str],
@@ -230,7 +230,7 @@ UPDATING_REMOTE_FIXTURES = [
 )
 def test_updating_remote(
     tmp_path: pathlib.Path,
-    create_git_remote_repo: CreateProjectCallbackFixtureProtocol,
+    create_git_remote_repo: CreateRepoPytestFixtureFn,
     test_id: str,
     config_tpl: str,
     has_extra_remotes: bool,
