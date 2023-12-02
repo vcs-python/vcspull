@@ -156,7 +156,11 @@ select = [
   "TRY", # Trycertatops
   "PERF", # Perflint
   "RUF", # Ruff-specific rules
+  "D", # pydocstyle
 ]
+
+[tool.ruff.pydocstyle]
+convention = "numpy"
 
 [tool.ruff.isort]
 known-first-party = [
