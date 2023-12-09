@@ -1,5 +1,5 @@
 """Config utility functions for vcspull.
-vcspull.config
+vcspull.config.
 ~~~~~~~~~~~~~~
 
 A lot of these items are todo.

@@ -135,7 +135,7 @@ def test_config_variations(
     config_tpl: str,
     remote_list: list[str],
 ) -> None:
-    """Test config output with variation of config formats"""
+    """Test config output with variation of config formats."""
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
 
@@ -235,7 +235,7 @@ def test_updating_remote(
     config_tpl: str,
     has_extra_remotes: bool,
 ) -> None:
-    """Ensure additions/changes to yaml config are reflected"""
+    """Ensure additions/changes to yaml config are reflected."""
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
 
