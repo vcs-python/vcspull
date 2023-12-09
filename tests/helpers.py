@@ -7,7 +7,6 @@ from vcspull._internal.config_reader import ConfigReader
 
 
 class EnvironmentVarGuard:
-
     """Class to help protect the environment variable properly.
 
     May be used as context manager.

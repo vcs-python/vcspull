@@ -125,7 +125,6 @@ class DebugLogFormatter(LogFormatter):
         record : :class:`logging.LogRecord`
             Passed from inside the :py:meth:`logging.Formatter.format` record.
         """
-
         reset = [Style.RESET_ALL]
         levelname = [
             LEVEL_COLORS.get(record.levelname, ""),

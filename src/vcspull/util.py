@@ -26,7 +26,6 @@ def get_config_dir() -> pathlib.Path:
     str :
         absolute path to tmuxp config directory
     """
-
     paths: list[pathlib.Path] = []
     if "VCSPULL_CONFIGDIR" in os.environ:
         paths.append(pathlib.Path(os.environ["VCSPULL_CONFIGDIR"]))

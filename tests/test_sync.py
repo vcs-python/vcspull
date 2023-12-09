@@ -236,7 +236,6 @@ def test_updating_remote(
     has_extra_remotes: bool,
 ) -> None:
     """Ensure additions/changes to yaml config are reflected"""
-
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
 
