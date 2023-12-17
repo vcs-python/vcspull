@@ -1,3 +1,4 @@
+"""Synchronization functionailty for vcspull."""
 import argparse
 import logging
 import pathlib
@@ -18,6 +19,7 @@ log = logging.getLogger(__name__)
 
 
 def clamp(n: int, _min: int, _max: int) -> int:
+    """Clamp a number between a min and max value."""
     return max(_min, min(n, _max))
 
 
@@ -26,6 +28,7 @@ NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    """Create ``vcspull sync`` argument subparser."""
     config_file = parser.add_argument(
         "--config",
         "-c",
@@ -63,6 +66,7 @@ def sync(
         argparse.ArgumentParser
     ] = None,  # optional so sync can be unit tested
 ) -> None:
+    """Entry point for ``vcspull sync``."""
     if isinstance(repo_patterns, list) and len(repo_patterns) == 0:
         if parser is not None:
             parser.print_help()
@@ -107,11 +111,13 @@ def sync(
 
 
 def progress_cb(output: str, timestamp: datetime) -> None:
+    """CLI Progress callback for command."""
     sys.stdout.write(output)
     sys.stdout.flush()
 
 
 def guess_vcs(url: str) -> t.Optional[VCSLiteral]:
+    """Guess the VCS from a URL."""
     vcs_matches = url_tools.registry.match(url=url, is_explicit=True)
 
     if len(vcs_matches) == 0:
@@ -125,6 +131,8 @@ def guess_vcs(url: str) -> t.Optional[VCSLiteral]:
 
 
 class CouldNotGuessVCSFromURL(exc.VCSPullException):
+    """Raised when no VCS could be guessed from a URL."""
+
     def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
@@ -133,6 +141,7 @@ def update_repo(
     repo_dict: t.Any,
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
 ) -> GitSync:
+    """Synchronize a single repository."""
     repo_dict = deepcopy(repo_dict)
     if "pip_url" not in repo_dict:
         repo_dict["pip_url"] = repo_dict.pop("url")
