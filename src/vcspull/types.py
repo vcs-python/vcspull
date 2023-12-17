@@ -1,3 +1,4 @@
+"""Typings for vcspull."""
 import pathlib
 import typing as t
 
@@ -7,6 +8,8 @@ from typing_extensions import NotRequired, TypedDict
 
 
 class RawConfigDict(t.TypedDict):
+    """Configuration dictionary without any type marshalling or variable resolution."""
+
     vcs: VCSLiteral
     name: str
     dir: StrPath
@@ -19,6 +22,8 @@ RawConfig = dict[str, RawConfigDir]
 
 
 class ConfigDict(TypedDict):
+    """Configuration map for vcspull after shorthands and variables resolved."""
+
     vcs: t.Optional[VCSLiteral]
     name: str
     dir: pathlib.Path

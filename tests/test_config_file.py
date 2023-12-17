@@ -1,4 +1,4 @@
-"""Tests for vcspull config loading."""
+"""Tests for vcspull configuration files."""
 import os
 import pathlib
 import textwrap
@@ -16,6 +16,7 @@ from .helpers import EnvironmentVarGuard, load_raw, write_config
 
 @pytest.fixture(scope="function")
 def yaml_config(config_path: pathlib.Path) -> pathlib.Path:
+    """Ensure and return vcspull yaml configuration file path."""
     yaml_file = config_path / "repos1.yaml"
     yaml_file.touch()
     return yaml_file
@@ -23,13 +24,14 @@ def yaml_config(config_path: pathlib.Path) -> pathlib.Path:
 
 @pytest.fixture(scope="function")
 def json_config(config_path: pathlib.Path) -> pathlib.Path:
+    """Ensure and return vcspull json configuration file path."""
     json_file = config_path / "repos2.json"
     json_file.touch()
     return json_file
 
 
 def test_dict_equals_yaml() -> None:
-    # Verify that example YAML is returning expected dict format.
+    """Verify that example YAML is returning expected dict format."""
     config = ConfigReader._load(
         format="yaml",
         content="""\
@@ -58,6 +60,7 @@ def test_dict_equals_yaml() -> None:
 
 
 def test_export_json(tmp_path: pathlib.Path) -> None:
+    """Test exporting vcspull to JSON format."""
     json_config = tmp_path / ".vcspull.json"
 
     config = ConfigReader(content=fixtures.config_dict)
@@ -71,6 +74,7 @@ def test_export_json(tmp_path: pathlib.Path) -> None:
 
 
 def test_export_yaml(tmp_path: pathlib.Path) -> None:
+    """Test exporting vcspull to YAML format."""
     yaml_config = tmp_path / ".vcspull.yaml"
 
     config = ConfigReader(content=fixtures.config_dict)
@@ -83,6 +87,7 @@ def test_export_yaml(tmp_path: pathlib.Path) -> None:
 
 
 def test_scan_config(tmp_path: pathlib.Path) -> None:
+    """Test scanning of config files."""
     config_files: list[str] = []
 
     exists = os.path.exists
@@ -110,6 +115,7 @@ def test_scan_config(tmp_path: pathlib.Path) -> None:
 
 
 def test_expand_shell_command_after() -> None:
+    """Test resolution / expansion of configuration shorthands and variables."""
     # Expand shell commands from string to list.
     assert is_valid_config(fixtures.config_dict)
     config = extract_repos(fixtures.config_dict)
@@ -118,7 +124,7 @@ def test_expand_shell_command_after() -> None:
 
 
 def test_expandenv_and_homevars() -> None:
-    # Assure ~ tildes and environment template vars expand.
+    """Ensure ~ tildes and environment template vars are resolved."""
     config1 = load_raw(
         """\
                 '~/study/':
@@ -176,8 +182,7 @@ def test_expandenv_and_homevars() -> None:
 
 
 def test_find_config_files(tmp_path: pathlib.Path) -> None:
-    # Test find_config_files in home directory.
-
+    """Test find_config_files in home directory."""
     pull_config = tmp_path / ".vcspull.yaml"
     pull_config.touch()
     with EnvironmentVarGuard() as env:
@@ -190,6 +195,7 @@ def test_find_config_files(tmp_path: pathlib.Path) -> None:
 
 
 def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path) -> None:
+    """Tests an exception is raised when multiple config files are found."""
     json_conf_file = tmp_path / ".vcspull.json"
     json_conf_file.touch()
     yaml_conf_file = tmp_path / ".vcspull.yaml"
@@ -206,6 +212,7 @@ def test_in_dir(
     yaml_config: pathlib.Path,
     json_config: pathlib.Path,
 ) -> None:
+    """Tests in_dir() returns configuration files found in directory."""
     expected = [yaml_config.stem, json_config.stem]
     result = config.in_dir(config_path)
 
@@ -215,6 +222,7 @@ def test_in_dir(
 def test_find_config_path_string(
     config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
 ) -> None:
+    """Tests find_config_files() returns configuration files found in directory."""
     config_files = config.find_config_files(path=config_path)
 
     assert yaml_config in config_files
@@ -226,6 +234,7 @@ def test_find_config_path_list(
     yaml_config: pathlib.Path,
     json_config: pathlib.Path,
 ) -> None:
+    """Tests find_config_files() accepts a list of search paths."""
     config_files = config.find_config_files(path=[config_path])
 
     assert yaml_config in config_files
@@ -238,6 +247,7 @@ def test_find_config_match_string(
     json_config: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Tests find_config_files() filters files with match param passed."""
     config_files = config.find_config_files(path=config_path, match=yaml_config.stem)
     assert yaml_config in config_files
     assert json_config not in config_files
@@ -269,6 +279,7 @@ def test_find_config_match_list(
     yaml_config: pathlib.Path,
     json_config: pathlib.Path,
 ) -> None:
+    """Tests find_config_Files() accepts multiple match params."""
     config_files = config.find_config_files(
         path=[config_path],
         match=[yaml_config.stem, json_config.stem],
@@ -288,6 +299,7 @@ def test_find_config_match_list(
 def test_find_config_filetype_string(
     config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
 ) -> None:
+    """Tests find_config_files() filters files by filetype when param passed."""
     config_files = config.find_config_files(
         path=[config_path], match=yaml_config.stem, filetype="yaml"
     )
@@ -316,6 +328,7 @@ def test_find_config_filetype_string(
 def test_find_config_filetype_list(
     config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
 ) -> None:
+    """Test find_config_files() accepts a list of file types, including wildcards."""
     config_files = config.find_config_files(
         path=[config_path], match=["repos*"], filetype=["*"]
     )
@@ -341,6 +354,7 @@ def test_find_config_include_home_config_files(
     yaml_config: pathlib.Path,
     json_config: pathlib.Path,
 ) -> None:
+    """Tests find_config_files() includes vcspull user configuration files."""
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
         config_files = config.find_config_files(
@@ -361,6 +375,7 @@ def test_find_config_include_home_config_files(
 
 
 def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path) -> None:
+    """Tests configuration merges repositories on the same path."""
     config1 = write_config(
         config_path=config_path / "repoduplicate1.yaml",
         content=textwrap.dedent(

@@ -30,6 +30,11 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 ### CI
 
 - Move CodeQL from advanced configuration file to GitHub's default
+- ci: Add pydocstyle rule to ruff (#428)
+
+### Documentation
+
+- Add docstrings to functions, methods, classes, and packages (#428)
 
 ## vcspull v1.24.1 (2023-11-24)
 

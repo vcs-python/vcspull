@@ -1,3 +1,4 @@
+"""Metadata for vcspull."""
 __title__ = "vcspull"
 __package_name__ = "vcspull"
 __description__ = "Manage and sync multiple git, mercurial, and svn repos"

@@ -47,6 +47,7 @@ def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParse
 def create_parser(
     return_subparsers: bool = False,
 ) -> t.Union[argparse.ArgumentParser, tuple[argparse.ArgumentParser, t.Any]]:
+    """Create CLI argument parser for vcspull."""
     parser = argparse.ArgumentParser(
         prog="vcspull",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -81,6 +82,7 @@ def create_parser(
 
 
 def cli(_args: t.Optional[list[str]] = None) -> None:
+    """CLI entry point for vcspull."""
     parser, sync_parser = create_parser(return_subparsers=True)
     args = parser.parse_args(_args)
 

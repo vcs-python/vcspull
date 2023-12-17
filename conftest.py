@@ -1,3 +1,12 @@
+"""Conftest.py (root-level).
+
+We keep this in root pytest fixtures in pytest's doctest plugin to be available, as well
+as avoiding conftest.py from being included in the wheel, in addition to pytest_plugin
+for pytester only being available via the root directory.
+
+See "pytest_plugins in non-top-level conftest files" in
+https://docs.pytest.org/en/stable/deprecations.html
+"""
 import pathlib
 import shutil
 import typing as t
@@ -10,6 +19,7 @@ def add_doctest_fixtures(
     request: pytest.FixtureRequest,
     doctest_namespace: dict[str, t.Any],
 ) -> None:
+    """Harness pytest fixtures to doctests namespace."""
     from _pytest.doctest import DoctestItem
 
     if isinstance(request._pyfuncitem, DoctestItem):
@@ -24,17 +34,20 @@ def setup(
     set_home: pathlib.Path,
     xdg_config_path: pathlib.Path,
 ) -> None:
+    """Automatically load the pytest fixtures in the parameters."""
     pass
 
 
 @pytest.fixture(autouse=True)
 def cwd_default(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+    """Change the current directory to a temporary directory."""
     monkeypatch.chdir(tmp_path)
 
 
 @pytest.fixture(autouse=True, scope="session")
 @pytest.mark.usefixtures("set_home")
 def xdg_config_path(user_path: pathlib.Path) -> pathlib.Path:
+    """Create and return path to use for XDG Config Path."""
     p = user_path / ".config"
     p.mkdir()
     return p
@@ -44,6 +57,7 @@ def xdg_config_path(user_path: pathlib.Path) -> pathlib.Path:
 def config_path(
     xdg_config_path: pathlib.Path, request: pytest.FixtureRequest
 ) -> pathlib.Path:
+    """Ensure and return vcspull configuration path."""
     conf_path = xdg_config_path / "vcspull"
     conf_path.mkdir(exist_ok=True)
 
@@ -58,6 +72,7 @@ def config_path(
 def set_xdg_config_path(
     monkeypatch: pytest.MonkeyPatch, xdg_config_path: pathlib.Path
 ) -> None:
+    """Set XDG_CONFIG_HOME environment variable."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config_path))
 
 

@@ -10,7 +10,7 @@ from .fixtures import example as fixtures
 
 
 def test_filter_dir() -> None:
-    """`filter_repos` filter by dir"""
+    """`filter_repos` filter by dir."""
     repo_list = filter_repos(fixtures.config_dict_expanded, dir="*github_project*")
 
     assert len(repo_list) == 1
@@ -19,7 +19,7 @@ def test_filter_dir() -> None:
 
 
 def test_filter_name() -> None:
-    """`filter_repos` filter by name"""
+    """`filter_repos` filter by name."""
     repo_list = filter_repos(fixtures.config_dict_expanded, name=".vim")
 
     assert len(repo_list) == 1
@@ -28,7 +28,7 @@ def test_filter_name() -> None:
 
 
 def test_filter_vcs() -> None:
-    """`filter_repos` filter by vcs remote url"""
+    """`filter_repos` filter by vcs remote url."""
     repo_list = filter_repos(fixtures.config_dict_expanded, vcs_url="*kernel.org*")
 
     assert len(repo_list) == 1

@@ -1,9 +1,7 @@
-"""Config utility functions for vcspull.
+"""Configuration functionailty for vcspull.
+
 vcspull.config
 ~~~~~~~~~~~~~~
-
-A lot of these items are todo.
-
 """
 import fnmatch
 import logging

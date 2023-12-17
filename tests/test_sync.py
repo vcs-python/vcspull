@@ -1,3 +1,4 @@
+"""Tests for sync functionality of vcspull."""
 import pathlib
 import textwrap
 import typing as t
@@ -22,7 +23,7 @@ def test_makes_recursive(
     tmp_path: pathlib.Path,
     git_remote_repo: pathlib.Path,
 ) -> None:
-    """Ensure that directories in pull are made recursively."""
+    """Ensure that syncing creates directories recursively."""
     conf = ConfigReader._load(
         format="yaml",
         content=textwrap.dedent(
@@ -54,6 +55,7 @@ def write_config_remote(
     dir: pathlib.Path,
     clone_name: str,
 ) -> pathlib.Path:
+    """Write vcspull configuration with git remote."""
     return write_config(
         config_path=config_path,
         content=config_tpl.format(
@@ -63,12 +65,17 @@ def write_config_remote(
 
 
 class ConfigVariationTest(t.NamedTuple):
+    """pytest fixture for testing vcspull configuration."""
+
+    # pytest (internal), used for naming tests
     test_id: str
+
+    # fixture params
     config_tpl: str
     remote_list: list[str]
 
 
-CONFIG_VARIATION_FIXTURES = [
+CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
     ConfigVariationTest(
         test_id="default",
         config_tpl="""
@@ -135,7 +142,7 @@ def test_config_variations(
     config_tpl: str,
     remote_list: list[str],
 ) -> None:
-    """Test config output with variation of config formats"""
+    """Test vcspull sync'ing across a variety of configurations."""
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
 
@@ -186,12 +193,17 @@ def test_config_variations(
 
 
 class UpdatingRemoteFixture(t.NamedTuple):
+    """pytest fixture for vcspull configuration with a git remote."""
+
+    # pytest (internal), used for naming tests
     test_id: str
+
+    # fixture params
     config_tpl: str
     has_extra_remotes: bool
 
 
-UPDATING_REMOTE_FIXTURES = [
+UPDATING_REMOTE_FIXTURES: list[UpdatingRemoteFixture] = [
     UpdatingRemoteFixture(
         test_id="no_remotes",
         config_tpl="""
@@ -235,8 +247,7 @@ def test_updating_remote(
     config_tpl: str,
     has_extra_remotes: bool,
 ) -> None:
-    """Ensure additions/changes to yaml config are reflected"""
-
+    """Verify yaml configuration state is applied and reflected to local VCS clone."""
     dummy_repo_name = "dummy_repo"
     dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
 
