@@ -1,3 +1,4 @@
+"""Validation of vcspull configuration file."""
 import pathlib
 import typing as t
 
@@ -8,6 +9,7 @@ if t.TYPE_CHECKING:
 
 
 def is_valid_config(config: dict[str, t.Any]) -> "TypeGuard[RawConfigDict]":
+    """Return true and upcast if vcspull configuration file is valid."""
     if not isinstance(config, dict):
         return False
 
