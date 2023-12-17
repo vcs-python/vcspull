@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+"""Example script for export gitlab organization to vcspull config file."""
 import argparse
 import os
 import pathlib
