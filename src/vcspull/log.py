@@ -1,4 +1,4 @@
-"""Log utilities for formatting CLI output.
+"""Log utilities for formatting CLI output in vcspull.
 
 vcspull.log
 ~~~~~~~~~~~
@@ -8,7 +8,6 @@ information from :class:`libvcs.base.RepoLoggingAdapter`.
 
 Colorized formatters for generic logging inside the application is also
 provided.
-
 """
 import logging
 import time
@@ -29,7 +28,7 @@ def setup_logger(
     log: t.Optional[logging.Logger] = None,
     level: t.Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO",
 ) -> None:
-    """Setup logging for CLI use.
+    """Configure vcspull logger for CLI use.
 
     Parameters
     ----------
@@ -55,6 +54,8 @@ def setup_logger(
 
 
 class LogFormatter(logging.Formatter):
+    """Log formatting for vcspull."""
+
     def template(self, record: logging.LogRecord) -> str:
         """Return the prefix for the log message. Template for Formatter.
 
@@ -100,6 +101,7 @@ class LogFormatter(logging.Formatter):
         logging.Formatter.__init__(self, **kwargs)
 
     def format(self, record: logging.LogRecord) -> str:
+        """Format log record."""
         try:
             record.message = record.getMessage()
         except Exception as e:
@@ -172,7 +174,10 @@ class DebugLogFormatter(LogFormatter):
 
 
 class RepoLogFormatter(LogFormatter):
+    """Log message from vcs repository."""
+
     def template(self, record: logging.LogRecord) -> str:
+        """Template for logging vcs bin name, along with a contextual hint."""
         record.message = "".join(
             [Fore.MAGENTA, Style.BRIGHT, record.message, Fore.RESET, Style.RESET_ALL]
         )
