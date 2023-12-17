@@ -1,3 +1,4 @@
+"""Tests for vcspull configuration format."""
 import pathlib
 import typing as t
 
@@ -10,20 +11,26 @@ if t.TYPE_CHECKING:
 
 
 class LoadYAMLFn(t.Protocol):
+    """Typing for load_yaml pytest fixture."""
+
     def __call__(
         self,
         content: str,
         dir: str = "randomdir",
         filename: str = "randomfilename.yaml",
     ) -> tuple[pathlib.Path, list[t.Union[t.Any, pathlib.Path]], list["ConfigDict"]]:
+        """Callable function type signature for load_yaml pytest fixture."""
         ...
 
 
 @pytest.fixture
 def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
+    """Return a yaml loading function that uses temporary directory path."""
+
     def fn(
         content: str, dir: str = "randomdir", filename: str = "randomfilename.yaml"
     ) -> tuple[pathlib.Path, list[pathlib.Path], list["ConfigDict"]]:
+        """Return vcspull configurations and write out config to temp directory."""
         _dir = tmp_path / dir
         _dir.mkdir()
         _config = _dir / filename
@@ -37,6 +44,7 @@ def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
 
 
 def test_simple_format(load_yaml: LoadYAMLFn) -> None:
+    """Test simple configuration YAML file for vcspull."""
     dir, _, repos = load_yaml(
         """
 vcspull:
@@ -52,6 +60,7 @@ vcspull:
 
 
 def test_relative_dir(load_yaml: LoadYAMLFn) -> None:
+    """Test configuration files for vcspull support relative directories."""
     dir, _, repos = load_yaml(
         """
 ./relativedir:
