@@ -1,3 +1,4 @@
+"""Test CLI entry point for for vcspull."""
 import contextlib
 import pathlib
 import shutil
@@ -18,7 +19,12 @@ if t.TYPE_CHECKING:
 
 
 class SyncCLINonExistentRepo(t.NamedTuple):
+    """Pytest fixture for vcspull syncing when repo does not exist."""
+
+    # pytest internal: used for naming test
     test_id: str
+
+    # test parameters
     sync_args: list[str]
     expected_exit_code: int
     expected_in_out: "ExpectedOutput" = None
@@ -27,7 +33,7 @@ class SyncCLINonExistentRepo(t.NamedTuple):
     expected_not_in_err: "ExpectedOutput" = None
 
 
-SYNC_CLI_EXISTENT_REPO_FIXTURES = [
+SYNC_CLI_EXISTENT_REPO_FIXTURES: list[SyncCLINonExistentRepo] = [
     SyncCLINonExistentRepo(
         test_id="exists",
         sync_args=["my_git_project"],
@@ -74,6 +80,7 @@ def test_sync_cli_filter_non_existent(
     expected_in_err: "ExpectedOutput",
     expected_not_in_err: "ExpectedOutput",
 ) -> None:
+    """Tests vcspull syncing when repo does not exist."""
     config = {
         "~/github_projects/": {
             "my_git_project": {
@@ -108,7 +115,12 @@ def test_sync_cli_filter_non_existent(
 
 
 class SyncFixture(t.NamedTuple):
+    """Pytest fixture for vcspull sync."""
+
+    # pytest internal: used for naming test
     test_id: str
+
+    # test params
     sync_args: list[str]
     expected_exit_code: int
     expected_in_out: "ExpectedOutput" = None
@@ -117,7 +129,7 @@ class SyncFixture(t.NamedTuple):
     expected_not_in_err: "ExpectedOutput" = None
 
 
-SYNC_REPO_FIXTURES = [
+SYNC_REPO_FIXTURES: list[SyncFixture] = [
     # Empty (root command)
     SyncFixture(
         test_id="empty",
@@ -203,6 +215,7 @@ def test_sync(
     expected_in_err: "ExpectedOutput",
     expected_not_in_err: "ExpectedOutput",
 ) -> None:
+    """Tests for vcspull sync."""
     config = {
         "~/github_projects/": {
             "my_git_repo": {
@@ -240,7 +253,12 @@ def test_sync(
 
 
 class SyncBrokenFixture(t.NamedTuple):
+    """Tests for vcspull  sync when something breaks."""
+
+    # pytest internal: used for naming test
     test_id: str
+
+    # test params
     sync_args: list[str]
     expected_exit_code: int
     expected_in_out: "ExpectedOutput" = None
@@ -249,7 +267,7 @@ class SyncBrokenFixture(t.NamedTuple):
     expected_not_in_err: "ExpectedOutput" = None
 
 
-SYNC_BROKEN_REPO_FIXTURES = [
+SYNC_BROKEN_REPO_FIXTURES: list[SyncBrokenFixture] = [
     SyncBrokenFixture(
         test_id="normal-checkout",
         sync_args=["my_git_repo"],
@@ -333,6 +351,7 @@ def test_sync_broken(
     expected_in_err: "ExpectedOutput",
     expected_not_in_err: "ExpectedOutput",
 ) -> None:
+    """Tests for syncing in vcspull when unexpected error occurs."""
     github_projects = user_path / "github_projects"
     my_git_repo = github_projects / "my_git_repo"
     if my_git_repo.is_dir():
