@@ -14,6 +14,17 @@ Be careful with these! Internal APIs are **not** covered by version policies. Th
 If you need an internal API stabilized please [file an issue](https://github.com/vcs-python/vcspull/issues).
 :::
 
+```{toctree}
+config
+cli/index
+exc
+log
+internals/index
+validator
+util
+types
+```
+
 ## Exceptions
 
 ```{eval-rst}
