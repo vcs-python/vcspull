@@ -1,8 +1,5 @@
 """Log utilities for formatting CLI output in vcspull.
 
-vcspull.log
-~~~~~~~~~~~
-
 This module containers special formatters for processing the additional context
 information from :class:`libvcs.base.RepoLoggingAdapter`.
 
