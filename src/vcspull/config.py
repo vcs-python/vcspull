@@ -1,8 +1,4 @@
-"""Configuration functionailty for vcspull.
-
-vcspull.config
-~~~~~~~~~~~~~~
-"""
+"""Configuration functionailty for vcspull."""
 import fnmatch
 import logging
 import os

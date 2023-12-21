@@ -32,7 +32,7 @@ configuration/index
 :caption: Project
 :hidden:
 
-api
+api/index
 developing
 history
 migration

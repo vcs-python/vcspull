@@ -1,9 +1,4 @@
-"""CLI utilities for vcspull.
-
-vcspull.cli
-~~~~~~~~~~~
-
-"""
+"""CLI utilities for vcspull."""
 import argparse
 import logging
 import textwrap
