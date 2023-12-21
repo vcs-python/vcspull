@@ -21,6 +21,11 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Documentation
+
+- Refactor API docs to split across multiple pages (#431)
+- Remove unused reStructuredText section headers from some modules (#431)
+
 ## vcspull v1.26.0 (2023-12-16)
 
 _Maintenance only, no bug fixes, or new features_
