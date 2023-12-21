@@ -24,13 +24,3 @@ validator
 util
 types
 ```
-
-## Exceptions
-
-```{eval-rst}
-.. autoexception:: vcspull.exc.VCSPullException
-```
-
-```{eval-rst}
-.. autoexception:: vcspull.exc.MultipleConfigWarning
-```
