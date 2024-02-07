@@ -58,7 +58,8 @@ def xdg_config_path(
 
 @pytest.fixture(scope="function")
 def config_path(
-    xdg_config_path: pathlib.Path, request: pytest.FixtureRequest
+    xdg_config_path: pathlib.Path,
+    request: pytest.FixtureRequest,
 ) -> pathlib.Path:
     """Ensure and return vcspull configuration path."""
     conf_path = xdg_config_path / "vcspull"
@@ -73,7 +74,8 @@ def config_path(
 
 @pytest.fixture(autouse=True)
 def set_xdg_config_path(
-    monkeypatch: pytest.MonkeyPatch, xdg_config_path: pathlib.Path
+    monkeypatch: pytest.MonkeyPatch,
+    xdg_config_path: pathlib.Path,
 ) -> None:
     """Set XDG_CONFIG_HOME environment variable."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config_path))
@@ -82,11 +84,11 @@ def set_xdg_config_path(
 @pytest.fixture(scope="function")
 def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest) -> pathlib.Path:
     """Return temporary directory for repository checkout guaranteed unique."""
-    dir = user_path / "repos"
-    dir.mkdir(exist_ok=True)
+    path = user_path / "repos"
+    path.mkdir(exist_ok=True)
 
     def clean() -> None:
-        shutil.rmtree(dir)
+        shutil.rmtree(path)
 
     request.addfinalizer(clean)
-    return dir
+    return path

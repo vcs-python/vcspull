@@ -23,7 +23,7 @@ SYNC_DESCRIPTION = textwrap.dedent(
       vcspull sync "django-*" flask
       vcspull sync -c ./myrepos.yaml "*"
       vcspull sync -c ./myrepos.yaml myproject
-"""
+""",
 ).strip()
 
 

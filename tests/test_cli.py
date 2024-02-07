@@ -87,7 +87,7 @@ def test_sync_cli_filter_non_existent(
                 "url": f"git+file://{git_repo.path}",
                 "remotes": {"test_remote": f"git+file://{git_repo.path}"},
             },
-        }
+        },
     }
     yaml_config = config_path / ".vcspull.yaml"
     yaml_config_data = yaml.dump(config, default_flow_style=False)
@@ -226,7 +226,7 @@ def test_sync(
                 "url": f"git+file://{git_repo.path}",
                 "remotes": {"test_remote": "git+file://non-existent-remote"},
             },
-        }
+        },
     }
     yaml_config = config_path / ".vcspull.yaml"
     yaml_config_data = yaml.dump(config, default_flow_style=False)
@@ -366,7 +366,7 @@ def test_sync_broken(
             "my_git_repo_not_found": {
                 "url": "git+file:///dev/null",
             },
-        }
+        },
     }
     yaml_config = config_path / ".vcspull.yaml"
     yaml_config_data = yaml.dump(config, default_flow_style=False)

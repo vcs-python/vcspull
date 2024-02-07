@@ -20,7 +20,7 @@ except KeyError:
 
 parser = argparse.ArgumentParser(
     description="Script to generate vcsconfig for all repositories \
-    under the given namespace (needs Gitlab >= 10.3)"
+    under the given namespace (needs Gitlab >= 10.3)",
 )
 parser.add_argument("gitlab_host", type=str, help="url to the gitlab instance")
 parser.add_argument(
@@ -47,14 +47,14 @@ try:
         result = input(
             "The target config file (%s) already exists, \
             do you want to overwrite it? [y/N] "
-            % (config_filename)
+            % (config_filename),
         )
 
         if result != "y":
             print(
                 "Aborting per user request as existing config file (%s) \
                 should not be overwritten!"
-                % (config_filename)
+                % (config_filename),
             )
             sys.exit(0)
 
@@ -103,7 +103,7 @@ for group in response.json():
                 name="origin",
                 fetch_url=f"ssh://{url_to_repo}",
                 push_url=f"ssh://{url_to_repo}",
-            )
+            ),
         },
         "vcs": vcs,
     }

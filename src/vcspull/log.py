@@ -164,7 +164,7 @@ class DebugLogFormatter(LogFormatter):
         ]
 
         tpl = "".join(
-            reset + levelname + asctime + name + module_funcName + lineno + reset
+            reset + levelname + asctime + name + module_funcName + lineno + reset,
         )
 
         return tpl
@@ -176,7 +176,7 @@ class RepoLogFormatter(LogFormatter):
     def template(self, record: logging.LogRecord) -> str:
         """Template for logging vcs bin name, along with a contextual hint."""
         record.message = "".join(
-            [Fore.MAGENTA, Style.BRIGHT, record.message, Fore.RESET, Style.RESET_ALL]
+            [Fore.MAGENTA, Style.BRIGHT, record.message, Fore.RESET, Style.RESET_ALL],
         )
         return "{}|{}| {}({}) {}".format(
             Fore.GREEN + Style.DIM,

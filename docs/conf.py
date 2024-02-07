@@ -53,7 +53,7 @@ source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 master_doc = "index"
 
 project = about["__title__"]
-copyright = about["__copyright__"]
+project_copyright = about["__copyright__"]
 
 version = "%s" % (".".join(about["__version__"].split("."))[:2])
 release = "%s" % (about["__version__"])
@@ -96,7 +96,7 @@ html_sidebars = {
         "sidebar/navigation.html",
         "sidebar/projects.html",
         "sidebar/scroll-end.html",
-    ]
+    ],
 }
 
 # linkify_issues

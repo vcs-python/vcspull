@@ -51,6 +51,6 @@ def write_config(config_path: pathlib.Path, content: str) -> pathlib.Path:
     return config_path
 
 
-def load_raw(data: str, format: t.Literal["yaml", "json"]) -> dict[str, t.Any]:
+def load_raw(data: str, fmt: t.Literal["yaml", "json"]) -> dict[str, t.Any]:
     """Load configuration data via string value. Accepts yaml or json."""
-    return ConfigReader._load(format=format, content=data)
+    return ConfigReader._load(fmt=fmt, content=data)
