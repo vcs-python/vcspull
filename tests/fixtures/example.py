@@ -41,32 +41,32 @@ config_dict_expanded: list["ConfigDict"] = [
     {
         "vcs": "git",
         "name": "linux",
-        "dir": pathlib.Path("/home/me/myproject/study/linux"),
+        "path": pathlib.Path("/home/me/myproject/study/linux"),
         "url": "git+git://git.kernel.org/linux/torvalds/linux.git",
     },
     {
         "vcs": "git",
         "name": "freebsd",
-        "dir": pathlib.Path("/home/me/myproject/study/freebsd"),
+        "path": pathlib.Path("/home/me/myproject/study/freebsd"),
         "url": "git+https://github.com/freebsd/freebsd.git",
     },
     {
         "vcs": "git",
         "name": "sphinx",
-        "dir": pathlib.Path("/home/me/myproject/study/sphinx"),
+        "path": pathlib.Path("/home/me/myproject/study/sphinx"),
         "url": "hg+https://bitbucket.org/birkenfeld/sphinx",
     },
     {
         "vcs": "git",
         "name": "docutils",
-        "dir": pathlib.Path("/home/me/myproject/study/docutils"),
+        "path": pathlib.Path("/home/me/myproject/study/docutils"),
         "url": "svn+http://svn.code.sf.net/p/docutils/code/trunk",
     },
     {
         "vcs": "git",
         "name": "kaptan",
         "url": "git+git@github.com:tony/kaptan.git",
-        "dir": pathlib.Path("/home/me/myproject/github_projects/kaptan"),
+        "path": pathlib.Path("/home/me/myproject/github_projects/kaptan"),
         "remotes": {
             "upstream": GitRemote(
                 **{
@@ -87,14 +87,14 @@ config_dict_expanded: list["ConfigDict"] = [
     {
         "vcs": "git",
         "name": ".vim",
-        "dir": pathlib.Path("/home/me/myproject/.vim"),
+        "path": pathlib.Path("/home/me/myproject/.vim"),
         "url": "git+git@github.com:tony/vim-config.git",
         "shell_command_after": ["ln -sf /home/me/.vim/.vimrc /home/me/.vimrc"],
     },
     {
         "vcs": "git",
         "name": ".tmux",
-        "dir": pathlib.Path("/home/me/myproject/.tmux"),
+        "path": pathlib.Path("/home/me/myproject/.tmux"),
         "url": "git+git@github.com:tony/tmux-config.git",
         "shell_command_after": ["ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf"],
     },

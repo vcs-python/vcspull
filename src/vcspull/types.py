@@ -12,7 +12,7 @@ class RawConfigDict(t.TypedDict):
 
     vcs: VCSLiteral
     name: str
-    dir: StrPath
+    path: StrPath
     url: str
     remotes: GitSyncRemoteDict
 
@@ -26,7 +26,7 @@ class ConfigDict(TypedDict):
 
     vcs: t.Optional[VCSLiteral]
     name: str
-    dir: pathlib.Path
+    path: pathlib.Path
     url: str
     remotes: NotRequired[t.Optional[GitSyncRemoteDict]]
     shell_command_after: NotRequired[t.Optional[list[str]]]

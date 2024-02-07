@@ -37,7 +37,7 @@ def test_makes_recursive(
         repos = extract_repos(config=conf)
         assert len(repos) > 0
 
-        filtered_repos = filter_repos(repos, dir="*")
+        filtered_repos = filter_repos(repos, path="*")
         assert len(filtered_repos) > 0
 
         for r in filtered_repos:
@@ -45,21 +45,21 @@ def test_makes_recursive(
             repo = create_project(**r)  # type: ignore
             repo.obtain()
 
-            assert repo.dir.exists()
+            assert repo.path.exists()
 
 
 def write_config_remote(
     config_path: pathlib.Path,
     tmp_path: pathlib.Path,
     config_tpl: str,
-    dir: pathlib.Path,
+    path: pathlib.Path,
     clone_name: str,
 ) -> pathlib.Path:
     """Write vcspull configuration with git remote."""
     return write_config(
         config_path=config_path,
         content=config_tpl.format(
-            tmp_path=str(tmp_path.parent), dir=dir, CLONE_NAME=clone_name
+            tmp_path=str(tmp_path.parent), path=path, CLONE_NAME=clone_name
         ),
     )
 
@@ -80,7 +80,7 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
         test_id="default",
         config_tpl="""
         {tmp_path}/study/myrepo:
-            {CLONE_NAME}: git+file://{dir}
+            {CLONE_NAME}: git+file://{path}
         """,
         remote_list=["origin"],
     ),
@@ -89,7 +89,7 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
         config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-               repo: git+file://{dir}
+               repo: git+file://{path}
         """,
         remote_list=["repo"],
     ),
@@ -98,9 +98,9 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
         config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{dir}
+                repo: git+file://{path}
                 remotes:
-                  secondremote: git+file://{dir}
+                  secondremote: git+file://{path}
         """,
         remote_list=["secondremote"],
     ),
@@ -109,7 +109,7 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
         config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{dir}
+                repo: git+file://{path}
                 remotes:
                   git_scheme_repo: git@codeberg.org:tmux-python/tmuxp.git
         """,
@@ -120,7 +120,7 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
         config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{dir}
+                repo: git+file://{path}
                 remotes:
                   git_scheme_repo: git@github.com:tony/vcspull.git
         """,
@@ -150,13 +150,13 @@ def test_config_variations(
         config_path=tmp_path / "myrepos.yaml",
         tmp_path=tmp_path,
         config_tpl=config_tpl,
-        dir=dummy_repo,
+        path=dummy_repo,
         clone_name="myclone",
     )
     configs = load_configs([config_file])
 
     # TODO: Merge repos
-    repos = filter_repos(configs, dir="*")
+    repos = filter_repos(configs, path="*")
     assert len(repos) == 1
 
     for repo_dict in repos:
@@ -208,7 +208,7 @@ UPDATING_REMOTE_FIXTURES: list[UpdatingRemoteFixture] = [
         test_id="no_remotes",
         config_tpl="""
         {tmp_path}/study/myrepo:
-            {CLONE_NAME}: git+file://{dir}
+            {CLONE_NAME}: git+file://{path}
         """,
         has_extra_remotes=False,
     ),
@@ -217,7 +217,7 @@ UPDATING_REMOTE_FIXTURES: list[UpdatingRemoteFixture] = [
         config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-               repo: git+file://{dir}
+               repo: git+file://{path}
         """,
         has_extra_remotes=False,
     ),
@@ -226,9 +226,9 @@ UPDATING_REMOTE_FIXTURES: list[UpdatingRemoteFixture] = [
         config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{dir}
+                repo: git+file://{path}
                 remotes:
-                  mirror_repo: git+file://{dir}
+                  mirror_repo: git+file://{path}
         """,
         has_extra_remotes=True,
     ),
@@ -260,7 +260,7 @@ def test_updating_remote(
     initial_config: "ConfigDict" = {
         "vcs": "git",
         "name": "myclone",
-        "dir": tmp_path / "study/myrepo/myclone",
+        "path": tmp_path / "study/myrepo/myclone",
         "url": f"git+file://{dummy_repo}",
         "remotes": {
             mirror_name: GitRemote(

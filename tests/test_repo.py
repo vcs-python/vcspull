@@ -11,7 +11,7 @@ from .fixtures import example as fixtures
 
 def test_filter_dir() -> None:
     """`filter_repos` filter by dir."""
-    repo_list = filter_repos(fixtures.config_dict_expanded, dir="*github_project*")
+    repo_list = filter_repos(fixtures.config_dict_expanded, path="*github_project*")
 
     assert len(repo_list) == 1
     for r in repo_list:
@@ -65,7 +65,7 @@ def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path) -> None:
     git_repo = create_project(
         vcs="git",
         url="git+git://git.myproject.org/MyProject.git@da39a3ee5e6b4b",
-        dir=str(tmp_path / "myproject1"),
+        path=str(tmp_path / "myproject1"),
     )
 
     # TODO cwd and name if duplicated should give an error
@@ -76,7 +76,7 @@ def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path) -> None:
     hg_repo = create_project(
         vcs="hg",
         url="hg+https://hg.myproject.org/MyProject#egg=MyProject",
-        dir=str(tmp_path / "myproject2"),
+        path=str(tmp_path / "myproject2"),
     )
 
     assert isinstance(hg_repo, HgSync)
@@ -85,7 +85,7 @@ def test_vcs_url_scheme_to_object(tmp_path: pathlib.Path) -> None:
     svn_repo = create_project(
         vcs="svn",
         url="svn+svn://svn.myproject.org/svn/MyProject#egg=MyProject",
-        dir=str(tmp_path / "myproject3"),
+        path=str(tmp_path / "myproject3"),
     )
 
     assert isinstance(svn_repo, SvnSync)
@@ -101,11 +101,11 @@ def test_to_repo_objects(tmp_path: pathlib.Path) -> None:
         assert isinstance(r, BaseSync)
         assert r.repo_name
         assert r.repo_name == repo_dict["name"]
-        assert r.dir.parent
+        assert r.path.parent
         assert r.url
         assert r.url == repo_dict["url"]
 
-        assert r.dir == r.dir / r.repo_name
+        assert r.path == r.path / r.repo_name
 
         if hasattr(r, "remotes") and isinstance(r, GitSync):
             assert isinstance(r.remotes, dict)

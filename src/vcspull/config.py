@@ -102,8 +102,8 @@ def extract_repos(
             if "name" not in conf:
                 conf["name"] = repo
 
-            if "dir" not in conf:
-                conf["dir"] = expand_dir(
+            if "path" not in conf:
+                conf["path"] = expand_dir(
                     pathlib.Path(expand_dir(pathlib.Path(directory), cwd=cwd))
                     / conf["name"],
                     cwd,
@@ -301,10 +301,10 @@ def detect_duplicate_repos(
     dupes: list[ConfigDictTuple] = []
 
     repo_dirs = {
-        pathlib.Path(repo["dir"]).parent / repo["name"]: repo for repo in config1
+        pathlib.Path(repo["path"]).parent / repo["name"]: repo for repo in config1
     }
     repo_dirs_2 = {
-        pathlib.Path(repo["dir"]).parent / repo["name"]: repo for repo in config2
+        pathlib.Path(repo["path"]).parent / repo["name"]: repo for repo in config2
     }
 
     for repo_dir, repo in repo_dirs.items():
@@ -347,19 +347,19 @@ def in_dir(
 
 def filter_repos(
     config: list["ConfigDict"],
-    dir: t.Union[pathlib.Path, t.Literal["*"], str, None] = None,
+    path: t.Union[pathlib.Path, t.Literal["*"], str, None] = None,
     vcs_url: t.Union[str, None] = None,
     name: t.Union[str, None] = None,
 ) -> list["ConfigDict"]:
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
-    dir, vcs_url and name all support fnmatch.
+    path, vcs_url and name all support fnmatch.
 
     Parameters
     ----------
     config : dict
         the expanded repo config in :py:class:`dict` format.
-    dir : str, Optional
+    path : str, Optional
         directory of checkout location, fnmatch pattern supported
     vcs_url : str, Optional
         url of vcs remote, fn match pattern supported
@@ -373,12 +373,12 @@ def filter_repos(
     """
     repo_list: list["ConfigDict"] = []
 
-    if dir:
+    if path:
         repo_list.extend(
             [
                 r
                 for r in config
-                if fnmatch.fnmatch(str(pathlib.Path(r["dir"]).parent), str(dir))
+                if fnmatch.fnmatch(str(pathlib.Path(r["path"]).parent), str(path))
             ]
         )
 

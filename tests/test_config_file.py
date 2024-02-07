@@ -171,12 +171,12 @@ def test_expandenv_and_homevars() -> None:
     config1_expanded = extract_repos(config1)
     config2_expanded = extract_repos(config2)
 
-    paths = [r["dir"].parent for r in config1_expanded]
+    paths = [r["path"].parent for r in config1_expanded]
     assert expand_dir(pathlib.Path("${HOME}/github_projects/")) in paths
     assert expand_dir(pathlib.Path("~/study/")) in paths
     assert expand_dir(pathlib.Path("~")) in paths
 
-    paths = [r["dir"].parent for r in config2_expanded]
+    paths = [r["path"].parent for r in config2_expanded]
     assert expand_dir(pathlib.Path("${HOME}/github_projects/")) in paths
     assert expand_dir(pathlib.Path("~/study/")) in paths
 

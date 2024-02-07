@@ -96,7 +96,7 @@ for group in response.json():
 
     config[path][reponame] = {
         "name": reponame,
-        "dir": path / reponame,
+        "path": path / reponame,
         "url": f"git+ssh://{url_to_repo}",
         "remotes": {
             "origin": GitRemote(

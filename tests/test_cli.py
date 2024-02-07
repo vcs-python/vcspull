@@ -84,8 +84,8 @@ def test_sync_cli_filter_non_existent(
     config = {
         "~/github_projects/": {
             "my_git_project": {
-                "url": f"git+file://{git_repo.dir}",
-                "remotes": {"test_remote": f"git+file://{git_repo.dir}"},
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"test_remote": f"git+file://{git_repo.path}"},
             },
         }
     }
@@ -219,11 +219,11 @@ def test_sync(
     config = {
         "~/github_projects/": {
             "my_git_repo": {
-                "url": f"git+file://{git_repo.dir}",
-                "remotes": {"test_remote": f"git+file://{git_repo.dir}"},
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"test_remote": f"git+file://{git_repo.path}"},
             },
             "broken_repo": {
-                "url": f"git+file://{git_repo.dir}",
+                "url": f"git+file://{git_repo.path}",
                 "remotes": {"test_remote": "git+file://non-existent-remote"},
             },
         }
@@ -360,8 +360,8 @@ def test_sync_broken(
     config = {
         "~/github_projects/": {
             "my_git_repo": {
-                "url": f"git+file://{git_repo.dir}",
-                "remotes": {"test_remote": f"git+file://{git_repo.dir}"},
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"test_remote": f"git+file://{git_repo.path}"},
             },
             "my_git_repo_not_found": {
                 "url": "git+file:///dev/null",
