@@ -27,7 +27,7 @@ _Maintenance only, no bug fixes, or new features_
 
 ### Breaking changes
 
-- libvcs: v0.25.0 -> v0.26.0 (#435)
+- libvcs: v0.26.0 -> v0.27.0 (#435)
 
   Renamings of `dir` to `path`.
 
