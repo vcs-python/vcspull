@@ -377,13 +377,13 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "libvcs"
-version = "0.26.0"
+version = "0.27.0"
 description = "Lite, typed, python utilities for Git, SVN, Mercurial, etc."
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "libvcs-0.26.0-py3-none-any.whl", hash = "sha256:880a0ca2477f33ebcfaad34080ab16a0310a2341950671054b305046c4cf5eba"},
-    {file = "libvcs-0.26.0.tar.gz", hash = "sha256:edfafb3b0e3f19b82cc12767b99628c22107a25027bd3905bc42765deeee1c3c"},
+    {file = "libvcs-0.27.0-py3-none-any.whl", hash = "sha256:79cd2959813801a732944f01c7efd127dabea75071f831680d5d65f5ccf750c0"},
+    {file = "libvcs-0.27.0.tar.gz", hash = "sha256:e7b74d31854de639eee66910a46672dda57f45f5a656e6fdc95cc1e3a800c4e6"},
 ]
 
 [package.dependencies]
@@ -1280,4 +1280,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "256efe05546375297a0b1e0d70aac1a3010a9c3a1f85675e5b54988ba9bdc634"
+content-hash = "e3f4a3b989d457b53c6c0672c4d52b2c021c8036741ce6a6e6f5d2b027ef2c66"

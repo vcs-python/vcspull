@@ -21,6 +21,16 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Breaking changes
+
+- libvcs: v0.25.0 -> v0.26.0 (#435)
+
+  Renamings of `dir` to `path`.
+
+- Fix shadowing of python builtins
+
+  - `dir` -> `path` (#435)
+
 ### Documentation
 
 - Refactor API docs to split across multiple pages (#431)
