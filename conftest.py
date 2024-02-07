@@ -44,12 +44,15 @@ def cwd_default(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None
     monkeypatch.chdir(tmp_path)
 
 
-@pytest.fixture(autouse=True, scope="session")
-@pytest.mark.usefixtures("set_home")
-def xdg_config_path(user_path: pathlib.Path) -> pathlib.Path:
+@pytest.fixture(autouse=True)
+def xdg_config_path(
+    user_path: pathlib.Path,
+    set_home: pathlib.Path,
+) -> pathlib.Path:
     """Create and return path to use for XDG Config Path."""
     p = user_path / ".config"
-    p.mkdir()
+    if not p.exists():
+        p.mkdir()
     return p
 
 
