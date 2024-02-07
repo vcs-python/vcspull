@@ -220,7 +220,7 @@ def test_in_dir(
 
 
 def test_find_config_path_string(
-    config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
+    config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path,
 ) -> None:
     """Tests find_config_files() returns configuration files found in directory."""
     config_files = config.find_config_files(path=config_path)
@@ -288,7 +288,7 @@ def test_find_config_match_list(
     assert json_config in config_files
 
     config_files = config.find_config_files(
-        path=[config_path], match=[yaml_config.stem]
+        path=[config_path], match=[yaml_config.stem],
     )
     assert yaml_config in config_files
     assert len([c for c in config_files if str(yaml_config) in str(c)]) == 1
@@ -297,52 +297,52 @@ def test_find_config_match_list(
 
 
 def test_find_config_filetype_string(
-    config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
+    config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path,
 ) -> None:
     """Tests find_config_files() filters files by filetype when param passed."""
     config_files = config.find_config_files(
-        path=[config_path], match=yaml_config.stem, filetype="yaml"
+        path=[config_path], match=yaml_config.stem, filetype="yaml",
     )
     assert yaml_config in config_files
     assert json_config not in config_files
 
     config_files = config.find_config_files(
-        path=[config_path], match=yaml_config.stem, filetype="json"
+        path=[config_path], match=yaml_config.stem, filetype="json",
     )
     assert yaml_config not in config_files
     assert json_config not in config_files
 
     config_files = config.find_config_files(
-        path=[config_path], match="repos*", filetype="json"
+        path=[config_path], match="repos*", filetype="json",
     )
     assert yaml_config not in config_files
     assert json_config in config_files
 
     config_files = config.find_config_files(
-        path=[config_path], match="repos*", filetype="*"
+        path=[config_path], match="repos*", filetype="*",
     )
     assert yaml_config in config_files
     assert json_config in config_files
 
 
 def test_find_config_filetype_list(
-    config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path
+    config_path: pathlib.Path, yaml_config: pathlib.Path, json_config: pathlib.Path,
 ) -> None:
     """Test find_config_files() accepts a list of file types, including wildcards."""
     config_files = config.find_config_files(
-        path=[config_path], match=["repos*"], filetype=["*"]
+        path=[config_path], match=["repos*"], filetype=["*"],
     )
     assert yaml_config in config_files
     assert json_config in config_files
 
     config_files = config.find_config_files(
-        path=[config_path], match=["repos*"], filetype=["json", "yaml"]
+        path=[config_path], match=["repos*"], filetype=["json", "yaml"],
     )
     assert yaml_config in config_files
     assert json_config in config_files
 
     config_files = config.find_config_files(
-        path=[config_path], filetype=["json", "yaml"]
+        path=[config_path], filetype=["json", "yaml"],
     )
     assert yaml_config in config_files
     assert json_config in config_files
@@ -358,7 +358,7 @@ def test_find_config_include_home_config_files(
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
         config_files = config.find_config_files(
-            path=[config_path], match="*", include_home=True
+            path=[config_path], match="*", include_home=True,
         )
         assert yaml_config in config_files
         assert json_config in config_files
@@ -366,7 +366,7 @@ def test_find_config_include_home_config_files(
         config_file3 = tmp_path / ".vcspull.json"
         config_file3.touch()
         results = config.find_config_files(
-            path=[config_path], match="*", include_home=True
+            path=[config_path], match="*", include_home=True,
         )
         expected_in = config_file3
         assert expected_in in results
@@ -385,7 +385,7 @@ def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path) ->
     url: svn+file:///path/to/svnrepo
   subRepoSameVCS: git+file://path/to/gitrepo
   vcsOn1: svn+file:///path/to/another/svn
-            """
+            """,
         ),
     )
     config2 = write_config(
@@ -397,13 +397,13 @@ def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path) ->
     url: git+file:///path/to/diffrepo
   subRepoSameVCS: git+file:///path/to/gitrepo
   vcsOn2: svn+file:///path/to/another/svn
-            """
+            """,
         ),
     )
 
     # Duplicate path + name with different repo URL / remotes raises.
     config_files = config.find_config_files(
-        path=config_path, match="repoduplicate[1-2]"
+        path=config_path, match="repoduplicate[1-2]",
     )
     assert config1 in config_files
     assert config2 in config_files

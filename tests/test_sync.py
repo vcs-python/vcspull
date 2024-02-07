@@ -30,7 +30,7 @@ def test_makes_recursive(
             f"""
         {tmp_path}/study/myrepo:
             my_url: git+file://{git_remote_repo}
-    """
+    """,
         ),
     )
     if is_valid_config(conf):
@@ -59,7 +59,7 @@ def write_config_remote(
     return write_config(
         config_path=config_path,
         content=config_tpl.format(
-            tmp_path=str(tmp_path.parent), path=path, CLONE_NAME=clone_name
+            tmp_path=str(tmp_path.parent), path=path, CLONE_NAME=clone_name,
         ),
     )
 
@@ -164,7 +164,7 @@ def test_config_variations(
         remotes = repo.remotes() or {}
         remote_names = set(remotes.keys())
         assert set(remote_list).issubset(remote_names) or {"origin"}.issubset(
-            remote_names
+            remote_names,
         )
 
         for remote_name in remotes:
@@ -178,12 +178,12 @@ def test_config_variations(
                 and remote_name in repo_dict["remotes"]
             ):
                 if repo_dict["remotes"][remote_name].fetch_url.startswith(
-                    "git+file://"
+                    "git+file://",
                 ):
                     assert current_remote.fetch_url == repo_dict["remotes"][
                         remote_name
                     ].fetch_url.replace(
-                        "git+", ""
+                        "git+", "",
                     ), "Final git remote should chop git+ prefix"
                 else:
                     assert (
@@ -267,7 +267,7 @@ def test_updating_remote(
                 name=mirror_name,
                 fetch_url=f"git+file://{dummy_repo}",
                 push_url=f"git+file://{dummy_repo}",
-            )
+            ),
         },
     }
 
@@ -297,7 +297,7 @@ def test_updating_remote(
             if remote_name in expected_config["remotes"]:
                 assert (
                     expected_config["remotes"][remote_name].fetch_url.replace(
-                        "git+", ""
+                        "git+", "",
                     )
                     == current_remote_url
                 )

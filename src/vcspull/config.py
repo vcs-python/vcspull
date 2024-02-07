@@ -116,13 +116,13 @@ def extract_repos(
                         continue
                     if isinstance(url, str):
                         conf["remotes"][remote_name] = GitRemote(
-                            name=remote_name, fetch_url=url, push_url=url
+                            name=remote_name, fetch_url=url, push_url=url,
                         )
                     elif isinstance(url, dict):
                         assert "push_url" in url
                         assert "fetch_url" in url
                         conf["remotes"][remote_name] = GitRemote(
-                            name=remote_name, **url
+                            name=remote_name, **url,
                         )
 
             def is_valid_config_dict(val: t.Any) -> "TypeGuard[ConfigDict]":
@@ -153,7 +153,7 @@ def find_home_config_files(
         log.debug(
             "No config file found. Create a .vcspull.yaml or .vcspull.json"
             " in your $HOME directory. http://vcspull.git-pull.com for a"
-            " quickstart."
+            " quickstart.",
         )
     else:
         if sum(filter(None, [has_json_config, has_yaml_config])) > 1:
@@ -280,7 +280,7 @@ ConfigDictTuple = tuple["ConfigDict", "ConfigDict"]
 
 
 def detect_duplicate_repos(
-    config1: list["ConfigDict"], config2: list["ConfigDict"]
+    config1: list["ConfigDict"], config2: list["ConfigDict"],
 ) -> list[ConfigDictTuple]:
     """Return duplicate repos dict if repo_dir same and vcs different.
 
@@ -379,7 +379,7 @@ def filter_repos(
                 r
                 for r in config
                 if fnmatch.fnmatch(str(pathlib.Path(r["path"]).parent), str(path))
-            ]
+            ],
         )
 
     if vcs_url:
@@ -391,14 +391,14 @@ def filter_repos(
 
     if name:
         repo_list.extend(
-            [r for r in config if fnmatch.fnmatch(str(r.get("name")), name)]
+            [r for r in config if fnmatch.fnmatch(str(r.get("name")), name)],
         )
 
     return repo_list
 
 
 def is_config_file(
-    filename: str, extensions: t.Optional[t.Union[list[str], str]] = None
+    filename: str, extensions: t.Optional[t.Union[list[str], str]] = None,
 ) -> bool:
     """Return True if file has a valid config file type.
 

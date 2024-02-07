@@ -28,7 +28,7 @@ def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
     """Return a yaml loading function that uses temporary directory path."""
 
     def fn(
-        content: str, path: str = "randomdir", filename: str = "randomfilename.yaml"
+        content: str, path: str = "randomdir", filename: str = "randomfilename.yaml",
     ) -> tuple[pathlib.Path, list[pathlib.Path], list["ConfigDict"]]:
         """Return vcspull configurations and write out config to temp directory."""
         _dir = tmp_path / path
@@ -49,7 +49,7 @@ def test_simple_format(load_yaml: LoadYAMLFn) -> None:
         """
 vcspull:
   libvcs: git+https://github.com/vcs-python/libvcs
-   """
+   """,
     )
 
     assert len(repos) == 1
@@ -65,7 +65,7 @@ def test_relative_dir(load_yaml: LoadYAMLFn) -> None:
         """
 ./relativedir:
   docutils: svn+http://svn.code.sf.net/p/docutils/code/trunk
-   """
+   """,
     )
 
     config_files = config.find_config_files(path=path)

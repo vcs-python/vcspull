@@ -21,7 +21,7 @@ config_dict = {
                 "upstream": "git+https://github.com/emre/kaptan",
                 "ms": "git+https://github.com/ms/kaptan.git",
             },
-        }
+        },
     },
     "/home/me/myproject": {
         ".vim": {
@@ -31,7 +31,7 @@ config_dict = {
         ".tmux": {
             "url": "git+git@github.com:tony/tmux-config.git",
             "shell_command_after": [
-                "ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf"
+                "ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf",
             ],
         },
     },
@@ -73,14 +73,14 @@ config_dict_expanded: list["ConfigDict"] = [
                     "name": "upstream",
                     "fetch_url": "git+https://github.com/emre/kaptan",
                     "push_url": "git+https://github.com/emre/kaptan",
-                }
+                },
             ),
             "ms": GitRemote(
                 **{
                     "name": "ms",
                     "fetch_url": "git+https://github.com/ms/kaptan.git",
                     "push_url": "git+https://github.com/ms/kaptan.git",
-                }
+                },
             ),
         },
     },
