@@ -25,7 +25,7 @@ def test_makes_recursive(
 ) -> None:
     """Ensure that syncing creates directories recursively."""
     conf = ConfigReader._load(
-        format="yaml",
+        fmt="yaml",
         content=textwrap.dedent(
             f"""
         {tmp_path}/study/myrepo:

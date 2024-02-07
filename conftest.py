@@ -84,11 +84,11 @@ def set_xdg_config_path(
 @pytest.fixture(scope="function")
 def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest) -> pathlib.Path:
     """Return temporary directory for repository checkout guaranteed unique."""
-    dir = user_path / "repos"
-    dir.mkdir(exist_ok=True)
+    path = user_path / "repos"
+    path.mkdir(exist_ok=True)
 
     def clean() -> None:
-        shutil.rmtree(dir)
+        shutil.rmtree(path)
 
     request.addfinalizer(clean)
-    return dir
+    return path

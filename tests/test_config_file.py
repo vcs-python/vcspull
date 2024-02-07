@@ -31,9 +31,9 @@ def json_config(config_path: pathlib.Path) -> pathlib.Path:
 
 
 def test_dict_equals_yaml() -> None:
-    """Verify that example YAML is returning expected dict format."""
+    """Verify that example YAML is returning expected dict fmt."""
     config = ConfigReader._load(
-        format="yaml",
+        fmt="yaml",
         content="""\
             /home/me/myproject/study/:
               linux: git+git://git.kernel.org/linux/torvalds/linux.git
@@ -142,7 +142,7 @@ def test_expandenv_and_homevars() -> None:
                   .tmux:
                     url: git+file://{git_repo_path}
                 """,
-        format="yaml",
+        fmt="yaml",
     )
     config2 = load_raw(
         """\
@@ -162,7 +162,7 @@ def test_expandenv_and_homevars() -> None:
                   }
                 }
                 """,
-        format="json",
+        fmt="json",
     )
 
     assert is_valid_config(config1)
