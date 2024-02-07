@@ -116,13 +116,16 @@ def extract_repos(
                         continue
                     if isinstance(url, str):
                         conf["remotes"][remote_name] = GitRemote(
-                            name=remote_name, fetch_url=url, push_url=url,
+                            name=remote_name,
+                            fetch_url=url,
+                            push_url=url,
                         )
                     elif isinstance(url, dict):
                         assert "push_url" in url
                         assert "fetch_url" in url
                         conf["remotes"][remote_name] = GitRemote(
-                            name=remote_name, **url,
+                            name=remote_name,
+                            **url,
                         )
 
             def is_valid_config_dict(val: t.Any) -> "TypeGuard[ConfigDict]":
@@ -280,7 +283,8 @@ ConfigDictTuple = tuple["ConfigDict", "ConfigDict"]
 
 
 def detect_duplicate_repos(
-    config1: list["ConfigDict"], config2: list["ConfigDict"],
+    config1: list["ConfigDict"],
+    config2: list["ConfigDict"],
 ) -> list[ConfigDictTuple]:
     """Return duplicate repos dict if repo_dir same and vcs different.
 
@@ -398,7 +402,8 @@ def filter_repos(
 
 
 def is_config_file(
-    filename: str, extensions: t.Optional[t.Union[list[str], str]] = None,
+    filename: str,
+    extensions: t.Optional[t.Union[list[str], str]] = None,
 ) -> bool:
     """Return True if file has a valid config file type.
 

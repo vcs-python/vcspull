@@ -59,7 +59,9 @@ def write_config_remote(
     return write_config(
         config_path=config_path,
         content=config_tpl.format(
-            tmp_path=str(tmp_path.parent), path=path, CLONE_NAME=clone_name,
+            tmp_path=str(tmp_path.parent),
+            path=path,
+            CLONE_NAME=clone_name,
         ),
     )
 
@@ -183,7 +185,8 @@ def test_config_variations(
                     assert current_remote.fetch_url == repo_dict["remotes"][
                         remote_name
                     ].fetch_url.replace(
-                        "git+", "",
+                        "git+",
+                        "",
                     ), "Final git remote should chop git+ prefix"
                 else:
                     assert (
@@ -297,7 +300,8 @@ def test_updating_remote(
             if remote_name in expected_config["remotes"]:
                 assert (
                     expected_config["remotes"][remote_name].fetch_url.replace(
-                        "git+", "",
+                        "git+",
+                        "",
                     )
                     == current_remote_url
                 )

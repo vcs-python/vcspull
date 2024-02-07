@@ -7,7 +7,8 @@ from vcspull.util import get_config_dir
 
 
 def test_vcspull_configdir_env_var(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test retrieving config directory with VCSPULL_CONFIGDIR set."""
     monkeypatch.setenv("VCSPULL_CONFIGDIR", str(tmp_path))
@@ -16,7 +17,8 @@ def test_vcspull_configdir_env_var(
 
 
 def test_vcspull_configdir_xdg_config_dir(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test retrieving config directory with XDG_CONFIG_HOME set."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))

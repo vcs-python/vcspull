@@ -28,7 +28,9 @@ def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
     """Return a yaml loading function that uses temporary directory path."""
 
     def fn(
-        content: str, path: str = "randomdir", filename: str = "randomfilename.yaml",
+        content: str,
+        path: str = "randomdir",
+        filename: str = "randomfilename.yaml",
     ) -> tuple[pathlib.Path, list[pathlib.Path], list["ConfigDict"]]:
         """Return vcspull configurations and write out config to temp directory."""
         _dir = tmp_path / path
