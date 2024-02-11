@@ -1,4 +1,4 @@
-"""Synchronization functionailty for vcspull."""
+"""Synchronization functionality for vcspull."""
 import argparse
 import logging
 import pathlib

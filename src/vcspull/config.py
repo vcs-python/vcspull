@@ -1,4 +1,4 @@
-"""Configuration functionailty for vcspull."""
+"""Configuration functionality for vcspull."""
 import fnmatch
 import logging
 import os
