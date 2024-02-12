@@ -377,13 +377,13 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "libvcs"
-version = "0.28.0"
+version = "0.28.1"
 description = "Lite, typed, python utilities for Git, SVN, Mercurial, etc."
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "libvcs-0.28.0-py3-none-any.whl", hash = "sha256:ac83a37f3385c6f1a1b069f5a46fc5d10adff70a36167c42e2f3e61bb3d2f793"},
-    {file = "libvcs-0.28.0.tar.gz", hash = "sha256:b17b60bd7418ce7415268fe6d799218ece03ab1ce2024586cb82511239934e59"},
+    {file = "libvcs-0.28.1-py3-none-any.whl", hash = "sha256:9b1e2311af9a725a858c4e187765bcc3c77ba6d7e60c8f2a44054bf4d869644d"},
+    {file = "libvcs-0.28.1.tar.gz", hash = "sha256:47490df3cef6df63e6557e4abd1284ea783f81bae63e21d916df14a16a37ceb5"},
 ]
 
 [package.dependencies]
@@ -934,13 +934,13 @@ test = ["pytest (>=6.0)", "pytest-cov"]
 
 [[package]]
 name = "sphinx-autodoc-typehints"
-version = "1.25.3"
+version = "2.0.0"
 description = "Type hints (PEP 484) support for the Sphinx autodoc extension"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "sphinx_autodoc_typehints-1.25.3-py3-none-any.whl", hash = "sha256:d3da7fa9a9761eff6ff09f8b1956ae3090a2d4f4ad54aebcade8e458d6340835"},
-    {file = "sphinx_autodoc_typehints-1.25.3.tar.gz", hash = "sha256:70db10b391acf4e772019765991d2de0ff30ec0899b9ba137706dc0b3c4835e0"},
+    {file = "sphinx_autodoc_typehints-2.0.0-py3-none-any.whl", hash = "sha256:12c0e161f6fe191c2cdfd8fa3caea271f5387d9fbc67ebcd6f4f1f24ce880993"},
+    {file = "sphinx_autodoc_typehints-2.0.0.tar.gz", hash = "sha256:7f2cdac2e70fd9787926b6e9e541cd4ded1e838d2b46fda2a1bb0a75ec5b7f3a"},
 ]
 
 [package.dependencies]
