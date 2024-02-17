@@ -21,6 +21,16 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Fixes
+
+- libvcs: 0.28.0 -> 0.28.1 (#440)
+
+  Fixes `'--max-count': not an integer` issue when syncing git repos.
+
+### Testing
+
+- CI: Bump actions for Node 20 (#439)
+
 ## vcspull v1.28.0 (2024-02-07)
 
 _Maintenance only, no bug fixes or new features_
