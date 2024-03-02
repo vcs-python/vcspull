@@ -1,4 +1,5 @@
 """Tests for vcspull configuration files."""
+
 import os
 import pathlib
 import textwrap

@@ -1,4 +1,5 @@
 """Tests for placing config dicts into :py:class:`Project` objects."""
+
 import pathlib
 
 from libvcs import BaseSync, GitSync, HgSync, SvnSync

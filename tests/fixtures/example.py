@@ -1,4 +1,5 @@
 """Example fixture data for vcspull tests."""
+
 import pathlib
 import typing as t
 

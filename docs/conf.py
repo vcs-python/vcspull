@@ -1,4 +1,5 @@
 """Sphinx configuration for vcspull documentation."""
+
 # flake8: noqa: E501
 import inspect
 import pathlib

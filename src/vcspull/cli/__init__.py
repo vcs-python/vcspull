@@ -1,4 +1,5 @@
 """CLI utilities for vcspull."""
+
 import argparse
 import logging
 import textwrap
@@ -30,13 +31,11 @@ SYNC_DESCRIPTION = textwrap.dedent(
 @overload
 def create_parser(
     return_subparsers: t.Literal[True],
-) -> tuple[argparse.ArgumentParser, t.Any]:
-    ...
+) -> tuple[argparse.ArgumentParser, t.Any]: ...
 
 
 @overload
-def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParser:
-    ...
+def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParser: ...
 
 
 def create_parser(

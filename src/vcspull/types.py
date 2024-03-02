@@ -1,4 +1,5 @@
 """Typings for vcspull."""
+
 import pathlib
 import typing as t
 

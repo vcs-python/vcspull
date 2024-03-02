@@ -1,4 +1,5 @@
 """Validation of vcspull configuration file."""
+
 import pathlib
 import typing as t
 
