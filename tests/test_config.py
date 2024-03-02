@@ -1,4 +1,5 @@
 """Tests for vcspull configuration format."""
+
 import pathlib
 import typing as t
 

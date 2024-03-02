@@ -1,4 +1,5 @@
 """Test CLI entry point for for vcspull."""
+
 import contextlib
 import pathlib
 import shutil

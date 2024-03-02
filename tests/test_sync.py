@@ -1,4 +1,5 @@
 """Tests for sync functionality of vcspull."""
+
 import pathlib
 import textwrap
 import typing as t

@@ -6,6 +6,7 @@ information from :class:`libvcs.base.RepoLoggingAdapter`.
 Colorized formatters for generic logging inside the application is also
 provided.
 """
+
 import logging
 import time
 import typing as t

@@ -1,4 +1,5 @@
 """Tests for vcspull utilities."""
+
 import pathlib
 
 import pytest

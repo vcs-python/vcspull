@@ -21,6 +21,14 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Development
+
+- ruff 0.2.2 -> 0.3.0 (#441)
+
+  Related formattings. Update CI to use `ruff check .` instead of `ruff .`.
+
+  See also: https://github.com/astral-sh/ruff/blob/v0.3.0/CHANGELOG.md
+
 ## vcspull v1.28.1 (2024-02-17)
 
 ### Fixes
