@@ -172,20 +172,14 @@ class DebugLogFormatter(LogFormatter):
 
 
 class RepoLogFormatter(LogFormatter):
-    """Log message from vcs repository."""
+    """Log message for VCS repository."""
 
     def template(self, record: logging.LogRecord) -> str:
         """Template for logging vcs bin name, along with a contextual hint."""
         record.message = "".join(
             [Fore.MAGENTA, Style.BRIGHT, record.message, Fore.RESET, Style.RESET_ALL],
         )
-        return "{}|{}| {}({}) {}".format(
-            Fore.GREEN + Style.DIM,
-            record.bin_name,  # type:ignore
-            Fore.YELLOW,
-            record.keyword,  # type:ignore
-            Fore.RESET,
-        )
+        return f"{Fore.GREEN + Style.DIM}|{record.bin_name}| {Fore.YELLOW}({record.keyword}) {Fore.RESET}"  # type:ignore # noqa: E501
 
 
 class RepoFilter(logging.Filter):
