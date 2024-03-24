@@ -161,7 +161,7 @@ def find_home_config_files(
         )
     else:
         if sum(filter(None, [has_json_config, has_yaml_config])) > 1:
-            raise exc.MultipleConfigWarning()
+            raise exc.MultipleConfigWarning
         if has_yaml_config:
             configs.append(yaml_config)
         if has_json_config:
@@ -221,13 +221,12 @@ def find_config_files(
         if isinstance(match, list):
             for m in match:
                 config_files.extend(find_config_files(path, m, filetype))
+        elif isinstance(filetype, list):
+            for f in filetype:
+                config_files.extend(find_config_files(path, match, f))
         else:
-            if isinstance(filetype, list):
-                for f in filetype:
-                    config_files.extend(find_config_files(path, match, f))
-            else:
-                match = f"{match}.{filetype}"
-                config_files = list(path.glob(match))
+            match = f"{match}.{filetype}"
+            config_files = list(path.glob(match))
 
     return config_files
 
@@ -341,13 +340,11 @@ def in_dir(
     if config_dir is not None:
         config_dir = get_config_dir()
 
-    configs = [
+    return [
         filename
         for filename in os.listdir(config_dir)
         if is_config_file(filename, extensions) and not filename.startswith(".")
     ]
-
-    return configs
 
 
 def filter_repos(

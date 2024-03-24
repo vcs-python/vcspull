@@ -2,6 +2,7 @@
 """Example script for export gitlab organization to vcspull config file."""
 
 import argparse
+import logging
 import os
 import pathlib
 import sys
@@ -13,10 +14,13 @@ from libvcs.sync.git import GitRemote
 from vcspull.cli.sync import CouldNotGuessVCSFromURL, guess_vcs
 from vcspull.types import RawConfig
 
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
 try:
     gitlab_token = os.environ["GITLAB_TOKEN"]
 except KeyError:
-    print("Please provide the environment variable GITLAB_TOKEN")
+    log.info("Please provide the environment variable GITLAB_TOKEN")
     sys.exit(1)
 
 parser = argparse.ArgumentParser(
@@ -52,16 +56,15 @@ try:
         )
 
         if result != "y":
-            print(
-                "Aborting per user request as existing config file (%s) \
-                should not be overwritten!"
-                % (config_filename),
+            log.info(
+                f"Aborting per user request as existing config file ({config_filename})"
+                + " should not be overwritten!",
             )
             sys.exit(0)
 
     config_file = config_filename.open(mode="w")
 except OSError:
-    print(f"File {config_filename} not accessible")
+    log.info(f"File {config_filename} not accessible")
     sys.exit(1)
 
 response = requests.get(
@@ -71,7 +74,7 @@ response = requests.get(
 )
 
 if response.status_code != 200:
-    print("Error: ", response)
+    log.info(f"Error: {response}")
     sys.exit(1)
 
 path_prefix = pathlib.Path().cwd()
@@ -111,7 +114,7 @@ for group in response.json():
 
 config_yaml = yaml.dump(config)
 
-print(config_yaml)
+log.info(config_yaml)
 
 config_file.write(config_yaml)
 config_file.close()

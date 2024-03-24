@@ -69,6 +69,7 @@ SYNC_CLI_EXISTENT_REPO_FIXTURES: list[SyncCLINonExistentRepo] = [
 def test_sync_cli_filter_non_existent(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
@@ -99,8 +100,7 @@ def test_sync_cli_filter_non_existent(
     with contextlib.suppress(SystemExit):
         cli(["sync", *sync_args])
 
-    result = capsys.readouterr()
-    output = "".join(list(result.out))
+    output = "".join(list(caplog.messages) + list(capsys.readouterr().out))
 
     if expected_in_out is not None:
         if isinstance(expected_in_out, str):
