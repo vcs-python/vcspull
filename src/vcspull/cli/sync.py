@@ -91,7 +91,7 @@ def sync(
         # collect the repos from the config files
         found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
         if len(found) == 0:
-            print(NO_REPOS_FOR_TERM_MSG.format(name=name))
+            log.info(NO_REPOS_FOR_TERM_MSG.format(name=name))
         found_repos.extend(filter_repos(configs, path=path, vcs_url=vcs_url, name=name))
 
     for repo in found_repos:
