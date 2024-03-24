@@ -15,11 +15,15 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 // Usage: vcspull@next sync [config]
 ```
 
-## vcspull v1.29.x (unreleased)
+## vcspull v1.30.x (unreleased)
 
 - _Notes on upcoming releases will be added here_
 
 <!-- Maintainers, insert changes / features for the next release here -->
+
+## vcspull v1.29.0 (2024-03-24)
+
+_Maintenance only, no bug fixes or new features_
 
 ### Breaking changes
 
