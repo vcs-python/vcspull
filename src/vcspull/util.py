@@ -69,5 +69,5 @@ def update_dict(
             r = update_dict(d.get(k, {}), v)
             d[k] = r
         else:
-            d[k] = u[k]
+            d[k] = v
     return d

@@ -91,9 +91,7 @@ class LogFormatter(logging.Formatter):
             " ",
         ]
 
-        tpl = "".join(reset + levelname + asctime + name + reset)
-
-        return tpl
+        return "".join(reset + levelname + asctime + name + reset)
 
     def __init__(self, color: bool = True, **kwargs: t.Any) -> None:
         logging.Formatter.__init__(self, **kwargs)
@@ -164,11 +162,9 @@ class DebugLogFormatter(LogFormatter):
             "%(lineno)d",
         ]
 
-        tpl = "".join(
+        return "".join(
             reset + levelname + asctime + name + module_funcName + lineno + reset,
         )
-
-        return tpl
 
 
 class RepoLogFormatter(LogFormatter):
@@ -176,8 +172,8 @@ class RepoLogFormatter(LogFormatter):
 
     def template(self, record: logging.LogRecord) -> str:
         """Template for logging vcs bin name, along with a contextual hint."""
-        record.message = "".join(
-            [Fore.MAGENTA, Style.BRIGHT, record.message, Fore.RESET, Style.RESET_ALL],
+        record.message = (
+            f"{Fore.MAGENTA}{Style.BRIGHT}{record.message}{Fore.RESET}{Style.RESET_ALL}"
         )
         return f"{Fore.GREEN + Style.DIM}|{record.bin_name}| {Fore.YELLOW}({record.keyword}) {Fore.RESET}"  # type:ignore # noqa: E501
 

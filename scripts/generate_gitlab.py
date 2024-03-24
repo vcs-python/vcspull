@@ -58,7 +58,7 @@ try:
         if result != "y":
             log.info(
                 f"Aborting per user request as existing config file ({config_filename})"
-                + " should not be overwritten!"
+                + " should not be overwritten!",
             )
             sys.exit(0)
 

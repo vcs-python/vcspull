@@ -70,18 +70,14 @@ config_dict_expanded: list["ConfigDict"] = [
         "path": pathlib.Path("/home/me/myproject/github_projects/kaptan"),
         "remotes": {
             "upstream": GitRemote(
-                **{
-                    "name": "upstream",
-                    "fetch_url": "git+https://github.com/emre/kaptan",
-                    "push_url": "git+https://github.com/emre/kaptan",
-                },
+                name="upstream",
+                fetch_url="git+https://github.com/emre/kaptan",
+                push_url="git+https://github.com/emre/kaptan",
             ),
             "ms": GitRemote(
-                **{
-                    "name": "ms",
-                    "fetch_url": "git+https://github.com/ms/kaptan.git",
-                    "push_url": "git+https://github.com/ms/kaptan.git",
-                },
+                name="ms",
+                fetch_url="git+https://github.com/ms/kaptan.git",
+                push_url="git+https://github.com/ms/kaptan.git",
             ),
         },
     },

@@ -8,8 +8,9 @@ from typing import overload
 
 from libvcs.__about__ import __version__ as libvcs_version
 
-from ..__about__ import __version__
-from ..log import setup_logger
+from vcspull.__about__ import __version__
+from vcspull.log import setup_logger
+
 from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ def cli(_args: t.Optional[list[str]] = None) -> None:
     if args.subparser_name is None:
         parser.print_help()
         return
-    elif args.subparser_name == "sync":
+    if args.subparser_name == "sync":
         sync(
             repo_patterns=args.repo_patterns,
             config=args.config,
