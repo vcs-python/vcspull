@@ -21,16 +21,6 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
-## vcspull v1.29.0 (2024-03-24)
-
-_Maintenance only, no bug fixes or new features_
-
-### Breaking changes
-
-- libvcs: 0.28.2 -> 0.29.0 (#443)
-
-  Internal refactorings and maintenance.
-
 ### Development
 
 - Aggressive automated lint fixes via `ruff` (#442)
@@ -49,6 +39,16 @@ _Maintenance only, no bug fixes or new features_
       --exec 'poetry run ruff check --select ALL . --fix --unsafe-fixes --preview --show-fixes; poetry run ruff format .; git add src tests; git commit --amend --no-edit' \
       origin/master
   ```
+
+## vcspull v1.29.0 (2024-03-24)
+
+_Maintenance only, no bug fixes or new features_
+
+### Breaking changes
+
+- libvcs: 0.28.2 -> 0.29.0 (#443)
+
+  Internal refactorings and maintenance.
 
 ### Development
 
