@@ -78,6 +78,7 @@ sphinx-copybutton = "*"
 sphinxext-rediraffe = "*"
 sphinx-argparse = "*"
 myst_parser = ">=0.18.1"
+linkify-it-py = "*"
 
 [tool.poetry.group.test.dependencies]
 ### Testing ###
