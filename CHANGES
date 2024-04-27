@@ -30,6 +30,9 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 - poetry: 1.8.1 -> 1.8.2
 
   See also: https://github.com/python-poetry/poetry/blob/1.8.2/CHANGELOG.md
+- Code quality: Use f-strings in more places (#445)
+
+  via [ruff 0.4.2](https://github.com/astral-sh/ruff/blob/v0.4.2/CHANGELOG.md).
 
 ## vcspull v1.30.0 (2024-03-24)
 
