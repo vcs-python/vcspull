@@ -50,9 +50,8 @@ config_filename = pathlib.Path(args["config_file_name"])
 try:
     if config_filename.is_file():
         result = input(
-            "The target config file (%s) already exists, \
-            do you want to overwrite it? [y/N] "
-            % (config_filename),
+            f"The target config file ({config_filename}) already exists, \
+            do you want to overwrite it? [y/N] ",
         )
 
         if result != "y":
@@ -70,7 +69,7 @@ except OSError:
 response = requests.get(
     f"{gitlab_host}/api/v4/groups/{gitlab_namespace}/projects",
     params={"include_subgroups": "true", "per_page": "100"},
-    headers={"Authorization": "Bearer %s" % (gitlab_token)},
+    headers={"Authorization": f"Bearer {gitlab_token}"},
 )
 
 if response.status_code != 200:
