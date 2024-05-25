@@ -261,7 +261,7 @@ def test_updating_remote(
     repo_parent = tmp_path / "study" / "myrepo"
     repo_parent.mkdir(parents=True)
 
-    initial_config: "ConfigDict" = {
+    initial_config: ConfigDict = {
         "vcs": "git",
         "name": "myclone",
         "path": tmp_path / "study/myrepo/myclone",
@@ -283,7 +283,7 @@ def test_updating_remote(
 
     expected_remote_url = f"git+file://{mirror_repo}"
 
-    expected_config: "ConfigDict" = initial_config.copy()
+    expected_config: ConfigDict = initial_config.copy()
     assert isinstance(expected_config["remotes"], dict)
     expected_config["remotes"][mirror_name] = GitRemote(
         name=mirror_name,

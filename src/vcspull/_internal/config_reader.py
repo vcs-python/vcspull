@@ -105,7 +105,7 @@ class ConfigReader:
         content = path.open().read()
 
         if path.suffix in {".yaml", ".yml"}:
-            fmt: "FormatLiteral" = "yaml"
+            fmt: FormatLiteral = "yaml"
         elif path.suffix == ".json":
             fmt = "json"
         else:

@@ -70,7 +70,7 @@ def extract_repos(
     -------
     list : List of normalized repository information
     """
-    configs: list["ConfigDict"] = []
+    configs: list[ConfigDict] = []
     if callable(cwd):
         cwd = cwd()
 
@@ -253,7 +253,7 @@ def load_configs(
     ----
     Validate scheme, check for duplicate destinations, VCS urls
     """
-    repos: list["ConfigDict"] = []
+    repos: list[ConfigDict] = []
     if callable(cwd):
         cwd = cwd()
 
@@ -373,7 +373,7 @@ def filter_repos(
     list :
         Repos
     """
-    repo_list: list["ConfigDict"] = []
+    repo_list: list[ConfigDict] = []
 
     if path:
         repo_list.extend(
