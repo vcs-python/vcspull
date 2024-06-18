@@ -23,7 +23,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ### Breaking changes
 
-- libvcs: 0.29.0 -> 0.30.0 (#449)
+- libvcs: 0.29.0 -> 0.30.1 (#449, #450)
 
   [AWS CodeCommit] support.
 
