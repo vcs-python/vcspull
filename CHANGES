@@ -27,7 +27,13 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - libvcs: 0.29.0 -> 0.30.1 (#449, #450)
 
-  [AWS CodeCommit] support.
+  [AWS CodeCommit] support. Example:
+
+  ```yaml
+  ~/study/aws-codecommit:
+  test:
+    repo: "codecommit::us-east-1://test"
+  ```
 
 [AWS CodeCommit]: https://docs.aws.amazon.com/codecommit/
 
