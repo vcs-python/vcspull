@@ -146,8 +146,7 @@ def test_config_variations(
     remote_list: list[str],
 ) -> None:
     """Test vcspull sync'ing across a variety of configurations."""
-    dummy_repo_name = "dummy_repo"
-    dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
+    dummy_repo = create_git_remote_repo()
 
     config_file = write_config_remote(
         config_path=tmp_path / "myrepos.yaml",
@@ -252,11 +251,10 @@ def test_updating_remote(
     has_extra_remotes: bool,
 ) -> None:
     """Verify yaml configuration state is applied and reflected to local VCS clone."""
-    dummy_repo_name = "dummy_repo"
-    dummy_repo = create_git_remote_repo(remote_repo_name=dummy_repo_name)
+    dummy_repo = create_git_remote_repo()
 
     mirror_name = "mirror_repo"
-    mirror_repo = create_git_remote_repo(remote_repo_name=mirror_name)
+    mirror_repo = create_git_remote_repo()
 
     repo_parent = tmp_path / "study" / "myrepo"
     repo_parent.mkdir(parents=True)
