@@ -56,7 +56,7 @@ def xdg_config_path(
     return p
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_path(
     xdg_config_path: pathlib.Path,
     request: pytest.FixtureRequest,
@@ -81,7 +81,7 @@ def set_xdg_config_path(
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config_path))
 
 
-@pytest.fixture()
+@pytest.fixture
 def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest) -> pathlib.Path:
     """Return temporary directory for repository checkout guaranteed unique."""
     path = user_path / "repos"
