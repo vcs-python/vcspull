@@ -3,7 +3,7 @@
 __title__ = "vcspull"
 __package_name__ = "vcspull"
 __description__ = "Manage and sync multiple git, mercurial, and svn repos"
-__version__ = "1.31.0"
+__version__ = "1.32.0"
 __author__ = "Tony Narlock"
 __github__ = "https://github.com/vcs-python/vcspull"
 __docs__ = "https://vcspull.git-pull.com"
