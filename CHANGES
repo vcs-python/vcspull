@@ -27,6 +27,17 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 Added Python 3.13 to package trove classifiers and CI tests.
 
+#### libvcs 0.30.1 -> 0.33.0 (#453)
+
+Faster, cached pytest fixtures. Upstream tests are 50% faster.
+
+- https://github.com/vcs-python/libvcs/blob/v0.32.1/CHANGES#libvcs-0310-2024-10-12
+- https://libvcs.git-pull.com/history.html#libvcs-0-32-1-2024-10-12
+
+#### Faster tests fixtures (#453)
+
+libvcs's included test fixtures beyond v0.31.0+ are 33%+ faster.
+
 ## vcspull v1.31.0 (2024-06-18)
 
 ### Breaking changes
