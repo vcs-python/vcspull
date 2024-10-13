@@ -21,6 +21,12 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### New features
+
+#### Python 3.13 support
+
+Added Python 3.13 to package trove classifiers and CI tests.
+
 ## vcspull v1.31.0 (2024-06-18)
 
 ### Breaking changes
