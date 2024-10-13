@@ -24,7 +24,7 @@ class LoadYAMLFn(t.Protocol):
         ...
 
 
-@pytest.fixture()
+@pytest.fixture
 def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
     """Return a yaml loading function that uses temporary directory path."""
 

@@ -456,13 +456,13 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "libvcs"
-version = "0.30.1"
+version = "0.33.0"
 description = "Lite, typed, python utilities for Git, SVN, Mercurial, etc."
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "libvcs-0.30.1-py3-none-any.whl", hash = "sha256:ffc5f1f837db2e095d520dd5d264128739c84c04d8fd4b06f853e690d0d1c53a"},
-    {file = "libvcs-0.30.1.tar.gz", hash = "sha256:1197167222cf1e9f17c34a756f907e5053469e7aacb4bbbd0ffa2c3e617a5c4b"},
+    {file = "libvcs-0.33.0-py3-none-any.whl", hash = "sha256:053385430afe69755598d971b670a227b6034a37e607a00b1a5ae4ec206a7f04"},
+    {file = "libvcs-0.33.0.tar.gz", hash = "sha256:c7f2dfdcecb136efda9c76920a176526b6ad634144f0d27d16d3ec6d9956919a"},
 ]
 
 [package.dependencies]
@@ -1598,4 +1598,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "742881a9c50fa352a5ad74073456f5a543507fc87c49e53da43b91650c54b637"
+content-hash = "60745b22e8b3d00e5da4ef5f365464c1420277237b7a9cd37d57edd879cf7793"

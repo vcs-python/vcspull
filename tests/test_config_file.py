@@ -15,7 +15,7 @@ from .fixtures import example as fixtures
 from .helpers import EnvironmentVarGuard, load_raw, write_config
 
 
-@pytest.fixture()
+@pytest.fixture
 def yaml_config(config_path: pathlib.Path) -> pathlib.Path:
     """Ensure and return vcspull yaml configuration file path."""
     yaml_file = config_path / "repos1.yaml"
@@ -23,7 +23,7 @@ def yaml_config(config_path: pathlib.Path) -> pathlib.Path:
     return yaml_file
 
 
-@pytest.fixture()
+@pytest.fixture
 def json_config(config_path: pathlib.Path) -> pathlib.Path:
     """Ensure and return vcspull json configuration file path."""
     json_file = config_path / "repos2.json"
