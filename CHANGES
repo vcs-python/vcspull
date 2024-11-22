@@ -21,6 +21,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+#### libvcs 0.33.0 -> 0.34.0 (#456)
+
+First libvcs release built with `uv` package and project manager. No changes to libvcs API itself.
+
 ## vcspull v1.32.0 (2024-10-13)
 
 _Maintenance only, no bug fixes or new features_
