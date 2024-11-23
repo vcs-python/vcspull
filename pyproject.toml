@@ -1,9 +1,12 @@
-[tool.poetry]
+[project]
 name = "vcspull"
 version = "1.32.0"
 description = "Manage and sync multiple git, mercurial, and svn repos"
-license = "MIT"
-authors = ["Tony Narlock <tony@git-pull.com>"]
+license = { text = "MIT" }
+requires-python = ">=3.9,<4.0"
+authors = [
+  {name = "Tony Narlock", email = "tony@git-pull.com"}
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "License :: OSI Approved :: MIT License",
@@ -48,62 +51,94 @@ keywords = [
   "json",
   "yaml",
 ]
-
 homepage = "https://vcspull.git-pull.com"
+dependencies = [
+  "libvcs~=0.34.0",
+  "colorama>=0.3.9",
+  "PyYAML>=6.0"
+]
 
-[tool.poetry.urls]
+[project-urls]
 "Bug Tracker" = "https://github.com/vcs-python/vcspull/issues"
 Documentation = "https://vcspull.git-pull.com"
 Repository = "https://github.com/vcs-python/vcspull"
 Changes = "https://github.com/vcs-python/vcspull/blob/master/CHANGES"
 
-[tool.poetry.scripts]
-vcspull = 'vcspull:cli.cli'
+[project.scripts]
+vcspull = "vcspull:cli.cli"
 
-[tool.poetry.dependencies]
-python = "^3.9"
-libvcs = "~0.34.0"
-colorama = ">=0.3.9"
-PyYAML = "^6.0"
+[tool.uv]
+dev-dependencies = [
+  # Docs
+  "sphinx",
+  "furo",
+  "gp-libs",
+  "sphinx-autobuild",
+  "sphinx-autodoc-typehints",
+  "sphinx-inline-tabs",
+  "sphinxext-opengraph<0.8",
+  "sphinx-copybutton",
+  "sphinxext-rediraffe",
+  "myst-parser>=0.18.1",
+  "linkify-it-py",
+  # Testing
+  "gp-libs",
+  "pytest",
+  "pytest-rerunfailures",
+  "pytest-mock",
+  "pytest-watcher",
+  # Coverage
+  "codecov",
+  "coverage",
+  "pytest-cov",
+  # Lint
+  "ruff",
+  "mypy",
+  #Annotations
+  "types-requests",
+  "types-PyYAML",
+  "types-colorama"
+]
 
-[tool.poetry.group.docs.dependencies]
-### Docs ###
-sphinx = "*"
-furo = "*"
-gp-libs = "*"
-sphinx-autobuild = "*"
-sphinx-autodoc-typehints = "*"
-sphinx-inline-tabs = "*"
-sphinxext-opengraph = "<0.8" # https://github.com/wpilibsuite/sphinxext-opengraph/issues/100
-sphinx-copybutton = "*"
-sphinxext-rediraffe = "*"
-sphinx-argparse = "*"
-myst_parser = ">=0.18.1"
-linkify-it-py = "*"
+[dependency-groups]
+docs = [
+  "sphinx",
+  "furo",
+  "gp-libs",
+  "sphinx-autobuild",
+  "sphinx-autodoc-typehints",
+  "sphinx-inline-tabs",
+  "sphinxext-opengraph<0.8",
+  "sphinx-copybutton",
+  "sphinxext-rediraffe",
+  "myst-parser>=0.18.1",
+  "linkify-it-py",
+]
+testing = [
+  "gp-libs",
+  "pytest",
+  "pytest-rerunfailures",
+  "pytest-mock",
+  "pytest-watcher",
+]
+coverage =[
+  "codecov",
+  "coverage",
+  "pytest-cov",
+]
+lint = [
+  "ruff",
+  "mypy",
+]
+typings = [
+  "types-requests",
+  "types-PyYAML",
+  "types-colorama"
+]
 
-[tool.poetry.group.test.dependencies]
-### Testing ###
-pytest = "*"
-pytest-rerunfailures = "*"
-pytest-watcher = "*"
-gp-libs = "*"
-
-[tool.poetry.group.coverage.dependencies]
-### Coverage ###
-codecov = "*"
-coverage = "*"
-pytest-cov = "*"
-
-[tool.poetry.group.lint.dependencies]
-### Lint ###
-ruff = "*"
-mypy = "*"
-
-[tool.poetry.group.typings.dependencies]
-### Lint : Annotations ###
-types-requests = "*"
-types-PyYAML = "*"
-types-colorama = "*"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.mypy]
 python_version = 3.9
@@ -191,7 +226,3 @@ testpaths = [
 filterwarnings = [
   "ignore:The frontend.Option(Parser)? class.*:DeprecationWarning::",
 ]
-
-[build-system]
-requires = ["poetry_core>=1.0.0", "setuptools>50"]
-build-backend = "poetry.core.masonry.api"

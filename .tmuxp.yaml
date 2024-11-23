@@ -1,5 +1,7 @@
 session_name: vcspull
 start_directory: ./ # load session relative to config location (project root).
+shell_command_before:
+- uv virtualenv shell --quiet > /dev/null 2>&1 && clear
 windows:
 - window_name: vcspull
   focus: True

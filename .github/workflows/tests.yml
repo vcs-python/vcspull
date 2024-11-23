@@ -13,34 +13,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install poetry
-        run: pipx install "poetry==1.8.4"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: poetry install --with=docs,test,coverage,lint
+        run: uv sync --all-extras --dev
 
       - name: Print python versions
         run: |
           python -V
-          poetry run python -V
+          uv run python -V
 
       - name: Lint with ruff check
-        run: poetry run ruff check .
+        run: uv run ruff check .
 
       - name: Format with ruff format
-        run: poetry run ruff format . --check
+        run: uv run ruff format . --check
 
       - name: Lint with mypy
-        run: poetry run mypy .
+        run: uv run mypy .
 
       - name: Test with pytest
-        run: poetry run py.test --cov=./ --cov-append --cov-report=xml
+        run: uv run py.test --cov=./ --cov-append --cov-report=xml
         env:
           COV_CORE_SOURCE: .
           COV_CORE_CONFIG: pyproject.toml
@@ -62,18 +61,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install poetry
-        run: pipx install "poetry==1.8.4"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
 
       - name: Build package
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        run: poetry build
+        run: uv build
 
       - name: Publish package
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
