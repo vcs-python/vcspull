@@ -33,7 +33,7 @@ ruff_format:
 	poetry run ruff format .
 
 ruff:
-	ruff .
+	poetry run ruff check .
 
 watch_ruff:
 	if command -v entr > /dev/null; then ${PY_FILES} | entr -c $(MAKE) ruff; else $(MAKE) ruff entr_warn; fi
