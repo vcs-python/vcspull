@@ -21,6 +21,16 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+_Maintenance only, no bug fixes, or new features_
+
+### Development
+
+#### Project and package management: poetry to uv (#457)
+
+[uv] is the new package and project manager for the project, replacing Poetry.
+
+[uv]: https://github.com/astral-sh/uv
+
 #### libvcs 0.33.0 -> 0.34.0 (#456)
 
 First libvcs release built with `uv` package and project manager. No changes to libvcs API itself.

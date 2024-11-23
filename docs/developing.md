@@ -7,7 +7,7 @@ structure and workflow. At a later point these will refer to that website for do
 
 ## Bootstrap the project
 
-Install and [git] and [poetry]
+Install and [git] and [uv]
 
 Clone:
 
@@ -22,10 +22,10 @@ $ cd vcspull
 Install packages:
 
 ```console
-$ poetry install -E "docs test coverage lint"
+$ uv sync --all-extras --dev
 ```
 
-[installation documentation]: https://python-poetry.org/docs/#installation
+[installation documentation]: https://docs.astral.sh/uv/getting-started/installation/
 [git]: https://git-scm.com/
 
 ## Development loop
@@ -55,7 +55,7 @@ $ make watch_test
 #### Manual (just the command, please)
 
 ```console
-$ poetry run py.test
+$ uv run py.test
 ```
 
 or:
@@ -169,16 +169,16 @@ The project uses [ruff] to handle formatting, sorting imports and linting.
 
 ````{tab} Command
 
-poetry:
+uv:
 
 ```console
-$ poetry run ruff
+$ uv run ruff check .
 ```
 
 If you setup manually:
 
 ```console
-$ ruff .
+$ ruff check .
 ```
 
 ````
@@ -203,16 +203,16 @@ requires [`entr(1)`].
 
 ````{tab} Fix files
 
-poetry:
+uv:
 
 ```console
-$ poetry run ruff . --fix
+$ uv run ruff check . --fix
 ```
 
 If you setup manually:
 
 ```console
-$ ruff . --fix
+$ ruff check . --fix
 ```
 
 ````
@@ -223,10 +223,10 @@ $ ruff . --fix
 
 ````{tab} Command
 
-poetry:
+uv:
 
 ```console
-$ poetry run ruff format .
+$ uv run ruff format .
 ```
 
 If you setup manually:
@@ -251,10 +251,10 @@ $ make ruff_format
 
 ````{tab} Command
 
-poetry:
+uv:
 
 ```console
-$ poetry run mypy .
+$ uv run mypy .
 ```
 
 If you setup manually:
@@ -297,7 +297,7 @@ See `[tool.mypy]` in pyproject.toml.
 
 ## Publishing to PyPI
 
-[poetry] handles virtualenv creation, package requirements, versioning,
+[uv] handles virtualenv creation, package requirements, versioning,
 building, and publishing. Therefore there is no setup.py or requirements files.
 
 Update `__version__` in `__about__.py` and `pyproject.toml`::
@@ -306,10 +306,11 @@ Update `__version__` in `__about__.py` and `pyproject.toml`::
     git tag v0.1.1
     git push
     git push --tags
-    poetry build
-    poetry publish
 
-[poetry]: https://python-poetry.org/
+GitHub Actions will detect the new git tag, and in its own workflow run `uv
+build` and push to PyPI.
+
+[uv]: https://github.com/astral-sh/uv
 [entr(1)]: http://eradman.com/entrproject/
 [`entr(1)`]: http://eradman.com/entrproject/
 [ruff format]: https://docs.astral.sh/ruff/formatter/
