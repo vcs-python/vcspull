@@ -28,7 +28,7 @@ jobs:
             python_files:
               - 'vcspull/**'
               - pyproject.toml
-              - poetry.lock
+              - uv.lock
 
       - name: Should publish
         if: steps.changes.outputs.docs == 'true' || steps.changes.outputs.root_docs == 'true' || steps.changes.outputs.python_files == 'true'
