@@ -25,13 +25,21 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 _Maintenance only, no bug fixes, or new features_
 
-### Development
+### Breaking changes
 
 #### Project and package management: poetry to uv (#457)
 
 [uv] is the new package and project manager for the project, replacing Poetry.
 
 [uv]: https://github.com/astral-sh/uv
+
+#### Build system: poetry to hatchling (#457)
+
+[Build system] moved from [poetry] to [hatchling].
+
+[Build system]: https://packaging.python.org/en/latest/tutorials/packaging-projects/#choosing-a-build-backend
+[poetry]: https://github.com/python-poetry/poetry
+[hatchling]: https://hatch.pypa.io/latest/
 
 #### libvcs 0.33.0 -> 0.34.0 (#456)
 
