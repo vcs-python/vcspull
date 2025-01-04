@@ -201,10 +201,16 @@ select = [
   "PERF", # Perflint
   "RUF", # Ruff-specific rules
   "D", # pydocstyle
+  "FA100",  # future annotations
 ]
 ignore = [
   "COM812", # missing trailing comma, ruff format conflict
 ]
+extend-safe-fixes = [
+  "UP006",
+  "UP007",
+]
+pyupgrade.keep-runtime-typing = false
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -214,6 +220,9 @@ known-first-party = [
   "vcspull",
 ]
 combine-as-imports = true
+required-imports = [
+  "from __future__ import annotations",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "*/__init__.py" = ["F401"]
