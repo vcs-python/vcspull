@@ -5,6 +5,7 @@ import logging
 import os
 import pathlib
 import typing as t
+from collections.abc import Callable
 
 from libvcs.sync.git import GitRemote
 
@@ -23,8 +24,8 @@ if t.TYPE_CHECKING:
 
 
 def expand_dir(
-    _dir: pathlib.Path,
-    cwd: t.Union[pathlib.Path, t.Callable[[], pathlib.Path]] = pathlib.Path.cwd,
+    dir_: pathlib.Path,
+    cwd: t.Union[pathlib.Path, Callable[[], pathlib.Path]] = pathlib.Path.cwd,
 ) -> pathlib.Path:
     """Return path with environmental variables and tilde ~ expanded.
 
@@ -40,19 +41,19 @@ def expand_dir(
     pathlib.Path :
         Absolute directory path
     """
-    _dir = pathlib.Path(os.path.expandvars(str(_dir))).expanduser()
+    dir_ = pathlib.Path(os.path.expandvars(str(dir_))).expanduser()
     if callable(cwd):
         cwd = cwd()
 
-    if not _dir.is_absolute():
-        _dir = pathlib.Path(os.path.normpath(cwd / _dir))
-        assert _dir == pathlib.Path(cwd, _dir).resolve(strict=False)
-    return _dir
+    if not dir_.is_absolute():
+        dir_ = pathlib.Path(os.path.normpath(cwd / dir_))
+        assert dir_ == pathlib.Path(cwd, dir_).resolve(strict=False)
+    return dir_
 
 
 def extract_repos(
     config: "RawConfigDict",
-    cwd: t.Union[pathlib.Path, t.Callable[[], pathlib.Path]] = pathlib.Path.cwd,
+    cwd: t.Union[pathlib.Path, Callable[[], pathlib.Path]] = pathlib.Path.cwd,
 ) -> list["ConfigDict"]:
     """Return expanded configuration.
 
@@ -233,7 +234,7 @@ def find_config_files(
 
 def load_configs(
     files: list[pathlib.Path],
-    cwd: t.Union[pathlib.Path, t.Callable[[], pathlib.Path]] = pathlib.Path.cwd,
+    cwd: t.Union[pathlib.Path, Callable[[], pathlib.Path]] = pathlib.Path.cwd,
 ) -> list["ConfigDict"]:
     """Return repos from a list of files.
 

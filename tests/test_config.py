@@ -34,14 +34,14 @@ def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
         filename: str = "randomfilename.yaml",
     ) -> tuple[pathlib.Path, list[pathlib.Path], list["ConfigDict"]]:
         """Return vcspull configurations and write out config to temp directory."""
-        _dir = tmp_path / path
-        _dir.mkdir()
-        _config = _dir / filename
-        _config.write_text(content, encoding="utf-8")
+        dir_ = tmp_path / path
+        dir_.mkdir()
+        config_ = dir_ / filename
+        config_.write_text(content, encoding="utf-8")
 
-        configs = config.find_config_files(path=_dir)
-        repos = config.load_configs(configs, cwd=_dir)
-        return _dir, configs, repos
+        configs = config.find_config_files(path=dir_)
+        repos = config.load_configs(configs, cwd=dir_)
+        return dir_, configs, repos
 
     return fn
 

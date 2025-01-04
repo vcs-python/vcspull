@@ -37,14 +37,14 @@ class ConfigReader:
         """
         if fmt == "yaml":
             return t.cast(
-                dict[str, t.Any],
+                "dict[str, t.Any]",
                 yaml.load(
                     content,
                     Loader=yaml.SafeLoader,
                 ),
             )
         if fmt == "json":
-            return t.cast(dict[str, t.Any], json.loads(content))
+            return t.cast("dict[str, t.Any]", json.loads(content))
         msg = f"{fmt} not supported in configuration"
         raise NotImplementedError(msg)
 

@@ -128,7 +128,7 @@ def guess_vcs(url: str) -> t.Optional[VCSLiteral]:
         log.warning(f"No exact matches for {url}")
         return None
 
-    return t.cast(VCSLiteral, vcs_matches[0].vcs)
+    return t.cast("VCSLiteral", vcs_matches[0].vcs)
 
 
 class CouldNotGuessVCSFromURL(exc.VCSPullException):
