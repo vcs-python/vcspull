@@ -8,7 +8,7 @@ import logging
 import os
 import pathlib
 import sys
-from typing import TYPE_CHECKING
+import typing as t
 
 import requests
 import yaml
@@ -16,7 +16,7 @@ from libvcs.sync.git import GitRemote
 
 from vcspull.cli.sync import CouldNotGuessVCSFromURL, guess_vcs
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from vcspull.types import RawConfig
 
 log = logging.getLogger(__name__)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import typing as t
 
 from libvcs import BaseSync, GitSync, HgSync, SvnSync
 from libvcs._internal.shortcuts import create_project
@@ -11,7 +11,7 @@ from vcspull.config import filter_repos
 
 from .fixtures import example as fixtures
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     import pathlib
 
 
