@@ -1,12 +1,12 @@
 """Tests for sync functionality of vcspull."""
 
-import pathlib
+from __future__ import annotations
+
 import textwrap
 import typing as t
 
 import pytest
 from libvcs._internal.shortcuts import create_project
-from libvcs.pytest_plugin import CreateRepoPytestFixtureFn
 from libvcs.sync.git import GitRemote, GitSync
 
 from vcspull._internal.config_reader import ConfigReader
@@ -17,6 +17,10 @@ from vcspull.validator import is_valid_config
 from .helpers import write_config
 
 if t.TYPE_CHECKING:
+    import pathlib
+
+    from libvcs.pytest_plugin import CreateRepoPytestFixtureFn
+
     from vcspull.types import ConfigDict
 
 

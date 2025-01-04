@@ -1,10 +1,16 @@
 """Helpers for vcspull."""
 
+from __future__ import annotations
+
 import os
-import pathlib
 import typing as t
 
+from typing_extensions import Self
+
 from vcspull._internal.config_reader import ConfigReader
+
+if t.TYPE_CHECKING:
+    import pathlib
 
 
 class EnvironmentVarGuard:
@@ -34,7 +40,7 @@ class EnvironmentVarGuard:
             self._reset[envvar] = self._environ[envvar]
             del self._environ[envvar]
 
-    def __enter__(self) -> "EnvironmentVarGuard":
+    def __enter__(self) -> Self:
         """Context manager entry for setting and resetting environmental variable."""
         return self
 

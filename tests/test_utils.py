@@ -1,10 +1,15 @@
 """Tests for vcspull utilities."""
 
-import pathlib
+from __future__ import annotations
 
-import pytest
+from typing import TYPE_CHECKING
 
 from vcspull.util import get_config_dir
+
+if TYPE_CHECKING:
+    import pathlib
+
+    import pytest
 
 
 def test_vcspull_configdir_env_var(

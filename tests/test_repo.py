@@ -1,6 +1,8 @@
 """Tests for placing config dicts into :py:class:`Project` objects."""
 
-import pathlib
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from libvcs import BaseSync, GitSync, HgSync, SvnSync
 from libvcs._internal.shortcuts import create_project
@@ -8,6 +10,9 @@ from libvcs._internal.shortcuts import create_project
 from vcspull.config import filter_repos
 
 from .fixtures import example as fixtures
+
+if TYPE_CHECKING:
+    import pathlib
 
 
 def test_filter_dir() -> None:

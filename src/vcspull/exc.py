@@ -1,5 +1,7 @@
 """Exceptions for vcspull."""
 
+from __future__ import annotations
+
 
 class VCSPullException(Exception):
     """Standard exception raised by vcspull."""

@@ -8,11 +8,15 @@ See "pytest_plugins in non-top-level conftest files" in
 https://docs.pytest.org/en/stable/deprecations.html
 """
 
-import pathlib
+from __future__ import annotations
+
 import shutil
 import typing as t
 
 import pytest
+
+if t.TYPE_CHECKING:
+    import pathlib
 
 
 @pytest.fixture(autouse=True)

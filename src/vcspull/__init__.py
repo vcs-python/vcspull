@@ -6,6 +6,8 @@
 """
 
 # Set default logging handler to avoid "No handler found" warnings.
+from __future__ import annotations
+
 import logging
 from logging import NullHandler
 

@@ -1,5 +1,7 @@
 """Example fixture data for vcspull tests."""
 
+from __future__ import annotations
+
 import pathlib
 import typing as t
 
@@ -38,7 +40,7 @@ config_dict = {
     },
 }
 
-config_dict_expanded: list["ConfigDict"] = [
+config_dict_expanded: list[ConfigDict] = [
     {
         "vcs": "git",
         "name": "linux",

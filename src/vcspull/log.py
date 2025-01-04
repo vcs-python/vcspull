@@ -7,6 +7,8 @@ Colorized formatters for generic logging inside the application is also
 provided.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 import typing as t
@@ -23,7 +25,7 @@ LEVEL_COLORS = {
 
 
 def setup_logger(
-    log: t.Optional[logging.Logger] = None,
+    log: logging.Logger | None = None,
     level: t.Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO",
 ) -> None:
     """Configure vcspull logger for CLI use.

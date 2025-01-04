@@ -1,5 +1,7 @@
 """Validation of vcspull configuration file."""
 
+from __future__ import annotations
+
 import pathlib
 import typing as t
 
@@ -9,7 +11,7 @@ if t.TYPE_CHECKING:
     from vcspull.types import RawConfigDict
 
 
-def is_valid_config(config: dict[str, t.Any]) -> "TypeGuard[RawConfigDict]":
+def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfigDict]:
     """Return true and upcast if vcspull configuration file is valid."""
     if not isinstance(config, dict):
         return False
