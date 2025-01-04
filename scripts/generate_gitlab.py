@@ -1,18 +1,23 @@
 #!/usr/bin/env python
 """Example script for export gitlab organization to vcspull config file."""
 
+from __future__ import annotations
+
 import argparse
 import logging
 import os
 import pathlib
 import sys
+import typing as t
 
 import requests
 import yaml
 from libvcs.sync.git import GitRemote
 
 from vcspull.cli.sync import CouldNotGuessVCSFromURL, guess_vcs
-from vcspull.types import RawConfig
+
+if t.TYPE_CHECKING:
+    from vcspull.types import RawConfig
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")

@@ -1,6 +1,7 @@
 """Tests for vcspull configuration format."""
 
-import pathlib
+from __future__ import annotations
+
 import typing as t
 
 import pytest
@@ -8,6 +9,8 @@ import pytest
 from vcspull import config
 
 if t.TYPE_CHECKING:
+    import pathlib
+
     from vcspull.types import ConfigDict
 
 
@@ -19,7 +22,7 @@ class LoadYAMLFn(t.Protocol):
         content: str,
         path: str = "randomdir",
         filename: str = "randomfilename.yaml",
-    ) -> tuple[pathlib.Path, list[t.Union[t.Any, pathlib.Path]], list["ConfigDict"]]:
+    ) -> tuple[pathlib.Path, list[t.Any | pathlib.Path], list[ConfigDict]]:
         """Callable function type signature for load_yaml pytest fixture."""
         ...
 
@@ -32,7 +35,7 @@ def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
         content: str,
         path: str = "randomdir",
         filename: str = "randomfilename.yaml",
-    ) -> tuple[pathlib.Path, list[pathlib.Path], list["ConfigDict"]]:
+    ) -> tuple[pathlib.Path, list[pathlib.Path], list[ConfigDict]]:
         """Return vcspull configurations and write out config to temp directory."""
         dir_ = tmp_path / path
         dir_.mkdir()

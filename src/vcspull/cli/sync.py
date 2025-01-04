@@ -1,20 +1,25 @@
 """Synchronization functionality for vcspull."""
 
-import argparse
+from __future__ import annotations
+
 import logging
-import pathlib
 import sys
 import typing as t
 from copy import deepcopy
-from datetime import datetime
 
 from libvcs._internal.shortcuts import create_project
-from libvcs._internal.types import VCSLiteral
-from libvcs.sync.git import GitSync
 from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull.config import filter_repos, find_config_files, load_configs
+
+if t.TYPE_CHECKING:
+    import argparse
+    import pathlib
+    from datetime import datetime
+
+    from libvcs._internal.types import VCSLiteral
+    from libvcs.sync.git import GitSync
 
 log = logging.getLogger(__name__)
 
@@ -63,9 +68,8 @@ def sync(
     repo_patterns: list[str],
     config: pathlib.Path,
     exit_on_error: bool,
-    parser: t.Optional[
-        argparse.ArgumentParser
-    ] = None,  # optional so sync can be unit tested
+    parser: argparse.ArgumentParser
+    | None = None,  # optional so sync can be unit tested
 ) -> None:
     """Entry point for ``vcspull sync``."""
     if isinstance(repo_patterns, list) and len(repo_patterns) == 0:
@@ -117,7 +121,7 @@ def progress_cb(output: str, timestamp: datetime) -> None:
     sys.stdout.flush()
 
 
-def guess_vcs(url: str) -> t.Optional[VCSLiteral]:
+def guess_vcs(url: str) -> VCSLiteral | None:
     """Guess the VCS from a URL."""
     vcs_matches = url_tools.registry.match(url=url, is_explicit=True)
 

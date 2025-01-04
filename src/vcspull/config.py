@@ -1,11 +1,12 @@
 """Configuration functionality for vcspull."""
 
+from __future__ import annotations
+
 import fnmatch
 import logging
 import os
 import pathlib
 import typing as t
-from collections.abc import Callable
 
 from libvcs.sync.git import GitRemote
 
@@ -18,6 +19,8 @@ from .util import get_config_dir, update_dict
 log = logging.getLogger(__name__)
 
 if t.TYPE_CHECKING:
+    from collections.abc import Callable
+
     from typing_extensions import TypeGuard
 
     from .types import ConfigDict, RawConfigDict
@@ -25,7 +28,7 @@ if t.TYPE_CHECKING:
 
 def expand_dir(
     dir_: pathlib.Path,
-    cwd: t.Union[pathlib.Path, Callable[[], pathlib.Path]] = pathlib.Path.cwd,
+    cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
 ) -> pathlib.Path:
     """Return path with environmental variables and tilde ~ expanded.
 
@@ -52,9 +55,9 @@ def expand_dir(
 
 
 def extract_repos(
-    config: "RawConfigDict",
-    cwd: t.Union[pathlib.Path, Callable[[], pathlib.Path]] = pathlib.Path.cwd,
-) -> list["ConfigDict"]:
+    config: RawConfigDict,
+    cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
+) -> list[ConfigDict]:
     """Return expanded configuration.
 
     end-user configuration permit inline configuration shortcuts, expand to
@@ -130,7 +133,7 @@ def extract_repos(
                             **url,
                         )
 
-            def is_valid_config_dict(val: t.Any) -> "TypeGuard[ConfigDict]":
+            def is_valid_config_dict(val: t.Any) -> TypeGuard[ConfigDict]:
                 assert isinstance(val, dict)
                 return True
 
@@ -142,7 +145,7 @@ def extract_repos(
 
 
 def find_home_config_files(
-    filetype: t.Optional[list[str]] = None,
+    filetype: list[str] | None = None,
 ) -> list[pathlib.Path]:
     """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
     if filetype is None:
@@ -172,11 +175,11 @@ def find_home_config_files(
 
 
 def find_config_files(
-    path: t.Optional[t.Union[list[pathlib.Path], pathlib.Path]] = None,
-    match: t.Optional[t.Union[list[str], str]] = None,
-    filetype: t.Optional[
-        t.Union[t.Literal["json", "yaml", "*"], list[t.Literal["json", "yaml", "*"]]]
-    ] = None,
+    path: list[pathlib.Path] | pathlib.Path | None = None,
+    match: list[str] | str | None = None,
+    filetype: t.Literal["json", "yaml", "*"]
+    | list[t.Literal["json", "yaml", "*"]]
+    | None = None,
     include_home: bool = False,
 ) -> list[pathlib.Path]:
     """Return repos from a directory and match. Not recursive.
@@ -234,8 +237,8 @@ def find_config_files(
 
 def load_configs(
     files: list[pathlib.Path],
-    cwd: t.Union[pathlib.Path, Callable[[], pathlib.Path]] = pathlib.Path.cwd,
-) -> list["ConfigDict"]:
+    cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
+) -> list[ConfigDict]:
     """Return repos from a list of files.
 
     Parameters
@@ -284,8 +287,8 @@ ConfigDictTuple = tuple["ConfigDict", "ConfigDict"]
 
 
 def detect_duplicate_repos(
-    config1: list["ConfigDict"],
-    config2: list["ConfigDict"],
+    config1: list[ConfigDict],
+    config2: list[ConfigDict],
 ) -> list[ConfigDictTuple]:
     """Return duplicate repos dict if repo_dir same and vcs different.
 
@@ -320,8 +323,8 @@ def detect_duplicate_repos(
 
 
 def in_dir(
-    config_dir: t.Optional[pathlib.Path] = None,
-    extensions: t.Optional[list[str]] = None,
+    config_dir: pathlib.Path | None = None,
+    extensions: list[str] | None = None,
 ) -> list[str]:
     """Return a list of configs in ``config_dir``.
 
@@ -349,11 +352,11 @@ def in_dir(
 
 
 def filter_repos(
-    config: list["ConfigDict"],
-    path: t.Union[pathlib.Path, t.Literal["*"], str, None] = None,
-    vcs_url: t.Union[str, None] = None,
-    name: t.Union[str, None] = None,
-) -> list["ConfigDict"]:
+    config: list[ConfigDict],
+    path: pathlib.Path | t.Literal["*"] | str | None = None,
+    vcs_url: str | None = None,
+    name: str | None = None,
+) -> list[ConfigDict]:
     """Return a :py:obj:`list` list of repos from (expanded) config file.
 
     path, vcs_url and name all support fnmatch.
@@ -402,7 +405,7 @@ def filter_repos(
 
 def is_config_file(
     filename: str,
-    extensions: t.Optional[t.Union[list[str], str]] = None,
+    extensions: list[str] | str | None = None,
 ) -> bool:
     """Return True if file has a valid config file type.
 

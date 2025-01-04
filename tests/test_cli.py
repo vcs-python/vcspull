@@ -1,19 +1,22 @@
 """Test CLI entry point for for vcspull."""
 
+from __future__ import annotations
+
 import contextlib
-import pathlib
 import shutil
 import typing as t
 
 import pytest
 import yaml
-from libvcs.sync.git import GitSync
 
 from vcspull.__about__ import __version__
 from vcspull.cli import cli
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
 
 if t.TYPE_CHECKING:
+    import pathlib
+
+    from libvcs.sync.git import GitSync
     from typing_extensions import TypeAlias
 
     ExpectedOutput: TypeAlias = t.Optional[t.Union[str, list[str]]]
@@ -28,10 +31,10 @@ class SyncCLINonExistentRepo(t.NamedTuple):
     # test parameters
     sync_args: list[str]
     expected_exit_code: int
-    expected_in_out: "ExpectedOutput" = None
-    expected_not_in_out: "ExpectedOutput" = None
-    expected_in_err: "ExpectedOutput" = None
-    expected_not_in_err: "ExpectedOutput" = None
+    expected_in_out: ExpectedOutput = None
+    expected_not_in_out: ExpectedOutput = None
+    expected_in_err: ExpectedOutput = None
+    expected_not_in_err: ExpectedOutput = None
 
 
 SYNC_CLI_EXISTENT_REPO_FIXTURES: list[SyncCLINonExistentRepo] = [
@@ -77,10 +80,10 @@ def test_sync_cli_filter_non_existent(
     test_id: str,
     sync_args: list[str],
     expected_exit_code: int,
-    expected_in_out: "ExpectedOutput",
-    expected_not_in_out: "ExpectedOutput",
-    expected_in_err: "ExpectedOutput",
-    expected_not_in_err: "ExpectedOutput",
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
 ) -> None:
     """Tests vcspull syncing when repo does not exist."""
     config = {
@@ -124,10 +127,10 @@ class SyncFixture(t.NamedTuple):
     # test params
     sync_args: list[str]
     expected_exit_code: int
-    expected_in_out: "ExpectedOutput" = None
-    expected_not_in_out: "ExpectedOutput" = None
-    expected_in_err: "ExpectedOutput" = None
-    expected_not_in_err: "ExpectedOutput" = None
+    expected_in_out: ExpectedOutput = None
+    expected_not_in_out: ExpectedOutput = None
+    expected_in_err: ExpectedOutput = None
+    expected_not_in_err: ExpectedOutput = None
 
 
 SYNC_REPO_FIXTURES: list[SyncFixture] = [
@@ -211,10 +214,10 @@ def test_sync(
     test_id: str,
     sync_args: list[str],
     expected_exit_code: int,
-    expected_in_out: "ExpectedOutput",
-    expected_not_in_out: "ExpectedOutput",
-    expected_in_err: "ExpectedOutput",
-    expected_not_in_err: "ExpectedOutput",
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
 ) -> None:
     """Tests for vcspull sync."""
     config = {
@@ -262,10 +265,10 @@ class SyncBrokenFixture(t.NamedTuple):
     # test params
     sync_args: list[str]
     expected_exit_code: int
-    expected_in_out: "ExpectedOutput" = None
-    expected_not_in_out: "ExpectedOutput" = None
-    expected_in_err: "ExpectedOutput" = None
-    expected_not_in_err: "ExpectedOutput" = None
+    expected_in_out: ExpectedOutput = None
+    expected_not_in_out: ExpectedOutput = None
+    expected_in_err: ExpectedOutput = None
+    expected_not_in_err: ExpectedOutput = None
 
 
 SYNC_BROKEN_REPO_FIXTURES: list[SyncBrokenFixture] = [
@@ -347,10 +350,10 @@ def test_sync_broken(
     test_id: str,
     sync_args: list[str],
     expected_exit_code: int,
-    expected_in_out: "ExpectedOutput",
-    expected_not_in_out: "ExpectedOutput",
-    expected_in_err: "ExpectedOutput",
-    expected_not_in_err: "ExpectedOutput",
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
 ) -> None:
     """Tests for syncing in vcspull when unexpected error occurs."""
     github_projects = user_path / "github_projects"

@@ -1,6 +1,8 @@
 """Sphinx configuration for vcspull documentation."""
 
 # flake8: noqa: E501
+from __future__ import annotations
+
 import inspect
 import pathlib
 import sys
@@ -146,7 +148,7 @@ intersphinx_mapping = {
 }
 
 
-def linkcode_resolve(domain: str, info: dict[str, str]) -> t.Union[None, str]:
+def linkcode_resolve(domain: str, info: dict[str, str]) -> None | str:
     """
     Determine the URL corresponding to Python object.
 
@@ -216,13 +218,13 @@ def linkcode_resolve(domain: str, info: dict[str, str]) -> t.Union[None, str]:
     )
 
 
-def remove_tabs_js(app: "Sphinx", exc: Exception) -> None:
+def remove_tabs_js(app: Sphinx, exc: Exception) -> None:
     """Fix for sphinx-inline-tabs#18."""
     if app.builder.format == "html" and not exc:
         tabs_js = pathlib.Path(app.builder.outdir) / "_static" / "tabs.js"
         tabs_js.unlink(missing_ok=True)
 
 
-def setup(app: "Sphinx") -> None:
+def setup(app: Sphinx) -> None:
     """Sphinx setup hook."""
     app.connect("build-finished", remove_tabs_js)

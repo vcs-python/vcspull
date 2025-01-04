@@ -1,5 +1,7 @@
 """Metadata for vcspull."""
 
+from __future__ import annotations
+
 __title__ = "vcspull"
 __package_name__ = "vcspull"
 __description__ = "Manage and sync multiple git, mercurial, and svn repos"

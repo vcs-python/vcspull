@@ -1,5 +1,7 @@
 """CLI utilities for vcspull."""
 
+from __future__ import annotations
+
 import argparse
 import logging
 import textwrap
@@ -41,7 +43,7 @@ def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParse
 
 def create_parser(
     return_subparsers: bool = False,
-) -> t.Union[argparse.ArgumentParser, tuple[argparse.ArgumentParser, t.Any]]:
+) -> argparse.ArgumentParser | tuple[argparse.ArgumentParser, t.Any]:
     """Create CLI argument parser for vcspull."""
     parser = argparse.ArgumentParser(
         prog="vcspull",
@@ -76,7 +78,7 @@ def create_parser(
     return parser
 
 
-def cli(_args: t.Optional[list[str]] = None) -> None:
+def cli(_args: list[str] | None = None) -> None:
     """CLI entry point for vcspull."""
     parser, sync_parser = create_parser(return_subparsers=True)
     args = parser.parse_args(_args)
