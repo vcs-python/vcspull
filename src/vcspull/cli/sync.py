@@ -103,7 +103,7 @@ def sync(
             update_repo(repo)
         except Exception as e:  # noqa: PERF203
             log.info(
-                f'Failed syncing {repo.get("name")}',
+                f"Failed syncing {repo.get('name')}",
             )
             if log.isEnabledFor(logging.DEBUG):
                 import traceback
