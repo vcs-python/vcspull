@@ -213,6 +213,12 @@ extend-safe-fixes = [
 ]
 pyupgrade.keep-runtime-typing = false
 
+[tool.ruff.lint.flake8-builtins]
+builtins-allowed-modules = [
+  "dataclasses",
+  "types",
+]
+
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
