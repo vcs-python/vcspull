@@ -23,6 +23,11 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ### Development
 
+#### libvcs: 0.34.0 -> 0.35.0 (#461)
+
+Internally, this libvcs will use `text=True` in subprocess, and deal only with
+unicode. Before this change, handling bytestrings was supported.
+
 #### chore: Implement PEP 563 deferred annotation resolution (#459)
 
 - Add `from __future__ import annotations` to defer annotation resolution and reduce unnecessary runtime computations during type checking.
