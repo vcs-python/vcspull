@@ -8,10 +8,11 @@ Throughout this plan, we'll ensure all code follows these standards:
 
 1. **Strict Type Annotations**
    - All function parameters and return types must be annotated
-   - Use the most specific type possible (avoid `Any` when possible)
-   - Use `Optional` for parameters that might be `None`
-   - Use `Union` when a value could be multiple distinct types
-   - Use `Literal` for values restricted to a set of constants
+   - Use the most specific type possible (avoid `t.Any` when possible)
+   - Use `t.Optional` for parameters that might be `None`
+   - Use `t.Union` when a value could be multiple distinct types
+   - Use `t.Literal` for values restricted to a set of constants
+   - Always import typing as a namespace: `import typing as t`
 
 2. **Mypy Configuration**
    - Use strict mode (`--strict`) for mypy checking
@@ -34,15 +35,16 @@ Throughout this plan, we'll ensure all code follows these standards:
      ```
 
 3. **Python 3.9+ Features**
-   - Use built-in generic types (`list[str]` instead of `List[str]`)
+   - Use built-in generic types when possible (but always access typing via namespace)
    - Use the new dictionary merge operators (`|` and `|=`)
-   - Use the more precise `typing.Annotated` for complex annotations
-   - Use `typing.Protocol` for structural subtyping
+   - Use the more precise `t.Annotated` for complex annotations
+   - Use `t.Protocol` for structural subtyping
 
 4. **Type Documentation**
    - Document complex type behavior in docstrings
    - Type function parameters using the NumPy docstring format
    - Use descriptive variable names that make types obvious
+   - When using complex types, define type aliases for better readability
 
 All code examples in this plan follow these guidelines and must be maintained throughout the implementation.
 
@@ -54,8 +56,8 @@ All code examples in this plan follow these guidelines and must be maintained th
    - Create a hierarchy of exceptions with specific subtypes in `src/vcspull/exc.py`:
      ```python
      import enum
-     from typing import Optional, Any, Dict, List, Union, Literal
-
+     import typing as t
+     
      class VCSPullException(Exception):
          """Base exception for vcspull."""
      
@@ -69,11 +71,11 @@ All code examples in this plan follow these guidelines and must be maintained th
              self, 
              message: str, 
              *,
-             config_type: Optional[str] = None,
-             path: Optional[str] = None,
-             url: Optional[str] = None,
-             suggestion: Optional[str] = None,
-             risk: Optional[Literal["security", "performance", "reliability"]] = None
+             config_type: t.Optional[str] = None,
+             path: t.Optional[str] = None,
+             url: t.Optional[str] = None,
+             suggestion: t.Optional[str] = None,
+             risk: t.Optional[t.Literal["security", "performance", "reliability"]] = None
          ) -> None:
              self.config_type = config_type
              self.path = path
@@ -106,10 +108,10 @@ All code examples in this plan follow these guidelines and must be maintained th
              self, 
              message: str, 
              *, 
-             vcs_type: Optional[Literal["git", "hg", "svn"]] = None, 
-             operation: Optional[str] = None, 
-             repo_path: Optional[str] = None,
-             error_code: Optional["ErrorCode"] = None
+             vcs_type: t.Optional[t.Literal["git", "hg", "svn"]] = None, 
+             operation: t.Optional[str] = None, 
+             repo_path: t.Optional[str] = None,
+             error_code: t.Optional["ErrorCode"] = None
          ) -> None:
              self.vcs_type = vcs_type
              self.operation = operation
@@ -139,11 +141,11 @@ All code examples in this plan follow these guidelines and must be maintained th
              self, 
              message: str, 
              *, 
-             url: Optional[str] = None, 
-             status_code: Optional[int] = None, 
-             retry_count: Optional[int] = None,
-             suggestion: Optional[str] = None,
-             error_code: Optional["ErrorCode"] = None
+             url: t.Optional[str] = None, 
+             status_code: t.Optional[int] = None, 
+             retry_count: t.Optional[int] = None,
+             suggestion: t.Optional[str] = None,
+             error_code: t.Optional["ErrorCode"] = None
          ) -> None:
              self.url = url
              self.status_code = status_code
@@ -176,9 +178,9 @@ All code examples in this plan follow these guidelines and must be maintained th
              self, 
              message: str, 
              *, 
-             url: Optional[str] = None, 
-             auth_method: Optional[Literal["ssh-key", "username/password", "token"]] = None,
-             error_code: Optional["ErrorCode"] = None
+             url: t.Optional[str] = None, 
+             auth_method: t.Optional[t.Literal["ssh-key", "username/password", "token"]] = None,
+             error_code: t.Optional["ErrorCode"] = None
          ) -> None:
              self.auth_method = auth_method
              details = []
@@ -198,10 +200,10 @@ All code examples in this plan follow these guidelines and must be maintained th
              self, 
              message: str, 
              *, 
-             repo_path: Optional[str] = None, 
-             current_state: Optional[Dict[str, Any]] = None, 
-             expected_state: Optional[str] = None,
-             error_code: Optional["ErrorCode"] = None
+             repo_path: t.Optional[str] = None, 
+             current_state: t.Optional[t.Dict[str, t.Any]] = None, 
+             expected_state: t.Optional[str] = None,
+             error_code: t.Optional["ErrorCode"] = None
          ) -> None:
              self.repo_path = repo_path
              self.current_state = current_state
@@ -261,13 +263,13 @@ All code examples in this plan follow these guidelines and must be maintained th
 2. **Refactor Validator Module**
    - Update `src/vcspull/validator.py` to use the specific exception types:
      ```python
-     from typing import Any, Dict, List, Mapping, Optional, Union, cast
+     import typing as t
      import re
      from pathlib import Path
      
      from .exc import ValidationError, ErrorCode
      
-     def is_valid_config(config: Any) -> bool:
+     def is_valid_config(config: t.Any) -> bool:
          """
          Check if configuration is valid.
          
@@ -286,7 +288,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          ValidationError
              If configuration is invalid
          """
-         if not isinstance(config, (dict, Mapping)):
+         if not isinstance(config, (dict, t.Mapping)):
              raise ValidationError(
                  "Configuration must be a dictionary", 
                  config_type=type(config).__name__,
@@ -357,7 +359,7 @@ All code examples in this plan follow these guidelines and must be maintained th
    
    - Add validation for URL schemes, special characters, and path traversal:
      ```python
-     def validate_path(path: Union[str, Path]) -> bool:
+     def validate_path(path: t.Union[str, Path]) -> bool:
          """
          Validate repository path.
          
@@ -411,7 +413,7 @@ All code examples in this plan follow these guidelines and must be maintained th
 3. **Enhance Error Reporting**
    - Add context information to all exceptions in `src/vcspull/cli/sync.py`:
      ```python
-     from typing import Dict, List, Optional, Any, Union, cast
+     import typing as t
      import logging
      
      from vcspull.exc import VCSOperationError, ErrorCode
@@ -419,7 +421,7 @@ All code examples in this plan follow these guidelines and must be maintained th
      # Logger setup
      log = logging.getLogger(__name__)
      
-     def update_repo(repo: Dict[str, Any]) -> Any:
+     def update_repo(repo: t.Dict[str, t.Any]) -> t.Any:
          """Update a repository."""
          try:
              # Assuming repo.update() is the operation
@@ -429,9 +431,9 @@ All code examples in this plan follow these guidelines and must be maintained th
              # More specific exception handling
              raise VCSOperationError(
                  f"Failed to update repository: {str(e)}",
-                 vcs_type=cast(str, repo.get("vcs")),
+                 vcs_type=t.cast(str, repo.get("vcs")),
                  operation="update",
-                 repo_path=cast(str, repo.get("path")),
+                 repo_path=t.cast(str, repo.get("path")),
                  error_code=ErrorCode.REPOSITORY_CORRUPT
              ) from e
      ```
@@ -439,11 +441,11 @@ All code examples in this plan follow these guidelines and must be maintained th
    - Include recovery suggestions in error messages:
      ```python
      import requests
-     from typing import Dict, Any, Optional, cast
+     import typing as t
      
      from vcspull.exc import NetworkError, ErrorCode
      
-     def handle_network_error(e: Exception, repo: Dict[str, Any]) -> None:
+     def handle_network_error(e: Exception, repo: t.Dict[str, t.Any]) -> None:
          """
          Handle network errors with recovery suggestions.
          
@@ -459,7 +461,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          NetworkError
              A more specific network error with recovery suggestions
          """
-         repo_url = cast(str, repo.get("url"))
+         repo_url = t.cast(str, repo.get("url"))
          
          if isinstance(e, requests.ConnectionError):
              raise NetworkError(
@@ -497,11 +499,11 @@ All code examples in this plan follow these guidelines and must be maintained th
 1. **Dependency Injection**
    - Refactor VCS operations in `src/vcspull/cli/sync.py` to accept injectable dependencies:
      ```python
-     from typing import Any, Dict, List, Optional, Protocol, Callable, TypeVar, Union, cast
+     import typing as t
      from pathlib import Path
      
      # Define protocol for VCS factories
-     class VCSFactory(Protocol):
+     class VCSFactory(t.Protocol):
          """Protocol for VCS factory functions."""
          def __call__(
              self, 
@@ -509,47 +511,47 @@ All code examples in this plan follow these guidelines and must be maintained th
              vcs: str, 
              url: str, 
              path: str, 
-             **kwargs: Any
-         ) -> Any: ...
+             **kwargs: t.Any
+         ) -> t.Any: ...
      
      # Define protocol for network managers
-     class NetworkManager(Protocol):
+     class NetworkManager(t.Protocol):
          """Protocol for network managers."""
          def request(
              self, 
              method: str, 
              url: str, 
-             **kwargs: Any
-         ) -> Any: ...
+             **kwargs: t.Any
+         ) -> t.Any: ...
          
          def get(
              self, 
              url: str, 
-             **kwargs: Any
-         ) -> Any: ...
+             **kwargs: t.Any
+         ) -> t.Any: ...
      
      # Define protocol for filesystem managers
-     class FilesystemManager(Protocol):
+     class FilesystemManager(t.Protocol):
          """Protocol for filesystem managers."""
          def ensure_directory(
              self, 
-             path: Union[str, Path], 
+             path: t.Union[str, Path], 
              mode: int = 0o755
          ) -> Path: ...
          
          def is_writable(
              self, 
-             path: Union[str, Path]
+             path: t.Union[str, Path]
          ) -> bool: ...
      
      def update_repo(
-         repo: Dict[str, Any], 
+         repo: t.Dict[str, t.Any], 
          *, 
-         vcs_factory: Optional[VCSFactory] = None, 
-         network_manager: Optional[NetworkManager] = None, 
-         fs_manager: Optional[FilesystemManager] = None,
-         **kwargs: Any
-     ) -> Any:
+         vcs_factory: t.Optional[VCSFactory] = None, 
+         network_manager: t.Optional[NetworkManager] = None, 
+         fs_manager: t.Optional[FilesystemManager] = None,
+         **kwargs: t.Any
+     ) -> t.Any:
          """
          Update a repository with injectable dependencies.
          
@@ -582,9 +584,9 @@ All code examples in this plan follow these guidelines and must be maintained th
          
          # Repository creation with dependency injection
          vcs_obj = vcs_factory(
-             vcs=cast(str, repo.get('vcs')),
-             url=cast(str, repo.get('url')),
-             path=cast(str, repo.get('path')),
+             vcs=t.cast(str, repo.get('vcs')),
+             url=t.cast(str, repo.get('url')),
+             path=t.cast(str, repo.get('path')),
              network_manager=network_manager,
              fs_manager=fs_manager,
              **kwargs
@@ -595,7 +597,7 @@ All code examples in this plan follow these guidelines and must be maintained th
 
    - Create factory functions that can be mocked/replaced:
      ```python
-     from typing import Any, Dict, Optional, Union, cast, ClassVar
+     import typing as t
      from pathlib import Path
      import logging
      
@@ -608,17 +610,17 @@ All code examples in this plan follow these guidelines and must be maintained th
      log = logging.getLogger(__name__)
      
      # Type variable for VCS sync classes
-     VCSType = Union[GitSync, HgSync, SvnSync]
+     VCSType = t.Union[GitSync, HgSync, SvnSync]
      
      class FactoryRegistry:
          """Registry for factory functions."""
          
-         _instance: ClassVar[Optional["FactoryRegistry"]] = None
+         _instance: t.ClassVar[t.Optional["FactoryRegistry"]] = None
          
          def __init__(self) -> None:
-             self.vcs_factories: Dict[str, Callable[..., VCSType]] = {}
-             self.network_manager: Optional[NetworkManager] = None
-             self.fs_manager: Optional[FilesystemManager] = None
+             self.vcs_factories: t.Dict[str, t.Callable[..., VCSType]] = {}
+             self.network_manager: t.Optional[NetworkManager] = None
+             self.fs_manager: t.Optional[FilesystemManager] = None
              
          @classmethod
          def get_instance(cls) -> "FactoryRegistry":
@@ -630,7 +632,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          def register_vcs_factory(
              self, 
              vcs_type: str, 
-             factory: Callable[..., VCSType]
+             factory: t.Callable[..., VCSType]
          ) -> None:
              """Register a VCS factory function."""
              self.vcs_factories[vcs_type] = factory
@@ -639,7 +641,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          def get_vcs_factory(
              self, 
              vcs_type: str
-         ) -> Callable[..., VCSType]:
+         ) -> t.Callable[..., VCSType]:
              """Get a VCS factory function."""
              if vcs_type not in self.vcs_factories:
                  raise ValueError(f"No factory registered for VCS type: {vcs_type}")
@@ -665,7 +667,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          vcs: str, 
          url: str, 
          path: str, 
-         **kwargs: Any
+         **kwargs: t.Any
      ) -> VCSType:
          """
          Create a VCS object based on the specified type.
@@ -736,7 +738,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              from vcspull._internal.network import NetworkManager
              registry.network_manager = NetworkManager()
              
-         return cast(NetworkManager, registry.network_manager)
+         return t.cast(NetworkManager, registry.network_manager)
          
      
      def get_default_fs_manager() -> FilesystemManager:
@@ -754,13 +756,13 @@ All code examples in this plan follow these guidelines and must be maintained th
              from vcspull._internal.fs import FilesystemManager
              registry.fs_manager = FilesystemManager()
              
-         return cast(FilesystemManager, registry.fs_manager)
+         return t.cast(FilesystemManager, registry.fs_manager)
      ```
 
 2. **Add State Inspection Methods**
    - Create new module `src/vcspull/_internal/repo_inspector.py` for repository state inspection:
      ```python
-     from typing import Dict, Any, Optional, Literal, Union, cast
+     import typing as t
      import logging
      import subprocess
      from pathlib import Path
@@ -771,13 +773,13 @@ All code examples in this plan follow these guidelines and must be maintained th
      log = logging.getLogger(__name__)
      
      # Type alias for VCS types
-     VCSType = Literal["git", "hg", "svn"]
+     VCSType = t.Literal["git", "hg", "svn"]
      
      # Type alias for repository state
-     RepoState = Dict[str, Any]
+     RepoState = t.Dict[str, t.Any]
      
      
-     def detect_repo_type(repo_path: Union[str, Path]) -> VCSType:
+     def detect_repo_type(repo_path: t.Union[str, Path]) -> VCSType:
          """
          Detect repository type.
          
@@ -814,8 +816,8 @@ All code examples in this plan follow these guidelines and must be maintained th
      
      
      def get_repository_state(
-         repo_path: Union[str, Path], 
-         vcs_type: Optional[VCSType] = None
+         repo_path: t.Union[str, Path], 
+         vcs_type: t.Optional[VCSType] = None
      ) -> RepoState:
          """
          Return detailed repository state information.
@@ -852,7 +854,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              raise ValueError(f"Unsupported VCS type: {vcs_type}")
      
      
-     def get_git_repository_state(repo_path: Union[str, Path]) -> RepoState:
+     def get_git_repository_state(repo_path: t.Union[str, Path]) -> RepoState:
          """
          Get detailed state information for Git repository.
          
@@ -878,7 +880,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              return {'exists': False, 'is_repo': False, 'vcs_type': 'git'}
              
          # Get current branch
-         branch: Optional[str] = None
+         branch: t.Optional[str] = None
          try:
              branch = subprocess.check_output(
                  ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
@@ -906,7 +908,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              log.warning(f"Failed to check for uncommitted changes in {repo_path}")
              
          # Get current commit
-         commit: Optional[str] = None
+         commit: t.Optional[str] = None
          try:
              commit = subprocess.check_output(
                  ['git', 'rev-parse', 'HEAD'],
@@ -957,7 +959,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          }
      
      
-     def get_hg_repository_state(repo_path: Union[str, Path]) -> RepoState:
+     def get_hg_repository_state(repo_path: t.Union[str, Path]) -> RepoState:
          """
          Get detailed state information for Mercurial repository.
          
@@ -987,7 +989,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          }
      
      
-     def get_svn_repository_state(repo_path: Union[str, Path]) -> RepoState:
+     def get_svn_repository_state(repo_path: t.Union[str, Path]) -> RepoState:
          """
          Get detailed state information for Subversion repository.
          
@@ -1017,7 +1019,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          }
      
      
-     def is_detached_head(repo_path: Union[str, Path]) -> bool:
+     def is_detached_head(repo_path: t.Union[str, Path]) -> bool:
          """
          Check if Git repository is in detached HEAD state.
          
@@ -1047,7 +1049,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              ) from e
      
      
-     def has_uncommitted_changes(repo_path: Union[str, Path]) -> bool:
+     def has_uncommitted_changes(repo_path: t.Union[str, Path]) -> bool:
          """
          Check if repository has uncommitted changes.
          
@@ -1081,7 +1083,7 @@ All code examples in this plan follow these guidelines and must be maintained th
 3. **Add Test Mode Flag**
    - Update the primary synchronization function in `src/vcspull/cli/sync.py`:
      ```python
-     from typing import List, Dict, Any, Optional, Union, cast
+     import typing as t
      import logging
      
      from vcspull.exc import VCSOperationError, ErrorCode
@@ -1089,11 +1091,11 @@ All code examples in this plan follow these guidelines and must be maintained th
      log = logging.getLogger(__name__)
      
      def sync_repositories(
-         repos: List[Dict[str, Any]], 
+         repos: t.List[t.Dict[str, t.Any]], 
          *, 
          test_mode: bool = False, 
-         **kwargs: Any
-     ) -> List[Dict[str, Any]]:
+         **kwargs: t.Any
+     ) -> t.List[t.Dict[str, t.Any]]:
          """
          Sync repositories with test mode support.
          
@@ -1130,12 +1132,12 @@ All code examples in this plan follow these guidelines and must be maintained th
              from vcspull._internal.testing.hooks import register_test_hooks
              register_test_hooks()
          
-         results: List[Dict[str, Any]] = []
+         results: t.List[t.Dict[str, t.Any]] = []
          for repo in repos:
              try:
                  result = update_repo(repo, **kwargs)
                  results.append({
-                     'name': cast(str, repo['name']), 
+                     'name': t.cast(str, repo['name']), 
                      'status': 'success', 
                      'result': result
                  })
@@ -1143,7 +1145,7 @@ All code examples in this plan follow these guidelines and must be maintained th
                  if test_mode:
                      # In test mode, capture the exception for verification
                      results.append({
-                         'name': cast(str, repo['name']), 
+                         'name': t.cast(str, repo['name']), 
                          'status': 'error', 
                          'exception': e
                      })
@@ -1153,7 +1155,7 @@ All code examples in this plan follow these guidelines and must be maintained th
                      # In normal mode, log and continue
                      log.error(f"Error updating {repo['name']}: {str(e)}")
                      results.append({
-                         'name': cast(str, repo['name']), 
+                         'name': t.cast(str, repo['name']), 
                          'status': 'error', 
                          'message': str(e)
                      })
@@ -1167,20 +1169,19 @@ All code examples in this plan follow these guidelines and must be maintained th
      
      import logging
      import typing as t
-     from typing import Any, Dict, Callable, TypeVar, cast, Optional, List
      from functools import wraps
      
      log = logging.getLogger(__name__)
      
      # Type variables for hook functions
-     T = TypeVar('T')
-     R = TypeVar('R')
+     T = t.TypeVar('T')
+     R = t.TypeVar('R')
      
      # Type for hook functions
-     HookFunction = Callable[[Any, Callable[..., R], Any, Any], R]
+     HookFunction = t.Callable[[t.Any, t.Callable[..., R], t.Any, t.Any], R]
      
      # Global registry for test hooks
-     _test_hooks: Dict[str, HookFunction] = {}
+     _test_hooks: t.Dict[str, HookFunction] = {}
      
      
      def register_test_hook(name: str, hook_function: HookFunction) -> None:
@@ -1198,7 +1199,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          log.debug(f"Registered test hook: {name}")
          
      
-     def get_test_hook(name: str) -> Optional[HookFunction]:
+     def get_test_hook(name: str) -> t.Optional[HookFunction]:
          """
          Get a registered test hook function.
          
@@ -1229,7 +1230,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          original_method = getattr(cls, method_name)
          
          @wraps(original_method)
-         def wrapped(self: Any, *args: Any, **kwargs: Any) -> Any:
+         def wrapped(self: t.Any, *args: t.Any, **kwargs: t.Any) -> t.Any:
              hook_name = f"{cls.__name__}.{method_name}"
              hook = get_test_hook(hook_name)
              
@@ -1263,7 +1264,7 @@ All code examples in this plan follow these guidelines and must be maintained th
      
      import logging
      import time
-     from typing import Any, Dict, Optional, Union, Tuple, List, TypeVar, cast
+     import typing as t
      from urllib.parse import urlparse
      import dataclasses
      
@@ -1300,7 +1301,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              return self.initial_delay * (self.backoff_factor ** (attempt - 1))
      
      
-     ResponseType = TypeVar('ResponseType')
+     ResponseType = t.TypeVar('ResponseType')
      
      
      class NetworkManager:
@@ -1309,8 +1310,8 @@ All code examples in this plan follow these guidelines and must be maintained th
          def __init__(
              self, 
              *, 
-             session: Optional[requests.Session] = None, 
-             retry_strategy: Optional[RetryStrategy] = None
+             session: t.Optional[requests.Session] = None, 
+             retry_strategy: t.Optional[RetryStrategy] = None
          ) -> None:
              """
              Initialize network manager.
@@ -1329,7 +1330,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              self, 
              method: str, 
              url: str, 
-             **kwargs: Any
+             **kwargs: t.Any
          ) -> requests.Response:
              """
              Perform HTTP request with retry logic.
@@ -1361,7 +1362,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              
              # Initialize retry counter
              attempt = 0
-             last_exception: Optional[NetworkError] = None
+             last_exception: t.Optional[NetworkError] = None
              
              while attempt < max_retries:
                  attempt += 1
@@ -1446,7 +1447,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          def get(
              self, 
              url: str, 
-             **kwargs: Any
+             **kwargs: t.Any
          ) -> requests.Response:
              """
              Perform HTTP GET request.
@@ -1468,7 +1469,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          def post(
              self, 
              url: str, 
-             **kwargs: Any
+             **kwargs: t.Any
          ) -> requests.Response:
              """
              Perform HTTP POST request.
@@ -1491,9 +1492,9 @@ All code examples in this plan follow these guidelines and must be maintained th
      def perform_request(
          url: str, 
          *, 
-         auth: Optional[Tuple[str, str]] = None, 
-         retry_strategy: Optional[RetryStrategy] = None, 
-         **kwargs: Any
+         auth: t.Optional[t.Tuple[str, str]] = None, 
+         retry_strategy: t.Optional[RetryStrategy] = None, 
+         **kwargs: t.Any
      ) -> requests.Response:
          """
          Perform HTTP request with configurable retry strategy.
@@ -1538,23 +1539,25 @@ All code examples in this plan follow these guidelines and must be maintained th
      class CommandResult:
          """Result of a shell command execution."""
          
-         def __init__(self, 
-                     returncode: int, 
-                     stdout: str, 
-                     stderr: str, 
-                     command: str,
-                     cwd: t.Optional[str] = None):
+         def __init__(
+             self, 
+             returncode: int, 
+             stdout: str, 
+             stderr: str, 
+             command: str,
+             cwd: t.Optional[str] = None
+         ) -> None:
              self.returncode = returncode
              self.stdout = stdout
              self.stderr = stderr
              self.command = command
              self.cwd = cwd
              
-         def __bool__(self):
+         def __bool__(self) -> bool:
              """Return True if command succeeded (returncode == 0)."""
              return self.returncode == 0
              
-         def __str__(self):
+         def __str__(self) -> str:
              """Return string representation."""
              return f"CommandResult(returncode={self.returncode}, command={self.command!r})"
              
@@ -1567,18 +1570,22 @@ All code examples in this plan follow these guidelines and must be maintained th
      class ShellCommandError(VCSPullException):
          """Error executing shell command."""
          
-         def __init__(self, message: str, result: CommandResult):
+         def __init__(self, message: str, result: CommandResult) -> None:
              self.result = result
              super().__init__(f"{message}\nCommand: {result.command}\nExit code: {result.returncode}\nStderr: {result.stderr}")
      
      
-     def execute_command(command: str, 
-                        env: t.Optional[dict] = None, 
-                        cwd: t.Optional[str] = None, 
-                        timeout: t.Optional[float] = None,
-                        check: bool = False,
-                        shell: bool = False) -> CommandResult:
-         """Execute shell command with configurable parameters.
+     def execute_command(
+         command: str, 
+         *, 
+         env: t.Optional[t.Dict[str, str]] = None, 
+         cwd: t.Optional[str] = None, 
+         timeout: t.Optional[float] = None,
+         check: bool = False,
+         shell: bool = False
+     ) -> CommandResult:
+         """
+         Execute shell command with configurable parameters.
          
          Parameters
          ----------
@@ -1650,7 +1657,7 @@ All code examples in this plan follow these guidelines and must be maintained th
          except subprocess.TimeoutExpired as e:
              log.error(f"Command timed out: {command}, timeout={timeout}s")
              result = CommandResult(
-                 returncode=None,  # timeout has no returncode
+                 returncode=-1,  # Use -1 for timeout as it has no returncode
                  stdout="",
                  stderr=f"Timeout expired after {timeout}s",
                  command=command,
@@ -3269,8 +3276,21 @@ All code examples in this plan follow these guidelines and must be maintained th
    - Reduce bug reports related to error handling
    - Improve reliability in unstable network conditions
    - Support all target platforms reliably
+   - Eliminate type-related runtime errors
 
 3. **Maintenance Metrics**
    - Reduce time to diagnose issues
    - Improve speed of adding new features
    - Increase confidence in code changes
+
+4. **Type Safety Metrics**
+   - Pass mypy in strict mode with zero warnings
+   - Every function has proper type annotations
+   - Properly handle typed errors with specificity
+   - Document complex types with aliases for readability
+
+5. **Documentation Metrics**
+   - All public APIs have comprehensive docstrings with type information
+   - Examples demonstrate correct type usage
+   - Error scenarios are documented with error type information
+   - Exception hierarchies are clearly documented
