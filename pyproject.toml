@@ -164,6 +164,7 @@ omit = [
   "*/_*",
   "*/_compat.py",
   "docs/conf.py",
+  "tests/*",
 ]
 
 [tool.coverage.report]
