@@ -1263,39 +1263,76 @@ All code examples in this plan follow these guidelines and must be maintained th
      
      import logging
      import time
-     import typing as t
+     from typing import Any, Dict, Optional, Union, Tuple, List, TypeVar, cast
      from urllib.parse import urlparse
+     import dataclasses
      
      import requests
      from requests.exceptions import ConnectionError, Timeout
      
-     from vcspull.exc import NetworkError
+     from vcspull.exc import NetworkError, ErrorCode
      
      log = logging.getLogger(__name__)
      
      
+     @dataclasses.dataclass
      class RetryStrategy:
          """Strategy for retrying network operations."""
          
-         def __init__(self, max_retries=3, initial_delay=1.0, backoff_factor=2.0):
-             self.max_retries = max_retries
-             self.initial_delay = initial_delay
-             self.backoff_factor = backoff_factor
+         max_retries: int = 3
+         initial_delay: float = 1.0
+         backoff_factor: float = 2.0
+         
+         def get_delay(self, attempt: int) -> float:
+             """
+             Get delay for a specific retry attempt.
              
-         def get_delay(self, attempt):
-             """Get delay for a specific retry attempt."""
+             Parameters
+             ----------
+             attempt : int
+                 Current attempt number (1-based)
+                 
+             Returns
+             -------
+             float
+                 Delay in seconds
+             """
              return self.initial_delay * (self.backoff_factor ** (attempt - 1))
+     
+     
+     ResponseType = TypeVar('ResponseType')
      
      
      class NetworkManager:
          """Manager for network operations."""
          
-         def __init__(self, session=None, retry_strategy=None):
+         def __init__(
+             self, 
+             *, 
+             session: Optional[requests.Session] = None, 
+             retry_strategy: Optional[RetryStrategy] = None
+         ) -> None:
+             """
+             Initialize network manager.
+             
+             Parameters
+             ----------
+             session : requests.Session, optional
+                 Session to use for requests
+             retry_strategy : RetryStrategy, optional
+                 Strategy for retrying failed requests
+             """
              self.session = session or requests.Session()
              self.retry_strategy = retry_strategy or RetryStrategy()
              
-         def request(self, method, url, **kwargs):
-             """Perform HTTP request with retry logic.
+         def request(
+             self, 
+             method: str, 
+             url: str, 
+             **kwargs: Any
+         ) -> requests.Response:
+             """
+             Perform HTTP request with retry logic.
              
              Parameters
              ----------
@@ -1303,7 +1340,7 @@ All code examples in this plan follow these guidelines and must be maintained th
                  HTTP method (GET, POST, etc.)
              url : str
                  URL to request
-             **kwargs
+             **kwargs : Any
                  Additional parameters for requests
                  
              Returns
@@ -1324,7 +1361,7 @@ All code examples in this plan follow these guidelines and must be maintained th
              
              # Initialize retry counter
              attempt = 0
-             last_exception = None
+             last_exception: Optional[NetworkError] = None
              
              while attempt < max_retries:
                  attempt += 1
@@ -1340,7 +1377,8 @@ All code examples in this plan follow these guidelines and must be maintained th
                                  f"Server error: {response.status_code}",
                                  url=url,
                                  status_code=response.status_code,
-                                 retry_count=attempt
+                                 retry_count=attempt,
+                                 error_code=ErrorCode.NETWORK_UNREACHABLE
                              )
                              continue
                          elif response.status_code == 429:
@@ -1349,7 +1387,8 @@ All code examples in this plan follow these guidelines and must be maintained th
                                  "Rate limited",
                                  url=url,
                                  status_code=429,
-                                 retry_count=attempt
+                                 retry_count=attempt,
+                                 error_code=ErrorCode.RATE_LIMITED
                              )
                              # Get retry-after header if available
                              retry_after = response.headers.get('Retry-After')
@@ -1368,7 +1407,8 @@ All code examples in this plan follow these guidelines and must be maintained th
                              raise NetworkError(
                                  f"Client error: {response.status_code}",
                                  url=url,
-                                 status_code=response.status_code
+                                 status_code=response.status_code,
+                                 error_code=ErrorCode.NETWORK_UNREACHABLE
                              )
                      
                      # Success
@@ -1380,7 +1420,11 @@ All code examples in this plan follow these guidelines and must be maintained th
                      last_exception = NetworkError(
                          f"Network error: {str(e)}",
                          url=url,
-                         retry_count=attempt
+                         retry_count=attempt,
+                         error_code=(
+                             ErrorCode.TIMEOUT if isinstance(e, Timeout) 
+                             else ErrorCode.CONNECTION_REFUSED
+                         )
                      )
                      
                      # Wait before retrying
@@ -1393,19 +1437,83 @@ All code examples in this plan follow these guidelines and must be maintained th
              if last_exception:
                  raise last_exception
              else:
-                 raise NetworkError(f"Failed after {max_retries} attempts", url=url)
+                 raise NetworkError(
+                     f"Failed after {max_retries} attempts", 
+                     url=url,
+                     error_code=ErrorCode.NETWORK_UNREACHABLE
+                 )
                  
-         def get(self, url, **kwargs):
-             """Perform HTTP GET request."""
+         def get(
+             self, 
+             url: str, 
+             **kwargs: Any
+         ) -> requests.Response:
+             """
+             Perform HTTP GET request.
+             
+             Parameters
+             ----------
+             url : str
+                 URL to request
+             **kwargs : Any
+                 Additional parameters for requests
+                 
+             Returns
+             -------
+             requests.Response
+                 Response object
+             """
              return self.request('GET', url, **kwargs)
              
-         def post(self, url, **kwargs):
-             """Perform HTTP POST request."""
+         def post(
+             self, 
+             url: str, 
+             **kwargs: Any
+         ) -> requests.Response:
+             """
+             Perform HTTP POST request.
+             
+             Parameters
+             ----------
+             url : str
+                 URL to request
+             **kwargs : Any
+                 Additional parameters for requests
+                 
+             Returns
+             -------
+             requests.Response
+                 Response object
+             """
              return self.request('POST', url, **kwargs)
      
      
-     def perform_request(url, auth=None, retry_strategy=None, **kwargs):
-         """Perform HTTP request with configurable retry strategy."""
+     def perform_request(
+         url: str, 
+         *, 
+         auth: Optional[Tuple[str, str]] = None, 
+         retry_strategy: Optional[RetryStrategy] = None, 
+         **kwargs: Any
+     ) -> requests.Response:
+         """
+         Perform HTTP request with configurable retry strategy.
+         
+         Parameters
+         ----------
+         url : str
+             URL to request
+         auth : Tuple[str, str], optional
+             Authentication credentials (username, password)
+         retry_strategy : RetryStrategy, optional
+             Strategy for retrying failed requests
+         **kwargs : Any
+             Additional parameters for requests
+             
+         Returns
+         -------
+         requests.Response
+             Response object
+         """
          manager = NetworkManager(retry_strategy=retry_strategy)
          return manager.get(url, auth=auth, **kwargs)
      ```
