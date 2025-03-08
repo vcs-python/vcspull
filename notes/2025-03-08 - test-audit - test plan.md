@@ -14,7 +14,17 @@ Throughout this plan, we'll ensure all code follows these standards:
    - Use `t.Literal` for values restricted to a set of constants
    - Always import typing as a namespace: `import typing as t`
 
-2. **Mypy Configuration**
+2. **Import Guidelines**
+   - Prefer namespace imports over importing specific symbols
+   - For all standard library modules like `enum`, `pathlib`, `os`, etc.:
+     - Use `import enum` and access via `enum.Enum` (not `from enum import Enum`)
+     - Use `import pathlib` and access via `pathlib.Path` (not `from pathlib import Path`)
+   - For typing, always use `import typing as t` and access via namespace:
+     - Use `t.NamedTuple`, `t.TypedDict`, etc. via the namespace
+     - For primitive types, use built-in notation: `list[str]`, `dict[str, int]`
+     - For unions, use the pipe syntax: `str | None` instead of `t.Optional[str]`
+
+3. **Mypy Configuration**
    - ✓ Strict mode is already enabled in `pyproject.toml` under `[tool.mypy]`
    - ✓ The project uses the following mypy configuration:
      ```toml
@@ -30,13 +40,13 @@ Throughout this plan, we'll ensure all code follows these standards:
    - All necessary error checks are enabled via the `strict = true` setting
    - Remaining task: Add CI checks for type validation
 
-3. **Python 3.9+ Features**
+4. **Python 3.9+ Features**
    - Use built-in generic types when possible (but always access typing via namespace)
    - Use the new dictionary merge operators (`|` and `|=`)
    - Use the more precise `t.Annotated` for complex annotations
    - Use `t.Protocol` for structural subtyping
 
-4. **Type Documentation**
+5. **Type Documentation**
    - Document complex type behavior in docstrings
    - Type function parameters using the NumPy docstring format
    - Use descriptive variable names that make types obvious
@@ -3290,3 +3300,379 @@ All code examples in this plan follow these guidelines and must be maintained th
    - Examples demonstrate correct type usage
    - Error scenarios are documented with error type information
    - Exception hierarchies are clearly documented
+
+## 2. Pydantic Integration for Enhanced Validation
+
+VCSPull will use Pydantic for improved type safety, validation, and error handling. This section outlines the comprehensive plan for implementing Pydantic models throughout the codebase.
+
+### A. Current Progress
+
+#### Completed Tasks
+
+1. **Core Pydantic Models**
+   - ✅ Implemented `RepositoryModel` for repository configuration
+   - ✅ Implemented `ConfigSectionModel` and `ConfigModel` for complete configuration
+   - ✅ Added raw models (`RawRepositoryModel`, `RawConfigSectionModel`, `RawConfigModel`) for initial parsing
+   - ✅ Implemented field validators for VCS types, paths, and URLs
+
+2. **Validator Module Updates**
+   - ✅ Replaced manual validators with Pydantic-based validation
+   - ✅ Integrated Pydantic validation errors with VCSPull exceptions
+   - ✅ Created utilities for formatting Pydantic error messages
+   - ✅ Maintained the same API for existing validation functions
+
+3. **Validator Module Tests**
+   - ✅ Updated test cases to use Pydantic models
+   - ✅ Added tests for Pydantic-specific validation features
+   - ✅ Enhanced test coverage for edge cases
+
+### B. Model Architecture
+
+The Pydantic models follow a hierarchical structure aligned with the configuration data:
+
+```
+ConfigModel
+└── ConfigSectionModel (for each section)
+    └── RepositoryModel (for each repository)
+        └── GitRemote (for Git remotes)
+```
+
+For initial parsing without validation, a parallel hierarchy is used:
+
+```
+RawConfigModel
+└── RawConfigSectionModel (for each section)
+    └── RawRepositoryModel (for each repository)
+```
+
+### C. Implementation Plan
+
+#### Phase 1: Core Model Implementation
+
+1. **Model Definitions**
+   - Define core Pydantic models to replace TypedDict definitions
+   - Add field validators with meaningful error messages
+   - Implement serialization and deserialization methods
+   - Example implementation:
+
+```python
+import enum
+import pathlib
+import typing as t
+import pydantic
+
+class VCSType(str, enum.Enum):
+    """Valid version control system types."""
+    GIT = "git"
+    MERCURIAL = "hg"
+    SUBVERSION = "svn"
+
+class RawRepositoryModel(pydantic.BaseModel):
+    """Raw repository configuration before validation."""
+    
+    class Config:
+        """Pydantic model configuration."""
+        extra = pydantic.Extra.allow
+    
+    # Required fields
+    url: t.Optional[str] = None
+    repo_name: t.Optional[str] = None
+    vcs: t.Optional[str] = None
+    
+    # Optional fields with defaults
+    remotes: t.Dict[str, str] = {}
+    rev: t.Optional[str] = None
+
+class RepositoryModel(pydantic.BaseModel):
+    """Validated repository configuration."""
+    
+    class Config:
+        """Pydantic model configuration."""
+        extra = pydantic.Extra.forbid
+    
+    # Required fields with validation
+    url: pydantic.HttpUrl
+    repo_name: str
+    vcs: VCSType
+    
+    # Optional fields with defaults
+    remotes: t.Dict[str, pydantic.HttpUrl] = {}
+    rev: t.Optional[str] = None
+    path: pathlib.Path
+    
+    @pydantic.validator("repo_name")
+    def validate_repo_name(cls, value: str) -> str:
+        """Validate repository name."""
+        if not value:
+            raise ValueError("Repository name cannot be empty")
+        if "/" in value or "\\" in value:
+            raise ValueError("Repository name cannot contain path separators")
+        return value
+    
+    @pydantic.root_validator
+    def validate_remotes(cls, values: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
+        """Validate remotes against the main URL."""
+        url = values.get("url")
+        remotes = values.get("remotes", {})
+        
+        if "origin" in remotes and url != remotes["origin"]:
+            raise ValueError(
+                "When 'origin' remote is specified, it must match the main URL"
+            )
+        
+        return values
+```
+
+2. **Exception Integration**
+   - Adapt Pydantic validation errors to VCSPull exception hierarchy
+   - Add context and suggestions to validation errors
+   - Implement improved error messages for end users
+
+```python
+import typing as t
+import pydantic
+
+from vcspull import exc
+
+def convert_pydantic_error(
+    error: pydantic.ValidationError, 
+    config_type: str = "repository"
+) -> exc.ValidationError:
+    """Convert Pydantic validation error to VCSPull validation error."""
+    # Extract the first error for a focused message
+    error_details = error.errors()[0]
+    location = ".".join(str(loc) for loc in error_details["loc"])
+    message = f"Invalid {config_type} configuration at '{location}': {error_details['msg']}"
+    
+    # Determine field-specific context
+    path = None
+    url = None
+    suggestion = None
+    
+    if "url" in error_details["loc"]:
+        url = error_details.get("input")
+        suggestion = "Ensure the URL is properly formatted with scheme (e.g., https://)"
+    elif "path" in error_details["loc"]:
+        path = error_details.get("input")
+        suggestion = "Ensure the path exists and is accessible"
+    
+    return exc.ValidationError(
+        message,
+        config_type=config_type,
+        path=path,
+        url=url,
+        suggestion=suggestion
+    )
+```
+
+#### Phase 2: Configuration Module Updates
+
+1. **Config Processing**
+   - Update config.py to use Pydantic models
+   - Implement conversion between raw and validated models
+   - Ensure backward compatibility with existing code
+   - Example implementation:
+
+```python
+import os
+import pathlib
+import typing as t
+import pydantic
+
+from vcspull import models
+from vcspull import exc
+
+def load_config(
+    config_file: t.Union[str, pathlib.Path]
+) -> models.ConfigModel:
+    """Load and validate configuration file using Pydantic."""
+    config_path = pathlib.Path(os.path.expanduser(config_file))
+    
+    if not config_path.exists():
+        raise exc.ConfigurationError(f"Config file not found: {config_path}")
+    
+    try:
+        # First pass: load raw config with minimal validation
+        with open(config_path, "r") as f:
+            raw_data = yaml.safe_load(f)
+        
+        # Parse with raw model allowing extra fields
+        raw_config = models.RawConfigModel.parse_obj(raw_data)
+        
+        # Process raw config (expand variables, resolve paths, etc.)
+        processed_data = process_raw_config(raw_config, base_path=config_path.parent)
+        
+        # Final validation with strict model
+        return models.ConfigModel.parse_obj(processed_data)
+    except yaml.YAMLError as e:
+        raise exc.ConfigurationError(f"Invalid YAML in config: {e}")
+    except pydantic.ValidationError as e:
+        raise convert_pydantic_error(e, config_type="config")
+```
+
+2. **Config Reader Updates**
+   - Update internal config reader to use Pydantic models
+   - Implement path normalization and environment variable expansion
+   - Add serialization for different output formats
+   - Add more robust validation for complex configurations
+
+#### Phase 3: CLI and Sync Operations Updates
+
+1. **CLI Module**
+   - Update CLI commands to work with Pydantic models
+   - Enhance error reporting with validation details
+   - Add schema validation for command line options
+
+2. **Sync Operations**
+   - Update sync operations to use validated models
+   - Improve error handling with model validation
+   - Add type safety to repository operations
+
+### D. Testing Strategy
+
+1. **Model Tests**
+   - Unit tests for model instantiation and validation
+   - Tests for all field validators and constraints
+   - Property-based testing for model validation
+   - Example test:
+
+```python
+import pathlib
+import typing as t
+import pytest
+import pydantic
+
+from vcspull.models import RepositoryModel, VCSType
+
+class TestRepositoryModel:
+    """Tests for the RepositoryModel."""
+    
+    def test_valid_repository(self) -> None:
+        """Test that a valid repository configuration passes validation."""
+        repo = RepositoryModel(
+            url="https://github.com/example/repo.git",
+            repo_name="repo",
+            vcs=VCSType.GIT,
+            path=pathlib.Path("/tmp/repos/repo")
+        )
+        
+        assert repo.url == "https://github.com/example/repo.git"
+        assert repo.repo_name == "repo"
+        assert repo.vcs == VCSType.GIT
+        assert repo.path == pathlib.Path("/tmp/repos/repo")
+    
+    def test_invalid_url(self) -> None:
+        """Test that invalid URLs are rejected."""
+        with pytest.raises(pydantic.ValidationError) as exc_info:
+            RepositoryModel(
+                url="not-a-url",
+                repo_name="repo",
+                vcs=VCSType.GIT,
+                path=pathlib.Path("/tmp/repos/repo")
+            )
+        
+        error_msg = str(exc_info.value)
+        assert "url" in error_msg
+        assert "invalid or missing URL scheme" in error_msg
+    
+    def test_invalid_repo_name(self) -> None:
+        """Test that invalid repository names are rejected."""
+        with pytest.raises(pydantic.ValidationError) as exc_info:
+            RepositoryModel(
+                url="https://github.com/example/repo.git",
+                repo_name="invalid/name",
+                vcs=VCSType.GIT,
+                path=pathlib.Path("/tmp/repos/repo")
+            )
+        
+        error_msg = str(exc_info.value)
+        assert "repo_name" in error_msg
+        assert "cannot contain path separators" in error_msg
+```
+
+2. **Integration Tests**
+   - Tests for loading configurations from files
+   - End-to-end tests for validation and error handling
+   - Performance testing for model validation
+
+### E. Code Style and Import Guidelines
+
+When implementing Pydantic models, follow these guidelines:
+
+1. **Namespace Imports**:
+   ```python
+   # DO:
+   import enum
+   import pathlib
+   import typing as t
+   import pydantic
+   
+   # DON'T: 
+   from enum import Enum
+   from pathlib import Path
+   from typing import List, Dict, Optional
+   from pydantic import BaseModel, Field
+   ```
+
+2. **Accessing via Namespace**:
+   ```python
+   # DO:
+   class ErrorCode(enum.Enum):
+       ...
+       
+   repo_path = pathlib.Path("~/repos").expanduser()
+   
+   class RepositoryModel(pydantic.BaseModel):
+       vcs: t.Literal["git", "hg", "svn"]
+       url: str
+       remotes: t.Dict[str, str] = {}
+   ```
+
+3. **For Primitive Types**:
+   ```python
+   # Preferred Python 3.9+ syntax:
+   paths: list[pathlib.Path]
+   settings: dict[str, str | int]
+   maybe_url: str | None
+   ```
+
+### F. Expected Benefits
+
+1. **Improved Type Safety**
+   - Runtime validation with proper error messages
+   - Static type checking integration with mypy
+   - Self-documenting data models
+
+2. **Better Error Messages**
+   - Field-specific error details
+   - Context-rich validation errors
+   - Suggestions for resolving issues
+
+3. **Reduced Boilerplate**
+   - Automatic serialization and deserialization
+   - Built-in validation rules
+   - Simplified configuration handling
+
+4. **Enhanced Maintainability**
+   - Clear separation of validation concerns
+   - Centralized data model definitions
+   - Better IDE support with type hints
+
+### G. Success Metrics
+
+- **Type Safety**
+  - Pass mypy in strict mode with zero warnings
+  - 100% of functions have type annotations
+  - All configuration types defined as Pydantic models
+
+- **Test Coverage**
+  - Overall test coverage > 90%
+  - Core modules coverage > 95%
+  - All public APIs have tests
+
+- **Documentation**
+  - All public APIs documented
+  - All Pydantic models documented
+  - Examples for all major features
+
+## 3. Additional Tests to Add
