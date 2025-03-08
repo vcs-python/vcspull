@@ -134,3 +134,29 @@
   - Reduces potential naming conflicts
   - Makes import statements more maintainable
 </import_guidelines>
+
+<repository_testing_guidelines>
+- Use libvcs pytest fixtures for all repository-related tests in vcspull:
+  - Create temporary repositories efficiently with factory fixtures
+  - Benefit from automatic cleanup when tests finish
+  - Utilize proper environment variables and configurations 
+  - Test against real VCS operations without mocking
+  
+- Basic repository testing pattern:
+  ```python
+  def test_repository_operation(create_git_remote_repo):
+      # Create a test repository
+      repo_path = create_git_remote_repo()
+      
+      # Test vcspull functionality with the repository
+      # ...
+  ```
+  
+- For more complex scenarios, use the pre-configured repository instances:
+  ```python
+  def test_sync_operations(git_repo):
+      # git_repo is already a GitSync instance
+      # Test vcspull sync operations
+      # ...
+  ```
+</repository_testing_guidelines>
