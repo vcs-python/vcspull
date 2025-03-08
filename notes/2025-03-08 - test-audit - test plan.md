@@ -15,24 +15,20 @@ Throughout this plan, we'll ensure all code follows these standards:
    - Always import typing as a namespace: `import typing as t`
 
 2. **Mypy Configuration**
-   - Use strict mode (`--strict`) for mypy checking
-   - Enable all error checks in the mypy configuration:
-     ```
-     [mypy]
+   - ✓ Strict mode is already enabled in `pyproject.toml` under `[tool.mypy]`
+   - ✓ The project uses the following mypy configuration:
+     ```toml
+     [tool.mypy]
      python_version = 3.9
-     warn_return_any = True
-     warn_unused_configs = True
-     disallow_untyped_defs = True
-     disallow_incomplete_defs = True
-     check_untyped_defs = True
-     disallow_untyped_decorators = True
-     no_implicit_optional = True
-     strict_optional = True
-     warn_redundant_casts = True
-     warn_unused_ignores = True
-     warn_no_return = True
-     warn_unreachable = True
+     warn_unused_configs = true
+     files = [
+       "src",
+       "tests",
+     ]
+     strict = true
      ```
+   - All necessary error checks are enabled via the `strict = true` setting
+   - Remaining task: Add CI checks for type validation
 
 3. **Python 3.9+ Features**
    - Use built-in generic types when possible (but always access typing via namespace)

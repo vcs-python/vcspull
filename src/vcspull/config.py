@@ -276,8 +276,8 @@ def load_configs(
         dupes = detect_duplicate_repos(repos, newrepos)
 
         if len(dupes) > 0:
-            msg = ("repos with same path + different VCS detected!", dupes)
-            raise exc.VCSPullException(msg)
+            msg = f"Repositories with same path but different VCS detected: {dupes!r}"
+            raise exc.VCSPullException(message=msg)
         repos.extend(newrepos)
 
     return repos

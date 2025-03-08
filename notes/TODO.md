@@ -2,18 +2,35 @@
 
 This document outlines the tasks needed to improve the test coverage, type safety, and overall quality of the VCSPull codebase based on the test audit plan.
 
+## Progress Update (2025-03-08)
+
+- ⬜ Initiated Pydantic integration for improved type safety and validation
+  - Plan to replace TypedDict with Pydantic models
+  - Will use Pydantic validators instead of manual validation functions
+  - Will leverage Pydantic's built-in error handling
+
+- ⬜ Enhanced test coverage for the validator module
+  - Will add tests for edge cases and complex configurations
+  - Will ensure all tests pass with mypy in strict mode
+  - Need to update tests to work with Pydantic models
+
 ## 1. Type Safety Improvements
+
+- [ ] **Implement Pydantic Models**
+  - [ ] Replace TypedDict definitions with Pydantic models
+  - [ ] Add field validators with meaningful error messages
+  - [ ] Use Pydantic's built-in error handling
+  - [ ] Create model hierarchies for nested configurations
 
 - [ ] **Enhance Exception Hierarchy**
   - [ ] Expand `exc.py` with specific exception types for different error scenarios
   - [ ] Add rich exception metadata (path, url, suggestions, risk level)
-  - [ ] Add proper typing to all exception classes
+  - [ ] Integrate exceptions with Pydantic validation errors
 
 - [ ] **Improve Type Definitions**
-  - [ ] Revise `types.py` to use more specific types (avoid Any)
-  - [ ] Create type aliases for complex types to improve readability
-  - [ ] Add Protocols for structural typing where appropriate
-  - [ ] Ensure all TypedDict definitions are complete and accurate
+  - [ ] Revise `types.py` to use Pydantic models instead of TypedDict
+  - [ ] Create model aliases for complex types to improve readability
+  - [ ] Add Protocol interfaces for structural typing where appropriate
 
 - [ ] **Type Annotation Completeness**
   - [ ] Audit all functions for missing type annotations
@@ -22,8 +39,8 @@ This document outlines the tasks needed to improve the test coverage, type safet
   - [ ] Properly annotate all class methods
 
 - [ ] **Configure Strict Type Checking**
-  - [ ] Set up `mypy.ini` with strict mode enabled
-  - [ ] Enable all recommended type checking flags
+  - [ ] Strict mode enabled in `pyproject.toml` under `[tool.mypy]`
+  - [ ] Recommended type checking flags enabled
   - [ ] Add CI checks for type validation
 
 ## 2. Test Coverage Improvements
@@ -47,7 +64,8 @@ This document outlines the tasks needed to improve the test coverage, type safet
   - [ ] Test recovery mechanisms
 
 - [ ] **Validator Module**
-  - [ ] Add tests for each validation function
+  - [ ] Update validator tests to use Pydantic models
+  - [ ] Add tests for each validation function and validator
   - [ ] Test validation of malformed configurations
   - [ ] Ensure all validators throw appropriate exceptions
 
@@ -55,7 +73,7 @@ This document outlines the tasks needed to improve the test coverage, type safet
 
 - [ ] **Improve Test Fixtures**
   - [ ] Create reusable fixtures for common test scenarios
-  - [ ] Implement typed fixtures using Protocols
+  - [ ] Implement typed fixtures using Protocols and Pydantic models
   - [ ] Add fixtures for different repository types (git, svn, etc.)
 
 - [ ] **Add Property-Based Testing**
@@ -76,10 +94,11 @@ This document outlines the tasks needed to improve the test coverage, type safet
   - [ ] Document possible exceptions and error conditions
   - [ ] Add type information to docstrings (NumPy format)
 
-- [ ] **Add Type Documentation**
-  - [ ] Document complex type behavior
-  - [ ] Add clear explanations for TypedDict usage
-  - [ ] Document Protocol implementations
+- [ ] **Add Pydantic Model Documentation**
+  - [ ] Document model schemas and field constraints
+  - [ ] Add examples of model usage
+  - [ ] Document validation logic and error messages
+  - [ ] Create API documentation for Pydantic models
 
 ## 5. Refactoring for Testability
 
@@ -108,29 +127,46 @@ This document outlines the tasks needed to improve the test coverage, type safet
 ## Prioritized Tasks
 
 1. **Immediate Priorities**
-   - Enhance exception hierarchy
-   - Complete type annotations
-   - Configure strict type checking
-   - Add tests for core configuration functionality
+   - [ ] Implement base Pydantic models for configuration
+   - [ ] Integrate Pydantic validation with existing validation logic
+   - [ ] Configure strict type checking
+   - [ ] Update validator tests to work with Pydantic models
 
 2. **Medium-term Goals**
-   - Improve test fixtures
-   - Add tests for CLI operations
-   - Improve docstrings
-   - Refactor for better testability
+   - [ ] Improve test fixtures
+   - [ ] Add tests for CLI operations
+   - [ ] Improve docstrings
+   - [ ] Refactor for better testability
 
 3. **Long-term Objectives**
-   - Implement property-based testing
-   - Achieve 90%+ test coverage
-   - Complete documentation overhaul
-   - Integrate comprehensive CI checks
+   - [ ] Implement property-based testing
+   - [ ] Achieve 90%+ test coverage
+   - [ ] Complete documentation overhaul
+   - [ ] Integrate comprehensive CI checks
+
+## Next Steps
+
+1. **Create Pydantic Models**
+   - Create base models for RawConfigDict and ConfigDict
+   - Add validators for required fields and constraints
+   - Implement serialization and deserialization methods
+
+2. **Update Validation Logic**
+   - Replace manual validators with Pydantic validators
+   - Integrate Pydantic error handling with existing exceptions
+   - Update validation tests to use Pydantic models
+
+3. **Update Config Processing**
+   - Update config processing to use Pydantic models
+   - Ensure backward compatibility with existing code
+   - Add tests for model-based config processing
 
 ## Metrics and Success Criteria
 
 - [ ] **Type Safety**
   - [ ] Pass mypy in strict mode with zero warnings
   - [ ] 100% of functions have type annotations
-  - [ ] No usage of `Any` without explicit justification
+  - [ ] All configuration types defined as Pydantic models
 
 - [ ] **Test Coverage**
   - [ ] Overall test coverage > 90%
@@ -139,5 +175,5 @@ This document outlines the tasks needed to improve the test coverage, type safet
 
 - [ ] **Documentation**
   - [ ] All public APIs documented
-  - [ ] All complex types documented
+  - [ ] All Pydantic models documented
   - [ ] Examples for all major features
