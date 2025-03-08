@@ -3,41 +3,31 @@
 from __future__ import annotations
 
 import os
-import pathlib
 import typing as t
-from pathlib import Path
-from typing import cast, Dict, List, Optional, Union
 
 import pytest
 from pydantic import ValidationError
 
 from vcspull import exc, validator
-from vcspull.models import (
-    ConfigModel,
-    GitRemote,
-    RawConfigModel,
+from vcspull.schemas import (
     RawRepositoryModel,
-    RepositoryModel,
 )
-from vcspull.types import RawConfig
 
 if t.TYPE_CHECKING:
-    from libvcs._internal.types import StrPath, VCSLiteral
-    from libvcs.sync.git import GitRemote as LibVCSGitRemote
-    from libvcs.sync.git import GitSyncRemoteDict
+    import pathlib
 
 
 # Create a more flexible version of RawConfigDict for testing
 # Adding _TestRaw prefix to avoid pytest collecting this as a test class
 class _TestRawConfigDict(t.TypedDict, total=False):
     """Flexible config dict for testing."""
-    
+
     vcs: t.Literal["git", "hg", "svn"] | str  # Allow empty string for tests
     name: str
-    path: str | Path
+    path: str | pathlib.Path
     url: str
-    remotes: t.Dict[str, t.Any]
-    shell_command_after: t.List[str]
+    remotes: dict[str, t.Any]
+    shell_command_after: list[str]
     custom_field: str
 
 
@@ -51,8 +41,8 @@ def test_is_valid_config_valid() -> None:
                 "url": "https://example.com/repo.git",
                 "path": "/tmp/path",
                 "name": "repo1",
-            }
-        }
+            },
+        },
     }
     assert validator.is_valid_config(config)
 
@@ -60,35 +50,35 @@ def test_is_valid_config_valid() -> None:
 def test_is_valid_config_invalid() -> None:
     """Test invalid configurations with is_valid_config."""
     # None instead of dict
-    assert not validator.is_valid_config(None)  # type: ignore
+    assert not validator.is_valid_config(None)  # pyright: ignore
 
     # None key
-    assert not validator.is_valid_config({None: {}})  # type: ignore
+    assert not validator.is_valid_config({None: {}})  # pyright: ignore
 
     # None value
-    assert not validator.is_valid_config({"section1": None})  # type: ignore
+    assert not validator.is_valid_config({"section1": None})  # pyright: ignore
 
     # Non-string key
-    assert not validator.is_valid_config({123: {}})  # type: ignore
+    assert not validator.is_valid_config({123: {}})  # pyright: ignore
 
     # Non-dict value
-    assert not validator.is_valid_config({"section1": "not-a-dict"})  # type: ignore
+    assert not validator.is_valid_config({"section1": "not-a-dict"})  # pyright: ignore
 
     # Non-dict repo
-    config_with_non_dict_repo = {
+    config_with_non_dict_repo: dict[str, dict[str, t.Any]] = {
         "section1": {
             "repo1": "not-a-dict-or-url-string",
-        }
+        },
     }
     assert not validator.is_valid_config(config_with_non_dict_repo)
 
     # Missing required fields in repo dict
-    config_with_missing_fields = {
+    config_with_missing_fields: dict[str, dict[str, dict[str, t.Any]]] = {
         "section1": {
             "repo1": {
                 # Missing vcs, url, path
-            }
-        }
+            },
+        },
     }
     assert not validator.is_valid_config(config_with_missing_fields)
 
@@ -196,7 +186,7 @@ def test_validate_repo_config_empty_values() -> None:
     assert "name" in message.lower()
 
 
-def test_validate_path_valid(tmp_path: Path) -> None:
+def test_validate_path_valid(tmp_path: pathlib.Path) -> None:
     """Test valid path validation."""
     path_str = str(tmp_path)
     valid, message = validator.validate_path(path_str)
@@ -222,7 +212,7 @@ def test_validate_path_invalid() -> None:
     assert "invalid" in message.lower()
 
     # Test with None
-    valid, message = validator.validate_path(None)  # type: ignore
+    valid, message = validator.validate_path(None)  # pyright: ignore
     assert not valid
     assert message is not None
 
@@ -237,7 +227,7 @@ def test_validate_config_structure_valid() -> None:
                 "url": "https://example.com/repo.git",
                 "path": "/tmp/repo1",
                 "name": "repo1",
-            }
+            },
         },
         "section2": {
             "repo2": {
@@ -245,8 +235,8 @@ def test_validate_config_structure_valid() -> None:
                 "url": "https://example.com/repo2",
                 "path": "/tmp/repo2",
                 "name": "repo2",
-            }
-        }
+            },
+        },
     }
     valid, message = validator.validate_config_structure(valid_config)
     assert valid
@@ -267,38 +257,38 @@ def test_validate_config_structure_invalid() -> None:
     assert message is not None
 
     # Section name not string
-    config_with_non_string_section = {
-        123: {  # type: ignore
+    config_with_non_string_section: dict[t.Any, dict[str, t.Any]] = {
+        123: {  # pyright: ignore
             "repo1": {
                 "vcs": "git",
                 "url": "https://example.com/repo.git",
                 "path": "/tmp/repo1",
-            }
-        }
+            },
+        },
     }
     valid, message = validator.validate_config_structure(config_with_non_string_section)
     assert not valid
     assert message is not None
 
     # Section not dict
-    config_with_non_dict_section = {
-        "section1": "not-a-dict"
-    }
+    config_with_non_dict_section: dict[str, t.Any] = {"section1": "not-a-dict"}
     valid, message = validator.validate_config_structure(config_with_non_dict_section)
     assert not valid
     assert message is not None
 
     # Repo name not string
-    config_with_non_string_repo_name = {
+    config_with_non_string_repo_name: dict[str, dict[t.Any, t.Any]] = {
         "section1": {
-            123: {  # type: ignore
+            123: {  # pyright: ignore
                 "vcs": "git",
                 "url": "https://example.com/repo.git",
                 "path": "/tmp/repo1",
-            }
-        }
+            },
+        },
     }
-    valid, message = validator.validate_config_structure(config_with_non_string_repo_name)
+    valid, message = validator.validate_config_structure(
+        config_with_non_string_repo_name,
+    )
     assert not valid
     assert message is not None
 
@@ -312,12 +302,12 @@ def test_validate_config_raises_exceptions() -> None:
     assert "structure" in str(excinfo.value).lower()
 
     # Missing required fields
-    missing_fields_config = {
+    missing_fields_config: dict[str, dict[str, dict[str, t.Any]]] = {
         "section1": {
             "repo1": {
                 # Missing required fields vcs, url, path
-            }
-        }
+            },
+        },
     }
     with pytest.raises(exc.ConfigValidationError) as excinfo:
         validator.validate_config(missing_fields_config)
@@ -333,8 +323,8 @@ def test_validate_config_raises_exceptions() -> None:
                 "url": "https://example.com/repo.git",
                 "path": "/tmp/repo1",
                 "name": "repo1",
-            }
-        }
+            },
+        },
     }
     with pytest.raises(exc.ConfigValidationError) as excinfo:
         validator.validate_config(invalid_repo_config)
@@ -350,7 +340,7 @@ def test_validate_config_with_valid_config() -> None:
                 "url": "https://example.com/repo.git",
                 "path": "/tmp/repo1",
                 "name": "repo1",
-            }
+            },
         },
         "section2": {
             "repo2": {
@@ -358,8 +348,8 @@ def test_validate_config_with_valid_config() -> None:
                 "url": "https://example.com/repo2",
                 "path": "/tmp/repo2",
                 "name": "repo2",
-            }
-        }
+            },
+        },
     }
     # Should not raise exception
     validator.validate_config(valid_config)
@@ -373,8 +363,8 @@ def test_validate_config_with_valid_config() -> None:
                 "path": "/tmp/repo1",
                 "name": "repo1",
                 "extra_field": "value",
-            }
-        }
+            },
+        },
     }
     # Should not raise exception
     validator.validate_config(valid_config_with_extra)
@@ -390,19 +380,12 @@ def test_validate_config_with_complex_config() -> None:
                 "path": "/tmp/repo1",
                 "name": "repo1",
                 "remotes": {
-                    "origin": {
-                        "url": "https://example.com/repo.git"
-                    },
-                    "upstream": {
-                        "url": "https://upstream.com/repo.git"
-                    }
+                    "origin": {"url": "https://example.com/repo.git"},
+                    "upstream": {"url": "https://upstream.com/repo.git"},
                 },
-                "shell_command_after": [
-                    "echo 'Repo updated'",
-                    "git status"
-                ]
-            }
-        }
+                "shell_command_after": ["echo 'Repo updated'", "git status"],
+            },
+        },
     }
     # Should not raise exception
     validator.validate_config(complex_config)
@@ -418,10 +401,10 @@ def test_validate_config_nested_validation_errors() -> None:
                 "path": "/tmp/repo1",
                 "name": "repo1",
                 "remotes": {
-                    "origin": "not-a-dict"  # Should be a dict, not a string
-                }
-            }
-        }
+                    "origin": "not-a-dict",  # Should be a dict, not a string
+                },
+            },
+        },
     }
     with pytest.raises(exc.ConfigValidationError) as excinfo:
         validator.validate_config(config_with_invalid_nested)
@@ -429,7 +412,7 @@ def test_validate_config_nested_validation_errors() -> None:
     assert "remotes" in error_msg.lower() or "origin" in error_msg.lower()
 
 
-def test_validate_path_with_resolved_path(tmp_path: Path) -> None:
+def test_validate_path_with_resolved_path(tmp_path: pathlib.Path) -> None:
     """Test validate_path with path resolution."""
     # Test with environment variables
     os.environ["TEST_DIR"] = str(tmp_path)
@@ -448,7 +431,7 @@ def test_validate_path_with_resolved_path(tmp_path: Path) -> None:
     # Create a subdirectory
     subdir = tmp_path / "subdir"
     subdir.mkdir()
-    
+
     # Change to the temporary directory for this test
     original_dir = os.getcwd()
     try:
@@ -485,13 +468,11 @@ def test_validate_path_with_special_characters() -> None:
 def test_is_valid_config_with_edge_cases() -> None:
     """Test is_valid_config with edge cases."""
     # Empty config
-    empty_config = {}
+    empty_config: dict[str, dict[str, t.Any]] = {}
     assert validator.is_valid_config(empty_config)
 
     # Empty section
-    config_with_empty_section = {
-        "section1": {}
-    }
+    config_with_empty_section: dict[str, dict[str, t.Any]] = {"section1": {}}
     assert validator.is_valid_config(config_with_empty_section)
 
     # Config with multiple sections and repositories
@@ -508,7 +489,7 @@ def test_is_valid_config_with_edge_cases() -> None:
                 "url": "https://example.com/repo2",
                 "path": "/tmp/repo2",
                 "name": "repo2",
-            }
+            },
         },
         "section2": {
             "repo3": {
@@ -516,8 +497,8 @@ def test_is_valid_config_with_edge_cases() -> None:
                 "url": "https://example.com/repo3",
                 "path": "/tmp/repo3",
                 "name": "repo3",
-            }
-        }
+            },
+        },
     }
     assert validator.is_valid_config(complex_config)
 
@@ -554,19 +535,19 @@ def test_format_pydantic_errors() -> None:
     """Test format_pydantic_errors utility function."""
     try:
         # Create an invalid model to trigger validation error
-        RawRepositoryModel(
-            vcs="invalid",
-            url="",
-            path="",
-            name="",
+        RawRepositoryModel.model_validate(
+            {
+                # Omit required fields to trigger validation error
+                "vcs": "invalid",
+            },
         )
-        assert False, "Should have raised ValidationError"
+        pytest.fail("Should have raised ValidationError")
     except ValidationError as e:
         # Format the error
         formatted = validator.format_pydantic_errors(e)
-        
+
         # Check that the error message contains relevant information
-        assert "vcs" in formatted
-        assert "url" in formatted
-        assert "path" in formatted
-        assert "name" in formatted
+        assert "missing" in formatted.lower() or "required" in formatted.lower()
+        assert "url" in formatted.lower()
+        assert "path" in formatted.lower()
+        assert "name" in formatted.lower()
