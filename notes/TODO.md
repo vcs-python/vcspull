@@ -37,6 +37,7 @@ This document outlines the tasks needed to improve the test coverage, type safet
   - [ ] Add return type annotations to all functions
   - [ ] Use Optional and Union types appropriately
   - [ ] Properly annotate all class methods
+  - [ ] Follow import guidelines: use namespace imports and `import typing as t`
 
 - [ ] **Configure Strict Type Checking**
   - [ ] Strict mode enabled in `pyproject.toml` under `[tool.mypy]`
