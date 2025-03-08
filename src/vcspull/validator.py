@@ -5,6 +5,7 @@ from __future__ import annotations
 import typing as t
 
 from pydantic import ValidationError
+from typing_extensions import TypeGuard
 
 from . import exc
 from .schemas import (
@@ -21,7 +22,7 @@ if t.TYPE_CHECKING:
     )
 
 
-def is_valid_config(config: dict[str, t.Any]) -> t.TypeGuard[RawConfig]:
+def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfig]:
     """Return true and upcast if vcspull configuration file is valid.
 
     Parameters
@@ -32,7 +33,7 @@ def is_valid_config(config: dict[str, t.Any]) -> t.TypeGuard[RawConfig]:
     Returns
     -------
     TypeGuard[RawConfig]
-        True if config is valid, False otherwise
+        True if config is a valid RawConfig
     """
     try:
         # For None input
