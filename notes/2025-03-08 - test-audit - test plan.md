@@ -2,6 +2,50 @@
 
 This plan outlines strategies for improving the test coverage and test quality for VCSPull, focusing on addressing the gaps identified in the test audit.
 
+## Type Safety and Static Analysis
+
+Throughout this plan, we'll ensure all code follows these standards:
+
+1. **Strict Type Annotations**
+   - All function parameters and return types must be annotated
+   - Use the most specific type possible (avoid `Any` when possible)
+   - Use `Optional` for parameters that might be `None`
+   - Use `Union` when a value could be multiple distinct types
+   - Use `Literal` for values restricted to a set of constants
+
+2. **Mypy Configuration**
+   - Use strict mode (`--strict`) for mypy checking
+   - Enable all error checks in the mypy configuration:
+     ```
+     [mypy]
+     python_version = 3.9
+     warn_return_any = True
+     warn_unused_configs = True
+     disallow_untyped_defs = True
+     disallow_incomplete_defs = True
+     check_untyped_defs = True
+     disallow_untyped_decorators = True
+     no_implicit_optional = True
+     strict_optional = True
+     warn_redundant_casts = True
+     warn_unused_ignores = True
+     warn_no_return = True
+     warn_unreachable = True
+     ```
+
+3. **Python 3.9+ Features**
+   - Use built-in generic types (`list[str]` instead of `List[str]`)
+   - Use the new dictionary merge operators (`|` and `|=`)
+   - Use the more precise `typing.Annotated` for complex annotations
+   - Use `typing.Protocol` for structural subtyping
+
+4. **Type Documentation**
+   - Document complex type behavior in docstrings
+   - Type function parameters using the NumPy docstring format
+   - Use descriptive variable names that make types obvious
+
+All code examples in this plan follow these guidelines and must be maintained throughout the implementation.
+
 ## 1. Improving Testability in Source Code
 
 ### A. Enhance Exception Handling
@@ -9,6 +53,9 @@ This plan outlines strategies for improving the test coverage and test quality f
 1. **Create Specific Exception Types**
    - Create a hierarchy of exceptions with specific subtypes in `src/vcspull/exc.py`:
      ```python
+     import enum
+     from typing import Optional, Any, Dict, List, Union, Literal
+
      class VCSPullException(Exception):
          """Base exception for vcspull."""
      
@@ -17,134 +64,432 @@ This plan outlines strategies for improving the test coverage and test quality f
      
      class ValidationError(ConfigurationError):
          """Error validating configuration."""
+         
+         def __init__(
+             self, 
+             message: str, 
+             *,
+             config_type: Optional[str] = None,
+             path: Optional[str] = None,
+             url: Optional[str] = None,
+             suggestion: Optional[str] = None,
+             risk: Optional[Literal["security", "performance", "reliability"]] = None
+         ) -> None:
+             self.config_type = config_type
+             self.path = path
+             self.url = url
+             self.suggestion = suggestion
+             self.risk = risk
+             
+             details = []
+             if config_type:
+                 details.append(f"Type: {config_type}")
+             if path:
+                 details.append(f"Path: {path}")
+             if url:
+                 details.append(f"URL: {url}")
+             if risk:
+                 details.append(f"Risk: {risk}")
+                 
+             error_msg = message
+             if details:
+                 error_msg = f"{message} [{', '.join(details)}]"
+             if suggestion:
+                 error_msg = f"{error_msg}\nSuggestion: {suggestion}"
+                 
+             super().__init__(error_msg)
      
      class VCSOperationError(VCSPullException):
          """Error performing VCS operation."""
          
-         def __init__(self, message, vcs_type=None, operation=None, repo_path=None):
-             self.vcs_type = vcs_type  # git, hg, svn
-             self.operation = operation  # clone, pull, checkout
+         def __init__(
+             self, 
+             message: str, 
+             *, 
+             vcs_type: Optional[Literal["git", "hg", "svn"]] = None, 
+             operation: Optional[str] = None, 
+             repo_path: Optional[str] = None,
+             error_code: Optional["ErrorCode"] = None
+         ) -> None:
+             self.vcs_type = vcs_type
+             self.operation = operation
              self.repo_path = repo_path
-             super().__init__(f"{message} [VCS: {vcs_type}, Op: {operation}, Path: {repo_path}]")
+             self.error_code = error_code
+             
+             details = []
+             if vcs_type:
+                 details.append(f"VCS: {vcs_type}")
+             if operation:
+                 details.append(f"Op: {operation}")
+             if repo_path:
+                 details.append(f"Path: {repo_path}")
+             if error_code:
+                 details.append(f"Code: {error_code.name}")
+                 
+             error_msg = message
+             if details:
+                 error_msg = f"{message} [{', '.join(details)}]"
+                 
+             super().__init__(error_msg)
      
      class NetworkError(VCSPullException):
          """Network-related errors."""
          
-         def __init__(self, message, url=None, status_code=None, retry_count=None):
+         def __init__(
+             self, 
+             message: str, 
+             *, 
+             url: Optional[str] = None, 
+             status_code: Optional[int] = None, 
+             retry_count: Optional[int] = None,
+             suggestion: Optional[str] = None,
+             error_code: Optional["ErrorCode"] = None
+         ) -> None:
              self.url = url
              self.status_code = status_code
              self.retry_count = retry_count
-             super().__init__(f"{message} [URL: {url}, Status: {status_code}, Retries: {retry_count}]")
+             self.suggestion = suggestion
+             self.error_code = error_code
+             
+             details = []
+             if url:
+                 details.append(f"URL: {url}")
+             if status_code:
+                 details.append(f"Status: {status_code}")
+             if retry_count is not None:
+                 details.append(f"Retries: {retry_count}")
+             if error_code:
+                 details.append(f"Code: {error_code.name}")
+                 
+             error_msg = message
+             if details:
+                 error_msg = f"{message} [{', '.join(details)}]"
+             if suggestion:
+                 error_msg = f"{error_msg}\nSuggestion: {suggestion}"
+                 
+             super().__init__(error_msg)
      
      class AuthenticationError(NetworkError):
          """Authentication failures."""
          
-         def __init__(self, message, url=None, auth_method=None):
-             self.auth_method = auth_method  # ssh-key, username/password, token
-             super().__init__(message, url=url)
+         def __init__(
+             self, 
+             message: str, 
+             *, 
+             url: Optional[str] = None, 
+             auth_method: Optional[Literal["ssh-key", "username/password", "token"]] = None,
+             error_code: Optional["ErrorCode"] = None
+         ) -> None:
+             self.auth_method = auth_method
+             details = []
+             if auth_method:
+                 details.append(f"Auth: {auth_method}")
+                 
+             super().__init__(
+                 message, 
+                 url=url, 
+                 error_code=error_code
+             )
      
      class RepositoryStateError(VCSPullException):
          """Error with repository state."""
          
-         def __init__(self, message, repo_path=None, current_state=None, expected_state=None):
+         def __init__(
+             self, 
+             message: str, 
+             *, 
+             repo_path: Optional[str] = None, 
+             current_state: Optional[Dict[str, Any]] = None, 
+             expected_state: Optional[str] = None,
+             error_code: Optional["ErrorCode"] = None
+         ) -> None:
              self.repo_path = repo_path
              self.current_state = current_state
              self.expected_state = expected_state
-             super().__init__(f"{message} [Path: {repo_path}, Current: {current_state}, Expected: {expected_state}]")
+             self.error_code = error_code
+             
+             details = []
+             if repo_path:
+                 details.append(f"Path: {repo_path}")
+             if current_state:
+                 state_str = ", ".join(f"{k}={v}" for k, v in current_state.items())
+                 details.append(f"Current: {{{state_str}}}")
+             if expected_state:
+                 details.append(f"Expected: {expected_state}")
+             if error_code:
+                 details.append(f"Code: {error_code.name}")
+                 
+             error_msg = message
+             if details:
+                 error_msg = f"{message} [{', '.join(details)}]"
+                 
+             super().__init__(error_msg)
+             
+     class ErrorCode(enum.Enum):
+         """Error codes for VCSPull exceptions."""
+         # Network errors (100-199)
+         NETWORK_UNREACHABLE = 100
+         CONNECTION_REFUSED = 101
+         TIMEOUT = 102
+         SSL_ERROR = 103
+         DNS_ERROR = 104
+         RATE_LIMITED = 105
+         
+         # Authentication errors (200-299)
+         AUTHENTICATION_FAILED = 200
+         SSH_KEY_ERROR = 201
+         CREDENTIALS_ERROR = 202
+         TOKEN_ERROR = 203
+         PERMISSION_DENIED = 204
+         
+         # Repository state errors (300-399)
+         REPOSITORY_CORRUPT = 300
+         DETACHED_HEAD = 301
+         MERGE_CONFLICT = 302
+         UNCOMMITTED_CHANGES = 303
+         UNTRACKED_FILES = 304
+         
+         # Configuration errors (400-499)
+         INVALID_CONFIGURATION = 400
+         MALFORMED_YAML = 401
+         MALFORMED_JSON = 402
+         PATH_TRAVERSAL = 403
+         INVALID_URL = 404
+         DUPLICATE_REPOSITORY = 405
      ```
 
 2. **Refactor Validator Module**
    - Update `src/vcspull/validator.py` to use the specific exception types:
      ```python
-     def is_valid_config(config):
-         """Check if configuration is valid."""
+     from typing import Any, Dict, List, Mapping, Optional, Union, cast
+     import re
+     from pathlib import Path
+     
+     from .exc import ValidationError, ErrorCode
+     
+     def is_valid_config(config: Any) -> bool:
+         """
+         Check if configuration is valid.
+         
+         Parameters
+         ----------
+         config : Any
+             Configuration object to validate
+             
+         Returns
+         -------
+         bool
+             True if configuration is valid
+             
+         Raises
+         ------
+         ValidationError
+             If configuration is invalid
+         """
          if not isinstance(config, (dict, Mapping)):
-             raise ValidationError("Configuration must be a dictionary", 
-                                 config_type=type(config).__name__)
+             raise ValidationError(
+                 "Configuration must be a dictionary", 
+                 config_type=type(config).__name__,
+                 error_code=ErrorCode.INVALID_CONFIGURATION
+             )
+         
+         # Additional validation logic...
+         return True
      ```
    
    - Add detailed error messages with context information:
      ```python
-     def validate_url(url):
-         """Validate repository URL."""
+     def validate_url(url: str) -> bool:
+         """
+         Validate repository URL.
+         
+         Parameters
+         ----------
+         url : str
+             URL to validate
+             
+         Returns
+         -------
+         bool
+             True if URL is valid
+             
+         Raises
+         ------
+         ValidationError
+             If URL is invalid
+         """
          vcs_types = ['git+', 'svn+', 'hg+']
+         
+         if not isinstance(url, str):
+             raise ValidationError(
+                 f"URL must be a string",
+                 config_type=type(url).__name__,
+                 error_code=ErrorCode.INVALID_URL
+             )
          
          if not any(url.startswith(prefix) for prefix in vcs_types):
              raise ValidationError(
                  f"URL must start with one of {vcs_types}",
                  url=url,
-                 suggestion=f"Try adding a prefix like 'git+' to the URL"
+                 suggestion=f"Try adding a prefix like 'git+' to the URL",
+                 error_code=ErrorCode.INVALID_URL
+             )
+         
+         # Check URL for spaces or invalid characters
+         if ' ' in url or re.search(r'[<>"{}|\\^`]', url):
+             raise ValidationError(
+                 "URL contains invalid characters",
+                 url=url,
+                 suggestion="Encode special characters in URL",
+                 error_code=ErrorCode.INVALID_URL
              )
              
-         # Additional URL validation
+         # Check URL length
+         if len(url) > 2048:
+             raise ValidationError(
+                 "URL exceeds maximum length of 2048 characters",
+                 url=f"{url[:50]}...",
+                 error_code=ErrorCode.INVALID_URL
+             )
+             
+         return True
      ```
    
    - Add validation for URL schemes, special characters, and path traversal:
      ```python
-     def validate_path(path):
-         """Validate repository path."""
-         if '..' in path:
+     def validate_path(path: Union[str, Path]) -> bool:
+         """
+         Validate repository path.
+         
+         Parameters
+         ----------
+         path : Union[str, Path]
+             Repository path to validate
+             
+         Returns
+         -------
+         bool
+             True if path is valid
+             
+         Raises
+         ------
+         ValidationError
+             If path is invalid
+         """
+         path_str = str(path)
+         
+         # Check for path traversal
+         if '..' in path_str:
              raise ValidationError(
                  "Path contains potential directory traversal",
-                 path=path,
-                 risk="security"
+                 path=path_str,
+                 risk="security",
+                 error_code=ErrorCode.PATH_TRAVERSAL
+             )
+         
+         # Check for invalid characters in path
+         if re.search(r'[<>:"|?*]', path_str):
+             raise ValidationError(
+                 "Path contains characters invalid on some file systems",
+                 path=path_str,
+                 risk="reliability",
+                 error_code=ErrorCode.INVALID_CONFIGURATION
              )
              
-         # Check for invalid characters, length limits, etc.
+         # Check path length
+         if len(path_str) > 255:
+             raise ValidationError(
+                 "Path exceeds maximum length of 255 characters",
+                 path=f"{path_str[:50]}...",
+                 risk="reliability",
+                 error_code=ErrorCode.INVALID_CONFIGURATION
+             )
+             
+         return True
      ```
 
 3. **Enhance Error Reporting**
    - Add context information to all exceptions in `src/vcspull/cli/sync.py`:
      ```python
-     try:
-         repo.update()
-     except Exception as e:
-         # Replace with specific exception handling
-         raise VCSOperationError(
-             f"Failed to update repository: {str(e)}",
-             vcs_type=repo.vcs,
-             operation="update",
-             repo_path=repo.path
-         ) from e
+     from typing import Dict, List, Optional, Any, Union, cast
+     import logging
+     
+     from vcspull.exc import VCSOperationError, ErrorCode
+     
+     # Logger setup
+     log = logging.getLogger(__name__)
+     
+     def update_repo(repo: Dict[str, Any]) -> Any:
+         """Update a repository."""
+         try:
+             # Assuming repo.update() is the operation
+             result = repo.get("sync_object").update()
+             return result
+         except Exception as e:
+             # More specific exception handling
+             raise VCSOperationError(
+                 f"Failed to update repository: {str(e)}",
+                 vcs_type=cast(str, repo.get("vcs")),
+                 operation="update",
+                 repo_path=cast(str, repo.get("path")),
+                 error_code=ErrorCode.REPOSITORY_CORRUPT
+             ) from e
      ```
    
    - Include recovery suggestions in error messages:
      ```python
-     def handle_network_error(e, repo):
-         """Handle network errors with recovery suggestions."""
+     import requests
+     from typing import Dict, Any, Optional, cast
+     
+     from vcspull.exc import NetworkError, ErrorCode
+     
+     def handle_network_error(e: Exception, repo: Dict[str, Any]) -> None:
+         """
+         Handle network errors with recovery suggestions.
+         
+         Parameters
+         ----------
+         e : Exception
+             The original exception
+         repo : Dict[str, Any]
+             Repository information
+             
+         Raises
+         ------
+         NetworkError
+             A more specific network error with recovery suggestions
+         """
+         repo_url = cast(str, repo.get("url"))
+         
          if isinstance(e, requests.ConnectionError):
              raise NetworkError(
                  "Network connection failed",
-                 url=repo.url,
-                 suggestion="Check network connection and try again"
+                 url=repo_url,
+                 suggestion="Check network connection and try again",
+                 error_code=ErrorCode.NETWORK_UNREACHABLE
              ) from e
          elif isinstance(e, requests.Timeout):
              raise NetworkError(
                  "Request timed out",
-                 url=repo.url,
+                 url=repo_url,
                  retry_count=0,
-                 suggestion="Try again with a longer timeout"
+                 suggestion="Try again with a longer timeout",
+                 error_code=ErrorCode.TIMEOUT
              ) from e
-     ```
-   
-   - Add error codes for programmatic handling:
-     ```python
-     # In src/vcspull/exc.py
-     class ErrorCode(enum.Enum):
-         """Error codes for VCSPull exceptions."""
-         NETWORK_UNREACHABLE = 100
-         AUTHENTICATION_FAILED = 101
-         REPOSITORY_CORRUPT = 200
-         MERGE_CONFLICT = 201
-         INVALID_CONFIGURATION = 300
-         PATH_TRAVERSAL = 301
-     
-     # Usage:
-     raise NetworkError(
-         "Failed to connect",
-         url=repo.url,
-         error_code=ErrorCode.NETWORK_UNREACHABLE
-     )
+         elif isinstance(e, requests.exceptions.SSLError):
+             raise NetworkError(
+                 "SSL certificate verification failed",
+                 url=repo_url,
+                 suggestion="Check SSL certificates or use --no-verify-ssl option",
+                 error_code=ErrorCode.SSL_ERROR
+             ) from e
+         else:
+             # Generic network error
+             raise NetworkError(
+                 f"Network error: {str(e)}",
+                 url=repo_url,
+                 error_code=ErrorCode.NETWORK_UNREACHABLE
+             ) from e
      ```
 
 ### B. Add Testability Hooks
@@ -152,31 +497,97 @@ This plan outlines strategies for improving the test coverage and test quality f
 1. **Dependency Injection**
    - Refactor VCS operations in `src/vcspull/cli/sync.py` to accept injectable dependencies:
      ```python
-     def update_repo(repo, vcs_factory=None, network_manager=None, fs_manager=None):
-         """Update a repository with injectable dependencies.
+     from typing import Any, Dict, List, Optional, Protocol, Callable, TypeVar, Union, cast
+     from pathlib import Path
+     
+     # Define protocol for VCS factories
+     class VCSFactory(Protocol):
+         """Protocol for VCS factory functions."""
+         def __call__(
+             self, 
+             *, 
+             vcs: str, 
+             url: str, 
+             path: str, 
+             **kwargs: Any
+         ) -> Any: ...
+     
+     # Define protocol for network managers
+     class NetworkManager(Protocol):
+         """Protocol for network managers."""
+         def request(
+             self, 
+             method: str, 
+             url: str, 
+             **kwargs: Any
+         ) -> Any: ...
+         
+         def get(
+             self, 
+             url: str, 
+             **kwargs: Any
+         ) -> Any: ...
+     
+     # Define protocol for filesystem managers
+     class FilesystemManager(Protocol):
+         """Protocol for filesystem managers."""
+         def ensure_directory(
+             self, 
+             path: Union[str, Path], 
+             mode: int = 0o755
+         ) -> Path: ...
+         
+         def is_writable(
+             self, 
+             path: Union[str, Path]
+         ) -> bool: ...
+     
+     def update_repo(
+         repo: Dict[str, Any], 
+         *, 
+         vcs_factory: Optional[VCSFactory] = None, 
+         network_manager: Optional[NetworkManager] = None, 
+         fs_manager: Optional[FilesystemManager] = None,
+         **kwargs: Any
+     ) -> Any:
+         """
+         Update a repository with injectable dependencies.
          
          Parameters
          ----------
          repo : dict
              Repository configuration dictionary
-         vcs_factory : callable, optional
+         vcs_factory : VCSFactory, optional
              Factory function to create VCS objects
-         network_manager : object, optional
+         network_manager : NetworkManager, optional
              Network handling manager for HTTP operations
-         fs_manager : object, optional
+         fs_manager : FilesystemManager, optional
              Filesystem manager for disk operations
+         **kwargs : Any
+             Additional parameters to pass to VCS object
+             
+         Returns
+         -------
+         Any
+             Result of the update operation
+             
+         Raises
+         ------
+         VCSOperationError
+             If update operation fails
          """
-         vcs_factory = vcs_factory or default_vcs_factory
+         vcs_factory = vcs_factory or get_default_vcs_factory()
          network_manager = network_manager or get_default_network_manager()
          fs_manager = fs_manager or get_default_fs_manager()
          
          # Repository creation with dependency injection
          vcs_obj = vcs_factory(
-             vcs=repo['vcs'],
-             url=repo['url'],
-             path=repo['path'],
+             vcs=cast(str, repo.get('vcs')),
+             url=cast(str, repo.get('url')),
+             path=cast(str, repo.get('path')),
              network_manager=network_manager,
-             fs_manager=fs_manager
+             fs_manager=fs_manager,
+             **kwargs
          )
          
          return vcs_obj.update()
@@ -184,9 +595,102 @@ This plan outlines strategies for improving the test coverage and test quality f
 
    - Create factory functions that can be mocked/replaced:
      ```python
-     # In src/vcspull/_internal/factories.py
-     def default_vcs_factory(vcs, url, path, **kwargs):
-         """Create a VCS object based on the specified type."""
+     from typing import Any, Dict, Optional, Union, cast, ClassVar
+     from pathlib import Path
+     import logging
+     
+     from libvcs.sync.git import GitSync
+     from libvcs.sync.hg import HgSync
+     from libvcs.sync.svn import SvnSync
+     
+     from vcspull.exc import VCSOperationError, ErrorCode
+     
+     log = logging.getLogger(__name__)
+     
+     # Type variable for VCS sync classes
+     VCSType = Union[GitSync, HgSync, SvnSync]
+     
+     class FactoryRegistry:
+         """Registry for factory functions."""
+         
+         _instance: ClassVar[Optional["FactoryRegistry"]] = None
+         
+         def __init__(self) -> None:
+             self.vcs_factories: Dict[str, Callable[..., VCSType]] = {}
+             self.network_manager: Optional[NetworkManager] = None
+             self.fs_manager: Optional[FilesystemManager] = None
+             
+         @classmethod
+         def get_instance(cls) -> "FactoryRegistry":
+             """Get the singleton instance."""
+             if cls._instance is None:
+                 cls._instance = cls()
+             return cls._instance
+             
+         def register_vcs_factory(
+             self, 
+             vcs_type: str, 
+             factory: Callable[..., VCSType]
+         ) -> None:
+             """Register a VCS factory function."""
+             self.vcs_factories[vcs_type] = factory
+             log.debug(f"Registered VCS factory for {vcs_type}")
+             
+         def get_vcs_factory(
+             self, 
+             vcs_type: str
+         ) -> Callable[..., VCSType]:
+             """Get a VCS factory function."""
+             if vcs_type not in self.vcs_factories:
+                 raise ValueError(f"No factory registered for VCS type: {vcs_type}")
+             return self.vcs_factories[vcs_type]
+             
+         def set_network_manager(
+             self, 
+             manager: NetworkManager
+         ) -> None:
+             """Set the network manager."""
+             self.network_manager = manager
+             
+         def set_fs_manager(
+             self, 
+             manager: FilesystemManager
+         ) -> None:
+             """Set the filesystem manager."""
+             self.fs_manager = manager
+     
+     
+     def default_vcs_factory(
+         *, 
+         vcs: str, 
+         url: str, 
+         path: str, 
+         **kwargs: Any
+     ) -> VCSType:
+         """
+         Create a VCS object based on the specified type.
+         
+         Parameters
+         ----------
+         vcs : str
+             Type of VCS ('git', 'hg', 'svn')
+         url : str
+             Repository URL
+         path : str
+             Repository path
+         **kwargs : Any
+             Additional parameters for VCS object
+             
+         Returns
+         -------
+         Union[GitSync, HgSync, SvnSync]
+             VCS object
+             
+         Raises
+         ------
+         ValueError
+             If VCS type is not supported
+         """
          if vcs == 'git':
              return GitSync(url=url, path=path, **kwargs)
          elif vcs == 'hg':
@@ -196,36 +700,144 @@ This plan outlines strategies for improving the test coverage and test quality f
          else:
              raise ValueError(f"Unsupported VCS type: {vcs}")
              
-     # Network manager factory
-     def get_default_network_manager():
-         """Get the default network manager."""
-         from vcspull._internal.network import NetworkManager
-         return NetworkManager()
+     
+     def get_default_vcs_factory() -> VCSFactory:
+         """
+         Get the default VCS factory function.
          
-     # Filesystem manager factory
-     def get_default_fs_manager():
-         """Get the default filesystem manager."""
-         from vcspull._internal.fs import FilesystemManager
-         return FilesystemManager()
+         Returns
+         -------
+         VCSFactory
+             Factory function to create VCS objects
+         """
+         registry = FactoryRegistry.get_instance()
+         
+         # Register default factories if not already registered
+         if not registry.vcs_factories:
+             registry.register_vcs_factory('git', lambda **kwargs: GitSync(**kwargs))
+             registry.register_vcs_factory('hg', lambda **kwargs: HgSync(**kwargs))
+             registry.register_vcs_factory('svn', lambda **kwargs: SvnSync(**kwargs))
+             
+         return default_vcs_factory
+         
+     
+     def get_default_network_manager() -> NetworkManager:
+         """
+         Get the default network manager.
+         
+         Returns
+         -------
+         NetworkManager
+             Network manager for HTTP operations
+         """
+         registry = FactoryRegistry.get_instance()
+         
+         if registry.network_manager is None:
+             from vcspull._internal.network import NetworkManager
+             registry.network_manager = NetworkManager()
+             
+         return cast(NetworkManager, registry.network_manager)
+         
+     
+     def get_default_fs_manager() -> FilesystemManager:
+         """
+         Get the default filesystem manager.
+         
+         Returns
+         -------
+         FilesystemManager
+             Filesystem manager for disk operations
+         """
+         registry = FactoryRegistry.get_instance()
+         
+         if registry.fs_manager is None:
+             from vcspull._internal.fs import FilesystemManager
+             registry.fs_manager = FilesystemManager()
+             
+         return cast(FilesystemManager, registry.fs_manager)
      ```
 
 2. **Add State Inspection Methods**
    - Create new module `src/vcspull/_internal/repo_inspector.py` for repository state inspection:
      ```python
-     def get_repository_state(repo_path, vcs_type=None):
-         """Return detailed repository state information.
+     from typing import Dict, Any, Optional, Literal, Union, cast
+     import logging
+     import subprocess
+     from pathlib import Path
+     import os
+     
+     from vcspull.exc import RepositoryStateError, ErrorCode
+     
+     log = logging.getLogger(__name__)
+     
+     # Type alias for VCS types
+     VCSType = Literal["git", "hg", "svn"]
+     
+     # Type alias for repository state
+     RepoState = Dict[str, Any]
+     
+     
+     def detect_repo_type(repo_path: Union[str, Path]) -> VCSType:
+         """
+         Detect repository type.
          
          Parameters
          ----------
-         repo_path : str or pathlib.Path
-             Path to the repository
-         vcs_type : str, optional
-             VCS type (git, hg, svn) - will auto-detect if not specified
+         repo_path : Union[str, Path]
+             Path to repository
              
          Returns
          -------
-         dict
+         Literal["git", "hg", "svn"]
+             Repository type
+             
+         Raises
+         ------
+         RepositoryStateError
+             If repository type cannot be detected
+         """
+         repo_path = Path(repo_path).expanduser().resolve()
+         
+         if (repo_path / '.git').exists():
+             return "git"
+         elif (repo_path / '.hg').exists():
+             return "hg"
+         elif (repo_path / '.svn').exists():
+             return "svn"
+         else:
+             raise RepositoryStateError(
+                 "Cannot detect repository type",
+                 repo_path=str(repo_path),
+                 expected_state="git, hg, or svn repository",
+                 error_code=ErrorCode.REPOSITORY_CORRUPT
+             )
+     
+     
+     def get_repository_state(
+         repo_path: Union[str, Path], 
+         vcs_type: Optional[VCSType] = None
+     ) -> RepoState:
+         """
+         Return detailed repository state information.
+         
+         Parameters
+         ----------
+         repo_path : Union[str, Path]
+             Path to the repository
+         vcs_type : Literal["git", "hg", "svn"], optional
+             VCS type - will auto-detect if not specified
+             
+         Returns
+         -------
+         Dict[str, Any]
              Dictionary containing repository state information
+             
+         Raises
+         ------
+         RepositoryStateError
+             If repository state cannot be determined
+         ValueError
+             If VCS type is not supported
          """
          if vcs_type is None:
              vcs_type = detect_repo_type(repo_path)
@@ -239,26 +851,43 @@ This plan outlines strategies for improving the test coverage and test quality f
          else:
              raise ValueError(f"Unsupported VCS type: {vcs_type}")
      
-     def get_git_repository_state(repo_path):
-         """Get detailed state information for Git repository."""
-         import subprocess
-         from pathlib import Path
+     
+     def get_git_repository_state(repo_path: Union[str, Path]) -> RepoState:
+         """
+         Get detailed state information for Git repository.
          
-         repo_path = Path(repo_path)
+         Parameters
+         ----------
+         repo_path : Union[str, Path]
+             Path to repository
+             
+         Returns
+         -------
+         Dict[str, Any]
+             Repository state information
+             
+         Raises
+         ------
+         RepositoryStateError
+             If repository state cannot be determined
+         """
+         repo_path = Path(repo_path).expanduser().resolve()
          
          # Check for .git directory
          if not (repo_path / '.git').exists():
-             return {'exists': False, 'is_repo': False}
+             return {'exists': False, 'is_repo': False, 'vcs_type': 'git'}
              
          # Get current branch
+         branch: Optional[str] = None
          try:
              branch = subprocess.check_output(
                  ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
                  cwd=repo_path,
-                 universal_newlines=True
+                 universal_newlines=True,
+                 stderr=subprocess.PIPE
              ).strip()
          except subprocess.CalledProcessError:
-             branch = None
+             log.warning(f"Failed to get current branch for {repo_path}")
              
          # Check if HEAD is detached
          is_detached = branch == 'HEAD'
@@ -269,21 +898,51 @@ This plan outlines strategies for improving the test coverage and test quality f
              changes = subprocess.check_output(
                  ['git', 'status', '--porcelain'],
                  cwd=repo_path,
-                 universal_newlines=True
+                 universal_newlines=True,
+                 stderr=subprocess.PIPE
              )
              has_changes = bool(changes.strip())
          except subprocess.CalledProcessError:
-             pass
+             log.warning(f"Failed to check for uncommitted changes in {repo_path}")
              
          # Get current commit
+         commit: Optional[str] = None
          try:
              commit = subprocess.check_output(
                  ['git', 'rev-parse', 'HEAD'],
                  cwd=repo_path,
-                 universal_newlines=True
+                 universal_newlines=True,
+                 stderr=subprocess.PIPE
              ).strip()
          except subprocess.CalledProcessError:
-             commit = None
+             log.warning(f"Failed to get current commit for {repo_path}")
+             
+         # Check for merge conflicts
+         has_conflicts = False
+         try:
+             conflicts = subprocess.check_output(
+                 ['git', 'diff', '--name-only', '--diff-filter=U'],
+                 cwd=repo_path,
+                 universal_newlines=True,
+                 stderr=subprocess.PIPE
+             )
+             has_conflicts = bool(conflicts.strip())
+         except subprocess.CalledProcessError:
+             log.warning(f"Failed to check for merge conflicts in {repo_path}")
+             
+         # Check for untracked files
+         has_untracked = False
+         try:
+             # Find untracked files (start with ?? in git status)
+             untracked = subprocess.check_output(
+                 ['git', 'status', '--porcelain'],
+                 cwd=repo_path,
+                 universal_newlines=True,
+                 stderr=subprocess.PIPE
+             )
+             has_untracked = any(line.startswith('??') for line in untracked.splitlines())
+         except subprocess.CalledProcessError:
+             log.warning(f"Failed to check for untracked files in {repo_path}")
              
          return {
              'exists': True,
@@ -292,34 +951,170 @@ This plan outlines strategies for improving the test coverage and test quality f
              'branch': branch,
              'is_detached': is_detached,
              'has_changes': has_changes,
+             'has_conflicts': has_conflicts,
+             'has_untracked': has_untracked,
              'commit': commit
          }
      
-     def is_detached_head(repo_path):
-         """Check if Git repository is in detached HEAD state."""
-         state = get_git_repository_state(repo_path)
-         return state.get('is_detached', False)
+     
+     def get_hg_repository_state(repo_path: Union[str, Path]) -> RepoState:
+         """
+         Get detailed state information for Mercurial repository.
+         
+         Parameters
+         ----------
+         repo_path : Union[str, Path]
+             Path to repository
+             
+         Returns
+         -------
+         Dict[str, Any]
+             Repository state information
+         """
+         repo_path = Path(repo_path).expanduser().resolve()
+         
+         # Implementation for Mercurial repositories
+         # This is a placeholder - full implementation would be similar to Git's
+         
+         if not (repo_path / '.hg').exists():
+             return {'exists': False, 'is_repo': False, 'vcs_type': 'hg'}
+             
+         return {
+             'exists': True,
+             'is_repo': True,
+             'vcs_type': 'hg',
+             # Additional Mercurial-specific state information would go here
+         }
+     
+     
+     def get_svn_repository_state(repo_path: Union[str, Path]) -> RepoState:
+         """
+         Get detailed state information for Subversion repository.
+         
+         Parameters
+         ----------
+         repo_path : Union[str, Path]
+             Path to repository
+             
+         Returns
+         -------
+         Dict[str, Any]
+             Repository state information
+         """
+         repo_path = Path(repo_path).expanduser().resolve()
+         
+         # Implementation for Subversion repositories
+         # This is a placeholder - full implementation would be similar to Git's
+         
+         if not (repo_path / '.svn').exists():
+             return {'exists': False, 'is_repo': False, 'vcs_type': 'svn'}
+             
+         return {
+             'exists': True,
+             'is_repo': True,
+             'vcs_type': 'svn',
+             # Additional SVN-specific state information would go here
+         }
+     
+     
+     def is_detached_head(repo_path: Union[str, Path]) -> bool:
+         """
+         Check if Git repository is in detached HEAD state.
+         
+         Parameters
+         ----------
+         repo_path : Union[str, Path]
+             Path to repository
+             
+         Returns
+         -------
+         bool
+             True if repository is in detached HEAD state
+             
+         Raises
+         ------
+         RepositoryStateError
+             If repository is not a Git repository or state cannot be determined
+         """
+         try:
+             state = get_git_repository_state(repo_path)
+             return state.get('is_detached', False)
+         except Exception as e:
+             raise RepositoryStateError(
+                 f"Failed to check detached HEAD state: {str(e)}",
+                 repo_path=str(repo_path),
+                 error_code=ErrorCode.REPOSITORY_CORRUPT
+             ) from e
+     
+     
+     def has_uncommitted_changes(repo_path: Union[str, Path]) -> bool:
+         """
+         Check if repository has uncommitted changes.
+         
+         Parameters
+         ----------
+         repo_path : Union[str, Path]
+             Path to repository
+             
+         Returns
+         -------
+         bool
+             True if repository has uncommitted changes
+             
+         Raises
+         ------
+         RepositoryStateError
+             If repository state cannot be determined
+         """
+         try:
+             vcs_type = detect_repo_type(repo_path)
+             state = get_repository_state(repo_path, vcs_type=vcs_type)
+             return state.get('has_changes', False)
+         except Exception as e:
+             raise RepositoryStateError(
+                 f"Failed to check uncommitted changes: {str(e)}",
+                 repo_path=str(repo_path),
+                 error_code=ErrorCode.REPOSITORY_CORRUPT
+             ) from e
      ```
 
 3. **Add Test Mode Flag**
    - Update the primary synchronization function in `src/vcspull/cli/sync.py`:
      ```python
-     def sync_repositories(repos, test_mode=False, **kwargs):
-         """Sync repositories with test mode support.
+     from typing import List, Dict, Any, Optional, Union, cast
+     import logging
+     
+     from vcspull.exc import VCSOperationError, ErrorCode
+     
+     log = logging.getLogger(__name__)
+     
+     def sync_repositories(
+         repos: List[Dict[str, Any]], 
+         *, 
+         test_mode: bool = False, 
+         **kwargs: Any
+     ) -> List[Dict[str, Any]]:
+         """
+         Sync repositories with test mode support.
          
          Parameters
          ----------
-         repos : list
+         repos : List[Dict[str, Any]]
              List of repository dictionaries
          test_mode : bool, optional
              Enable test mode
-         **kwargs
+         **kwargs : Any
              Additional parameters to pass to update_repo
              
          Returns
          -------
-         list
-             List of updated repositories
+         List[Dict[str, Any]]
+             List of updated repositories with status information
+             
+         Raises
+         ------
+         VCSOperationError
+             If repository update fails and raise_exceptions is True
          """
          if test_mode:
              # Configure for testing
@@ -335,21 +1130,33 @@ This plan outlines strategies for improving the test coverage and test quality f
              from vcspull._internal.testing.hooks import register_test_hooks
              register_test_hooks()
          
-         results = []
+         results: List[Dict[str, Any]] = []
          for repo in repos:
              try:
                  result = update_repo(repo, **kwargs)
-                 results.append({'name': repo['name'], 'status': 'success', 'result': result})
+                 results.append({
+                     'name': cast(str, repo['name']), 
+                     'status': 'success', 
+                     'result': result
+                 })
              except Exception as e:
                  if test_mode:
                      # In test mode, capture the exception for verification
-                     results.append({'name': repo['name'], 'status': 'error', 'exception': e})
+                     results.append({
+                         'name': cast(str, repo['name']), 
+                         'status': 'error', 
+                         'exception': e
+                     })
                      if kwargs.get('raise_exceptions', True):
                          raise
                  else:
                      # In normal mode, log and continue
                      log.error(f"Error updating {repo['name']}: {str(e)}")
-                     results.append({'name': repo['name'], 'status': 'error', 'message': str(e)})
+                     results.append({
+                         'name': cast(str, repo['name']), 
+                         'status': 'error', 
+                         'message': str(e)
+                     })
          
          return results
      ```
@@ -359,28 +1166,70 @@ This plan outlines strategies for improving the test coverage and test quality f
      """Hooks for testing VCSPull."""
      
      import logging
+     import typing as t
+     from typing import Any, Dict, Callable, TypeVar, cast, Optional, List
      from functools import wraps
      
      log = logging.getLogger(__name__)
      
-     # Global registry for test hooks
-     _test_hooks = {}
+     # Type variables for hook functions
+     T = TypeVar('T')
+     R = TypeVar('R')
      
-     def register_test_hook(name, hook_function):
-         """Register a test hook function."""
+     # Type for hook functions
+     HookFunction = Callable[[Any, Callable[..., R], Any, Any], R]
+     
+     # Global registry for test hooks
+     _test_hooks: Dict[str, HookFunction] = {}
+     
+     
+     def register_test_hook(name: str, hook_function: HookFunction) -> None:
+         """
+         Register a test hook function.
+         
+         Parameters
+         ----------
+         name : str
+             Hook name (usually Class.method_name)
+         hook_function : Callable
+             Hook function to call
+         """
          _test_hooks[name] = hook_function
          log.debug(f"Registered test hook: {name}")
          
-     def get_test_hook(name):
-         """Get a registered test hook function."""
+     
+     def get_test_hook(name: str) -> Optional[HookFunction]:
+         """
+         Get a registered test hook function.
+         
+         Parameters
+         ----------
+         name : str
+             Hook name
+             
+         Returns
+         -------
+         Optional[Callable]
+             Hook function if registered, None otherwise
+         """
          return _test_hooks.get(name)
          
-     def hook_method(cls, method_name):
-         """Decorator to hook a method for testing."""
+     
+     def hook_method(cls: type, method_name: str) -> None:
+         """
+         Decorator to hook a method for testing.
+         
+         Parameters
+         ----------
+         cls : type
+             Class to hook
+         method_name : str
+             Method name to hook
+         """
          original_method = getattr(cls, method_name)
          
          @wraps(original_method)
-         def wrapped(self, *args, **kwargs):
+         def wrapped(self: Any, *args: Any, **kwargs: Any) -> Any:
              hook_name = f"{cls.__name__}.{method_name}"
              hook = get_test_hook(hook_name)
              
@@ -393,7 +1242,8 @@ This plan outlines strategies for improving the test coverage and test quality f
          setattr(cls, method_name, wrapped)
          log.debug(f"Hooked method: {cls.__name__}.{method_name}")
          
-     def register_test_hooks():
+     
+     def register_test_hooks() -> None:
          """Register all test hooks."""
          # Example: Hook GitSync update method
          from libvcs.sync.git import GitSync
@@ -2014,7 +2864,7 @@ This plan outlines strategies for improving the test coverage and test quality f
          # Modify a file in the branch
          file_path = repo_path / filename
          with open(file_path, "a") as f:
-             f.write("\n# Branch modification\n")
+             f.write("\n\n# Branch modification\n")
              
          subprocess.run(
              ["git", "add", filename],
@@ -2041,7 +2891,7 @@ This plan outlines strategies for improving the test coverage and test quality f
          
          # Modify the same file in main
          with open(file_path, "a") as f:
-             f.write("\n# Main modification\n")
+             f.write("\n\n# Main branch modification\n")
              
          subprocess.run(
              ["git", "add", filename],
@@ -2276,9 +3126,9 @@ This plan outlines strategies for improving the test coverage and test quality f
 
 3. **Lower Priority (Future Improvements)**
    - Add simulation capabilities
-   - Implement advanced concurrency tests
-   - Create performance testing framework
+   - Create performance tests
    - Add platform-specific tests
+   - Implement advanced feature tests
 
 ## Implementation Timeline
 
