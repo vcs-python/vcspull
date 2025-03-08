@@ -106,6 +106,15 @@ This document provides a comprehensive checklist of test coverage for the VCSPul
 - [ ] **Status Checking:** Checking repository status
 - [x] **Success and Error Handling:** Managing operation outcomes *(tests/test_cli.py: test_sync_broken)*
 
+#### Testing Strategy:
+- [x] **Use libvcs pytest fixtures:** Efficient setup/teardown of VCS repositories:
+  - Use `create_git_remote_repo` to create Git repositories on demand
+  - Use `create_svn_remote_repo` to create SVN repositories on demand
+  - Use `create_hg_remote_repo` to create Mercurial repositories on demand
+  - Use pre-configured `git_repo`, `svn_repo`, and `hg_repo` fixtures for common test scenarios
+  - Fixtures handle proper environment configuration automatically 
+  - See `.cursor/rules/vcspull-pytest.mdc` for detailed usage examples
+
 #### Uncommon Cases:
 - [ ] **Repository Authentication:** Cloning/updating repos requiring auth
 - [x] **Custom Remote Configurations:** Non-standard remote setups *(tests/test_sync.py: UPDATING_REMOTE_FIXTURES with has_extra_remotes=True)*
@@ -201,6 +210,10 @@ As part of the transition to Pydantic models, these specific areas need thorough
 - [ ] **File System Fixtures:** Mock file systems with different characteristics
 - [ ] **Network Fixtures:** Mock network responses for repository operations
 - [ ] **VCS Command Fixtures:** Mock VCS command execution
+- [x] **libvcs pytest Fixtures:** Leveraging libvcs's pytest plugin fixtures for efficient VCS setup/teardown:
+  - [x] **Repository Creation Factories:** `create_git_remote_repo`, `create_svn_remote_repo`, `create_hg_remote_repo`
+  - [x] **Pre-configured Repos:** `git_repo`, `svn_repo`, `hg_repo` providing ready-to-use repository instances
+  - [x] **Environment Setup:** `set_home`, `gitconfig`, `hgconfig`, `git_commit_envvars` for proper testing environment
 
 ### Mocking:
 - [x] **File System Mocking:** Simulating file system operations *(tests/helpers.py: EnvironmentVarGuard, tmp_path fixtures)*
