@@ -4,71 +4,79 @@ This document outlines the tasks needed to improve the test coverage, type safet
 
 ## Progress Update (2025-03-08)
 
-- ⬜ Initiated Pydantic integration for improved type safety and validation
-  - Plan to replace TypedDict with Pydantic models
-  - Will use Pydantic validators instead of manual validation functions
-  - Will leverage Pydantic's built-in error handling
+- ✅ Initiated Pydantic integration for improved type safety and validation
+  - ✅ Created core Pydantic models in `schemas.py`
+  - ✅ Added field validators for VCS types, paths, and URLs
+  - ✅ Implemented raw and validated model versions
+  - ⬜ Need to complete conversion between raw and validated models
+  - ⬜ Need to update tests to work with Pydantic models
 
 - ⬜ Enhanced test coverage for the validator module
-  - Will add tests for edge cases and complex configurations
-  - Will ensure all tests pass with mypy in strict mode
-  - Need to update tests to work with Pydantic models
+  - ✅ Updated validator.py to use Pydantic for validation
+  - ✅ Added error handling for Pydantic validation errors
+  - ⬜ Need to add tests for edge cases with Pydantic models
+  - ⬜ Need to ensure all tests pass with mypy in strict mode
 
 ## 1. Type Safety Improvements
 
-- [ ] **Implement Pydantic Models**
-  - [ ] Replace TypedDict definitions with Pydantic models
-  - [ ] Add field validators with meaningful error messages
-  - [ ] Use Pydantic's built-in error handling
-  - [ ] Create model hierarchies for nested configurations
+- [▓▓▓▓▓▓▓░░░] **Implement Pydantic Models**
+  - [✅] Created core models in `schemas.py`
+  - [✅] Added field validators with meaningful error messages
+  - [✅] Created model hierarchies for raw vs. validated configurations
+  - [⬜] Complete conversion functions between raw and validated models
+  - [⬜] Update remaining code to use Pydantic models
 
-- [ ] **Enhance Exception Hierarchy**
-  - [ ] Expand `exc.py` with specific exception types for different error scenarios
-  - [ ] Add rich exception metadata (path, url, suggestions, risk level)
-  - [ ] Integrate exceptions with Pydantic validation errors
+- [▓▓▓░░░░░░] **Enhance Exception Hierarchy**
+  - [✅] Expanded `exc.py` with specific exception types
+  - [✅] Started adding rich exception metadata
+  - [⬜] Complete integration with Pydantic validation errors
 
-- [ ] **Improve Type Definitions**
-  - [ ] Revise `types.py` to use Pydantic models instead of TypedDict
-  - [ ] Create model aliases for complex types to improve readability
-  - [ ] Add Protocol interfaces for structural typing where appropriate
+- [▓▓▓░░░░░░] **Improve Type Definitions**
+  - [✅] Started revising types to use Pydantic models
+  - [✅] Created type aliases for complex types to improve readability
+  - [⬜] Complete transition from TypedDict to Pydantic models
+  - [⬜] Add Protocol interfaces where appropriate
 
-- [ ] **Type Annotation Completeness**
-  - [ ] Audit all functions for missing type annotations
-  - [ ] Add return type annotations to all functions
-  - [ ] Use Optional and Union types appropriately
-  - [ ] Properly annotate all class methods
-  - [ ] Follow import guidelines: use namespace imports and `import typing as t`
+- [▓▓░░░░░░░] **Type Annotation Completeness**
+  - [✅] Added typing namespace imports (`import typing as t`) 
+  - [⬜] Audit all functions for missing type annotations
+  - [⬜] Add proper annotations to all class methods
+  - [⬜] Complete return type annotations for all functions
 
-- [ ] **Configure Strict Type Checking**
-  - [ ] Strict mode enabled in `pyproject.toml` under `[tool.mypy]`
-  - [ ] Recommended type checking flags enabled
-  - [ ] Add CI checks for type validation
+- [▓▓▓▓▓░░░░] **Configure Strict Type Checking**
+  - [✅] Strict mode enabled in `pyproject.toml` under `[tool.mypy]`
+  - [✅] Recommended type checking flags enabled
+  - [⬜] Add CI checks for type validation
 
 ## 2. Test Coverage Improvements
 
-- [ ] **Config Module**
-  - [ ] Add tests for edge cases in config parsing
-  - [ ] Test invalid configuration handling
-  - [ ] Test environment variable expansion
-  - [ ] Test relative path resolution
+- [▓░░░░░░░░] **Config Module**
+  - [⬜] Update to use Pydantic models
+  - [⬜] Add tests for edge cases in config parsing
+  - [⬜] Test invalid configuration handling
+  - [⬜] Test environment variable expansion
+  - [⬜] Test relative path resolution
 
-- [ ] **CLI Module**
-  - [ ] Add tests for each CLI command
-  - [ ] Test error handling and output formatting
-  - [ ] Test interactive mode behaviors
-  - [ ] Mock external dependencies for reliable testing
+- [░░░░░░░░░] **CLI Module**
+  - [⬜] Update to use Pydantic models
+  - [⬜] Add tests for each CLI command
+  - [⬜] Test error handling and output formatting
+  - [⬜] Test interactive mode behaviors
+  - [⬜] Mock external dependencies for reliable testing
 
-- [ ] **Sync Operations**
-  - [ ] Create tests for sync operations with different VCS types
-  - [ ] Mock VCS operations for predictable testing
-  - [ ] Test error handling during sync operations
-  - [ ] Test recovery mechanisms
+- [░░░░░░░░░] **Sync Operations**
+  - [⬜] Update to use Pydantic models
+  - [⬜] Create tests for sync operations with different VCS types
+  - [⬜] Mock VCS operations for predictable testing
+  - [⬜] Test error handling during sync operations
+  - [⬜] Test recovery mechanisms
 
-- [ ] **Validator Module**
-  - [ ] Update validator tests to use Pydantic models
-  - [ ] Add tests for each validation function and validator
-  - [ ] Test validation of malformed configurations
-  - [ ] Ensure all validators throw appropriate exceptions
+- [▓▓▓░░░░░░] **Validator Module**
+  - [✅] Updated validator to use Pydantic models
+  - [✅] Added formatting for Pydantic validation errors
+  - [⬜] Complete test updates for Pydantic validators
+  - [⬜] Test validation of malformed configurations
+  - [⬜] Ensure all validators throw appropriate exceptions
 
 ## 3. Test Infrastructure
 

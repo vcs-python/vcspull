@@ -59,7 +59,7 @@ All code examples in this plan follow these guidelines and must be maintained th
 ### A. Enhance Exception Handling
 
 1. **Create Specific Exception Types**
-   - Create a hierarchy of exceptions with specific subtypes in `src/vcspull/exc.py`:
+   - ✓ Create a hierarchy of exceptions with specific subtypes in `src/vcspull/exc.py`:
      ```python
      import enum
      import typing as t
@@ -3676,3 +3676,278 @@ When implementing Pydantic models, follow these guidelines:
   - Examples for all major features
 
 ## 3. Additional Tests to Add
+
+### 11. Testing Pydantic Models and Validators
+
+1. **✓ Basic Model Validation Tests**
+   - ✓ Add tests for `RepositoryModel` validation:
+     ```python
+     import pytest
+     import typing as t
+     
+     from vcspull.schemas import RepositoryModel
+     
+     def test_repository_model_valid():
+         """Test valid repository model."""
+         # Create a valid model
+         repo = RepositoryModel(
+             vcs="git",
+             name="test-repo",
+             path="/path/to/repo",
+             url="https://github.com/user/repo",
+         )
+         
+         # Verify basic attributes
+         assert repo.vcs == "git"
+         assert repo.name == "test-repo"
+         assert str(repo.path).endswith("/path/to/repo")
+         assert repo.url == "https://github.com/user/repo"
+         
+     def test_repository_model_invalid_vcs():
+         """Test invalid VCS type."""
+         with pytest.raises(ValueError) as excinfo:
+             RepositoryModel(
+                 vcs="invalid",
+                 name="test-repo", 
+                 path="/path/to/repo",
+                 url="https://github.com/user/repo",
+             )
+         
+         # Verify error message
+         assert "Invalid VCS type" in str(excinfo.value)
+     ```
+
+2. **Pending: Path Validation Tests**
+   - Create tests for path validation and normalization:
+     ```python
+     import os
+     import pathlib
+     
+     def test_repository_model_path_expansion():
+         """Test path expansion in repository model."""
+         # Test with environment variables
+         os.environ["TEST_PATH"] = "/test/path"
+         repo = RepositoryModel(
+             vcs="git",
+             name="test-repo",
+             path="${TEST_PATH}/repo",
+             url="https://github.com/user/repo",
+         )
+         
+         # Verify path expansion
+         assert str(repo.path) == "/test/path/repo"
+         
+         # Test with tilde expansion
+         repo = RepositoryModel(
+             vcs="git", 
+             name="test-repo",
+             path="~/repo",
+             url="https://github.com/user/repo",
+         )
+         
+         # Verify tilde expansion
+         assert str(repo.path) == str(pathlib.Path.home() / "repo")
+     ```
+
+3. **Pending: URL Validation Tests**
+   - Test different URL formats and validation:
+     ```python
+     def test_repository_model_url_validation():
+         """Test URL validation in repository model."""
+         # Test valid URLs
+         valid_urls = [
+             "https://github.com/user/repo",
+             "git@github.com:user/repo.git",
+             "file:///path/to/repo",
+         ]
+         
+         for url in valid_urls:
+             repo = RepositoryModel(
+                 vcs="git",
+                 name="test-repo",
+                 path="/path/to/repo",
+                 url=url,
+             )
+             assert repo.url == url
+         
+         # Test invalid URLs
+         invalid_urls = ["", "   "]
+         
+         for url in invalid_urls:
+             with pytest.raises(ValueError) as excinfo:
+                 RepositoryModel(
+                     vcs="git",
+                     name="test-repo",
+                     path="/path/to/repo",
+                     url=url,
+                 )
+             assert "URL cannot be empty" in str(excinfo.value)
+     ```
+
+4. **Pending: Configuration Dict Model Tests**
+   - Test the dictionary-like behavior of config models:
+     ```python
+     from vcspull.schemas import ConfigSectionDictModel, RepositoryModel
+     
+     def test_config_section_dict_model():
+         """Test ConfigSectionDictModel behavior."""
+         # Create repository models
+         repo1 = RepositoryModel(
+             vcs="git",
+             name="repo1",
+             path="/path/to/repo1",
+             url="https://github.com/user/repo1",
+         )
+         
+         repo2 = RepositoryModel(
+             vcs="git",
+             name="repo2", 
+             path="/path/to/repo2",
+             url="https://github.com/user/repo2",
+         )
+         
+         # Create section model
+         section = ConfigSectionDictModel(root={"repo1": repo1, "repo2": repo2})
+         
+         # Test dictionary-like access
+         assert section["repo1"] == repo1
+         assert section["repo2"] == repo2
+         
+         # Test keys, values, items
+         assert set(section.keys()) == {"repo1", "repo2"}
+         assert list(section.values()) == [repo1, repo2]
+         assert dict(section.items()) == {"repo1": repo1, "repo2": repo2}
+     ```
+
+5. **Pending: Raw to Validated Conversion Tests**
+   - Test conversion from raw to validated models:
+     ```python
+     from vcspull.schemas import (
+         RawConfigDictModel,
+         convert_raw_to_validated,
+     )
+     
+     def test_convert_raw_to_validated():
+         """Test conversion from raw to validated models."""
+         # Create raw config
+         raw_config = RawConfigDictModel(root={
+             "section1": {
+                 "repo1": {
+                     "vcs": "git",
+                     "name": "repo1",
+                     "path": "/path/to/repo1",
+                     "url": "https://github.com/user/repo1",
+                 },
+                 "repo2": "https://github.com/user/repo2",  # Shorthand URL
+             }
+         })
+         
+         # Convert to validated config
+         validated = convert_raw_to_validated(raw_config)
+         
+         # Verify structure
+         assert "section1" in validated.root
+         assert "repo1" in validated["section1"].root
+         assert "repo2" in validated["section1"].root
+         
+         # Verify expanded shorthand URL
+         assert validated["section1"]["repo2"].url == "https://github.com/user/repo2"
+         assert validated["section1"]["repo2"].name == "repo2"
+     ```
+
+6. **Pending: Integration with CLI Tests**
+   - Test CLI commands with Pydantic models:
+     ```python
+     def test_cli_with_pydantic_models(runner, tmp_path):
+         """Test CLI commands with Pydantic models."""
+         # Create a test config file with valid and invalid entries
+         config_file = tmp_path / "config.yaml"
+         config_file.write_text("""
+         section1:
+           repo1:
+             vcs: git
+             name: repo1
+             path: {tmp_path}/repo1
+             url: https://github.com/user/repo1
+           repo2:
+             vcs: invalid  # Invalid VCS type
+             name: repo2
+             path: {tmp_path}/repo2
+             url: https://github.com/user/repo2
+         """.format(tmp_path=tmp_path))
+         
+         # Run CLI command with the config file
+         result = runner.invoke(cli, ["sync", "--config", str(config_file)])
+         
+         # Verify that the valid repository is processed
+         assert "Processing repository repo1" in result.output
+         
+         # Verify that the invalid repository is reported with a Pydantic error
+         assert "Invalid VCS type: invalid" in result.output
+     ```
+
+7. **Pending: Error Handling in Models**
+   - Test error handling and error formatting:
+     ```python
+     from vcspull.validator import format_pydantic_errors
+     from pydantic import ValidationError
+     
+     def test_format_pydantic_errors():
+         """Test formatting of Pydantic validation errors."""
+         try:
+             RepositoryModel(
+                 vcs="invalid",
+                 name="",  # Empty name
+                 path="",  # Empty path
+                 url="",   # Empty URL
+             )
+         except ValidationError as e:
+             # Format the error
+             error_msg = format_pydantic_errors(e)
+             
+             # Verify formatted error message
+             assert "vcs: Invalid VCS type" in error_msg
+             assert "name: " in error_msg
+             assert "path: " in error_msg
+             assert "url: URL cannot be empty" in error_msg
+     ```
+
+8. **Pending: Advanced Validation Tests**
+   - Create tests for more complex validation scenarios:
+     ```python
+     def test_repository_model_with_remotes():
+         """Test repository model with Git remotes."""
+         from vcspull.schemas import GitRemote
+         
+         # Create Git remotes
+         remotes = {
+             "origin": GitRemote(
+                 name="origin",
+                 url="https://github.com/user/repo",
+                 fetch="+refs/heads/*:refs/remotes/origin/*",
+                 push="refs/heads/*:refs/heads/*",
+             ),
+             "upstream": GitRemote(
+                 name="upstream",
+                 url="https://github.com/upstream/repo",
+             ),
+         }
+         
+         # Create repository with remotes
+         repo = RepositoryModel(
+             vcs="git",
+             name="test-repo",
+             path="/path/to/repo",
+             url="https://github.com/user/repo",
+             remotes=remotes,
+         )
+         
+         # Verify remotes
+         assert repo.remotes is not None
+         assert "origin" in repo.remotes
+         assert "upstream" in repo.remotes
+         assert repo.remotes["origin"].url == "https://github.com/user/repo"
+         assert repo.remotes["upstream"].url == "https://github.com/upstream/repo"
+     ```
+
+## 12. Performance Testing
