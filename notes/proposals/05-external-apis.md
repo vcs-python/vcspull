@@ -60,81 +60,135 @@ The audit identified several issues with the current external API:
    # src/vcspull/api/config.py
    """Configuration API for VCSPull."""
 
+   import typing as t
    from pathlib import Path
-   from typing import List, Optional, Union, Dict, Any
 
    from vcspull.schemas import VCSPullConfig, Repository
    from vcspull.exceptions import ConfigurationError
 
    def load_config(
-       *paths: Union[str, Path], search_home: bool = True
+       *paths: t.Union[str, Path], search_home: bool = True
    ) -> VCSPullConfig:
        """Load configuration from specified paths.
        
-       Args:
-           *paths: Configuration file paths. If not provided, default locations will be searched.
-           search_home: Whether to also search for config files in user's home directory.
+       Parameters
+       ----
+       *paths : Union[str, Path]
+           Configuration file paths. If not provided, default locations will be searched.
+       search_home : bool
+           Whether to also search for config files in user's home directory.
            
-       Returns:
+       Returns
+       ----
+       VCSPullConfig
            Validated configuration object.
            
-       Raises:
-           ConfigurationError: If configuration cannot be loaded or validated.
+       Raises
+       ----
+       ConfigurationError
+           If configuration cannot be loaded or validated.
        """
        # Implementation details
 
    def save_config(
-       config: VCSPullConfig, path: Union[str, Path], format: str = "yaml"
+       config: VCSPullConfig, path: t.Union[str, Path], format: str = "yaml"
    ) -> None:
        """Save configuration to a file.
        
-       Args:
-           config: Configuration object to save.
-           path: Path to save the configuration to.
-           format: Format to save the configuration in (yaml or json).
+       Parameters
+       ----
+       config : VCSPullConfig
+           Configuration object to save.
+       path : Union[str, Path]
+           Path to save the configuration to.
+       format : str
+           Format to save the configuration in (yaml or json).
            
-       Raises:
-           ConfigurationError: If configuration cannot be saved.
+       Raises
+       ----
+       ConfigurationError
+           If configuration cannot be saved.
        """
        # Implementation details
 
-   def get_repository(
-       config: VCSPullConfig, name_or_path: str
-   ) -> Optional[Repository]:
-       """Get a repository from the configuration by name or path.
+   def merge_configs(configs: list[VCSPullConfig]) -> VCSPullConfig:
+       """Merge multiple configuration objects.
        
-       Args:
-           config: Configuration object.
-           name_or_path: Repository name or path.
+       Parameters
+       ----
+       configs : list[VCSPullConfig]
+           List of configuration objects to merge.
            
-       Returns:
-           Repository if found, None otherwise.
+       Returns
+       ----
+       VCSPullConfig
+           Merged configuration object.
        """
        # Implementation details
 
    def add_repository(
-       config: VCSPullConfig,
-       url: str,
-       path: Union[str, Path],
-       name: Optional[str] = None,
-       vcs: Optional[str] = None,
-       **kwargs
+       config: VCSPullConfig, 
+       name: str, 
+       url: str, 
+       path: t.Union[str, Path], 
+       vcs: t.Optional[str] = None,
+       **repo_options: t.Any
    ) -> Repository:
-       """Add a repository to the configuration.
+       """Add a repository to a configuration.
        
-       Args:
-           config: Configuration object.
-           url: Repository URL.
-           path: Repository path.
-           name: Repository name (optional, defaults to extracted name from URL).
-           vcs: Version control system (optional, defaults to inferred from URL).
-           **kwargs: Additional repository options.
+       Parameters
+       ----
+       config : VCSPullConfig
+           Configuration to modify.
+       name : str
+           Repository name.
+       url : str
+           Repository URL.
+       path : Union[str, Path]
+           Local path for repository.
+       vcs : Optional[str]
+           Version control system (git, hg, svn). If None, will be inferred from URL.
+       **repo_options : Any
+           Additional repository options.
            
-       Returns:
-           Added repository.
+       Returns
+       ----
+       Repository
+           The newly created repository.
            
-       Raises:
-           ConfigurationError: If repository cannot be added.
+       Raises
+       ----
+       ConfigurationError
+           If the repository cannot be added.
+       """
+       # Implementation details
+
+   def find_repositories(
+       config: VCSPullConfig, 
+       name: t.Optional[str] = None, 
+       url: t.Optional[str] = None,
+       path: t.Optional[t.Union[str, Path]] = None,
+       vcs: t.Optional[str] = None
+   ) -> list[Repository]:
+       """Find repositories in a configuration matching criteria.
+       
+       Parameters
+       ----
+       config : VCSPullConfig
+           Configuration to search.
+       name : Optional[str]
+           Filter by repository name (supports glob patterns).
+       url : Optional[str]
+           Filter by repository URL (supports glob patterns).
+       path : Optional[Union[str, Path]]
+           Filter by repository path (supports glob patterns).
+       vcs : Optional[str]
+           Filter by VCS type.
+           
+       Returns
+       ----
+       list[Repository]
+           List of matching repositories.
        """
        # Implementation details
    ```

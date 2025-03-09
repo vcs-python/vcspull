@@ -78,7 +78,8 @@ The audit identified significant issues in the validation system:
 
 2. **Error Handling Architecture**:
    ```python
-   from pydantic import ValidationError
+   import typing as t
+   from pydantic import ValidationError as PydanticValidationError
    
    class ConfigError(Exception):
        """Base exception for all configuration errors."""
@@ -86,20 +87,47 @@ The audit identified significant issues in the validation system:
    
    class ValidationError(ConfigError):
        """Validation error with formatted message."""
-       def __init__(self, pydantic_error: pydantic.ValidationError):
+       def __init__(self, pydantic_error: PydanticValidationError):
            self.errors = format_pydantic_errors(pydantic_error)
            super().__init__(str(self.errors))
    
-   def format_pydantic_errors(error: pydantic.ValidationError) -> str:
-       """Format Pydantic validation errors into user-friendly messages."""
+   def format_pydantic_errors(error: PydanticValidationError) -> str:
+       """Format Pydantic validation errors into user-friendly messages.
+       
+       Parameters
+       ----
+       error : PydanticValidationError
+           The validation error from Pydantic
+           
+       Returns
+       ----
+       str
+           Formatted error message
+       """
        # Logic to format errors
        return formatted_error
    
-   def validate_config(config_dict: dict) -> VCSPullConfig:
-       """Validate configuration dictionary and return validated model."""
+   def validate_config(config_dict: dict[str, t.Any]) -> VCSPullConfig:
+       """Validate configuration dictionary and return validated model.
+       
+       Parameters
+       ----
+       config_dict : dict[str, t.Any]
+           The configuration dictionary to validate
+           
+       Returns
+       ----
+       VCSPullConfig
+           Validated configuration model
+           
+       Raises
+       ----
+       ValidationError
+           If the configuration fails validation
+       """
        try:
            return VCSPullConfig.model_validate(config_dict)
-       except pydantic.ValidationError as e:
+       except PydanticValidationError as e:
            raise ValidationError(e)
    ```
 
@@ -118,7 +146,7 @@ The audit identified significant issues in the validation system:
 2. **Type System Architecture**:
    ```python
    import typing as t
-   from typing_extensions import TypeAlias, Protocol, runtime_checkable
+   from typing_extensions import TypeAlias
    from pathlib import Path
    import os
    from pydantic import TypeAdapter
@@ -130,10 +158,44 @@ The audit identified significant issues in the validation system:
    VCSType = t.Literal["git", "hg", "svn"]
    
    # Protocol for VCS handlers
-   @runtime_checkable
-   class VCSHandler(Protocol):
-       def update(self, repo_path: PathLike, **kwargs) -> bool: ...
-       def clone(self, repo_url: str, repo_path: PathLike, **kwargs) -> bool: ...
+   @t.runtime_checkable
+   class VCSHandler(t.Protocol):
+       """Protocol defining the interface for VCS handlers."""
+       def update(self, repo_path: PathLike, **kwargs) -> bool: 
+           """Update a repository.
+           
+           Parameters
+           ----
+           repo_path : PathLike
+               Path to the repository
+           **kwargs : Any
+               Additional arguments for the update operation
+               
+           Returns
+           ----
+           bool
+               True if successful, False otherwise
+           """
+           ...
+       
+       def clone(self, repo_url: str, repo_path: PathLike, **kwargs) -> bool: 
+           """Clone a repository.
+           
+           Parameters
+           ----
+           repo_url : str
+               URL of the repository to clone
+           repo_path : PathLike
+               Path where the repository should be cloned
+           **kwargs : Any
+               Additional arguments for the clone operation
+               
+           Returns
+           ----
+           bool
+               True if successful, False otherwise
+           """
+           ...
    
    # Shared type adapters for reuse in critical paths
    CONFIG_ADAPTER = TypeAdapter(dict[str, t.Any])
@@ -155,7 +217,8 @@ The audit identified significant issues in the validation system:
 
 2. **Model Hierarchy**:
    ```python
-   from pydantic import computed_field
+   import typing as t
+   from pydantic import BaseModel, Field, computed_field
    
    class Settings(BaseModel):
        """Global settings model."""
@@ -170,8 +233,15 @@ The audit identified significant issues in the validation system:
        includes: list[str] = Field(default_factory=list)
        
        @computed_field
+       @property
        def repo_count(self) -> int:
-           """Get the total number of repositories."""
+           """Get the total number of repositories.
+           
+           Returns
+           ----
+           int
+               Number of repositories in the configuration
+           """
            return len(self.repositories)
    
    # Repository model (no inheritance)
@@ -180,8 +250,15 @@ The audit identified significant issues in the validation system:
        # Fields as described above
        
        @computed_field
+       @property
        def has_remotes(self) -> bool:
-           """Check if repository has remote configurations."""
+           """Check if repository has remote configurations.
+           
+           Returns
+           ----
+           bool
+               True if the repository has remotes, False otherwise
+           """
            return len(self.remotes) > 0
    ```
 

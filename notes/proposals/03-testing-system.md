@@ -101,113 +101,212 @@ The audit identified several issues with the current testing system:
        Returns
        ----
        VCSPullConfig
-           Sample configuration object
+           A sample configuration with test repositories
        """
        return VCSPullConfig(
-           settings=Settings(sync_remotes=True, default_vcs="git"),
+           settings=Settings(
+               sync_remotes=True,
+               default_vcs="git"
+           ),
            repositories=[
                Repository(
                    name="repo1",
-                   url="https://github.com/user/repo1.git",
-                   path="/tmp/repo1",
+                   url="https://github.com/example/repo1.git",
+                   path="~/test/repo1",
                    vcs="git"
                ),
                Repository(
                    name="repo2",
-                   url="https://github.com/user/repo2.git",
-                   path="/tmp/repo2",
-                   vcs="git"
+                   url="https://example.org/repo2",
+                   path="~/test/repo2",
+                   vcs="hg"
                )
-           ],
-           includes=[]
+           ]
        )
    
    @pytest.fixture
-   def sample_config_file(tmp_path) -> Path:
-       """Create a sample configuration file for testing.
-       
-       Parameters
-       ----
-       tmp_path : Path
-           Temporary directory for the test
-           
-       Returns
-       ----
-       Path
-           Path to the sample configuration file
-       """
-       import yaml
-       
-       config_data = {
-           "settings": {
-               "sync_remotes": True,
-               "default_vcs": "git"
-           },
-           "repositories": [
-               {
-                   "name": "repo1",
-                   "url": "https://github.com/user/repo1.git",
-                   "path": str(tmp_path / "repo1"),
-                   "vcs": "git"
-               },
-               {
-                   "name": "repo2",
-                   "url": "https://github.com/user/repo2.git",
-                   "path": str(tmp_path / "repo2"),
-                   "vcs": "git"
-               }
-           ]
-       }
-       
-       config_file = tmp_path / "config.yaml"
-       with open(config_file, "w") as f:
-           yaml.dump(config_data, f)
-       
-       return config_file
-   
-   @pytest.fixture
-   def mock_git_repo(tmp_path_factory) -> t.Callable[[str], Path]:
-       """Factory for creating mock git repositories.
+   def config_file(tmp_path_factory, sample_config) -> Path:
+       """Create a temporary configuration file with sample data.
        
        Parameters
        ----
        tmp_path_factory : Callable[[str], Path]
            Factory for creating temporary directories
+       sample_config : VCSPullConfig
+           Sample configuration to save to file
            
        Returns
        ----
-       Callable[[str], Path]
-           Function to create mock git repositories
+       Path
+           Path to the created configuration file
        """
-       import subprocess
+       config_dir = tmp_path_factory("config")
+       config_file = config_dir / "vcspull.yaml"
        
-       def _factory(name: str) -> Path:
-           repo_path = tmp_path_factory(f"git_repo_{name}")
-           
-           # Initialize git repo
-           subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
-           
-           # Create a dummy file and commit it
-           dummy_file = repo_path / "README.md"
-           dummy_file.write_text(f"# {name}\n\nThis is a test repository.")
-           
-           subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
-           subprocess.run(
-               ["git", "commit", "-m", "Initial commit"],
-               cwd=repo_path, check=True, capture_output=True,
-               env={**os.environ, "GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.com"}
+       with open(config_file, "w") as f:
+           yaml.dump(
+               sample_config.model_dump(),
+               f,
+               default_flow_style=False
            )
-           
-           return repo_path
        
-       return _factory
+       return config_file
    ```
 
-2. **Benefits**:
-   - Reusable fixtures across test files
-   - Standardized test data creation
-   - Better isolation between tests
-   - Improved cleanup of test resources
+2. **Pydantic Test Factory**:
+   ```python
+   # tests/factories.py
+   import typing as t
+   import yaml
+   import random
+   import string
+   from pathlib import Path
+   from faker import Faker
+   from pydantic import TypeAdapter
+   from vcspull.schemas import Repository, VCSPullConfig, Settings
+   
+   # Initialize faker for generating test data
+   fake = Faker()
+   
+   # Type adapter for validation
+   repo_adapter = TypeAdapter(Repository)
+   config_adapter = TypeAdapter(VCSPullConfig)
+   
+   def random_string(length: int = 10) -> str:
+       """Generate a random string.
+       
+       Parameters
+       ----
+       length : int
+           Length of the generated string
+           
+       Returns
+       ----
+       str
+           Random string of specified length
+       """
+       return ''.join(random.choices(string.ascii_lowercase, k=length))
+   
+   def create_repository(
+       name: t.Optional[str] = None,
+       url: t.Optional[str] = None,
+       path: t.Optional[str] = None,
+       vcs: t.Optional[str] = None,
+       **kwargs
+   ) -> Repository:
+       """Create a test repository instance.
+       
+       Parameters
+       ----
+       name : Optional[str]
+           Repository name (generated if None)
+       url : Optional[str]
+           Repository URL (generated if None)
+       path : Optional[str]
+           Repository path (generated if None)
+       vcs : Optional[str]
+           Version control system (randomly selected if None)
+       **kwargs : Any
+           Additional repository attributes
+           
+       Returns
+       ----
+       Repository
+           Validated Repository instance
+       """
+       # Generate default values
+       name = name or f"repo-{random_string(5)}"
+       url = url or f"https://github.com/example/{name}.git"
+       path = path or f"~/test/{name}"
+       vcs = vcs or random.choice(["git", "hg", "svn"])
+       
+       # Create and validate the repository
+       repo_data = {
+           "name": name,
+           "url": url,
+           "path": path,
+           "vcs": vcs,
+           **kwargs
+       }
+       
+       return repo_adapter.validate_python(repo_data)
+   
+   def create_config(
+       repositories: t.Optional[list[Repository]] = None,
+       settings: t.Optional[Settings] = None,
+       includes: t.Optional[list[str]] = None
+   ) -> VCSPullConfig:
+       """Create a test configuration instance.
+       
+       Parameters
+       ----
+       repositories : Optional[list[Repository]]
+           List of repositories (generated if None)
+       settings : Optional[Settings]
+           Configuration settings (generated if None)
+       includes : Optional[list[str]]
+           List of included files (empty list if None)
+           
+       Returns
+       ----
+       VCSPullConfig
+           Validated VCSPullConfig instance
+       """
+       # Generate default values
+       if repositories is None:
+           repositories = [
+               create_repository() for _ in range(random.randint(1, 3))
+           ]
+       
+       if settings is None:
+           settings = Settings(
+               sync_remotes=random.choice([True, False]),
+               default_vcs=random.choice(["git", "hg", "svn", None])
+           )
+       
+       includes = includes or []
+       
+       # Create and validate the configuration
+       config_data = {
+           "settings": settings.model_dump(),
+           "repositories": [repo.model_dump() for repo in repositories],
+           "includes": includes
+       }
+       
+       return config_adapter.validate_python(config_data)
+   
+   def write_config_file(config: VCSPullConfig, path: Path) -> Path:
+       """Write a configuration to a file.
+       
+       Parameters
+       ----
+       config : VCSPullConfig
+           Configuration to write
+       path : Path
+           Path to the output file
+           
+       Returns
+       ----
+       Path
+           Path to the written file
+       """
+       path.parent.mkdir(parents=True, exist_ok=True)
+       
+       with open(path, "w") as f:
+           yaml.dump(
+               config.model_dump(),
+               f,
+               default_flow_style=False
+           )
+       
+       return path
+   ```
+
+3. **Benefits**:
+   - Consistent test data generation
+   - Reusable fixtures across tests
+   - Factory pattern for flexible test data
+   - Type-safe test data generation
 
 ### 3. Test Isolation Improvements
 

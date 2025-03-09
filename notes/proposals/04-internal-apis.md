@@ -71,7 +71,7 @@ The audit identified several issues with the internal APIs:
    import typing as t
    from pathlib import Path
    import enum
-   from pydantic import BaseModel
+   from pydantic import BaseModel, Field
    
    class VCSType(enum.Enum):
        """Version control system types."""
@@ -80,13 +80,34 @@ The audit identified several issues with the internal APIs:
        SVN = "svn"
    
    class VCSInfo(BaseModel):
-       """Version control repository information."""
+       """Version control repository information.
+       
+       Attributes
+       ----
+       vcs_type : VCSType
+           Type of version control system
+       is_detached : bool
+           Whether the repository is in a detached state
+       current_rev : Optional[str]
+           Current revision hash/identifier
+       remotes : dict[str, str]
+           Dictionary of remote names to URLs
+       active_branch : Optional[str]
+           Name of the active branch if any
+       has_uncommitted : bool
+           Whether the repository has uncommitted changes
+       """
        vcs_type: VCSType
        is_detached: bool = False
        current_rev: t.Optional[str] = None
-       remotes: dict[str, str] = {}
+       remotes: dict[str, str] = Field(default_factory=dict)
        active_branch: t.Optional[str] = None
        has_uncommitted: bool = False
+       
+       model_config = {
+           "frozen": False,
+           "extra": "forbid",
+       }
    
    def detect_vcs(repo_path: t.Union[str, Path]) -> t.Optional[VCSType]:
        """Detect the version control system used by a repository.
@@ -200,7 +221,11 @@ The audit identified several issues with the internal APIs:
        bool
            True if path is a subpath of parent
        """
-       return path.is_relative_to(parent)
+       try:
+           path.relative_to(parent)
+           return True
+       except ValueError:
+           return False
    
    # src/vcspull/_internal/vcs/git.py
    import typing as t

@@ -70,7 +70,7 @@ The audit identified several issues with the current configuration format:
    from pathlib import Path
    import os
    from pydantic import BaseModel, Field, field_validator
-
+   
    class Repository(BaseModel):
        """Repository configuration model."""
        name: t.Optional[str] = None
@@ -84,7 +84,18 @@ The audit identified several issues with the current configuration format:
        @field_validator('path')
        @classmethod
        def validate_path(cls, v: str) -> str:
-           """Normalize repository path."""
+           """Normalize repository path.
+           
+           Parameters
+           ----
+           v : str
+               The path to normalize
+               
+           Returns
+           ----
+           str
+               The normalized path
+           """
            path_obj = Path(v).expanduser().resolve()
            return str(path_obj)
    
@@ -112,8 +123,12 @@ The audit identified several issues with the current configuration format:
                            {
                                "name": "example-repo",
                                "url": "https://github.com/user/repo.git",
-                               "path": "~/code/repo"
+                               "path": "~/code/repo",
+                               "vcs": "git"
                            }
+                       ],
+                       "includes": [
+                           "~/other-config.yaml"
                        ]
                    }
                ]
@@ -121,287 +136,181 @@ The audit identified several issues with the current configuration format:
        }
    ```
 
-2. **Benefits**:
-   - Clear schema definition that can be used for validation
-   - Automatic documentation generation
-   - IDE autocompletion support
-   - Type checking with mypy
-   - Examples included in the schema
-
-### 3. Unified Configuration Handling
-
-1. **Centralized Configuration Module**:
+2. **Using TypeAdapter for Validation**:
    ```python
    import typing as t
    from pathlib import Path
    import yaml
+   import json
    import os
-   from .schemas import VCSPullConfig, Repository
-
-   def find_configs() -> list[Path]:
-       """Find configuration files in standard locations.
-       
-       Returns
-       ----
-       list[Path]
-           List of found configuration file paths
-       """
-       # Standard locations for configuration files
-       locations = [
-           Path.cwd() / ".vcspull.yaml",
-           Path.home() / ".vcspull.yaml",
-           Path.home() / ".config" / "vcspull" / "config.yaml",
-           # Environment variable location if set
-           os.environ.get("VCSPULL_CONFIG", None)
-       ]
-       
-       return [p for p in locations if p and Path(p).exists()]
+   from pydantic import TypeAdapter
    
-   def load_config(path: t.Union[str, Path]) -> dict:
-       """Load configuration from a YAML file.
-       
-       Parameters
-       ----
-       path : Union[str, Path]
-           Path to the configuration file
-           
-       Returns
-       ----
-       dict
-           Loaded configuration data
-           
-       Raises
-       ----
-       FileNotFoundError
-           If the configuration file does not exist
-       yaml.YAMLError
-           If the configuration file has invalid YAML
-       """
-       path_obj = Path(path)
-       if not path_obj.exists():
-           raise FileNotFoundError(f"Configuration file not found: {path}")
-       
-       with open(path_obj, 'r') as f:
-           try:
-               return yaml.safe_load(f)
-           except yaml.YAMLError as e:
-               raise yaml.YAMLError(f"Invalid YAML in configuration file: {e}")
+   # Define type adapters for optimized validation
+   CONFIG_ADAPTER = TypeAdapter(VCSPullConfig)
    
-   def validate_config(config_data: dict) -> VCSPullConfig:
-       """Validate configuration data using Pydantic models.
-       
-       Parameters
-       ----
-       config_data : dict
-           Raw configuration data
-           
-       Returns
-       ----
-       VCSPullConfig
-           Validated configuration object
-       """
-       return VCSPullConfig.model_validate(config_data)
-   
-   def load_and_validate_config(path: t.Union[str, Path]) -> VCSPullConfig:
+   def load_config(config_path: t.Union[str, Path]) -> VCSPullConfig:
        """Load and validate configuration from a file.
        
        Parameters
        ----
-       path : Union[str, Path]
+       config_path : Union[str, Path]
            Path to the configuration file
            
        Returns
        ----
        VCSPullConfig
-           Validated configuration object
-       """
-       config_data = load_config(path)
-       return validate_config(config_data)
-   
-   def merge_configs(configs: list[VCSPullConfig]) -> VCSPullConfig:
-       """Merge multiple configuration objects.
-       
-       Parameters
-       ----
-       configs : list[VCSPullConfig]
-           List of configuration objects to merge
+           Validated configuration model
            
-       Returns
+       Raises
        ----
-       VCSPullConfig
-           Merged configuration object
+       FileNotFoundError
+           If the configuration file doesn't exist
+       ValidationError
+           If the configuration is invalid
        """
-       if not configs:
-           return VCSPullConfig()
+       config_path = Path(config_path).expanduser().resolve()
        
-       # Start with the first config
-       base_config = configs[0]
+       if not config_path.exists():
+           raise FileNotFoundError(f"Configuration file not found: {config_path}")
        
-       # Merge remaining configs
-       for config in configs[1:]:
-           # Merge settings
-           for key, value in config.settings.model_dump().items():
-               if value is not None:
-                   setattr(base_config.settings, key, value)
-           
-           # Merge repositories (avoiding duplicates by URL)
-           existing_urls = {repo.url for repo in base_config.repositories}
-           for repo in config.repositories:
-               if repo.url not in existing_urls:
-                   base_config.repositories.append(repo)
-                   existing_urls.add(repo.url)
+       # Load raw configuration
+       with open(config_path, 'r') as f:
+           if config_path.suffix.lower() in ('.yaml', '.yml'):
+               raw_config = yaml.safe_load(f)
+           elif config_path.suffix.lower() == '.json':
+               raw_config = json.load(f)
+           else:
+               raise ValueError(f"Unsupported file format: {config_path.suffix}")
        
-       return base_config
+       # Validate with type adapter
+       return CONFIG_ADAPTER.validate_python(raw_config)
    ```
 
-2. **Benefits**:
-   - Single responsibility for each function
-   - Clear validation and loading flow
-   - Explicit error handling
-   - Type hints for better IDE support and mypy validation
+3. **Benefits**:
+   - Formal schema definition provides clear documentation
+   - Type hints make the configuration structure self-documenting
+   - Validation ensures configuration correctness
+   - JSON Schema can be generated for external documentation
 
-### 4. Environment Variable Support
+### 3. Simplified File Resolution
 
-1. **Environment Variable Overrides**:
+1. **Consistent Path Handling**:
    ```python
+   import typing as t
    import os
-   from pydantic import BaseModel, Field
+   from pathlib import Path
    
-   class EnvironmentSettings(BaseModel):
-       """Environment variable configuration settings."""
-       config_path: t.Optional[str] = Field(default=None, validation_alias="VCSPULL_CONFIG")
-       log_level: t.Optional[str] = Field(default=None, validation_alias="VCSPULL_LOG_LEVEL")
-       disable_includes: bool = Field(default=False, validation_alias="VCSPULL_DISABLE_INCLUDES")
-       
-       @classmethod
-       def from_env(cls) -> "EnvironmentSettings":
-           """Create settings object from environment variables.
-           
-           Returns
-           ----
-           EnvironmentSettings
-               Settings loaded from environment variables
-           """
-           return cls.model_validate(dict(os.environ))
-   
-   def apply_env_overrides(config: VCSPullConfig) -> VCSPullConfig:
-       """Apply environment variable overrides to configuration.
+   def normalize_path(path: t.Union[str, Path]) -> Path:
+       """Normalize a path by expanding user directory and resolving it.
        
        Parameters
        ----
-       config : VCSPullConfig
-           Base configuration object
+       path : Union[str, Path]
+           The path to normalize
            
        Returns
        ----
-       VCSPullConfig
-           Configuration object with environment overrides applied
+       Path
+           The normalized path
        """
-       env_settings = EnvironmentSettings.from_env()
+       return Path(path).expanduser().resolve()
+   
+   def find_config_files(search_paths: list[t.Union[str, Path]]) -> list[Path]:
+       """Find configuration files in the specified search paths.
        
-       # Apply log level override if set
-       if env_settings.log_level:
-           config.settings.log_level = env_settings.log_level
+       Parameters
+       ----
+       search_paths : list[Union[str, Path]]
+           List of paths to search for configuration files
+           
+       Returns
+       ----
+       list[Path]
+           List of found configuration files
+       """
+       config_files = []
+       for path in search_paths:
+           path = normalize_path(path)
+           
+           if path.is_file() and path.suffix.lower() in ('.yaml', '.yml', '.json'):
+               config_files.append(path)
+           elif path.is_dir():
+               for suffix in ('.yaml', '.yml', '.json'):
+                   files = list(path.glob(f"*{suffix}"))
+                   config_files.extend(files)
        
-       # Apply other overrides as needed
-       
-       return config
+       return config_files
    ```
 
-2. **Benefits**:
-   - Clear separation of environment variable handling
-   - Consistent override mechanism
-   - Self-documenting through Pydantic model
-
-### 5. Includes Handling
-
-1. **Simplified Include Resolution**:
+2. **Includes Resolution**:
    ```python
    import typing as t
    from pathlib import Path
    
-   def resolve_includes(config: VCSPullConfig, base_dir: t.Optional[Path] = None) -> VCSPullConfig:
-       """Resolve and process included configuration files.
+   def resolve_includes(
+       config: VCSPullConfig, 
+       base_path: t.Union[str, Path]
+   ) -> VCSPullConfig:
+       """Resolve included configuration files.
        
        Parameters
        ----
        config : VCSPullConfig
-           Base configuration object with includes
-       base_dir : Optional[Path]
-           Base directory for resolving relative paths (defaults to cwd)
+           The base configuration
+       base_path : Union[str, Path]
+           The base path for resolving relative include paths
            
        Returns
        ----
        VCSPullConfig
-           Configuration with includes processed
+           Configuration with includes resolved
        """
+       base_path = Path(base_path).expanduser().resolve()
+       
        if not config.includes:
            return config
        
-       # Use current directory if base_dir not provided
-       base_dir = base_dir or Path.cwd()
+       merged_config = config.model_copy(deep=True)
        
-       included_configs = []
+       # Process include files
        for include_path in config.includes:
-           path_obj = Path(include_path)
+           include_path = Path(include_path)
            
-           # Make relative paths absolute from base_dir
-           if not path_obj.is_absolute():
-               path_obj = base_dir / path_obj
+           # If path is relative, make it relative to base_path
+           if not include_path.is_absolute():
+               include_path = base_path / include_path
            
-           # Expand user home directory
-           path_obj = path_obj.expanduser()
+           include_path = include_path.expanduser().resolve()
            
-           # Load and process the included config
-           if path_obj.exists():
-               included_config = load_and_validate_config(path_obj)
-               # Process nested includes recursively
-               included_config = resolve_includes(included_config, path_obj.parent)
-               included_configs.append(included_config)
+           if not include_path.exists():
+               continue
+           
+           # Load included config
+           included_config = load_config(include_path)
+           
+           # Recursively resolve nested includes
+           included_config = resolve_includes(included_config, include_path.parent)
+           
+           # Merge configs
+           merged_config.repositories.extend(included_config.repositories)
+           
+           # Merge settings (more complex logic needed here)
+           # Only override non-default values
+           for field_name, field_value in included_config.settings.model_dump().items():
+               if field_name not in merged_config.settings.model_fields_set:
+                   setattr(merged_config.settings, field_name, field_value)
        
-       # Merge all configs together
-       all_configs = [config] + included_configs
-       return merge_configs(all_configs)
+       # Clear includes to prevent circular references
+       merged_config.includes = []
+       
+       return merged_config
    ```
 
-2. **Benefits**:
-   - Recursive include resolution
-   - Clear handling of relative paths
-   - Proper merging of included configurations
-
-### 6. JSON Schema Generation
-
-1. **Automatic Documentation Generation**:
-   ```python
-   import json
-   from pydantic import BaseModel
-   
-   def generate_json_schema(output_path: t.Optional[str] = None) -> dict:
-       """Generate JSON schema for configuration.
-       
-       Parameters
-       ----
-       output_path : Optional[str]
-           Path to save the schema file (if None, just returns the schema)
-           
-       Returns
-       ----
-       dict
-           JSON schema for configuration
-       """
-       schema = VCSPullConfig.model_json_schema()
-       
-       if output_path:
-           with open(output_path, 'w') as f:
-               json.dump(schema, f, indent=2)
-       
-       return schema
-   ```
-
-2. **Benefits**:
-   - Automatic schema documentation
-   - Can be used for validation in editors
-   - Facilitates configuration integration with IDEs
+3. **Benefits**:
+   - Consistent path handling across the codebase
+   - Clear resolution of included files
+   - Prevention of circular includes
+   - Proper merging of configurations
 
 ## Implementation Plan
 

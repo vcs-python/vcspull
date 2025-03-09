@@ -49,7 +49,7 @@ The audit identified several issues with the current CLI system:
    def sync(
        ctx: CliContext,
        config: t.Optional[Path] = None,
-       repo: t.Optional[t.List[str]] = None
+       repo: t.Optional[list[str]] = None
    ) -> int:
        """Synchronize repositories from configuration.
        
@@ -83,21 +83,21 @@ The audit identified several issues with the current CLI system:
            return 1
    
    def filter_repositories(
-       repositories: t.List[Repository],
-       patterns: t.Optional[t.List[str]]
-   ) -> t.List[Repository]:
+       repositories: list[Repository],
+       patterns: t.Optional[list[str]]
+   ) -> list[Repository]:
        """Filter repositories by name patterns.
        
        Parameters
        ----
-       repositories : List[Repository]
+       repositories : list[Repository]
            List of repositories to filter
-       patterns : Optional[List[str]]
+       patterns : Optional[list[str]]
            List of patterns to match against repository names
            
        Returns
        ----
-       List[Repository]
+       list[Repository]
            Filtered repositories
        """
        if not patterns:
@@ -168,13 +168,23 @@ The audit identified several issues with the current CLI system:
        """Context for CLI commands.
        
        Manages state and utilities for command execution.
+       
+       Attributes
+       ----
+       verbose : bool
+           Whether to show verbose output
+       quiet : bool
+           Whether to suppress output
+       color : bool
+           Whether to use colored output
        """
        verbose: bool = False
        quiet: bool = False
        color: bool = True
        
        model_config = {
-           "arbitrary_types_allowed": True
+           "arbitrary_types_allowed": True,
+           "extra": "forbid",
        }
        
        def info(self, message: str) -> None:
@@ -218,10 +228,11 @@ The audit identified several issues with the current CLI system:
            message : str
                Message to display
            """
-           click.secho(message, fg="red" if self.color else None, err=True)
+           if not self.quiet:
+               click.secho(message, fg="red" if self.color else None, err=True)
        
        def debug(self, message: str) -> None:
-           """Display debug message.
+           """Display debug message when in verbose mode.
            
            Parameters
            ----
@@ -232,7 +243,7 @@ The audit identified several issues with the current CLI system:
                click.secho(f"DEBUG: {message}", fg="cyan" if self.color else None)
    ```
 
-2. **Dependency Management**:
+2. **Shared Command Options**:
    ```python
    # src/vcspull/cli/options.py
    import typing as t
@@ -240,13 +251,13 @@ The audit identified several issues with the current CLI system:
    from pathlib import Path
    import functools
    
-   def common_options(func):
-       """Common options for all commands.
+   def common_options(f: t.Callable) -> t.Callable:
+       """Common options decorator for all commands.
        
        Parameters
        ----
-       func : Callable
-           Command function to decorate
+       f : Callable
+           Function to decorate
            
        Returns
        ----
@@ -256,23 +267,21 @@ The audit identified several issues with the current CLI system:
        @click.option(
            "--no-color", is_flag=True, help="Disable colored output."
        )
-       @functools.wraps(func)
-       def wrapper(*args, no_color: bool = False, **kwargs):
-           # Get CLI context from Click
-           ctx = click.get_current_context().obj
-           # Update context
-           ctx.color = not no_color
-           # Call original function
-           return func(*args, **kwargs)
+       @functools.wraps(f)
+       def wrapper(*args: t.Any, no_color: bool = False, **kwargs: t.Any) -> t.Any:
+           ctx = kwargs.get('ctx') or args[0]
+           if hasattr(ctx, 'color'):
+               ctx.color = not no_color
+           return f(*args, **kwargs)
        return wrapper
    
-   def config_option(func):
-       """Option for specifying configuration file.
+   def config_option(f: t.Callable) -> t.Callable:
+       """Configuration file option decorator.
        
        Parameters
        ----
-       func : Callable
-           Command function to decorate
+       f : Callable
+           Function to decorate
            
        Returns
        ----
@@ -280,20 +289,21 @@ The audit identified several issues with the current CLI system:
            Decorated function
        """
        @click.option(
-           "--config", "-c", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+           "--config", "-c",
+           type=click.Path(exists=True, dir_okay=False, path_type=Path),
            help="Path to configuration file."
        )
-       @functools.wraps(func)
-       def wrapper(*args, **kwargs):
-           return func(*args, **kwargs)
+       @functools.wraps(f)
+       def wrapper(*args: t.Any, **kwargs: t.Any) -> t.Any:
+           return f(*args, **kwargs)
        return wrapper
    ```
 
 3. **Benefits**:
-   - Centralized context management
-   - Consistent output formatting
-   - Easier to extend with new functionality
-   - Improved testability
+   - Consistent interface for all commands
+   - Common utilities for user interaction
+   - State management across command execution
+   - Type safety through models
 
 ### 3. Improved Error Handling
 
