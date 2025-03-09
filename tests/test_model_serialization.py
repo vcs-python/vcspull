@@ -5,8 +5,8 @@ from __future__ import annotations
 import pathlib
 
 import pytest
-from pydantic import BaseModel, ValidationError
 
+from pydantic import BaseModel, ValidationError
 from vcspull.schemas import (
     RawConfigDictModel,
     RawRepositoryModel,

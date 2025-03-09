@@ -7,11 +7,12 @@ import pathlib
 import typing as t
 
 import pytest
-from pydantic import ValidationError
 
+from pydantic import ValidationError
 from vcspull import exc, validator
 from vcspull.schemas import (
     RawRepositoryModel,
+    is_valid_repo_config,
 )
 
 
@@ -48,19 +49,23 @@ def test_is_valid_config_valid() -> None:
 def test_is_valid_config_invalid() -> None:
     """Test invalid configurations with is_valid_config."""
     # None instead of dict
-    assert not validator.is_valid_config(None)  # pyright: ignore
+    assert not validator.is_valid_config(None)  # type: ignore
 
     # None key
-    assert not validator.is_valid_config({None: {}})  # pyright: ignore
+    invalid_config1 = {None: {}}  # type: ignore
+    assert not validator.is_valid_config(invalid_config1)  # type: ignore
 
     # None value
-    assert not validator.is_valid_config({"section1": None})  # pyright: ignore
+    invalid_config2 = {"section1": None}  # type: ignore
+    assert not validator.is_valid_config(invalid_config2)  # type: ignore
 
     # Non-string key
-    assert not validator.is_valid_config({123: {}})  # pyright: ignore
+    invalid_config3 = {123: {}}  # type: ignore
+    assert not validator.is_valid_config(invalid_config3)  # type: ignore
 
     # Non-dict value
-    assert not validator.is_valid_config({"section1": "not-a-dict"})  # pyright: ignore
+    invalid_config4 = {"section1": "not-a-dict"}  # type: ignore
+    assert not validator.is_valid_config(invalid_config4)  # type: ignore
 
     # Non-dict repo
     config_with_non_dict_repo: dict[str, dict[str, t.Any]] = {
@@ -104,6 +109,7 @@ def test_validate_repo_config_missing_keys() -> None:
     }
     valid, message = validator.validate_repo_config(repo_missing_vcs)
     assert not valid
+    assert message is not None
     assert "vcs" in message.lower()
 
     # Missing url
@@ -114,6 +120,7 @@ def test_validate_repo_config_missing_keys() -> None:
     }
     valid, message = validator.validate_repo_config(repo_missing_url)
     assert not valid
+    assert message is not None
     assert "url" in message.lower()
 
     # Missing path
@@ -124,6 +131,7 @@ def test_validate_repo_config_missing_keys() -> None:
     }
     valid, message = validator.validate_repo_config(repo_missing_path)
     assert not valid
+    assert message is not None
     assert "path" in message.lower()
 
     # Missing name
@@ -134,6 +142,7 @@ def test_validate_repo_config_missing_keys() -> None:
     }
     valid, message = validator.validate_repo_config(repo_missing_name)
     assert not valid
+    assert message is not None
     assert "name" in message.lower()
 
 
@@ -148,6 +157,7 @@ def test_validate_repo_config_empty_values() -> None:
     }
     valid, message = validator.validate_repo_config(repo_empty_vcs)
     assert not valid
+    assert message is not None
     assert "vcs" in message.lower()
 
     # Empty url
@@ -159,6 +169,7 @@ def test_validate_repo_config_empty_values() -> None:
     }
     valid, message = validator.validate_repo_config(repo_empty_url)
     assert not valid
+    assert message is not None
     assert "url" in message.lower()
 
     # Empty path
@@ -170,6 +181,7 @@ def test_validate_repo_config_empty_values() -> None:
     }
     valid, message = validator.validate_repo_config(repo_empty_path)
     assert not valid
+    assert message is not None
     assert "path" in message.lower()
 
     # Empty name (shouldn't be allowed)
@@ -181,6 +193,7 @@ def test_validate_repo_config_empty_values() -> None:
     }
     valid, message = validator.validate_repo_config(repo_empty_name)
     assert not valid
+    assert message is not None
     assert "name" in message.lower()
 
 
@@ -207,10 +220,11 @@ def test_validate_path_invalid() -> None:
 
     valid, message = validator.validate_path(invalid_path)
     assert not valid
+    assert message is not None
     assert "invalid" in message.lower()
 
     # Test with None
-    valid, message = validator.validate_path(None)  # pyright: ignore
+    valid, message = validator.validate_path(None)  # type: ignore
     assert not valid
     assert message is not None
 
@@ -256,7 +270,7 @@ def test_validate_config_structure_invalid() -> None:
 
     # Section name not string
     config_with_non_string_section: dict[t.Any, dict[str, t.Any]] = {
-        123: {  # pyright: ignore
+        123: {  # type: ignore
             "repo1": {
                 "vcs": "git",
                 "url": "https://example.com/repo.git",
@@ -277,7 +291,7 @@ def test_validate_config_structure_invalid() -> None:
     # Repo name not string
     config_with_non_string_repo_name: dict[str, dict[t.Any, t.Any]] = {
         "section1": {
-            123: {  # pyright: ignore
+            123: {  # type: ignore
                 "vcs": "git",
                 "url": "https://example.com/repo.git",
                 "path": "/tmp/repo1",
@@ -553,3 +567,91 @@ def test_format_pydantic_errors() -> None:
         assert "url" in formatted.lower()
         assert "path" in formatted.lower()
         assert "name" in formatted.lower()
+
+
+def test_is_valid_repo_config() -> None:
+    """Test the is_valid_repo_config function."""
+    # Valid repository config
+    valid_repo = {
+        "vcs": "git",
+        "url": "https://example.com/repo.git",
+        "path": "/tmp/repo",
+        "name": "test",
+    }
+    assert is_valid_repo_config(valid_repo)
+
+    # Invalid repository config (missing fields)
+    invalid_repo = {
+        "vcs": "git",
+        # Missing url, path, and name
+    }
+    assert not is_valid_repo_config(invalid_repo)
+
+    # Invalid VCS type
+    invalid_vcs_repo = {
+        "vcs": "invalid",
+        "url": "https://example.com/repo.git",
+        "path": "/tmp/repo",
+        "name": "test",
+    }
+    assert not is_valid_repo_config(invalid_vcs_repo)
+
+    # Test with None
+    assert not is_valid_repo_config(None)  # type: ignore
+
+
+def test_validate_config_json() -> None:
+    """Test validating config from JSON."""
+    # Valid JSON
+    valid_json = """
+    {
+        "section1": {
+            "repo1": {
+                "vcs": "git",
+                "url": "https://example.com/repo.git",
+                "path": "/tmp/repo",
+                "name": "repo1"
+            }
+        }
+    }
+    """
+    valid, message = validator.validate_config_json(valid_json)
+    assert valid
+    assert message is None
+
+    # Invalid JSON syntax
+    invalid_json = """
+    {
+        "section1": {
+            "repo1": {
+                "vcs": "git",
+                "url": "https://example.com/repo.git",
+                "path": "/tmp/repo",
+                "name": "repo1"
+            },
+        }
+    }
+    """
+    valid, message = validator.validate_config_json(invalid_json)
+    assert not valid
+    assert message is not None
+    assert "json" in message.lower()
+
+    # Invalid content (missing required fields)
+    invalid_content_json = """
+    {
+        "section1": {
+            "repo1": {
+                "vcs": "git"
+            }
+        }
+    }
+    """
+    valid, message = validator.validate_config_json(invalid_content_json)
+    assert not valid
+    assert message is not None
+
+    # Empty JSON data
+    valid, message = validator.validate_config_json("")
+    assert not valid
+    assert message is not None

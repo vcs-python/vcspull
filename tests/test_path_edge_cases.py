@@ -7,8 +7,8 @@ import pathlib
 import sys
 
 import pytest
-from pydantic import ValidationError
 
+from pydantic import ValidationError
 from vcspull import config
 from vcspull.schemas import RawRepositoryModel
 

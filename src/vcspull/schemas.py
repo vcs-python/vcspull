@@ -6,13 +6,20 @@ import enum
 import os
 import pathlib
 import typing as t
+from functools import lru_cache
+
+from typing_extensions import Literal, TypeGuard
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     RootModel,
+    TypeAdapter,
+    ValidationInfo,
+    computed_field,
     field_validator,
+    model_validator,
 )
 
 # Type aliases for better readability
@@ -20,6 +27,34 @@ PathLike = t.Union[str, pathlib.Path]
 ConfigName = str
 SectionName = str
 ShellCommand = str
+
+
+# Error message constants
+EMPTY_VALUE_ERROR = "Value cannot be empty or whitespace only"
+REMOTES_GIT_ONLY_ERROR = "Remotes are only supported for Git repositories"
+
+
+# Validation functions for Annotated
+def validate_not_empty(v: str) -> str:
+    """Validate string is not empty after stripping."""
+    if v.strip() == "":
+        raise ValueError(EMPTY_VALUE_ERROR)
+    return v
+
+
+def normalize_path(path: str | pathlib.Path) -> str:
+    """Convert path to string form."""
+    return str(path)
+
+
+def expand_path(path: str) -> pathlib.Path:
+    """Expand variables and user directory in path."""
+    return pathlib.Path(os.path.expandvars(path)).expanduser()
+
+
+# Define simple types instead of complex Annotated types that might cause issues
+NonEmptyStr = str
+PathStr = str  # For path strings that will be validated
 
 
 class VCSType(str, enum.Enum):
@@ -33,10 +68,15 @@ class VCSType(str, enum.Enum):
 class GitRemote(BaseModel):
     """Git remote configuration."""
 
-    name: str = Field(min_length=1)
-    url: str = Field(min_length=1)
-    fetch: str | None = None
-    push: str | None = None
+    name: str = Field(min_length=1, description="Remote name")
+    url: str = Field(min_length=1, description="Remote URL")
+    fetch: str | None = Field(default=None, description="Fetch specification")
+    push: str | None = Field(default=None, description="Push specification")
+
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
 
 
 class RepositoryModel(BaseModel):
@@ -58,85 +98,49 @@ class RepositoryModel(BaseModel):
         Commands to run after repository operations
     """
 
-    vcs: str = Field(min_length=1)
-    name: str = Field(min_length=1)
-    path: str | pathlib.Path = Field()
-    url: str = Field(min_length=1)
-    remotes: dict[str, GitRemote] | None = None
-    shell_command_after: list[str] | None = None
+    vcs: Literal["git", "hg", "svn"] = Field(description="Version control system type")
+    name: str = Field(min_length=1, description="Repository name")
+    path: pathlib.Path = Field(description="Path to the repository")
+    url: str = Field(min_length=1, description="Repository URL")
+    remotes: dict[str, GitRemote] | None = Field(
+        default=None,
+        description="Git remote configurations (name → config)",
+    )
+    shell_command_after: list[str] | None = Field(
+        default=None,
+        description="Commands to run after repository operations",
+    )
 
     model_config = ConfigDict(
         extra="forbid",
         str_strip_whitespace=True,
     )
 
-    @field_validator("vcs")
-    @classmethod
-    def validate_vcs(cls, v: str) -> str:
-        """Validate VCS type.
+    @computed_field
+    def is_git_repo(self) -> bool:
+        """Determine if this is a Git repository."""
+        return bool(self.vcs == "git")  # Explicitly return a boolean
 
-        Parameters
-        ----------
-        v : str
-            VCS type to validate
+    @model_validator(mode="after")
+    def validate_vcs_specific_fields(self) -> RepositoryModel:
+        """Validate VCS-specific fields."""
+        # Git remotes are only for Git repositories
+        if self.remotes and not self.is_git_repo:
+            raise ValueError(REMOTES_GIT_ONLY_ERROR)
 
-        Returns
-        -------
-        str
-            Validated VCS type
-
-        Raises
-        ------
-        ValueError
-            If VCS type is invalid
-        """
-        if v.lower() not in {"git", "hg", "svn"}:
-            msg = f"Invalid VCS type: {v}. Supported types are: git, hg, svn"
-            raise ValueError(msg)
-        return v.lower()
-
-    @field_validator("path")
-    @classmethod
-    def validate_path(cls, v: str | pathlib.Path) -> pathlib.Path:
-        """Validate and convert path to Path object.
-
-        Parameters
-        ----------
-        v : str | Path
-            Path to validate
-
-        Returns
-        -------
-        Path
-            Validated path as Path object
-
-        Raises
-        ------
-        ValueError
-            If path is invalid
-        """
-        try:
-            # Convert to string first to handle Path objects
-            path_str = str(v)
-            # Expand environment variables and user directory
-            path_obj = pathlib.Path(path_str)
-            # Use Path methods instead of os.path
-            expanded_path = pathlib.Path(os.path.expandvars(str(path_obj)))
-            return expanded_path.expanduser()
-        except Exception as e:
-            msg = f"Invalid path: {v}. Error: {e!s}"
-            raise ValueError(msg) from e
+        # Additional VCS-specific validation could be added here
+        return self
 
     @field_validator("url")
     @classmethod
-    def validate_url(cls, v: str, info: t.Any) -> str:
+    def validate_url(cls, v: str, info: ValidationInfo) -> str:
         """Validate repository URL.
 
         Parameters
         ----------
         v : str
             URL to validate
-        info : Any
+        info : ValidationInfo
             Validation context
 
         Returns
@@ -153,17 +157,19 @@ class RepositoryModel(BaseModel):
             msg = "URL cannot be empty"
             raise ValueError(msg)
 
-        # Different validation based on VCS type
-        # Keeping this but not using yet - can be expanded later
-        # vcs_type = values.get("vcs", "").lower()
+        # Get VCS type from validation context
+        vcs_type = info.data.get("vcs", "").lower() if info.data else ""
 
         # Basic validation for all URL types
         if v.strip() == "":
             msg = "URL cannot be empty or whitespace"
             raise ValueError(msg)
 
-        # VCS-specific validation could be added here
-        # For now, just return the URL as is
+        # VCS-specific validation
+        if vcs_type == "git" and "github.com" in v and not v.endswith(".git"):
+            # Add .git suffix for GitHub URLs if missing
+            return f"{v}.git"
+
         return v
 
 
@@ -296,12 +302,11 @@ class RawRepositoryModel(BaseModel):
         Commands to run after repository operations
     """
 
-    vcs: str = Field(
-        min_length=1,
+    vcs: Literal["git", "hg", "svn"] = Field(
         description="Version control system type (git, hg, svn)",
     )
     name: str = Field(min_length=1, description="Repository name")
-    path: str | pathlib.Path = Field(description="Path to the repository")
+    path: PathLike = Field(description="Path to the repository")
     url: str = Field(min_length=1, description="Repository URL")
     remotes: dict[str, dict[str, t.Any]] | None = Field(
         default=None,
@@ -317,85 +322,41 @@ class RawRepositoryModel(BaseModel):
         str_strip_whitespace=True,
     )
 
-    @field_validator("vcs")
-    @classmethod
-    def validate_vcs(cls, v: str) -> str:
-        """Validate VCS type.
+    @model_validator(mode="after")
+    def validate_vcs_specific_fields(self) -> RawRepositoryModel:
+        """Validate VCS-specific fields."""
+        # Git remotes are only for Git repositories
+        if self.remotes and self.vcs != "git":
+            raise ValueError(REMOTES_GIT_ONLY_ERROR)
 
-        Parameters
-        ----------
-        v : str
-            VCS type to validate
-
-        Returns
-        -------
-        str
-            Validated VCS type
-
-        Raises
-        ------
-        ValueError
-            If VCS type is invalid
-        """
-        if v.lower() not in {"git", "hg", "svn"}:
-            msg = f"Invalid VCS type: {v}. Supported types are: git, hg, svn"
-            raise ValueError(msg)
-        return v.lower()
-
-    @field_validator("path")
-    @classmethod
-    def validate_path(cls, v: str | pathlib.Path) -> str | pathlib.Path:
-        """Validate repository path.
-
-        Parameters
-        ----------
-        v : str | Path
-            Path to validate
-
-        Returns
-        -------
-        str | Path
-            Validated path
-
-        Raises
-        ------
-        ValueError
-            If path is invalid or empty
-        """
-        if isinstance(v, str) and v.strip() == "":
-            msg = "Path cannot be empty"
-            raise ValueError(msg)
-
-        # Check for null bytes which are invalid in paths
-        if isinstance(v, str) and "\0" in v:
-            msg = "Invalid path: contains null character"
-            raise ValueError(msg)
-
-        return v
+        # Additional VCS-specific validation could be added here
+        return self
 
     @field_validator("url")
     @classmethod
-    def validate_url(cls, v: str) -> str:
-        """Validate repository URL.
+    def validate_url(cls, v: str, info: ValidationInfo) -> str:
+        """Validate repository URL based on VCS type.
 
         Parameters
         ----------
         v : str
             URL to validate
+        info : ValidationInfo
+            Validation information including access to other field values
 
         Returns
         -------
         str
             Validated URL
-
-        Raises
-        ------
-        ValueError
-            If URL is invalid or empty
         """
-        if v.strip() == "":
-            msg = "URL cannot be empty or whitespace"
-            raise ValueError(msg)
+        # Access other values using context
+        vcs_type = info.data.get("vcs", "") if info.data else ""
+
+        # Git-specific URL validation
+        if vcs_type == "git" and "github.com" in v and not v.endswith(".git"):
+            # Add .git suffix for GitHub URLs
+            return f"{v}.git"
+
         return v
 
     @field_validator("remotes")
@@ -403,6 +364,7 @@ class RawRepositoryModel(BaseModel):
     def validate_remotes(
         cls,
         v: dict[str, dict[str, t.Any]] | None,
+        info: ValidationInfo,
     ) -> dict[str, dict[str, t.Any]] | None:
         """Validate Git remotes configuration.
 
@@ -410,6 +372,8 @@ class RawRepositoryModel(BaseModel):
         ----------
         v : dict[str, dict[str, Any]] | None
             Remotes configuration to validate
+        info : ValidationInfo
+            Validation information
 
         Returns
         -------
@@ -425,6 +389,14 @@ class RawRepositoryModel(BaseModel):
         """
         if v is None:
             return None
+
+        # Get VCS type from context
+        vcs_type = info.data.get("vcs", "") if info.data else ""
+
+        # Remotes are only relevant for Git repositories
+        if vcs_type != "git":
+            err_msg = f"Remotes are not supported for {vcs_type} repositories"
+            raise ValueError(err_msg)
 
         for remote_name, remote_config in v.items():
             if not isinstance(remote_config, dict):
@@ -490,6 +462,96 @@ class RawConfigDictModel(RootModel[dict[str, RawConfigSectionDictModel]]):
     """Raw configuration model before validation and processing."""
 
 
+# Create module-level TypeAdapters for improved performance
+@lru_cache(maxsize=8)
+def get_repo_validator() -> TypeAdapter[RawRepositoryModel]:
+    """Get cached TypeAdapter for repository validation.
+
+    Returns
+    -------
+    TypeAdapter[RawRepositoryModel]
+        TypeAdapter for validating repositories
+    """
+    return TypeAdapter(
+        RawRepositoryModel,
+        config=ConfigDict(
+            str_strip_whitespace=True,
+            extra="allow",
+        ),
+    )
+
+
+@lru_cache(maxsize=8)
+def get_config_validator() -> TypeAdapter[RawConfigDictModel]:
+    """Get cached TypeAdapter for config validation.
+
+    Returns
+    -------
+    TypeAdapter[RawConfigDictModel]
+        TypeAdapter for validating configs
+    """
+    return TypeAdapter(
+        RawConfigDictModel,
+        config=ConfigDict(
+            extra="allow",
+            str_strip_whitespace=True,
+        ),
+    )
+
+
+# Initialize validators on module load
+repo_validator = get_repo_validator()
+config_validator = get_config_validator()
+
+
+def is_valid_repo_config(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]]:
+    """Check if repository configuration is valid.
+
+    Parameters
+    ----------
+    config : dict[str, Any]
+        Repository configuration to validate
+
+    Returns
+    -------
+    TypeGuard[dict[str, Any]]
+        True if config is valid
+    """
+    if config is None:
+        return False
+
+    try:
+        repo_validator.validate_python(config)
+    except Exception:
+        return False
+    else:
+        return True
+
+
+def is_valid_config_dict(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]]:
+    """Check if configuration dictionary is valid.
+
+    Parameters
+    ----------
+    config : dict[str, Any]
+        Configuration to validate
+
+    Returns
+    -------
+    TypeGuard[dict[str, Any]]
+        True if config is valid
+    """
+    if config is None:
+        return False
+
+    try:
+        config_validator.validate_python({"root": config})
+    except Exception:
+        return False
+    else:
+        return True
+
+
 # Functions to convert between raw and validated models
 def convert_raw_to_validated(
     raw_config: RawConfigDictModel,
@@ -553,3 +615,26 @@ def convert_raw_to_validated(
             config.root[section_name].root[repo_name] = repo_model
 
     return config
+
+
+def validate_config_from_json(
+    json_data: str | bytes,
+) -> tuple[bool, dict[str, t.Any] | str]:
+    """Validate configuration directly from JSON.
+
+    Parameters
+    ----------
+    json_data : str | bytes
+        JSON data to validate
+
+    Returns
+    -------
+    tuple[bool, dict[str, Any] | str]
+        Tuple of (is_valid, validated_config_or_error_message)
+    """
+    try:
+        # Direct JSON validation - more performant
+        config = RawConfigDictModel.model_validate_json(json_data)
+        return True, config.model_dump(exclude_unset=True, exclude_none=True)
+    except Exception as e:
+        return False, str(e)
