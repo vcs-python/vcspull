@@ -50,21 +50,26 @@ Since the previous analysis, there have been several improvements:
      - Not using `model_validator` for whole-model validation
      - Missing field validator modes (`before`, `after`, `wrap`) for different validation scenarios
      - Not using `info` parameter in field validators to access validation context
+     - Not utilizing enhanced validation modes for specialized use cases
    - **Missing Type System Features**:
      - No use of `Literal` types for restricted string values (e.g., VCS types)
      - No consistent `Annotated` pattern usage for field constraints
      - Missing discriminated unions for better type discrimination
+     - Not using targeted `TypeVar` constraints for more precise typing
    - **Performance Optimizations Needed**:
      - Not leveraging `TypeAdapter` for performance-critical validation
      - Creating validation structures inside functions instead of at module level
-     - Missing caching strategies for repeated validations
+     - Missing caching strategies with `@lru_cache` for repeated validations
+     - Not using `model_validate_json` for direct JSON validation
    - **Model Architecture Gaps**:
-     - No computed fields for derived properties  
+     - No `@computed_field` decorators for derived properties
      - Limited model inheritance for code reuse
      - No factory methods for model creation
+     - Missing generic models for reusable patterns
    - **Serialization and Schema Limitations**:
      - Missing serialization options and aliases for flexible output formats
-     - No JSON schema customization for better documentation
+     - Limited use of `model_dump` options like `exclude_unset` and `by_alias`
+     - No JSON schema customization with `json_schema_extra` for better documentation
 
 4. **Manual Error Handling**:
    - Custom error formatting in `format_pydantic_errors()` duplicates Pydantic functionality
@@ -85,6 +90,7 @@ Since the previous analysis, there have been several improvements:
    - Not utilizing `defer_build=True` for schema building optimization
    - Missing specialized validation modes for unions with `union_mode`
    - Using generic container types instead of specific ones for better performance
+   - Not caching validators with `@lru_cache` for frequently used types
 
 ## Recommendations
 
@@ -93,6 +99,7 @@ Since the previous analysis, there have been several improvements:
    - Eliminate redundant validation by fully relying on Pydantic models' validators
    - Move business logic into models rather than external validation functions
    - Create a consistent validation hierarchy with clear separation of concerns
+   - Use TypeAdapters for validating raw data without creating full model instances
 
 2. **Leverage Advanced Validator Features**:
    - Add `@model_validator(mode='after')` for cross-field validations that run after basic validation
@@ -105,13 +112,16 @@ Since the previous analysis, there have been several improvements:
    - Use `ValidationInfo` parameter in validators to access context information
    - Replace custom error raising with standardized validation errors
    - Create hierarchical validation with validator inheritance
+   - Use `field_validator` with multiple fields for related field validation
 
 3. **Utilize Type System Features**:
    - Use `Literal` types for enum-like fields (e.g., `vcs: Literal["git", "hg", "svn"]`)
    - Apply the `Annotated` pattern for field-level validation and reusable types
-   - Use `discriminated_union` for clearer repository type discrimination
+   - Use `t.Discriminator` and `t.Tag` for clearer repository type discrimination
    - Implement `TypeAdapter` for validating partial structures and performance optimization
-   - Leverage generic types with proper constraints
+   - Leverage `TypeVar` with constraints for more precise generic typing
+   - Use standard library compatibility features like TypedDict and dataclasses
+   - Create specialized validators with `AfterValidator` and `BeforeValidator` for reuse
 
 4. **Enhance Model Architecture**:
    - Implement `@computed_field` for derived properties instead of regular properties
@@ -119,13 +129,16 @@ Since the previous analysis, there have been several improvements:
    - Create factory methods for model instantiation
    - Implement model conversion methods for handling transformations
    - Define custom root models for specialized container validation
+   - Use generic models with type parameters for reusable container types
+   - Apply model transformations with `model_validator(mode='before')`
 
 5. **Optimize Error Handling**:
-   - Refine `format_pydantic_errors()` to use `ValidationError.errors(include_url=True, include_context=True)`
+   - Refine `format_pydantic_errors()` to use `ValidationError.errors(include_url=True, include_context=True, include_input=True)`
    - Use structured error output via `ValidationError.json()`
    - Add error_url links to guide users to documentation
    - Implement contextual error handling based on error types
    - Create custom error templates for better user messages
+   - Categorize errors by type for more actionable feedback
 
 6. **Consolidate Validation Logic**:
    - Create reusable field types with `Annotated` and validation functions:
@@ -136,6 +149,7 @@ Since the previous analysis, there have been several improvements:
    - Use model methods and validators to centralize business rules
    - Create a validation hierarchy for field types and models
    - Implement model-specific validation logic in model methods
+   - Define reusable validation functions for repeated patterns
 
 7. **Improve Performance**:
    - Create `TypeAdapter` instances at module level with `@lru_cache`
@@ -145,15 +159,20 @@ Since the previous analysis, there have been several improvements:
    - Choose specific container types (list, dict) over generic ones
    - Implement proper caching of validation results
    - Use optimized serialization with `by_alias` and `exclude_none`
+   - Configure union validation with appropriate `union_mode`
 
 8. **Enhance Serialization and Schema**:
    - Use serialization aliases for field name transformations
-   - Configure `model_dump` options for different output formats
+   - Configure `model_dump` options for different output formats:
+     - `exclude_unset=True` for partial updates
+     - `by_alias=True` for consistent API responses
+     - `exclude_none=True` for cleaner output
    - Implement custom serialization methods for complex types
    - Add JSON schema customization via `json_schema_extra`
    - Configure proper schema generation with examples
    - Use schema annotations for better documentation
    - Implement custom schema generators for specialized formats
+   - Add field descriptions through JSON schema attributes
 
 ## Implementation Examples
 
@@ -191,6 +210,8 @@ def get_validator_for(model_type: type[T]) -> TypeAdapter[T]:
             defer_build=True,  # Defer schema building until needed
             strict=True,       # Stricter validation for better type safety
             extra="forbid",    # Prevent extra fields for cleaner data
+            validate_default=False,  # Skip validation of default values for speed
+            str_strip_whitespace=True,  # Auto-strip whitespace from strings
         )
     )
 
@@ -200,6 +221,7 @@ repo_validator = TypeAdapter(
     config=ConfigDict(
         defer_build=True,     # Build schema when needed
         str_strip_whitespace=True,  # Auto-strip whitespace from strings
+        validate_assignment=True,  # Validate on attribute assignment
     )
 )
 
@@ -244,10 +266,35 @@ def validate_config_from_json(json_data: str | bytes) -> tuple[bool, dict[str, A
     """
     try:
         # Direct JSON validation - more performant
-        config = RawConfigDictModel.model_validate_json(json_data)
-        return True, config.model_dump()
+        config = RawConfigDictModel.model_validate_json(
+            json_data,
+            strict=True,  # Ensure strict validation for consistent results
+            context={"source": "json_data"}  # Add context for validators
+        )
+        return True, config.model_dump(
+            exclude_unset=True,  # Only include explicitly set values
+            exclude_none=True    # Skip None values for cleaner output
+        )
     except ValidationError as e:
         # Use structured error reporting
+        return False, format_pydantic_errors(e)
+
+# Advanced usage with TypedDict and custom validation
+from typing_extensions import TypedDict, NotRequired, Required
+
+class RawConfigDict(TypedDict):
+    """TypedDict for raw config with explicit required fields."""
+    repos: Required[dict[str, dict[str, Any]]]
+    groups: NotRequired[dict[str, list[str]]]
+
+# Validator for TypedDict
+config_dict_validator = TypeAdapter(RawConfigDict)
+
+def validate_config_dict(data: dict[str, Any]) -> tuple[bool, RawConfigDict | str]:
+    """Validate against TypedDict structure."""
+    try:
+        return True, config_dict_validator.validate_python(data)
+    except ValidationError as e:
         return False, format_pydantic_errors(e)
 ```
 
@@ -258,6 +305,7 @@ from typing import Annotated, Literal, Any
 import pathlib
 import os
 import typing as t
+from typing_extensions import Doc
 
 from pydantic import (
     BaseModel, 
@@ -268,7 +316,8 @@ from pydantic import (
     model_validator,
     field_validator,
     AfterValidator,
-    BeforeValidator
+    BeforeValidator,
+    WithJsonSchema
 )
 
 # Create reusable field types with the Annotated pattern
@@ -278,7 +327,12 @@ def validate_not_empty(v: str) -> str:
         raise ValueError("Value cannot be empty or whitespace only")
     return v
 
-NonEmptyStr = Annotated[str, AfterValidator(validate_not_empty)]
+NonEmptyStr = Annotated[
+    str, 
+    AfterValidator(validate_not_empty),
+    WithJsonSchema({"minLength": 1}),
+    Doc("A string that cannot be empty or contain only whitespace")
+]
 
 # Path validation
 def normalize_path(path: str | pathlib.Path) -> str:
@@ -293,7 +347,9 @@ def expand_path(path: str) -> pathlib.Path:
 PathInput = Annotated[
     str | pathlib.Path, 
     BeforeValidator(normalize_path),
-    AfterValidator(validate_not_empty)
+    AfterValidator(validate_not_empty),
+    WithJsonSchema({"type": "string", "description": "File system path"}),
+    Doc("A path string that will be validated as not empty")
 ]
 
 # Repository model with advanced features
@@ -440,6 +496,26 @@ class RawRepositoryModel(BaseModel):
             exclude_none=True,  # Omit None fields
             exclude_unset=True  # Omit unset fields
         )
+        
+    # Custom JSON serialization method
+    def to_json_string(self, **kwargs) -> str:
+        """Export model to JSON string with custom options.
+        
+        Parameters
+        ----------
+        **kwargs
+            Additional keyword arguments for model_dump_json
+            
+        Returns
+        -------
+        str
+            JSON string representation
+        """
+        return self.model_dump_json(
+            indent=2,
+            exclude_defaults=True,
+            **kwargs
+        )
 ```
 
 ### 3. Using Discriminated Unions for Repository Types
@@ -465,6 +541,7 @@ class GitRepositoryDetails(BaseModel):
     type: Literal["git"] = "git"
     remotes: dict[str, "GitRemote"] | None = None
     branches: list[str] | None = None
+    default_branch: str = "main"
 
 class HgRepositoryDetails(BaseModel):
     """Mercurial-specific repository details."""
@@ -518,6 +595,12 @@ class AltHgRepositoryDetails(AltRepositoryDetails):
     """Mercurial-specific repository details."""
     type: Literal["hg"] = "hg"
     revset: str | None = None
+
+# Using the tag_property approach for discrimination
+AltRepositoryDetailsUnion = Annotated[
+    Union[AltGitRepositoryDetails, AltHgRepositoryDetails],
+    Discriminator(tag_property="type")
+]
 
 # Complete repository model using discriminated union
 class RepositoryModel(BaseModel):
@@ -579,6 +662,33 @@ class RepositoryModel(BaseModel):
     def vcs(self) -> str:
         """Get the VCS type (for backward compatibility)."""
         return self.details.type
+        
+    # Factory method for creating repository instances
+    @classmethod
+    def create(cls, vcs_type: str, **kwargs) -> 'RepositoryModel':
+        """Create a repository model with the appropriate details based on VCS type.
+        
+        Parameters
+        ----------
+        vcs_type : str
+            The VCS type to create (git, hg, svn)
+        **kwargs
+            Additional parameters for the repository
+            
+        Returns
+        -------
+        RepositoryModel
+            A fully initialized repository model
+        """
+        # Ensure details are properly structured
+        if 'details' not in kwargs:
+            kwargs['details'] = {'type': vcs_type}
+            
+        # Add type-specific defaults
+        if vcs_type == 'git' and 'default_branch' not in kwargs['details']:
+            kwargs['details']['default_branch'] = 'main'
+            
+        return cls(**kwargs)
 ```
 
 ### 4. Improved Error Formatting with Structured Errors
@@ -720,7 +830,8 @@ def get_structured_errors(validation_error: ValidationError) -> dict[str, Any]:
     # Get structured representation from errors method
     errors = validation_error.errors(
         include_url=True,
-        include_context=True
+        include_context=True,
+        include_input=True
     )
     
     # Group by error type
@@ -736,14 +847,47 @@ def get_structured_errors(validation_error: ValidationError) -> dict[str, Any]:
             "location": location,
             "message": error.get("msg", ""),
             "context": error.get("ctx", {}),
-            "url": error.get("url", "")
+            "url": error.get("url", ""),
+            "input": error.get("input", "")
         })
     
     return {
         "error": "ValidationError",
         "detail": categorized,
-        "error_count": validation_error.error_count()
+        "error_count": validation_error.error_count(),
+        "summary": validation_error.title()
     }
+
+# Function to provide helpful user messages based on error types
+def get_error_help(error_type: str) -> str:
+    """Get user-friendly help message for specific error type.
+    
+    Parameters
+    ----------
+    error_type : str
+        The error type from Pydantic
+        
+    Returns
+    -------
+    str
+        User-friendly help message
+    """
+    help_messages = {
+        "missing": "This field is required and must be provided.",
+        "type_error": "The value has the wrong data type. Check the expected type in the documentation.",
+        "value_error": "The value does not meet the validation constraints (e.g., min/max length, pattern).",
+        "value_error.missing": "This required field is missing from the input data.",
+        "value_error.url": "The URL format is invalid. Make sure it includes the protocol (http:// or https://).",
+        "value_error.path": "The file path is invalid or does not exist.",
+        "value_error.email": "The email address format is invalid.",
+        "value_error.extra": "This field is not recognized. Check for typos or remove it."
+    }
+    
+    for key, message in help_messages.items():
+        if key in error_type:
+            return message
+            
+    return "Validation failed. Check the field value against the documentation."
 ```
 
 ### 5. Using TypeAdapter with TypeGuard for Configuration Validation
@@ -875,12 +1019,74 @@ def validate_config(config: Any) -> tuple[bool, RawConfig | str]:
     except Exception as e:
         # Catch any other exceptions
         return False, f"Unexpected error during validation: {str(e)}"
+
+# Specialized TypeAdapter for stream-based validation
+@lru_cache(maxsize=1)
+def get_json_config_validator() -> TypeAdapter[RawConfigDictModel]:
+    """Get TypeAdapter specialized for JSON validation.
+    
+    Returns
+    -------
+    TypeAdapter[RawConfigDictModel]
+        TypeAdapter configured for JSON validation
+    """
+    return TypeAdapter(
+        RawConfigDictModel,
+        config=ConfigDict(
+            # JSON-specific settings
+            populate_by_name=True,
+            str_strip_whitespace=True,
+            
+            # Performance settings
+            validate_default=False,
+            strict=True,
+            defer_build=True
+        )
+    )
+
+# Ensure validator is built
+get_json_config_validator().rebuild()
+
+def validate_config_json_stream(json_stream: t.BinaryIO | str) -> tuple[bool, RawConfig | str]:
+    """Validate JSON configuration from a file stream or string.
+    
+    This is optimized for handling file-like objects without loading
+    the entire contents into memory first.
+    
+    Parameters
+    ----------
+    json_stream : t.BinaryIO | str
+        JSON input stream or string
+        
+    Returns
+    -------
+    tuple[bool, RawConfig | str]
+        Tuple of (is_valid, validated_config_or_error_message)
+    """
+    try:
+        # Get stream validator
+        validator = get_json_config_validator()
+        
+        # Validate directly from JSON stream
+        if isinstance(json_stream, str):
+            # Handle string input
+            model = validator.validate_json(json_stream)
+        else:
+            # Handle file-like object
+            model = validator.validate_json(json_stream.read())
+            
+        return True, cast(RawConfig, model.root)
+    except ValidationError as e:
+        return False, format_pydantic_errors(e)
+    except Exception as e:
+        return False, f"Invalid JSON or stream: {str(e)}"
 ```
 
 ### 6. JSON Schema Customization for Better Documentation
 
 ```python
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model, GenerateSchema
+from pydantic.json_schema import JsonSchemaMode
 
 class ConfigSchema(BaseModel):
     """Schema for configuration files with JSON schema customization."""
@@ -912,12 +1118,107 @@ class ConfigSchema(BaseModel):
         return cls.model_json_schema(
             by_alias=True,
             ref_template="#/definitions/{model}",
-            schema_generator=SchemaGenerator(
-                # Custom configuration for schema generation
-                title="VCSPull Configuration Schema",
-                description="Schema for VCSPull configuration files"
-            )
+            mode=JsonSchemaMode.VALIDATION,
+            title="VCSPull Configuration Schema",
+            description="Schema for VCSPull configuration files"
         )
+        
+    @classmethod
+    def generate_schema_file(cls, output_path: str) -> None:
+        """Generate and save JSON schema to a file.
+        
+        Parameters
+        ----------
+        output_path : str
+            Path to save the schema file
+        """
+        import json
+        
+        schema = cls.generate_json_schema()
+        
+        with open(output_path, 'w') as f:
+            json.dump(schema, f, indent=2)
+            
+        print(f"Schema saved to {output_path}")
+
+# Create a JSON schema generator with full customization
+class SchemaGenerator(GenerateSchema):
+    """Custom schema generator with enhanced documentation."""
+    
+    def generate_schema(self) -> dict:
+        """Generate schema with custom extensions."""
+        schema = super().generate_schema()
+        
+        # Add custom schema extensions
+        schema["x-generator"] = "VCSPull Schema Generator"
+        schema["x-schema-version"] = "1.0.0"
+        schema["x-schema-date"] = "2023-07-15"
+        
+        # Add documentation links
+        schema["$id"] = "https://vcspull.example.com/schema/config"
+        schema["$comment"] = "Generated schema for VCSPull configuration"
+        
+        return schema
+
+# Dynamic model creation for schema generation
+def create_config_schema(include_extended: bool = False) -> type[BaseModel]:
+    """Dynamically create a configuration schema model.
+    
+    Parameters
+    ----------
+    include_extended : bool, optional
+        Whether to include extended fields, by default False
+        
+    Returns
+    -------
+    type[BaseModel]
+        Dynamically created model class
+    """
+    # Base fields
+    fields = {
+        "vcs": (Literal["git", "hg", "svn"], Field(
+            description="Version control system type",
+            examples=["git", "hg", "svn"]
+        )),
+        "url": (str, Field(
+            description="Repository URL",
+            examples=["https://github.com/user/repo.git"]
+        )),
+        "path": (str, Field(
+            description="Local path for repository",
+            examples=["~/projects/repo"]
+        ))
+    }
+    
+    # Extended fields
+    if include_extended:
+        extended_fields = {
+            "remotes": (dict[str, dict[str, str]] | None, Field(
+                default=None,
+                description="Git remote configurations",
+                examples=[{"origin": {"url": "https://github.com/user/repo.git"}}]
+            )),
+            "shell_command_after": (list[str] | None, Field(
+                default=None,
+                description="Commands to run after repository operations",
+                examples=[["git fetch", "git status"]]
+            ))
+        }
+        fields.update(extended_fields)
+    
+    # Create model dynamically
+    return create_model(
+        "ConfigSchema", 
+        **fields,
+        __config__=ConfigDict(
+            title="Repository Configuration",
+            description="Schema for repository configuration",
+            json_schema_extra={
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": False
+            }
+        )
+    )
 ```
 
 ### 7. Advanced TypeAdapter Usage with Caching
@@ -1267,7 +1568,7 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
 1. **Create Reusable Field Types**
    - Define `Annotated` types for common constraints:
      ```python
-     NonEmptyStr = Annotated[str, AfterValidator(validate_not_empty)]
+     NonEmptyStr = Annotated[str, AfterValidator(validate_not_empty), WithJsonSchema({"minLength": 1})]
      ```
    - Create specialized types for paths, URLs, and VCS identifiers
    - Add proper JSON schema information via `WithJsonSchema`
@@ -1285,6 +1586,7 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
    - Add field descriptions and constraints to existing models
    - Implement base models for common configuration patterns
    - Convert regular properties to `@computed_field` for proper serialization
+   - Use `Literal` types for enum-like values (e.g., VCS types)
 
 3. **Set Up Module-Level Validators**
    - Create and cache `TypeAdapter` instances at module level:
@@ -1295,6 +1597,7 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
      ```
    - Initialize validators early with `.rebuild()`
    - Replace inline validation with reusable validator functions
+   - Use `TypeGuard` for better static typing support
 
 ### Phase 2: Validation Logic and Error Handling
 
@@ -1315,6 +1618,7 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
          return self
      ```
    - Move repository-specific validation logic into respective models
+   - Use `ValidationInfo` to access validation context and make cross-field decisions
 
 2. **Enhance Error Handling**
    - Update error formatting to use structured errors:
@@ -1328,6 +1632,7 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
    - Categorize errors by type for better user feedback
    - Create API-friendly error output formats
    - Add contextual suggestions based on error types
+   - Use error URLs to link to documentation
 
 3. **Implement Direct JSON Validation**
    - Use `model_validate_json` for direct JSON handling:
@@ -1336,6 +1641,7 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
      ```
    - Skip intermediate parsing steps for better performance
    - Properly handle JSON errors with structured responses
+   - Support file-like objects for streaming validation
 
 ### Phase 3: Advanced Model Features
 
@@ -1346,11 +1652,24 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
          type: Literal["git"] = "git"
          remotes: dict[str, "GitRemote"] | None = None
      ```
-   - Create discriminated unions with `Discriminator` and `Tag`
+   - Create discriminated unions with `Discriminator` and `Tag`:
+     ```python
+     RepositoryDetails = Annotated[
+         Union[
+             Annotated[GitRepositoryDetails, Tag('git')],
+             Annotated[HgRepositoryDetails, Tag('hg')],
+         ],
+         Discriminator(repo_type_discriminator)
+     ]
+     ```
    - Add helper methods for easier type discrimination
+   - Consider using `tag_property` for cleaner discrimination
 
 2. **Enhance Model Serialization**
-   - Configure serialization aliases for field names
+   - Configure serialization aliases for field names:
+     ```python
+     url: str = Field(serialization_alias="repository_url")
+     ```
    - Use conditional serialization with `.model_dump()` options:
      ```python
      def model_dump_config(self, include_shell_commands: bool = False) -> dict:
@@ -1358,6 +1677,7 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
          return self.model_dump(exclude=exclude, by_alias=True)
      ```
    - Implement custom serialization methods for complex types
+   - Use `model_dump_json()` with appropriate options
 
 3. **Add JSON Schema Customization**
    - Enhance schema documentation with `json_schema_extra`:
@@ -1372,6 +1692,7 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
      ```
    - Add examples to schemas for better documentation
    - Configure schema generation for API documentation
+   - Use custom schema generation for specific needs
 
 ### Phase 4: Clean Up and Optimize
 
@@ -1379,19 +1700,22 @@ A practical, step-by-step approach to migrating the codebase to fully leverage P
    - Remove redundant validation in helper functions
    - Replace custom checks with model validators
    - Ensure consistent validation across the codebase
+   - Use factory methods for model creation
 
 2. **Optimize Performance**
    - Use specific container types (e.g., `list[int]` vs. `Sequence[int]`)
-   - Configure validation modes for unions
+   - Configure validation modes for unions with `union_mode`
    - Apply appropriate caching strategies for repetitive operations
+   - Use `defer_build=True` for complex models 
 
 3. **Refactor External Functions**
    - Move helper functions into model methods where appropriate
    - Create factory methods for complex model creation
    - Implement conversion methods between model types
    - Ensure proper type information for static type checking
+   - Create utilities that use `TypeAdapter` efficiently
 
-Each phase should include updating tests to verify proper behavior and documentation to explain the new patterns and API changes.
+Each phase should include updating tests to verify proper behavior and documentation to explain the new patterns and API changes. Use Pydantic's built-in documentation features to ensure that models are self-documenting as much as possible.
 
 ## Conclusion
 
