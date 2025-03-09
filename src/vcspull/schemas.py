@@ -315,7 +315,7 @@ class RepositoryModel(BaseModel):
 class ConfigSectionDictModel(RootModel[dict[str, RepositoryModel]]):
     """Configuration section model (dictionary of repositories)."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Note: RootModel does not support the 'extra' configuration option
 
     def __getitem__(self, key: str) -> RepositoryModel:
         """Get repository by name.
@@ -366,7 +366,7 @@ class ConfigSectionDictModel(RootModel[dict[str, RepositoryModel]]):
 class ConfigDictModel(RootModel[dict[str, ConfigSectionDictModel]]):
     """Configuration model (dictionary of sections)."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Note: RootModel does not support the 'extra' configuration option
 
     def __getitem__(self, key: str) -> ConfigSectionDictModel:
         """Get section by name.
@@ -599,13 +599,13 @@ class RawRepositoryModel(BaseModel):
 class RawConfigSectionDictModel(RootModel[dict[str, RawRepoDataType]]):
     """Raw configuration section model before validation."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Note: RootModel does not support the 'extra' configuration option
 
 
 class RawConfigDictModel(RootModel[dict[str, RawConfigSectionDictModel]]):
     """Raw configuration model before validation and processing."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Note: RootModel does not support the 'extra' configuration option
 
 
 # Cache the type adapters for better performance

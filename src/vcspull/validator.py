@@ -410,11 +410,11 @@ def get_structured_errors(validation_error: ValidationError) -> dict[str, t.Any]
     raw_errors = validation_error.errors(include_context=True, include_input=True)
 
     # Group errors by location
-    structured_errors = {}
+    structured_errors: dict[str, t.Any] = {}
 
     for error in raw_errors:
         # Get location path as string
-        loc_parts = error.get("loc", [])
+        loc_parts: list[t.Any] = error.get("loc", [])
         current_node = structured_errors
 
         # Build a nested structure based on the location
