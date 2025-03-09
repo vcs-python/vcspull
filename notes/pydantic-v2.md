@@ -3038,3 +3038,27 @@ print(user.is_adult)  # True or False depending on current date
 ```
 
 This API provides better type safety and allows more complex validation flows than traditional validators.
+
+#### Benefits of the Pipeline API
+
+The Pipeline API offers several advantages over traditional validators:
+
+1. **Type Safety**: Each step in the pipeline maintains proper type information, helping catch potential issues at development time.
+
+2. **Composability**: Easily chain multiple validation and transformation steps in a logical sequence.
+
+3. **Readability**: The pipeline clearly shows the sequence and purpose of each validation/transformation step.
+
+4. **Reusability**: Pipeline components can be easily reused across different models and fields.
+
+5. **Dependencies**: Computed values can explicitly declare their dependencies on other fields.
+
+Available pipeline components include:
+
+- **`pipeline.validate(type)`**: Validates against a specific type
+- **`pipeline.transform(func)`**: Applies a transformation function
+- **`pipeline.predicate(func, error_message)`**: Tests a condition and raises an error if it fails
+- **`pipeline.constraint(func, error_message)`**: Applies a constraint with custom error message
+- **`pipeline.computed(func, dependencies)`**: Computes a value based on other fields (specified in dependencies)
+
+While this API is still experimental, it represents a more elegant approach to complex validation scenarios and may become the preferred way to handle sophisticated validation in future versions.
