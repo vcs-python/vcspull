@@ -71,7 +71,7 @@ The audit identified several issues with the internal APIs:
    import typing as t
    from pathlib import Path
    import enum
-   from pydantic import BaseModel, Field
+   from pydantic import BaseModel, Field, ConfigDict
    
    class VCSType(enum.Enum):
        """Version control system types."""
@@ -104,10 +104,10 @@ The audit identified several issues with the internal APIs:
        active_branch: t.Optional[str] = None
        has_uncommitted: bool = False
        
-       model_config = {
-           "frozen": False,
-           "extra": "forbid",
-       }
+       model_config = ConfigDict(
+           frozen=False,
+           extra="forbid",
+       )
    
    def detect_vcs(repo_path: t.Union[str, Path]) -> t.Optional[VCSType]:
        """Detect the version control system used by a repository.

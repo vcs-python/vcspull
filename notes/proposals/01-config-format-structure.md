@@ -69,7 +69,7 @@ The audit identified several issues with the current configuration format:
    import typing as t
    from pathlib import Path
    import os
-   from pydantic import BaseModel, Field, field_validator
+   from pydantic import BaseModel, Field, field_validator, ConfigDict
    
    class Repository(BaseModel):
        """Repository configuration model."""
@@ -111,8 +111,8 @@ The audit identified several issues with the current configuration format:
        repositories: list[Repository] = Field(default_factory=list)
        includes: list[str] = Field(default_factory=list)
        
-       model_config = {
-           "json_schema_extra": {
+       model_config = ConfigDict(
+           json_schema_extra={
                "examples": [
                    {
                        "settings": {
@@ -133,7 +133,7 @@ The audit identified several issues with the current configuration format:
                    }
                ]
            }
-       }
+       )
    ```
 
 2. **Using TypeAdapter for Validation**:
