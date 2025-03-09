@@ -41,6 +41,7 @@ extensions = [
     "sphinxext.rediraffe",
     "myst_parser",
     "linkify_issues",
+    "sphinxcontrib.autodoc_pydantic",
 ]
 myst_enable_extensions = [
     "colon_fence",
@@ -121,6 +122,19 @@ autodoc_default_options = {
 # sphinx-autodoc-typehints
 autodoc_typehints = "description"  # show type hints in doc body instead of signature
 simplify_optional_unions = True
+
+# autodoc_pydantic configuration
+autodoc_pydantic_model_show_json = True
+autodoc_pydantic_model_show_config = True
+autodoc_pydantic_model_show_validator_members = True
+autodoc_pydantic_model_show_field_summary = True
+autodoc_pydantic_model_member_order = "bysource"
+autodoc_pydantic_model_hide_paramlist = False
+autodoc_pydantic_model_undoc_members = True
+autodoc_pydantic_field_list_validators = True
+autodoc_pydantic_field_show_constraints = True
+autodoc_pydantic_settings_show_json = True
+autodoc_pydantic_settings_show_config = True
 
 # sphinx.ext.napoleon
 napoleon_google_docstring = True
