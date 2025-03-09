@@ -33,6 +33,7 @@ include = [
   { path = "docs", format = "sdist" },
   { path = "examples", format = "sdist" },
   { path = "conftest.py", format = "sdist" },
+  { path = "src/vcspull/py.typed" },
 ]
 readme = 'README.md'
 keywords = [
