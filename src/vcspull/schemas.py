@@ -248,13 +248,11 @@ class RepositoryModel(BaseModel):
         Raises
         ------
         ValueError
-            If there's a VCS-specific validation error
+            If remotes are provided for non-Git repositories
         """
-        # Git remotes are only for Git repositories
-        if self.remotes and self.vcs != "git":
+        is_git = self.vcs == "git"
+        if not is_git and self.remotes:
             raise ValueError(REMOTES_GIT_ONLY_ERROR)
-
-        # Additional VCS-specific validation could be added here
         return self
 
     @field_validator("url")
@@ -267,7 +265,7 @@ class RepositoryModel(BaseModel):
         v : str
             URL to validate
         info : ValidationInfo
-            Validation context
+            Validation context information
 
         Returns
         -------
@@ -277,58 +275,47 @@ class RepositoryModel(BaseModel):
         Raises
         ------
         ValueError
-            If URL is invalid
+            If URL is empty or contains only whitespace
         """
         if not v:
             raise ValueError(URL_EMPTY_ERROR)
-
-        # Get VCS type from validation context
-        vcs_type = info.data.get("vcs", "").lower() if info.data else ""
-
-        # Basic validation for all URL types
         if v.strip() == "":
             raise ValueError(URL_WHITESPACE_ERROR)
-
-        # VCS-specific validation
-        if vcs_type == "git" and "github.com" in v and not v.endswith(".git"):
-            # Add .git suffix for GitHub URLs if missing
-            return f"{v}.git"
-
-        return v
+        return v.strip()
 
     def model_dump_config(
         self,
         include_shell_commands: bool = False,
     ) -> dict[str, t.Any]:
-        """Dump model with conditional field inclusion.
+        """Dump the model as a configuration dictionary.
 
         Parameters
         ----------
         include_shell_commands : bool, optional
-            Whether to include shell commands in the output, by default False
+            Whether to include shell_command_after in the output, by default False
 
         Returns
         -------
         dict[str, t.Any]
-            Model data as dictionary
+            Configuration dictionary
         """
-        exclude = set()
-        if not include_shell_commands:
-            exclude.add("shell_command_after")
+        exclude_fields = set()
+        if not include_shell_commands and self.shell_command_after is None:
+            exclude_fields.add("shell_command_after")
 
-        return self.model_dump(
-            exclude=exclude,
-            exclude_none=True,  # Omit None fields
-            exclude_unset=True,  # Omit unset fields
-        )
+        data = self.model_dump(exclude=exclude_fields, exclude_none=True)
+
+        # Convert pathlib.Path to string for serialization
+        if "path" in data and isinstance(data["path"], pathlib.Path):
+            data["path"] = str(data["path"])
+
+        return data
 
 
 class ConfigSectionDictModel(RootModel[dict[str, RepositoryModel]]):
-    """Configuration section model containing repositories.
+    """Configuration section model (dictionary of repositories)."""
 
-    A section is a logical grouping of repositories, typically by project or
-    organization.
-    """
+    model_config = ConfigDict(extra="forbid")
 
     def __getitem__(self, key: str) -> RepositoryModel:
         """Get repository by name.
@@ -341,7 +328,7 @@ class ConfigSectionDictModel(RootModel[dict[str, RepositoryModel]]):
         Returns
         -------
         RepositoryModel
-            Repository configuration
+            Repository model
         """
         return self.root[key]
 
@@ -350,38 +337,36 @@ class ConfigSectionDictModel(RootModel[dict[str, RepositoryModel]]):
 
         Returns
         -------
-        KeysView[str]
-            View of repository names
+        t.KeysView[str]
+            Repository names
         """
         return self.root.keys()
 
     def items(self) -> t.ItemsView[str, RepositoryModel]:
-        """Get items as name-repository pairs.
+        """Get repository items.
 
         Returns
         -------
-        ItemsView[str, RepositoryModel]
-            View of name-repository pairs
+        t.ItemsView[str, RepositoryModel]
+            Repository items (name, model)
         """
         return self.root.items()
 
     def values(self) -> t.ValuesView[RepositoryModel]:
-        """Get repository configurations.
+        """Get repository models.
 
         Returns
         -------
-        ValuesView[RepositoryModel]
-            View of repository configurations
+        t.ValuesView[RepositoryModel]
+            Repository models
         """
         return self.root.values()
 
 
 class ConfigDictModel(RootModel[dict[str, ConfigSectionDictModel]]):
-    """Complete configuration model containing sections.
+    """Configuration model (dictionary of sections)."""
 
-    A configuration is a collection of sections, where each section contains
-    repositories.
-    """
+    model_config = ConfigDict(extra="forbid")
 
     def __getitem__(self, key: str) -> ConfigSectionDictModel:
         """Get section by name.
@@ -394,7 +379,7 @@ class ConfigDictModel(RootModel[dict[str, ConfigSectionDictModel]]):
         Returns
         -------
         ConfigSectionDictModel
-            Section configuration
+            Section model
         """
         return self.root[key]
 
@@ -403,33 +388,36 @@ class ConfigDictModel(RootModel[dict[str, ConfigSectionDictModel]]):
 
         Returns
         -------
-        KeysView[str]
-            View of section names
+        t.KeysView[str]
+            Section names
         """
         return self.root.keys()
 
     def items(self) -> t.ItemsView[str, ConfigSectionDictModel]:
-        """Get items as section-repositories pairs.
+        """Get section items.
 
         Returns
         -------
-        ItemsView[str, ConfigSectionDictModel]
-            View of section-repositories pairs
+        t.ItemsView[str, ConfigSectionDictModel]
+            Section items (name, model)
         """
         return self.root.items()
 
     def values(self) -> t.ValuesView[ConfigSectionDictModel]:
-        """Get section configurations.
+        """Get section models.
 
         Returns
         -------
-        ValuesView[ConfigSectionDictModel]
-            View of section configurations
+        t.ValuesView[ConfigSectionDictModel]
+            Section models
         """
         return self.root.values()
 
 
-# Raw configuration models for initial parsing without validation
+# Type alias for raw repository data
+RawRepoDataType = t.Union[str, dict[str, t.Any]]
+
+
 class RawRepositoryModel(BaseModel):
     """Raw repository configuration model before validation and path resolution.
 
@@ -468,44 +456,43 @@ class RawRepositoryModel(BaseModel):
     )
 
     model_config = ConfigDict(
-        extra="allow",  # Allow extra fields in raw config
+        extra="forbid",
         str_strip_whitespace=True,
+        validate_assignment=True,
     )
 
     @model_validator(mode="after")
     def validate_vcs_specific_fields(self) -> RawRepositoryModel:
         """Validate VCS-specific fields.
 
-        Ensures that certain fields are only used with the appropriate VCS type.
+        Ensures that certain fields only appear with the appropriate VCS type.
+        For example, remotes are only valid for Git repositories.
 
         Returns
         -------
         RawRepositoryModel
-            The validated model
+            The validated repository model
 
         Raises
         ------
         ValueError
-            If validation fails
+            If remotes are provided for non-Git repositories
         """
-        # Git remotes are only for Git repositories
-        if self.remotes and self.vcs != "git":
+        if self.vcs != "git" and self.remotes:
             raise ValueError(REMOTES_GIT_ONLY_ERROR)
-
-        # Additional VCS-specific validation could be added here
         return self
 
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str, info: ValidationInfo) -> str:
-        """Validate repository URL based on VCS type.
+        """Validate repository URL.
 
         Parameters
         ----------
         v : str
             URL to validate
         info : ValidationInfo
-            Validation information including access to other field values
+            Validation context information
 
         Returns
         -------
@@ -515,20 +502,13 @@ class RawRepositoryModel(BaseModel):
         Raises
         ------
         ValueError
-            If URL validation fails
+            If URL is empty or contains only whitespace
         """
-        # Access other values using context
-        vcs_type = info.data.get("vcs", "") if info.data else ""
-
-        if not v or v.strip() == "":
+        if not v:
             raise ValueError(URL_EMPTY_ERROR)
-
-        # Git-specific URL validation
-        if vcs_type == "git" and "github.com" in v and not v.endswith(".git"):
-            # Add .git suffix for GitHub URLs
-            return f"{v}.git"
-
-        return v
+        if v.strip() == "":
+            raise ValueError(URL_WHITESPACE_ERROR)
+        return v.strip()
 
     @field_validator("remotes")
     @classmethod
@@ -537,57 +517,49 @@ class RawRepositoryModel(BaseModel):
         v: dict[str, dict[str, t.Any]] | None,
         info: ValidationInfo,
     ) -> dict[str, dict[str, t.Any]] | None:
-        """Validate Git remotes configuration.
+        """Validate remotes configuration.
 
         Parameters
         ----------
-        v : dict[str, dict[str, Any]] | None
+        v : dict[str, dict[str, t.Any]] | None
             Remotes configuration to validate
         info : ValidationInfo
-            Validation information
+            Validation context information
 
         Returns
         -------
-        dict[str, dict[str, Any]] | None
-            Validated remotes configuration
+        dict[str, dict[str, t.Any]] | None
+            Validated remotes configuration or None
 
         Raises
         ------
-        TypeError
-            If remotes configuration has incorrect type
         ValueError
-            If remotes configuration has invalid values
+            If remotes are provided for non-Git repositories or
+            if remote configuration is invalid
         """
         if v is None:
             return None
 
-        # Get VCS type from context
-        vcs_type = info.data.get("vcs", "") if info.data else ""
+        # Check that remotes are only used with Git repositories
+        values = info.data
+        if "vcs" in values and values["vcs"] != "git":
+            raise ValueError(REMOTES_GIT_ONLY_ERROR)
 
-        # Remotes are only relevant for Git repositories
-        if vcs_type != "git":
-            err_msg = f"Remotes are not supported for {vcs_type} repositories"
-            raise ValueError(err_msg)
-
+        # Validate each remote
         for remote_name, remote_config in v.items():
             if not isinstance(remote_config, dict):
-                msg = f"Invalid remote '{remote_name}': must be a dictionary"
-                raise TypeError(msg)
+                error_msg = f"Remote {remote_name}: {INVALID_REMOTE_ERROR}"
+                raise TypeError(error_msg)
 
-            # Ensure required fields are present for each remote
-            if isinstance(remote_config, dict) and "url" not in remote_config:
-                msg = f"Missing required field 'url' in remote '{remote_name}'"
-                raise ValueError(msg)
+            # Required fields
+            if "url" not in remote_config:
+                error_msg = f"Remote {remote_name}: Missing required field 'url'"
+                raise ValueError(error_msg)
 
-            # Check for empty URL in remote config
-            if (
-                isinstance(remote_config, dict)
-                and "url" in remote_config
-                and isinstance(remote_config["url"], str)
-                and remote_config["url"].strip() == ""
-            ):
-                msg = f"Empty URL in remote '{remote_name}': URL cannot be empty"
-                raise ValueError(msg)
+            # URL must not be empty
+            if not remote_config.get("url", "").strip():
+                error_msg = f"Remote {remote_name}: {URL_EMPTY_ERROR}"
+                raise ValueError(error_msg)
 
         return v
 
@@ -604,7 +576,7 @@ class RawRepositoryModel(BaseModel):
         Returns
         -------
         list[str] | None
-            Validated shell commands
+            Validated shell commands or None
 
         Raises
         ------
@@ -614,89 +586,74 @@ class RawRepositoryModel(BaseModel):
         if v is None:
             return None
 
+        shell_cmd_error = "Shell commands must be strings"
         if not all(isinstance(cmd, str) for cmd in v):
-            msg = "All shell commands must be strings"
-            raise ValueError(msg)
+            raise ValueError(shell_cmd_error)
 
-        # Check for empty commands
-        if any(cmd.strip() == "" for cmd in v if isinstance(cmd, str)):
-            msg = "Shell commands cannot be empty"
-            raise ValueError(msg)
-
-        return v
+        # Remove empty commands and strip whitespace
+        return [cmd.strip() for cmd in v if cmd.strip()]
 
 
-# Use a type alias for the complex type in RawConfigSectionDictModel
-RawRepoDataType = t.Union[RawRepositoryModel, str, dict[str, t.Any]]
-
-
+# Create pre-instantiated TypeAdapters for better performance
+# These should be initialized once and reused throughout the codebase
 class RawConfigSectionDictModel(RootModel[dict[str, RawRepoDataType]]):
     """Raw configuration section model before validation."""
 
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-    )
+    model_config = ConfigDict(extra="forbid")
 
 
 class RawConfigDictModel(RootModel[dict[str, RawConfigSectionDictModel]]):
     """Raw configuration model before validation and processing."""
 
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-    )
+    model_config = ConfigDict(extra="forbid")
 
 
-# Create module-level TypeAdapters for improved performance
+# Cache the type adapters for better performance
 @lru_cache(maxsize=8)
 def get_repo_validator() -> TypeAdapter[RawRepositoryModel]:
-    """Get cached TypeAdapter for repository validation.
+    """Get or create a TypeAdapter for RawRepositoryModel.
 
     Returns
     -------
     TypeAdapter[RawRepositoryModel]
-        TypeAdapter for validating repositories
+        Type adapter for repository validation
     """
     return TypeAdapter(RawRepositoryModel)
 
 
+# Cache the type adapter for better performance
 @lru_cache(maxsize=8)
 def get_config_validator() -> TypeAdapter[RawConfigDictModel]:
-    """Get cached TypeAdapter for config validation.
+    """Get or create a TypeAdapter for RawConfigDictModel.
 
     Returns
     -------
     TypeAdapter[RawConfigDictModel]
-        TypeAdapter for validating configs
+        Type adapter for configuration validation
     """
     return TypeAdapter(RawConfigDictModel)
 
 
-# Initialize validators on module load for better performance
+# Pre-instantiate frequently used TypeAdapters for better performance
 repo_validator = get_repo_validator()
 config_validator = get_config_validator()
 
-# Pre-build schemas for better performance
-repo_validator.rebuild()
-config_validator.rebuild()
-
 
 def is_valid_repo_config(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]]:
-    """Check if repository configuration is valid.
+    """Check if a repository configuration is valid.
 
     Parameters
     ----------
-    config : dict[str, Any]
+    config : dict[str, t.Any]
         Repository configuration to validate
 
     Returns
     -------
-    TypeGuard[dict[str, Any]]
-        True if config is valid
+    TypeGuard[dict[str, t.Any]]
+        True if the configuration is valid
     """
-    if config is None:
-        return False
-
     try:
+        # Use the pre-instantiated TypeAdapter
         repo_validator.validate_python(config)
         return True
     except Exception:
@@ -704,47 +661,44 @@ def is_valid_repo_config(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]
 
 
 def is_valid_config_dict(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]]:
-    """Check if configuration dictionary is valid.
+    """Check if a configuration dictionary is valid.
 
     Parameters
     ----------
-    config : dict[str, Any]
-        Configuration to validate
+    config : dict[str, t.Any]
+        Configuration dictionary to validate
 
     Returns
     -------
-    TypeGuard[dict[str, Any]]
-        True if config is valid
+    TypeGuard[dict[str, t.Any]]
+        True if the configuration is valid
     """
-    if config is None:
-        return False
-
-    # Check that all keys are strings and all values are dictionaries
-    if not all(isinstance(k, str) for k in config):
-        return False
-
-    # Check that all values are dictionaries
-    if not all(isinstance(v, dict) for v in config.values()):
-        return False
-
-    # Check that repository values are either dictionaries or strings (URL shorthand)
-    for section in config.values():
-        for repo in section.values():
-            # Only string URLs or proper repository dictionaries are valid
-            if not isinstance(repo, dict) and not isinstance(repo, str):
-                return False
-            # If it's a string, it should be a valid URL
-            if isinstance(repo, str) and not repo.strip():
-                return False
-
     try:
-        config_validator.validate_python({"root": config})
+        sections = {}
+        for section_name, section_repos in config.items():
+            section_dict = {}
+            for repo_name, repo_config in section_repos.items():
+                # Handle string URLs (convert to dict)
+                if isinstance(repo_config, str):
+                    repo_config = {
+                        "url": repo_config,
+                        "vcs": "git",  # Default to git
+                        "name": repo_name,
+                        "path": repo_name,  # Use name as default path
+                    }
+                # Add name if missing
+                if isinstance(repo_config, dict) and "name" not in repo_config:
+                    repo_config = {**repo_config, "name": repo_name}
+                section_dict[repo_name] = repo_config
+            sections[section_name] = section_dict
+
+        # Use the pre-instantiated TypeAdapter for validation
+        config_validator.validate_python(sections)
         return True
     except Exception:
         return False
 
 
-# Functions to convert between raw and validated models
 def convert_raw_to_validated(
     raw_config: RawConfigDictModel,
     cwd: t.Callable[[], pathlib.Path] = pathlib.Path.cwd,
@@ -754,65 +708,74 @@ def convert_raw_to_validated(
     Parameters
     ----------
     raw_config : RawConfigDictModel
-        Raw configuration
-    cwd : Callable[[], Path], optional
-        Function to get current working directory, by default Path.cwd
+        Raw configuration from file
+    cwd : t.Callable[[], pathlib.Path], optional
+        Function to get current working directory, by default pathlib.Path.cwd
 
     Returns
     -------
     ConfigDictModel
         Validated configuration
     """
-    # Create a new ConfigDictModel
-    config = ConfigDictModel(root={})
+    validated_sections = {}
 
-    # Process each section in the raw config
-    for section_name, raw_section in raw_config.root.items():
-        # Create a new section in the validated config
-        config.root[section_name] = ConfigSectionDictModel(root={})
+    for section_name, section in raw_config.root.items():
+        validated_repos = {}
 
-        # Process each repository in the section
-        for repo_name, raw_repo_data in raw_section.root.items():
-            # Handle string shortcuts (URL strings)
-            if isinstance(raw_repo_data, str):
-                # Convert string URL to a repository model
-                repo_model = RepositoryModel(
-                    vcs="git",  # Default to git for string URLs
-                    name=repo_name,
-                    path=cwd() / repo_name,  # Default path is repo name in current dir
-                    url=raw_repo_data,
-                )
-            # Handle direct dictionary data
-            elif isinstance(raw_repo_data, dict):
-                # Ensure name is set
-                if "name" not in raw_repo_data:
-                    raw_repo_data["name"] = repo_name
+        for repo_name, repo_config in section.root.items():
+            # Convert string URLs to full config
+            if isinstance(repo_config, str):
+                url = repo_config
+                repo_config = {
+                    "vcs": "git",  # Default to git
+                    "url": url,
+                    "name": repo_name,
+                    "path": repo_name,  # Default path is repo name
+                }
 
-                # Validate and convert path
-                if "path" in raw_repo_data:
-                    path = raw_repo_data["path"]
-                    # Convert relative paths to absolute using cwd
-                    path_obj = pathlib.Path(os.path.expandvars(str(path))).expanduser()
-                    if not path_obj.is_absolute():
-                        path_obj = cwd() / path_obj
-                    raw_repo_data["path"] = path_obj
+            # Ensure name is set from the config key if not provided
+            if isinstance(repo_config, dict) and "name" not in repo_config:
+                repo_config = {**repo_config, "name": repo_name}
 
-                # Create repository model
-                repo_model = RepositoryModel.model_validate(raw_repo_data)
-            else:
-                # Skip invalid repository data
-                continue
+            # Validate raw repository config
+            raw_repo = RawRepositoryModel.model_validate(repo_config)
 
-            # Add repository to the section
-            config.root[section_name].root[repo_name] = repo_model
+            # Resolve path: if relative, base on CWD
+            path_str = raw_repo.path
+            path = pathlib.Path(os.path.expandvars(path_str))
+            if not path.is_absolute():
+                path = cwd() / path
 
-    return config
+            # Handle remotes if present
+            remotes = None
+            if raw_repo.remotes:
+                validated_remotes = {}
+                for remote_name, remote_config in raw_repo.remotes.items():
+                    remote_model = GitRemote.model_validate(remote_config)
+                    validated_remotes[remote_name] = remote_model
+                remotes = validated_remotes
+
+            # Create validated repository model
+            repo = RepositoryModel(
+                vcs=raw_repo.vcs,
+                name=raw_repo.name,
+                path=path,
+                url=raw_repo.url,
+                remotes=remotes,
+                shell_command_after=raw_repo.shell_command_after,
+            )
+
+            validated_repos[repo_name] = repo
+
+        validated_sections[section_name] = ConfigSectionDictModel(root=validated_repos)
+
+    return ConfigDictModel(root=validated_sections)
 
 
 def validate_config_from_json(
     json_data: str | bytes,
 ) -> tuple[bool, dict[str, t.Any] | str]:
-    """Validate configuration directly from JSON.
+    """Validate configuration from JSON string or bytes.
 
     Parameters
     ----------
@@ -821,21 +784,28 @@ def validate_config_from_json(
 
     Returns
     -------
-    tuple[bool, dict[str, Any] | str]
-        Tuple of (is_valid, validated_config_or_error_message)
+    tuple[bool, dict[str, t.Any] | str]
+        Tuple of (is_valid, data_or_error_message)
     """
-    if not json_data:
-        return False, "JSON data cannot be empty"
-
     try:
-        # Direct JSON validation - more performant
-        config = RawConfigDictModel.model_validate_json(
-            json_data,
-            context={"source": "json_data"},  # Add context for validators
-        )
-        return True, config.model_dump(
-            exclude_unset=True,
-            exclude_none=True,
-        )
+        import json
+
+        # Parse JSON
+        if isinstance(json_data, bytes):
+            config_dict = json.loads(json_data.decode("utf-8"))
+        else:
+            config_dict = json.loads(json_data)
+
+        # Basic type checking
+        if not isinstance(config_dict, dict):
+            return False, "Configuration must be a dictionary"
+
+        # Validate using Pydantic
+        raw_config = RawConfigDictModel.model_validate(config_dict)
+        validated_config = convert_raw_to_validated(raw_config)
+
+        # If validation succeeded, return the validated config
+        return True, validated_config.model_dump()
     except Exception as e:
+        # Return error message on failure
         return False, str(e)

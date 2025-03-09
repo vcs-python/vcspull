@@ -11,10 +11,7 @@ from pydantic import ValidationError
 
 from . import exc
 from .schemas import (
-    INVALID_VCS_ERROR,
     PATH_EMPTY_ERROR,
-    REMOTES_GIT_ONLY_ERROR,
-    RawConfigDictModel,
     config_validator,
     is_valid_config_dict,
     repo_validator,
@@ -58,8 +55,8 @@ def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfig]:
         return False
 
     # Check repositories in each section
-    for section, repos in config.items():
-        for repo_name, repo in repos.items():
+    for _section, repos in config.values():
+        for _repo_name, repo in repos.values():
             # String URLs are valid repository configs
             if isinstance(repo, str):
                 continue
@@ -98,10 +95,9 @@ def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
         return False, "Repository configuration cannot be None"
 
     if not isinstance(repo_config, dict):
-        return (
-            False,
-            f"Repository configuration must be a dictionary, got {type(repo_config).__name__}",
-        )
+        type_name = type(repo_config).__name__
+        error_msg = f"Repository configuration must be a dictionary, got {type_name}"
+        return False, error_msg
 
     try:
         # Use TypeAdapter for validation - more efficient
@@ -197,18 +193,21 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
             )
 
         if not isinstance(section, dict):
-            return (
-                False,
-                f"Section '{section_name}' must be a dictionary, got {type(section).__name__}",
+            type_name = type(section).__name__
+            error_msg = (
+                f"Section '{section_name}' must be a dictionary, got {type_name}"
             )
+            return False, error_msg
 
         # Validate repositories in section
         for repo_name, repo in section.items():
             if not isinstance(repo_name, str):
-                return (
-                    False,
-                    f"Repository name in section '{section_name}' must be a string, got {type(repo_name).__name__}",
+                type_name = type(repo_name).__name__
+                err_msg = (
+                    f"Repository name in section '{section_name}' must be a string, "
+                    f"got {type_name}"
                 )
+                return False, err_msg
 
             # If repo is a string, it's a URL shorthand
             if isinstance(repo, str):
@@ -221,25 +220,47 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
 
             # If repo is not a dict, it's an invalid type
             if not isinstance(repo, dict):
-                return (
-                    False,
-                    f"Repository '{section_name}.{repo_name}' must be a dictionary or string URL, "
-                    f"got {type(repo).__name__}",
+                type_name = type(repo).__name__
+                err_msg = (
+                    f"Repository '{section_name}.{repo_name}' must be a dictionary "
+                    f"or string URL, got {type_name}"
                 )
+                return False, err_msg
 
             # Check for required fields in repository
             if isinstance(repo, dict):
                 for field in ["vcs", "url", "path"]:
                     if field not in repo:
-                        return (
-                            False,
-                            f"Missing required field '{field}' in repository '{section_name}.{repo_name}'",
+                        err_msg = (
+                            f"Missing required field '{field}' in repository "
+                            f"'{section_name}.{repo_name}'"
                         )
+                        return False, err_msg
 
     # Use Pydantic validation through TypeAdapter for complete validation
     try:
-        # Use type adapter for validation
-        config_validator.validate_python({"root": config})
+        # Convert string URLs to full repo configurations for validation
+        converted_config = {}
+        for section_name, section in config.items():
+            converted_section = {}
+            for repo_name, repo in section.items():
+                # String URLs are shorthand for git repositories
+                if isinstance(repo, str):
+                    repo = {
+                        "vcs": "git",
+                        "url": repo,
+                        "name": repo_name,
+                        "path": repo_name,
+                    }
+                # Ensure name field is set
+                elif isinstance(repo, dict) and "name" not in repo:
+                    repo = {**repo, "name": repo_name}
+
+                converted_section[repo_name] = repo
+            converted_config[section_name] = converted_section
+
+        # Validate with the TypeAdapter
+        config_validator.validate_python(converted_config)
         return True, None
     except ValidationError as e:
         # Format the Pydantic errors with the improved formatter
@@ -247,304 +268,183 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
 
         # Add custom suggestion based on error type if needed
         if "missing" in error_message:
-            message = (
-                error_message
-                + "\nMake sure all sections and repositories have the required fields."
-            )
+            suffix = "Make sure all required fields are present in your configuration."
+            message = f"{error_message}\n{suffix}"
             return False, message
 
         return False, error_message
+    except Exception as e:
+        # Catch any other exceptions
+        return False, f"Validation error: {e}"
 
 
 def validate_config(config: t.Any) -> None:
-    """Validate a configuration and raise exceptions for invalid configs.
+    """Validate a complete configuration and raise exceptions for any issues.
 
     Parameters
     ----------
     config : Any
         Configuration to validate
 
+    Returns
+    -------
+    None
+
     Raises
     ------
-    ConfigValidationError
+    exc.ConfigError
         If the configuration is invalid
     """
-    # Check for basic structure issues first
-    if config is None:
-        raise exc.ConfigValidationError(
-            message="Invalid configuration: Configuration cannot be None",
-            suggestion="Provide a valid configuration dictionary.",
-        )
+    # Strategy: validate in stages, raising specific exceptions for each type of error
 
-    # Type check - important for test_validate_config_raises_exceptions
-    if not isinstance(config, dict):
-        raise exc.ConfigValidationError(
-            message=(
-                f"Invalid configuration structure: Configuration must be a dictionary, "
-                f"got {type(config).__name__}"
-            ),
-            suggestion=(
-                "Check that your configuration is properly formatted "
-                "as a dictionary of sections containing repositories."
-            ),
-        )
+    # Stage 1: Validate basic types and structure
+    is_valid, error_message = validate_config_structure(config)
+    if not is_valid:
+        error_msg = f"Configuration structure error: {error_message}"
+        raise exc.ConfigValidationError(error_msg)
 
-    # Check that all keys are strings
-    for key in config:
-        if not isinstance(key, str):
-            raise exc.ConfigValidationError(
-                message=f"Invalid section name: {key} (type: {type(key).__name__})",
-                suggestion="Section names must be strings.",
-            )
+    # Stage 2: Validate each section and repository
+    validation_errors = {}
 
-    # Check that all values are dictionaries
-    for section, section_value in config.items():
-        if not isinstance(section_value, dict):
-            err_msg = (
-                f"Invalid section value for '{section}': {section_value} "
-                f"(type: {type(section_value).__name__})"
-            )
-            raise exc.ConfigValidationError(
-                message=err_msg,
-                suggestion="Section values must be dictionaries containing repositories.",
-            )
+    for section_name, section in config.items():
+        section_errors = {}
 
-        # Check repository configurations
-        for repo_name, repo_config in section_value.items():
-            # Skip string shorthand URLs
-            if isinstance(repo_config, str):
+        for repo_name, repo in section.items():
+            # Skip string URLs - they're already validated in structure check
+            if isinstance(repo, str):
                 continue
 
-            # Check that repo config is a dictionary
-            if not isinstance(repo_config, dict):
-                err_msg = (
-                    f"Invalid repository configuration for '{section}.{repo_name}': "
-                    f"{repo_config} (type: {type(repo_config).__name__})"
-                )
-                raise exc.ConfigValidationError(
-                    message=err_msg,
-                    suggestion="Repository configurations must be dictionaries or URL strings.",
-                )
+            # Validate repository configuration
+            if isinstance(repo, dict):
+                # Add name if missing
+                if "name" not in repo:
+                    repo = {**repo, "name": repo_name}
 
-            # Check for required fields
-            if "vcs" not in repo_config:
-                err_msg = f"Missing required field 'vcs' in repository '{section}.{repo_name}'"
-                raise exc.ConfigValidationError(
-                    message=err_msg,
-                    suggestion="Each repository configuration must include a 'vcs' field.",
-                )
+                is_valid, error = validate_repo_config(repo)
+                if not is_valid:
+                    section_errors[repo_name] = error
 
-            # Check VCS value
-            if "vcs" in repo_config and repo_config["vcs"] not in {"git", "hg", "svn"}:
-                err_msg = (
-                    f"Invalid VCS type '{repo_config['vcs']}' in repository "
-                    f"'{section}.{repo_name}'"
-                )
-                raise exc.ConfigValidationError(
-                    message=err_msg,
-                    suggestion=INVALID_VCS_ERROR,
-                )
+        # Add section errors if any were found
+        if section_errors:
+            validation_errors[section_name] = section_errors
 
-            # Check remotes (if present)
-            if "remotes" in repo_config and repo_config["remotes"] is not None:
-                if repo_config["vcs"] != "git":
-                    err_msg = (
-                        f"Invalid repository configuration: remotes only supported for git repos, "
-                        f"found in '{section}.{repo_name}' with vcs={repo_config['vcs']}"
-                    )
-                    raise exc.ConfigValidationError(
-                        message=err_msg,
-                        suggestion=REMOTES_GIT_ONLY_ERROR,
-                    )
+    # If validation_errors has entries, raise detailed exception
+    if validation_errors:
+        error_message = "Configuration validation failed:\n"
+        for section, section_errors in validation_errors.items():
+            error_message += f"  Section '{section}':\n"
+            for repo, repo_error in section_errors.items():
+                error_message += f"    Repository '{repo}': {repo_error}\n"
 
-    # Use Pydantic validation for complete validation
-    try:
-        config_validator.validate_python({"root": config})
-    except ValidationError as e:
-        # Create a more user-friendly error message with structure
-        error_message = format_pydantic_errors(e)
-        raise exc.ConfigValidationError(
-            message=f"Invalid configuration: {error_message}",
-            suggestion="Please correct the configuration errors and try again.",
-        ) from e
+        raise exc.ConfigValidationError(error_message)
+
+    # If we get here, configuration is valid
 
 
 def format_pydantic_errors(validation_error: ValidationError) -> str:
-    """Format Pydantic validation errors into a user-friendly message.
+    """Format Pydantic validation errors into a human-readable string.
 
     Parameters
     ----------
     validation_error : ValidationError
-        Pydantic ValidationError
+        Pydantic validation error
 
     Returns
     -------
     str
         Formatted error message
     """
-    # Get structured error representation with enhanced information
-    errors = validation_error.errors(
-        include_url=True,  # Include documentation URLs
-        include_context=True,  # Include validation context
-        include_input=True,  # Include input values
-    )
+    # Get errors with context
+    errors = validation_error.errors(include_context=True, include_input=True)
 
-    # Group errors by type for better organization
-    error_categories: dict[str, list[str]] = {
-        "missing_required": [],
-        "type_error": [],
-        "value_error": [],
-        "url_error": [],
-        "path_error": [],
-        "other": [],
-    }
+    if not errors:
+        return "Validation error"
 
+    # Single-error case - simplified message
+    if len(errors) == 1:
+        error = errors[0]
+        loc = ".".join(str(loc_part) for loc_part in error.get("loc", []))
+        msg = error.get("msg", "Unknown error")
+
+        if loc:
+            return f"Error at {loc}: {msg}"
+        return msg
+
+    # Multi-error case - detailed message
+    formatted_lines = []
     for error in errors:
-        # Format location as dot-notation path
-        location = ".".join(str(loc) for loc in error.get("loc", []))
-        message = error.get("msg", "Unknown error")
-        error_type = error.get("type", "")
-        url = error.get("url", "")
-        ctx = error.get("ctx", {})
-        input_value = error.get("input", "")
+        # Format location
+        loc = ".".join(str(loc_part) for loc_part in error.get("loc", []))
+        msg = error.get("msg", "Unknown error")
 
-        # Create a detailed error message
-        formatted_error = f"{location}: {message}"
-
-        # Add input value if available (for more context)
-        if input_value != "" and input_value is not None:
-            try:
-                # Format input value concisely
-                if isinstance(input_value, (dict, list)):
-                    # For complex values, summarize
-                    type_name = type(input_value).__name__
-                    items_count = len(input_value)
-                    value_repr = f"{type_name} with {items_count} items"
-                else:
-                    value_repr = repr(input_value)
-                formatted_error += f" (input: {value_repr})"
-            except Exception:
-                # Skip if there's an issue with the input value
-                pass
-
-        # Add documentation URL if available
-        if url:
-            formatted_error += f" (docs: {url})"
-
-        # Add context information if available
-        if ctx:
-            context_info = ", ".join(f"{k}={v!r}" for k, v in ctx.items())
-            formatted_error += f" [Context: {context_info}]"
-
-        # Categorize error by type
-        if "missing" in error_type or "required" in error_type:
-            error_categories["missing_required"].append(formatted_error)
-        elif "type" in error_type:
-            error_categories["type_error"].append(formatted_error)
-        elif "value" in error_type:
-            if "url" in location.lower():
-                error_categories["url_error"].append(formatted_error)
-            elif "path" in location.lower():
-                error_categories["path_error"].append(formatted_error)
-            else:
-                error_categories["value_error"].append(formatted_error)
+        # Add the input if available (limited to avoid overwhelming output)
+        input_value = error.get("input")
+        if input_value is not None:
+            # Truncate long inputs
+            input_str = str(input_value)
+            if len(input_str) > 50:
+                input_str = input_str[:47] + "..."
+            error_line = f"- {loc}: {msg} (input: {input_str})"
         else:
-            error_categories["other"].append(formatted_error)
+            error_line = f"- {loc}: {msg}"
 
-    # Build user-friendly message
-    result = ["Validation error:"]
+        formatted_lines.append(error_line)
 
-    # Add each error category in order of importance
-    if error_categories["missing_required"]:
-        result.append("\nMissing required fields:")
-        result.extend(f"  • {err}" for err in error_categories["missing_required"])
-
-    if error_categories["type_error"]:
-        result.append("\nType errors:")
-        result.extend(f"  • {err}" for err in error_categories["type_error"])
-
-    if error_categories["value_error"]:
-        result.append("\nValue errors:")
-        result.extend(f"  • {err}" for err in error_categories["value_error"])
-
-    if error_categories["url_error"]:
-        result.append("\nURL errors:")
-        result.extend(f"  • {err}" for err in error_categories["url_error"])
-
-    if error_categories["path_error"]:
-        result.append("\nPath errors:")
-        result.extend(f"  • {err}" for err in error_categories["path_error"])
-
-    if error_categories["other"]:
-        result.append("\nOther errors:")
-        result.extend(f"  • {err}" for err in error_categories["other"])
-
-    # Add suggestions based on error types
-    if error_categories["missing_required"]:
-        result.append("\nSuggestion: Ensure all required fields are provided.")
-    elif error_categories["type_error"]:
-        result.append("\nSuggestion: Check that field values have the correct types.")
-    elif error_categories["value_error"]:
-        suggestion = (
-            "\nSuggestion: Verify that values meet constraints (length, format, etc.)."
-        )
-        result.append(suggestion)
-    elif error_categories["url_error"]:
-        suggestion = "\nSuggestion: Ensure URLs are properly formatted and accessible."
-        result.append(suggestion)
-    elif error_categories["path_error"]:
-        result.append("\nSuggestion: Verify that file paths exist and are accessible.")
-
-    return "\n".join(result)
+    return "\n".join(formatted_lines)
 
 
 def get_structured_errors(validation_error: ValidationError) -> dict[str, t.Any]:
-    """Get structured error representation suitable for API responses.
+    """Convert Pydantic validation errors to a structured dictionary.
 
     Parameters
     ----------
     validation_error : ValidationError
-        The validation error to format
+        Pydantic validation error
 
     Returns
     -------
-    dict[str, t.Any]
-        Structured error format with categorized errors
+    dict[str, Any]
+        Structured error information
     """
-    # Get structured representation from errors method
-    errors = validation_error.errors(
-        include_url=True,
-        include_context=True,
-        include_input=True,
-    )
+    # Get raw errors with context
+    raw_errors = validation_error.errors(include_context=True, include_input=True)
 
-    # Group by error type
-    categorized: dict[str, list[dict[str, t.Any]]] = {}
+    # Group errors by location
+    structured_errors = {}
 
-    for error in errors:
-        location = ".".join(str(loc) for loc in error.get("loc", []))
-        error_type = error.get("type", "unknown")
+    for error in raw_errors:
+        # Get location path as string
+        loc_parts = error.get("loc", [])
+        current_node = structured_errors
 
-        if error_type not in categorized:
-            categorized[error_type] = []
+        # Build a nested structure based on the location
+        for i, loc_part in enumerate(loc_parts):
+            # Convert location part to string for keys
+            loc_key = str(loc_part)
 
-        categorized[error_type].append(
-            {
-                "location": location,
-                "message": error.get("msg", ""),
-                "context": error.get("ctx", {}),
-                "url": error.get("url", ""),
-                "input": error.get("input", ""),
-            },
-        )
+            # Last element - store the error
+            if i == len(loc_parts) - 1:
+                if loc_key not in current_node:
+                    current_node[loc_key] = []
 
-    # Return a structured error response
-    return {
-        "error": "ValidationError",
-        "detail": categorized,
-        "error_count": validation_error.error_count(),
-        "summary": str(validation_error),
-    }
+                # Add error info
+                error_info = {
+                    "msg": error.get("msg", "Unknown error"),
+                    "type": error.get("type", "unknown_error"),
+                }
+
+                # Include input value if available
+                if "input" in error:
+                    error_info["input"] = error.get("input")
+
+                current_node[loc_key].append(error_info)
+            else:
+                # Navigate to or create nested level
+                if loc_key not in current_node:
+                    current_node[loc_key] = {}
+                current_node = current_node[loc_key]
+
+    return structured_errors
 
 
 def validate_config_json(json_data: str | bytes) -> ValidationResult:
@@ -558,50 +458,27 @@ def validate_config_json(json_data: str | bytes) -> ValidationResult:
     Returns
     -------
     ValidationResult
-        Tuple of (is_valid, result_or_error_message)
+        Tuple of (is_valid, error_message)
     """
     if not json_data:
         return False, "JSON data cannot be empty"
 
     try:
-        # First parse the JSON
-        config_dict = json.loads(json_data)
+        # Parse JSON
+        if isinstance(json_data, bytes):
+            config_dict = json.loads(json_data.decode("utf-8"))
+        else:
+            config_dict = json.loads(json_data)
 
-        # Then validate the parsed config
-        try:
-            # Validate the structure first
-            valid, message = validate_config_structure(config_dict)
-            if not valid:
-                return False, message
-
-            # Check for invalid VCS values
-            for section_name, section in config_dict.items():
-                if not isinstance(section, dict):
-                    continue
-
-                for repo_name, repo in section.items():
-                    if not isinstance(repo, dict):
-                        continue
-
-                    if "vcs" in repo and repo["vcs"] not in {"git", "hg", "svn"}:
-                        err_msg = f"Invalid VCS type: {repo['vcs']} in {section_name}.{repo_name}"
-                        return False, err_msg
-
-            # Use Pydantic validation as a final check
-            RawConfigDictModel.model_validate(
-                config_dict,
-                context={"source": "json_input"},  # Add context for validators
-            )
-
-            # Return success with no error message
-            return True, None
-
-        except ValidationError as e:
-            return False, format_pydantic_errors(e)
-        except Exception as e:
-            return False, f"Invalid configuration: {e!s}"
-
+        # Validate the parsed dictionary
+        is_valid, message = validate_config_structure(config_dict)
+        return is_valid, message
     except json.JSONDecodeError as e:
-        return False, f"Invalid JSON syntax: {e}"
+        # Handle JSON parsing errors
+        return False, f"Invalid JSON: {e}"
+    except ValidationError as e:
+        # Handle Pydantic validation errors
+        return False, format_pydantic_errors(e)
     except Exception as e:
-        return False, f"Invalid JSON: {e!s}"
+        # Handle any other exceptions
+        return False, f"Validation error: {e}"
