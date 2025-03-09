@@ -573,6 +573,28 @@ tree_adapter.rebuild()
 tree = tree_adapter.validate_python({"value": 1, "children": [{"value": 2, "children": []}]})
 ```
 
+Since v2.10+, TypeAdapters support deferred schema building and manual rebuilds. This is particularly useful for:
+
+1. Types with circular or forward references
+2. Types where core schema builds are expensive
+3. Situations where types need to be modified after TypeAdapter creation
+
+When `defer_build=True` is set in the config, Pydantic will not immediately build the schema, but wait until the first time validation or serialization is needed, or until you manually call `.rebuild()`.
+
+```python
+# Deferring build for expensive schema generation
+complex_type_adapter = TypeAdapter(
+    dict[str, list[tuple[int, float, str]]],
+    ConfigDict(defer_build=True)
+)
+
+# Build the schema manually when needed
+complex_type_adapter.rebuild()
+
+# Now perform validation
+data = complex_type_adapter.validate_python({"key": [(1, 1.5, "value")]})
+```
+
 ## JSON Schema
 
 Generate JSON Schema from Pydantic models for validation, documentation, and API specifications.
@@ -1153,11 +1175,23 @@ from pydantic import BaseModel, Field
 class Wrong(BaseModel):
     tags: list[str] = []  # All instances will share the same list
 
+w1 = Wrong()
+w2 = Wrong()
+w1.tags.append("item")
+print(w2.tags)  # ['item'] - w2 is affected by change to w1!
+
 
 # CORRECT: Use Field with default_factory
 class Correct(BaseModel):
     tags: list[str] = Field(default_factory=list)  # Each instance gets its own list
+
+c1 = Correct()
+c2 = Correct()
+c1.tags.append("item")
+print(c2.tags)  # [] - c2 has its own separate list
 ```
+
+This applies to all mutable types: `list`, `dict`, `set`, etc. Always use `default_factory` for mutable defaults.
 
 ### Forward References
 
@@ -1384,6 +1418,70 @@ item1 = Item(id=1, name='example')
 # Fast: skips validation for known valid data
 item2 = Item.model_construct(id=1, name='example')
 ```
+
+#### Advanced Performance Tips
+
+For maximum performance in Pydantic v2:
+
+1. **Reuse Type Adapters**: Creating a TypeAdapter has overhead from analyzing types and building schemas. Create them once and reuse.
+
+    ```python
+    # WRONG: Creating TypeAdapter in a loop
+    def process_items(items_data: list[dict]) -> list:
+        processed = []
+        for item_data in items_data:
+            adapter = TypeAdapter(Item)  # Expensive! Created repeatedly
+            processed.append(adapter.validate_python(item_data))
+        return processed
+    
+    # RIGHT: Create once, reuse many times
+    ITEM_ADAPTER = TypeAdapter(Item)  # Create once
+    
+    def process_items(items_data: list[dict]) -> list:
+        return [ITEM_ADAPTER.validate_python(item) for item_data in items_data]
+    ```
+
+2. **Use direct core mode access**: In ultra-performance-critical code, you can use core mode:
+
+    ```python
+    from pydantic_core import SchemaValidator, core_schema
+    
+    # Direct core schema creation for maximum performance
+    schema = core_schema.dict_schema(
+        keys_schema=core_schema.str_schema(),
+        values_schema=core_schema.int_schema()
+    )
+    validator = SchemaValidator(schema)
+    
+    # Using the validator directly
+    result = validator.validate_python({"key1": 1, "key2": "2"})
+    # {"key1": 1, "key2": 2}
+    ```
+
+3. **Avoid unnecessary model creations**: Use `model_construct` when data is already validated, or validate collections in bulk:
+
+    ```python
+    # Bulk validation of multiple items at once (one schema traversal)
+    items_adapter = TypeAdapter(list[Item])
+    validated_items = items_adapter.validate_python(items_data)
+    ```
+
+4. **Prefer concrete types**: Concrete types like `list` and `dict` have faster validation than abstract types like `Sequence` or `Mapping`.
+
+5. **Use frozen models** for immutable data:
+
+    ```python
+    class Config(BaseModel, frozen=True):
+        api_key: str
+        timeout: int = 60
+    ```
+
+6. **Disable validation when appropriate**: For trusted input, you can skip validation with `model_construct` or bypass it with direct attribute assignment when appropriate:
+
+    ```python
+    # For trusted data that doesn't need validation
+    user = User.model_construct(**trusted_data)
+    ```
 
 ## Integrations
 
@@ -2788,77 +2886,68 @@ This document covers the fundamentals through advanced uses of Pydantic v2, incl
 
 Whether you're building robust APIs, data processing pipelines, or validating configuration, Pydantic provides an elegant solution that works with your IDE and type checker while ensuring runtime data correctness.
 
+## Experimental Features
 
+Pydantic includes experimental features that may become permanent in future versions. These features are subject to change or removal and will show a warning when imported.
 
-# WRONG: Mutable defaults are shared between instances
-class Wrong(BaseModel):
-    tags: list[str] = []  # All instances will share the same list
-
-
-# CORRECT: Use Field with default_factory
-class Correct(BaseModel):
-    tags: list[str] = Field(default_factory=list)  # Each instance gets its own list
-```
-
-### Forward References
+### Suppressing Experimental Warnings
 
 ```python
-import typing as t
-from pydantic import BaseModel
+import warnings
+from pydantic import PydanticExperimentalWarning
 
-
-# WRONG: Direct self-reference without quotes
-class WrongNode(BaseModel):
-    value: int
-    children: list[WrongNode] = []  # Error: WrongNode not defined yet
-
-
-# CORRECT: String literal reference
-class CorrectNode(BaseModel):
-    value: int
-    children: list["CorrectNode"] = []  # Works with string reference
-
-# Remember to rebuild the model for forward references
-CorrectNode.model_rebuild()
+warnings.filterwarnings('ignore', category=PydanticExperimentalWarning)
 ```
 
-### Overriding Model Fields
+### Pipeline API
+
+The Pipeline API (introduced in v2.8.0) allows composing validation, constraints, and transformations in a more type-safe manner:
 
 ```python
-import typing as t
-from pydantic import BaseModel
+from datetime import datetime
+from typing import Annotated
+from pydantic import BaseModel, Field
+from pydantic.experimental import pipeline
 
+# Define transformations
+def to_lowercase(v: str) -> str:
+    return v.lower()
 
-class Parent(BaseModel):
-    name: str
-    age: int = 30
+def normalize_email(v: str) -> str:
+    username, domain = v.split('@')
+    username = username.replace('.', '')
+    return f"{username}@{domain}"
 
+def to_adult_status(birth_date: datetime) -> bool:
+    age = (datetime.now() - birth_date).days / 365.25
+    return age >= 18
 
-# WRONG: Field overridden but wrong type
-class WrongChild(Parent):
-    age: str  # Type mismatch with parent
+# Define a model with pipeline transformations
+class User(BaseModel):
+    username: Annotated[
+        str, 
+        pipeline.transform(to_lowercase),
+        Field(min_length=3)
+    ]
+    email: Annotated[
+        str,
+        pipeline.validate(str),  # Validate as string first
+        pipeline.transform(normalize_email),  # Then transform
+        pipeline.predicate(lambda v: '@' in v, "Invalid email format")  # Check condition
+    ]
+    birth_date: datetime
+    is_adult: Annotated[bool, pipeline.computed(to_adult_status, dependencies=['birth_date'])]
 
+# Usage
+user = User(
+    username="JohnDoe",  # Will be converted to lowercase
+    email="john.doe@example.com",  # Will be normalized
+    birth_date="1990-01-01T00:00:00"
+)
 
-# CORRECT: Field overridden with compatible type
-class CorrectChild(Parent):
-    age: int = 18  # Same type, different default
+print(user.username)  # johndoe
+print(user.email)  # johndoe@example.com
+print(user.is_adult)  # True or False depending on current date
 ```
 
-### Optional Fields vs. Default Values
-
-```python
-import typing as t
-from pydantic import BaseModel
-
-
-# Not what you might expect
-class User1(BaseModel):
-    # This is Optional but still required - must be provided, can be None
-    nickname: t.Optional[str]  
-
-
-# Probably what you want
-class User2(BaseModel):
-    # This is Optional AND has a default - doesn't need to be provided
-    nickname: t.Optional[str] = None
-```
+This API provides better type safety and allows more complex validation flows than traditional validators.
