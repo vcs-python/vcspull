@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def parser() -> argparse.ArgumentParser:
     """Return an ArgumentParser for testing."""
-    return cli.create_parser()
+    return cli.create_parser(return_subparsers=False)
 
 
 def test_help_command(parser: argparse.ArgumentParser) -> None:

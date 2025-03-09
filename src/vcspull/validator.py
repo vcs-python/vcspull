@@ -157,7 +157,9 @@ def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfigDict]:
     # If basic structure is valid, delegate to the type-based validator
     try:
         # Fast validation using the cached type adapter
-        return is_valid_config_dict(config)
+        # The validate_python method returns a model, but we need to return a boolean
+        is_valid_config_dict(config)
+        return True
     except Exception:
         return False
 

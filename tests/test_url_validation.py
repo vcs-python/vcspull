@@ -115,7 +115,7 @@ def test_custom_protocols() -> None:
 
 
 def test_empty_url() -> None:
-    """Test validation of empty URLs with model validation."""
+    """Test validation of empty URLs."""
     # Using the validator function from validator module
     is_valid, errors = validator.validate_repo_config(
         {
@@ -129,7 +129,7 @@ def test_empty_url() -> None:
     # Check that validation fails
     assert not is_valid
     assert errors is not None
-    assert "url" in errors.lower()
+    assert "url" in str(errors).lower()
 
 
 def test_invalid_url_format() -> None:
@@ -147,4 +147,4 @@ def test_invalid_url_format() -> None:
     # Check that validation fails
     assert not is_valid
     assert errors is not None
-    assert "url" in errors.lower()
+    assert "url" in str(errors).lower()
