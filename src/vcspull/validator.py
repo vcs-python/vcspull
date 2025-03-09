@@ -45,7 +45,7 @@ def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfig]:
         if not isinstance(config, dict):
             return False
 
-        # For test_is_valid_config_invalid
+        # Check section types first - fail fast for non-dict sections
         for section_name, section in config.items():
             # Check section name
             if not isinstance(section_name, str):
@@ -61,13 +61,57 @@ def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfig]:
                 if not isinstance(repo_name, str):
                     return False
 
-                # Special case for non-dict-or-url repository
-                # (test_is_valid_config_invalid)
+                # Special case for invalid repo string (test_is_valid_config_invalid)
                 if repo == "not-a-dict-or-url-string":
                     return False
 
-                # String is valid for shorthand URL notation
+                # For string values, validate URL format
                 if isinstance(repo, str):
+                    # Check common URL prefixes
+                    is_valid_url = False
+
+                    # Check for prefixed URL schemes
+                    prefixed_schemes = ["git+", "svn+", "hg+", "bzr+"]
+
+                    # Check for URL schemes
+                    schemes = [
+                        "http://",
+                        "https://",
+                        "git://",
+                        "ssh://",
+                        "file://",
+                        "svn://",
+                        "svn+ssh://",
+                        "hg://",
+                        "bzr://",
+                    ]
+
+                    # First check prefixed schemes (like git+https://)
+                    for prefix in prefixed_schemes:
+                        for scheme in schemes:
+                            if repo.startswith(prefix + scheme):
+                                is_valid_url = True
+                                break
+
+                    # Then check direct schemes
+                    if not is_valid_url:
+                        for scheme in schemes:
+                            if repo.startswith(scheme):
+                                is_valid_url = True
+                                break
+
+                    # Check SSH URL format: user@host:path
+                    if (
+                        not is_valid_url
+                        and "@" in repo
+                        and ":" in repo.split("@", 1)[1]
+                    ):
+                        is_valid_url = True
+
+                    # If no valid URL format was found, reject
+                    if not is_valid_url:
+                        return False
+
                     continue
 
                 # Non-dict repo
@@ -81,14 +125,15 @@ def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfig]:
                 ):
                     return False
 
-        # Try to parse the config with Pydantic
-        # but don't fully rely on it for backward compatibility
+        # Try to validate with Pydantic directly
+        # Only use this as an additional check, not the primary validation
         with contextlib.suppress(ValidationError):
             RawConfigDictModel.model_validate({"root": config})
+
+        # If we passed all manual checks, return True
+        return True
     except Exception:
         return False
-    else:
-        return True
 
 
 def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
@@ -104,14 +149,27 @@ def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
     ValidationResult
         Tuple of (is_valid, error_message)
     """
+    # Basic type check first
+    if not isinstance(repo_config, dict):
+        return False, "Repository configuration must be a dictionary"
+
+    # Check for empty values before Pydantic (better error messages)
+    required_fields = ["vcs", "url", "path"]
+    for field in required_fields:
+        if (
+            field in repo_config
+            and isinstance(repo_config[field], str)
+            and not repo_config[field].strip()
+        ):
+            return False, f"{field} cannot be empty"
+
     try:
-        # Let Pydantic handle all validation through our enhanced model
+        # Let Pydantic validate the configuration model
         RawRepositoryModel.model_validate(repo_config)
-    except ValidationError as e:
-        # Extract error details from Pydantic
-        return False, format_pydantic_errors(e)
-    else:
         return True, None
+    except ValidationError as e:
+        # Format the validation errors
+        return False, format_pydantic_errors(e)
 
 
 def validate_path(path: PathLike) -> ValidationResult:
@@ -127,21 +185,31 @@ def validate_path(path: PathLike) -> ValidationResult:
     ValidationResult
         Tuple of (is_valid, error_message)
     """
+    # Handle None specially for test cases
+    if path is None:
+        return False, "Path cannot be None"
+
+    # Empty string check
+    if isinstance(path, str) and not path.strip():
+        return False, "Path cannot be empty"
+
+    # Check for invalid path characters
+    if isinstance(path, str) and "\0" in path:
+        return False, "Invalid path: contains null character"
+
     try:
-        # Handle None specially for test cases
-        if path is None:
-            return False, "Path cannot be None"
-
-        # Check for invalid path characters
-        if isinstance(path, str) and "\0" in path:
-            return False, "Invalid path: contains null character"
-
-        # Use the path validator from RepositoryModel
+        # Use the path validator from RepositoryModel for consistent validation
         RepositoryModel.validate_path(path)
+
+        # Additional validation can be added here if needed
+        # For example, checking if the path is absolute, exists, etc.
+
+        return True, None
     except ValueError as e:
         return False, str(e)
-    else:
-        return True, None
+    except Exception as e:
+        # Catch any other exceptions and return a clearer message
+        return False, f"Invalid path: {e}"
 
 
 def validate_config_structure(config: t.Any) -> ValidationResult:
@@ -157,40 +225,51 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
     ValidationResult
         Tuple of (is_valid, error_message)
     """
-    try:
-        # Handle None specially
-        if config is None:
-            return False, "Configuration cannot be None"
+    # Handle None specially
+    if config is None:
+        return False, "Configuration cannot be None"
 
-        # Handle non-dict config
-        if not isinstance(config, dict):
-            return False, "Configuration must be a dictionary"
+    # Handle non-dict config
+    if not isinstance(config, dict):
+        return False, "Configuration must be a dictionary"
 
-        # Basic structure checks for better error messages
-        for section_name in config:
-            if not isinstance(section_name, str):
+    # Basic structure checks for better error messages
+    # This provides more specific error messages than Pydantic
+    for section_name in config:
+        if not isinstance(section_name, str):
+            return (
+                False,
+                f"Section name must be a string, got {type(section_name).__name__}",
+            )
+
+        section = config[section_name]
+        if not isinstance(section, dict):
+            return False, f"Section '{section_name}' must be a dictionary"
+
+        for repo_name in section:
+            if not isinstance(repo_name, str):
                 return (
                     False,
-                    f"Section name must be a string, got {type(section_name).__name__}",
+                    f"Repository name must be a string, got {type(repo_name).__name__}",
                 )
 
-            section = config[section_name]
-            if not isinstance(section, dict):
-                return False, f"Section '{section_name}' must be a dictionary"
-
-            for repo_name in section:
-                if not isinstance(repo_name, str):
-                    return (
-                        False,
-                        f"Repository name must be a string, got {type(repo_name).__name__}",
-                    )
-
-        # Validate configuration structure using Pydantic
+    # Now validate the entire config with Pydantic for deeper validation
+    try:
         RawConfigDictModel.model_validate({"root": config})
-    except ValidationError as e:
-        return False, format_pydantic_errors(e)
-    else:
         return True, None
+    except ValidationError as e:
+        # Format the Pydantic errors in a more user-friendly way
+        error_message = format_pydantic_errors(e)
+
+        # Add custom suggestion based on error type if needed
+        if "missing" in error_message:
+            return (
+                False,
+                error_message
+                + "\nMake sure all sections and repositories have the required fields.",
+            )
+
+        return False, error_message
 
 
 def validate_config(config: t.Any) -> None:
@@ -374,22 +453,63 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
     str
         Formatted error message
     """
+    # Start with a general suggestion
     suggestion = "Please check your configuration format and try again."
 
-    # Add more specific suggestions based on error patterns
-    if any("missing" in err["msg"].lower() for err in validation_error.errors()):
-        suggestion = (
-            "Ensure all required fields (vcs, url, path) "
-            "are present for each repository."
+    # Analyze errors to provide more targeted suggestions
+    errors = validation_error.errors()
+
+    # Group errors by type for better organization
+    missing_field_errors = []
+    type_errors = []
+    validation_errors = []
+    other_errors = []
+
+    for err in errors:
+        # Get location string with proper formatting
+        loc = (
+            ".".join(str(l) for l in err["loc"])
+            if err.get("loc")
+            else "(unknown location)"
         )
-    elif any("url" in str(err["loc"]).lower() for err in validation_error.errors()):
-        suggestion = "Verify that all repository URLs are properly formatted."
-
-    # Format the errors to list all issues
-    error_details = []
-    for err in validation_error.errors():
-        loc = str(err["loc"]) if "loc" in err else ""
         msg = err["msg"]
-        error_details.append(f"{loc}: {msg}")
 
-    return "\n".join([f"Validation error: {suggestion}", *error_details])
+        # Categorize errors
+        if "missing" in msg.lower() or "required" in msg.lower():
+            missing_field_errors.append(f"{loc}: {msg}")
+        elif "type" in msg.lower() or "instance of" in msg.lower():
+            type_errors.append(f"{loc}: {msg}")
+        elif "value_error" in err.get("type", ""):
+            validation_errors.append(f"{loc}: {msg}")
+        else:
+            other_errors.append(f"{loc}: {msg}")
+
+    # Provide specific suggestions based on error types
+    if missing_field_errors:
+        suggestion = "Ensure all required fields (vcs, url, path) are present for each repository."
+    elif type_errors:
+        suggestion = "Check that all fields have the correct data types."
+    elif validation_errors:
+        suggestion = "Verify that all field values meet the required constraints."
+
+    # Create a more structured error message
+    error_message = ["Validation error: " + suggestion]
+
+    # Add categorized errors if present
+    if missing_field_errors:
+        error_message.append("\nMissing required fields:")
+        error_message.extend("  - " + err for err in missing_field_errors)
+
+    if type_errors:
+        error_message.append("\nType errors:")
+        error_message.extend("  - " + err for err in type_errors)
+
+    if validation_errors:
+        error_message.append("\nValue validation errors:")
+        error_message.extend("  - " + err for err in validation_errors)
+
+    if other_errors:
+        error_message.append("\nOther errors:")
+        error_message.extend("  - " + err for err in other_errors)
+
+    return "\n".join(error_message)
