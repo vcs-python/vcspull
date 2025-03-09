@@ -746,33 +746,135 @@ def get_structured_errors(validation_error: ValidationError) -> dict[str, Any]:
     }
 ```
 
-### 5. Using is_valid_config with TypeAdapter
+### 5. Using TypeAdapter with TypeGuard for Configuration Validation
 
 ```python
-def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfig]:
+from functools import lru_cache
+from typing import Any, TypeGuard, TypeVar, cast
+import typing as t
+
+from pydantic import TypeAdapter, ConfigDict, ValidationError, RootModel
+
+# Type definitions for better type safety
+T = TypeVar('T')
+RawConfig = dict[str, Any]  # Type alias for raw config
+
+# Create a RootModel for dict-based validation
+class RawConfigDictModel(RootModel):
+    """Root model for validating configuration dictionaries."""
+    root: dict[str, Any]
+    
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True
+    )
+
+# Module-level cached TypeAdapter for configuration
+@lru_cache(maxsize=1)
+def get_config_validator() -> TypeAdapter[RawConfigDictModel]:
+    """Get cached TypeAdapter for config validation.
+    
+    Returns
+    -------
+    TypeAdapter[RawConfigDictModel]
+        TypeAdapter for validating configs
+    """
+    return TypeAdapter(
+        RawConfigDictModel,
+        config=ConfigDict(
+            # Performance optimizations
+            defer_build=True,
+            validate_default=False,
+            
+            # Validation behavior
+            extra="forbid",
+            strict=True,
+            str_strip_whitespace=True
+        )
+    )
+
+# Ensure schemas are built when module is loaded
+get_config_validator().rebuild()
+
+def is_valid_config(config: Any) -> TypeGuard[RawConfig]:
     """Return true and upcast if vcspull configuration file is valid.
+    
+    Uses TypeGuard to provide static type checking benefits by
+    upcast the return value's type if the check passes.
     
     Parameters
     ----------
-    config : Dict[str, Any]
-        Configuration dictionary to validate
+    config : Any
+        Configuration to validate
         
     Returns
     -------
     TypeGuard[RawConfig]
         True if config is a valid RawConfig
     """
-    # Handle trivial cases first
-    if config is None or not isinstance(config, dict):
+    # Handle null case first
+    if config is None:
+        return False
+        
+    # Validate general structure first
+    if not isinstance(config, dict):
         return False
         
     try:
-        # Use TypeAdapter for validation
-        config_validator = TypeAdapter(RawConfigDictModel)
-        config_validator.validate_python({"root": config})
+        # Use cached TypeAdapter for validation
+        # This is more efficient than creating a new validator each time
+        validator = get_config_validator()
+        
+        # Validate the config
+        validator.validate_python({"root": config})
         return True
-    except Exception:
+    except ValidationError:
+        # Do not need to handle the error details here
+        # as this function only returns a boolean
         return False
+    except Exception:
+        # Catch any other exceptions and return False
+        return False
+
+def validate_config(config: Any) -> tuple[bool, RawConfig | str]:
+    """Validate and return configuration with detailed error messages.
+    
+    This function extends is_valid_config by also providing error details.
+    
+    Parameters
+    ----------
+    config : Any
+        Configuration to validate
+        
+    Returns
+    -------
+    tuple[bool, RawConfig | str]
+        Tuple of (is_valid, validated_config_or_error_message)
+    """
+    # Handle null case
+    if config is None:
+        return False, "Configuration cannot be None"
+        
+    # Check basic type
+    if not isinstance(config, dict):
+        return False, f"Configuration must be a dictionary, got {type(config).__name__}"
+        
+    try:
+        # Validate with TypeAdapter
+        validator = get_config_validator()
+        
+        # Validate and get the model
+        model = validator.validate_python({"root": config})
+        
+        # Extract and return the validated config
+        # This ensures we return the validated/coerced values
+        return True, cast(RawConfig, model.root)
+    except ValidationError as e:
+        # Format error with our helper function
+        return False, format_pydantic_errors(e)
+    except Exception as e:
+        # Catch any other exceptions
+        return False, f"Unexpected error during validation: {str(e)}"
 ```
 
 ### 6. JSON Schema Customization for Better Documentation
