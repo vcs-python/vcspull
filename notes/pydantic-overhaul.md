@@ -53,15 +53,23 @@ Since the previous analysis, there have been several improvements:
    - Not leveraging TypeAdapter for performance-critical validation
    - No JSON schema customization for better documentation
    - Missing serialization options and aliases for flexible output formats
+   - No consistent Annotated pattern usage for field constraints
+   - Missing tagged unions for better type discrimination
 
 4. **Manual Error Handling**:
    - Custom error formatting in `format_pydantic_errors()` duplicates some Pydantic functionality
    - Error propagation is handled manually rather than using Pydantic's exception system
    - Not using structured JSON error reporting capabilities
+   - No use of error_url for better error documentation
 
 5. **Duplicated Validation Logic**:
    - VCS type validation happens in both validator.py and in the Pydantic models
    - URL validation is duplicated across functions
+
+6. **Performance Bottlenecks**:
+   - Creating TypeAdapters in function scopes instead of module level
+   - Using model_validate with parsed JSON instead of model_validate_json
+   - Not utilizing specialized validation modes for known types
 
 ## Recommendations
 
@@ -78,30 +86,37 @@ Since the previous analysis, there have been several improvements:
    - Apply the Annotated pattern for field-level validation
    - Configure serialization with aliases for flexible output formats
    - Add JSON schema customization for better documentation
+   - Utilize tagged unions for more predictable type handling
+   - Use specialized field constraints instead of custom validators where possible
 
 3. **Simplify Error Handling**:
    - Refine `format_pydantic_errors()` to better leverage Pydantic's error structure
    - Use Pydantic's `ValidationError.json()` for structured error output
    - Consider using error_msg_templates for customized error messages
    - Implement contextual error messages for better user guidance
+   - Add error URLs for better documentation links in errors
 
 4. **Consolidate Validation Logic**:
    - Move all validation logic to the Pydantic models where possible
    - Use model methods and validators to centralize business rules
    - Implement model conversion methods for transformations
    - Create a consistent validation hierarchy across the application
+   - Define reusable field types with Annotated for consistency
 
 5. **Advanced Validation Patterns**:
    - Use `Annotated` types with custom validators
    - Implement discriminated unions for different repository types
    - Enable strict mode for more reliable type checking
    - Apply union_mode settings for better control of union type validation
+   - Use specialized validators for known input patterns
 
 6. **Performance Optimizations**:
    - Use deferred validation for expensive validations
    - Create TypeAdapter instances at module level for reuse
    - Apply model_config tuning for performance-critical models
    - Implement caching strategies for repetitive validations
+   - Use model_validate_json directly for JSON input instead of two-step parsing
+   - Choose specific container types (list, dict) over generic ones (Sequence, Mapping)
 
 7. **Enhanced Serialization and Export**:
    - Use serialization aliases for field name transformations
@@ -255,55 +270,39 @@ class RawRepositoryModel(BaseModel):
 ### 3. Using Discriminated Unions for Repository Types
 
 ```python
-from typing import Literal, Union
-from pydantic import BaseModel, Field, RootModel, model_validator
+from typing import Literal, Union, Annotated
+from pydantic import BaseModel, Field, RootModel, model_validator, discriminated_union
 
+# Define discriminator field to use with the tagged union
 class GitRepositoryDetails(BaseModel):
     """Git-specific repository details."""
+    type: Literal["git"]
     remotes: dict[str, GitRemote] | None = None
 
 class HgRepositoryDetails(BaseModel):
     """Mercurial-specific repository details."""
+    type: Literal["hg"]
     revset: str | None = None
 
 class SvnRepositoryDetails(BaseModel):
     """Subversion-specific repository details."""
+    type: Literal["svn"]
     revision: int | None = None
+
+# Use the discriminated_union function to create a tagged union
+RepositoryDetails = Annotated[
+    Union[GitRepositoryDetails, HgRepositoryDetails, SvnRepositoryDetails],
+    discriminated_union("type")
+]
 
 class RepositoryModel(BaseModel):
     """Repository model with type-specific details."""
     name: str = Field(min_length=1)
     path: pathlib.Path
     url: str = Field(min_length=1)
-    vcs: Literal["git", "hg", "svn"]
-    
-    # Type-specific details
-    git_details: GitRepositoryDetails | None = None
-    hg_details: HgRepositoryDetails | None = None
-    svn_details: SvnRepositoryDetails | None = None
+    details: RepositoryDetails  # Tagged union field with type discriminator
     
     shell_command_after: list[str] | None = None
-
-    @model_validator(mode='after')
-    def validate_vcs_details(self) -> 'RepositoryModel':
-        """Ensure the correct details are provided for the VCS type."""
-        vcs_detail_map = {
-            "git": (self.git_details, "git_details"),
-            "hg": (self.hg_details, "hg_details"),
-            "svn": (self.svn_details, "svn_details"),
-        }
-        
-        # Ensure the matching details field is present
-        expected_details, field_name = vcs_detail_map[self.vcs]
-        if expected_details is None:
-            raise ValueError(f"{field_name} must be provided for {self.vcs} repositories")
-            
-        # Ensure other detail fields are None
-        for vcs_type, (details, detail_name) in vcs_detail_map.items():
-            if vcs_type != self.vcs and details is not None:
-                raise ValueError(f"{detail_name} should only be provided for {vcs_type} repositories")
-                
-        return self
 ```
 
 ### 4. Improved Error Formatting with Structured Errors
@@ -323,7 +322,7 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
         Formatted error message
     """
     # Get structured error representation
-    errors = validation_error.errors(include_url=False, include_context=False)
+    errors = validation_error.errors(include_url=True, include_context=True)
     
     # Group errors by type for better organization
     error_categories = {
@@ -337,8 +336,18 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
         location = ".".join(str(loc) for loc in error.get("loc", []))
         message = error.get("msg", "Unknown error")
         error_type = error.get("type", "")
+        url = error.get("url", "")
+        ctx = error.get("ctx", {})
         
+        # Create a more detailed error message
         formatted_error = f"{location}: {message}"
+        if url:
+            formatted_error += f" (See: {url})"
+        
+        # Add context information if available
+        if ctx:
+            context_info = ", ".join(f"{k}={v!r}" for k, v in ctx.items())
+            formatted_error += f" [Context: {context_info}]"
         
         if "missing" in error_type or "required" in error_type:
             error_categories["missing_required"].append(formatted_error)
@@ -490,6 +499,192 @@ def validate_any_repo(repo_data: dict[str, t.Any]) -> t.Any:
     return validator.validate_python(repo_data)
 ```
 
+### 8. Reusable Field Types with the Annotated Pattern
+
+```python
+from typing import Annotated, TypeVar, get_type_hints
+from pydantic import AfterValidator, BeforeValidator, WithJsonSchema
+
+# Define reusable field types with validation
+T = TypeVar('T', str, bytes)
+
+def validate_not_empty(v: T) -> T:
+    """Validate that value is not empty."""
+    if not v:
+        raise ValueError("Value cannot be empty")
+    return v
+
+# Create reusable field types
+NonEmptyStr = Annotated[
+    str, 
+    AfterValidator(validate_not_empty),
+    WithJsonSchema({"minLength": 1, "description": "Non-empty string"})
+]
+
+# Path validation
+PathStr = Annotated[
+    str,
+    BeforeValidator(lambda v: str(v) if isinstance(v, pathlib.Path) else v),
+    AfterValidator(lambda v: v.strip() if isinstance(v, str) else v),
+    WithJsonSchema({"description": "Path string or Path object"})
+]
+
+# Use in models
+class Repository(BaseModel):
+    name: NonEmptyStr
+    description: NonEmptyStr | None = None
+    path: PathStr
+```
+
+### 9. Direct JSON Validation for Better Performance
+
+```python
+def validate_config_json(json_data: str | bytes) -> tuple[bool, dict | str | None]:
+    """Validate configuration from JSON string or bytes.
+    
+    Parameters
+    ----------
+    json_data : str | bytes
+        JSON data to validate
+        
+    Returns
+    -------
+    tuple[bool, dict | str | None]
+        Tuple of (is_valid, result_or_error_message)
+    """
+    try:
+        # Validate directly from JSON for better performance
+        config = RawConfigDictModel.model_validate_json(json_data)
+        return True, config.root
+    except ValidationError as e:
+        return False, format_pydantic_errors(e)
+    except Exception as e:
+        return False, f"Invalid JSON: {str(e)}"
+```
+
+### 10. Advanced Model Configuration and Validation Modes
+
+```python
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+
+class AdvancedConfigModel(BaseModel):
+    """Model demonstrating advanced configuration options."""
+    
+    model_config = ConfigDict(
+        # Core validation options
+        strict=True,  # Stricter type coercion (no int->float conversion)
+        validate_default=True,  # Validate default values
+        validate_assignment=True,  # Validate attribute assignments
+        extra="forbid",  # Forbid extra attributes
+        
+        # Behavior options
+        frozen=False,  # Allow modification after creation
+        populate_by_name=True,  # Allow population from serialized names
+        str_strip_whitespace=True,  # Strip whitespaces from strings
+        defer_build=True,  # Defer schema building (for forward refs)
+        
+        # Serialization options
+        ser_json_timedelta="iso8601",  # ISO format for timedeltas
+        ser_json_bytes="base64",  # Format for bytes serialization
+        
+        # Performance options
+        arbitrary_types_allowed=False,  # Only allow known types
+        from_attributes=False,  # Don't allow population from attributes
+        
+        # JSON Schema extras
+        json_schema_extra={
+            "title": "Advanced Configuration Example",
+            "description": "Model with advanced configuration settings"
+        }
+    )
+    
+    # Field with validation modes
+    union_field: int | str = Field(
+        default=0,
+        description="Field that can be int or str",
+        union_mode="smart",  # 'smart', 'left_to_right', or 'outer'
+    )
+    
+    # Field with validation customization
+    size: int = Field(
+        default=10,
+        ge=0,
+        lt=100,
+        description="Size value (0-99)",
+        validation_alias="size_value",  # Use for validation
+        serialization_alias="size_val",  # Use for serialization
+    )
+    
+    @field_validator('union_field')
+    @classmethod
+    def validate_union_field(cls, v: int | str, info: ValidationInfo) -> int | str:
+        """Custom validator with validation info."""
+        # Access config from info
+        print(f"Config: {info.config}")
+        # Access field info
+        print(f"Field: {info.field_name}")
+        # Access mode from info
+        print(f"Mode: {info.mode}")
+        return v
+```
+
+### 11. Model Inheritance and Validation Strategies
+
+```python
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+# Base model with common configuration
+class BaseConfig(BaseModel):
+    """Base configuration with common settings."""
+    
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+    
+    # Common validation method for all subclasses
+    @model_validator(mode='after')
+    def validate_model(self) -> 'BaseConfig':
+        """Common validation logic for all config models."""
+        return self
+
+# Subclass with additional fields and validators
+class GitConfig(BaseConfig):
+    """Git-specific configuration."""
+    
+    # Inherit and extend the base model's config
+    model_config = ConfigDict(
+        **BaseConfig.model_config,
+        title="Git Configuration"
+    )
+    
+    remote_name: str = Field(default="origin")
+    remote_url: str
+    
+    @model_validator(mode='after')
+    def validate_git_config(self) -> 'GitConfig':
+        """Git-specific validation logic."""
+        # Call parent validator
+        super().validate_model()
+        # Add custom validation
+        if not self.remote_url.endswith(".git") and not self.remote_url.startswith("git@"):
+            self.remote_url += ".git"
+        return self
+
+# Generic repository config factory
+def create_repository_config(repo_type: str, **kwargs) -> BaseConfig:
+    """Factory function to create appropriate config model."""
+    if repo_type == "git":
+        return GitConfig(**kwargs)
+    elif repo_type == "hg":
+        return HgConfig(**kwargs)
+    elif repo_type == "svn":
+        return SvnConfig(**kwargs)
+    else:
+        raise ValueError(f"Unsupported repository type: {repo_type}")
+```
+
 ## Migration Strategy
 
 The transition to a fully Pydantic-based approach should be implemented gradually:
@@ -499,24 +694,32 @@ The transition to a fully Pydantic-based approach should be implemented graduall
    - Add computed fields and model methods
    - Implement cross-field validation with model_validator
    - Configure serialization options with field aliases
+   - Create reusable field types with Annotated
+   - Establish base models for consistency and inheritance
 
 2. **Phase 2: Optimize Validation**
    - Introduce TypeAdapter for key validation points
    - Refine error handling to use Pydantic's structured errors
    - Consolidate validation logic in models
    - Add JSON schema customization for better documentation
+   - Replace generic type validators with specialized ones
+   - Configure appropriate validation modes for fields
 
 3. **Phase 3: Eliminate Manual Validation**
    - Remove redundant manual validation in is_valid_config
    - Replace manual checks with model validation
    - Remove fallback validation mechanisms
    - Implement caching strategies for performance
+   - Convert to tagged unions for better type discrimination
+   - Use model_validate_json for direct JSON parsing
 
 4. **Phase 4: Clean Up and Optimize**
    - Remove deprecated code paths
    - Add performance optimizations
    - Complete documentation and tests
    - Implement advanced serialization patterns
+   - Add error URL links for better error messages
+   - Implement factory methods for model creation
 
 ## Conclusion
 
@@ -535,4 +738,12 @@ The transition to Pydantic v2's best practices would involve:
 9. Adding serialization aliases for flexible output formats
 10. Implementing JSON schema customization for better documentation
 11. Using caching strategies for repetitive validations
-12. Defining a clear migration path with backward compatibility 
+12. Creating reusable field types for consistent validation
+13. Using model_validate_json for direct JSON validation
+14. Implementing specific container types rather than generic ones
+15. Adding error URLs for better error documentation
+16. Creating model inheritance hierarchies for code reuse
+17. Configuring field-specific validation modes (especially for unions)
+18. Implementing factory methods for flexible model creation
+19. Using ValidationInfo to access context in validators
+20. Defining a clear migration path with backward compatibility 
