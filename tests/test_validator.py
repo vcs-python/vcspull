@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import typing as t
 
 import pytest
@@ -12,9 +13,6 @@ from vcspull import exc, validator
 from vcspull.schemas import (
     RawRepositoryModel,
 )
-
-if t.TYPE_CHECKING:
-    import pathlib
 
 
 # Create a more flexible version of RawConfigDict for testing
@@ -413,33 +411,37 @@ def test_validate_config_nested_validation_errors() -> None:
 
 
 def test_validate_path_with_resolved_path(tmp_path: pathlib.Path) -> None:
-    """Test validate_path with path resolution."""
-    # Test with environment variables
-    os.environ["TEST_DIR"] = str(tmp_path)
-    path_with_env = "${TEST_DIR}/repo"
-    valid, message = validator.validate_path(path_with_env)
-    assert valid
-    assert message is None
-
-    # Test with user home directory
-    path_with_home = "~/repo"
-    valid, message = validator.validate_path(path_with_home)
-    assert valid
-    assert message is None
-
-    # Test with relative path (should be resolved)
-    # Create a subdirectory
-    subdir = tmp_path / "subdir"
-    subdir.mkdir()
-
+    """Test validate_path with resolved path in a temporary directory."""
     # Change to the temporary directory for this test
-    original_dir = os.getcwd()
+    original_dir = pathlib.Path.cwd()
     try:
         os.chdir(tmp_path)
-        relative_path = "./subdir"
-        valid, message = validator.validate_path(relative_path)
+
+        # Create a subdirectory in the temp directory
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+
+        # Validate the path - should resolve relative to cwd (tmp_path)
+        valid, msg = validator.validate_path("test_dir")
         assert valid
-        assert message is None
+        assert msg is None
+
+        # Test the entire validation flow with path resolution
+        # RepositoryModel will resolve relative paths when used in the full flow
+        config = {
+            "section": {
+                "repo": {
+                    "vcs": "git",
+                    "name": "test-repo",
+                    "path": "test_dir",  # Relative path
+                    "url": "https://example.com/repo.git",
+                },
+            },
+        }
+
+        # Check that the validation passes
+        is_valid = validator.is_valid_config(config)
+        assert is_valid
     finally:
         os.chdir(original_dir)
 

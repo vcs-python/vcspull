@@ -275,16 +275,42 @@ class ConfigDictModel(RootModel[dict[str, ConfigSectionDictModel]]):
 
 # Raw configuration models for initial parsing without validation
 class RawRepositoryModel(BaseModel):
-    """Raw repository configuration model before validation and path resolution."""
+    """Raw repository configuration model before validation and path resolution.
 
-    vcs: str = Field(min_length=1)
-    name: str = Field(min_length=1)
-    path: str | pathlib.Path = Field(
-        min_length=1 if isinstance(path := ..., str) else 0,
+    This model validates the raw data from the configuration file before
+    resolving paths and converting to the full RepositoryModel.
+
+    Parameters
+    ----------
+    vcs : str
+        Version control system type (e.g., 'git', 'hg', 'svn')
+    name : str
+        Name of the repository
+    path : str | Path
+        Path to the repository
+    url : str
+        URL of the repository
+    remotes : dict[str, dict[str, Any]] | None, optional
+        Dictionary of remote configurations (for Git only)
+    shell_command_after : list[str] | None, optional
+        Commands to run after repository operations
+    """
+
+    vcs: str = Field(
+        min_length=1,
+        description="Version control system type (git, hg, svn)",
     )
-    url: str = Field(min_length=1)
-    remotes: dict[str, dict[str, t.Any]] | None = None
-    shell_command_after: list[str] | None = None
+    name: str = Field(min_length=1, description="Repository name")
+    path: str | pathlib.Path = Field(description="Path to the repository")
+    url: str = Field(min_length=1, description="Repository URL")
+    remotes: dict[str, dict[str, t.Any]] | None = Field(
+        default=None,
+        description="Git remote configurations (name → config)",
+    )
+    shell_command_after: list[str] | None = Field(
+        default=None,
+        description="Commands to run after repository operations",
+    )
 
     model_config = ConfigDict(
         extra="allow",  # Allow extra fields in raw config
@@ -315,6 +341,141 @@ class RawRepositoryModel(BaseModel):
             msg = f"Invalid VCS type: {v}. Supported types are: git, hg, svn"
             raise ValueError(msg)
         return v.lower()
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, v: str | pathlib.Path) -> str | pathlib.Path:
+        """Validate repository path.
+
+        Parameters
+        ----------
+        v : str | Path
+            Path to validate
+
+        Returns
+        -------
+        str | Path
+            Validated path
+
+        Raises
+        ------
+        ValueError
+            If path is invalid or empty
+        """
+        if isinstance(v, str) and v.strip() == "":
+            msg = "Path cannot be empty"
+            raise ValueError(msg)
+
+        # Check for null bytes which are invalid in paths
+        if isinstance(v, str) and "\0" in v:
+            msg = "Invalid path: contains null character"
+            raise ValueError(msg)
+
+        return v
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        """Validate repository URL.
+
+        Parameters
+        ----------
+        v : str
+            URL to validate
+
+        Returns
+        -------
+        str
+            Validated URL
+
+        Raises
+        ------
+        ValueError
+            If URL is invalid or empty
+        """
+        if v.strip() == "":
+            msg = "URL cannot be empty or whitespace"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("remotes")
+    @classmethod
+    def validate_remotes(
+        cls,
+        v: dict[str, dict[str, t.Any]] | None,
+    ) -> dict[str, dict[str, t.Any]] | None:
+        """Validate Git remotes configuration.
+
+        Parameters
+        ----------
+        v : dict[str, dict[str, Any]] | None
+            Remotes configuration to validate
+
+        Returns
+        -------
+        dict[str, dict[str, Any]] | None
+            Validated remotes configuration
+
+        Raises
+        ------
+        TypeError
+            If remotes configuration has incorrect type
+        ValueError
+            If remotes configuration has invalid values
+        """
+        if v is None:
+            return None
+
+        for remote_name, remote_config in v.items():
+            if not isinstance(remote_config, dict):
+                msg = f"Invalid remote '{remote_name}': must be a dictionary"
+                raise TypeError(msg)
+
+            # Ensure required fields are present for each remote
+            if isinstance(remote_config, dict) and "url" not in remote_config:
+                msg = f"Missing required field 'url' in remote '{remote_name}'"
+                raise ValueError(msg)
+
+            # Check for empty URL in remote config
+            if (
+                isinstance(remote_config, dict)
+                and "url" in remote_config
+                and isinstance(remote_config["url"], str)
+                and remote_config["url"].strip() == ""
+            ):
+                msg = f"Empty URL in remote '{remote_name}': URL cannot be empty"
+                raise ValueError(msg)
+
+        return v
+
+    @field_validator("shell_command_after")
+    @classmethod
+    def validate_shell_commands(cls, v: list[str] | None) -> list[str] | None:
+        """Validate shell commands.
+
+        Parameters
+        ----------
+        v : list[str] | None
+            Shell commands to validate
+
+        Returns
+        -------
+        list[str] | None
+            Validated shell commands
+
+        Raises
+        ------
+        ValueError
+            If shell commands are invalid
+        """
+        if v is None:
+            return None
+
+        if not all(isinstance(cmd, str) for cmd in v):
+            msg = "All shell commands must be strings"
+            raise ValueError(msg)
+
+        return v
 
 
 # Use a type alias for the complex type in RawConfigSectionDictModel
