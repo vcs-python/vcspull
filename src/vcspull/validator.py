@@ -73,12 +73,13 @@ def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
         # Use TypeAdapter for validation - more efficient
         repo_validator.validate_python(repo_config)
     except ValidationError as e:
-        # Format validation errors
+        # Format validation errors with improved formatting
         return False, format_pydantic_errors(e)
     except Exception as e:
         # Handle other exceptions
         return False, f"Validation error: {e}"
     else:
+        # Return success when no exceptions occur
         return True, None
 
 
@@ -99,7 +100,7 @@ def validate_path(path: PathLike) -> ValidationResult:
     if path is None:
         return False, "Path cannot be None"
 
-    # Empty string check
+    # Empty string check - done here for clear error message
     if isinstance(path, str) and not path.strip():
         return False, "Path cannot be empty"
 
@@ -119,9 +120,10 @@ def validate_path(path: PathLike) -> ValidationResult:
         # Use the repository validator
         repo_validator.validate_python(test_repo)
     except ValidationError as e:
-        # Extract path-specific errors with simpler error formatting
-        errors = e.errors()
+        # Extract path-specific errors using improved error extraction
+        errors = e.errors(include_context=True, include_input=True)
         path_errors = [err for err in errors if "path" in str(err.get("loc", ""))]
+
         if path_errors:
             formatted_errors = ", ".join(str(err.get("msg", "")) for err in path_errors)
             return False, f"Invalid path: {formatted_errors}"
@@ -176,10 +178,10 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
 
     # Now validate the entire config with Pydantic for deeper validation
     try:
-        # Use type adapter for validation - more efficient
+        # Use type adapter for validation
         config_validator.validate_python({"root": config})
     except ValidationError as e:
-        # Format the Pydantic errors in a more user-friendly way
+        # Format the Pydantic errors with the improved formatter
         error_message = format_pydantic_errors(e)
 
         # Add custom suggestion based on error type if needed
@@ -261,8 +263,12 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
     str
         Formatted error message
     """
-    # Get structured error representation
-    errors = validation_error.errors()
+    # Get structured error representation with enhanced information
+    errors = validation_error.errors(
+        include_url=True,  # Include documentation URLs
+        include_context=True,  # Include validation context
+        include_input=True,  # Include input values
+    )
 
     # Group errors by type for better organization
     error_categories: dict[str, list[str]] = {
@@ -279,6 +285,8 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
         location = ".".join(str(loc) for loc in error.get("loc", []))
         message = error.get("msg", "Unknown error")
         error_type = error.get("type", "")
+        url = error.get("url", "")
+        ctx = error.get("ctx", {})
         input_value = error.get("input", "")
 
         # Create a detailed error message
@@ -299,6 +307,15 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
             except Exception:
                 # Skip if there's an issue with the input value
                 pass
+
+        # Add documentation URL if available
+        if url:
+            formatted_error += f" (docs: {url})"
+
+        # Add context information if available
+        if ctx:
+            context_info = ", ".join(f"{k}={v!r}" for k, v in ctx.items())
+            formatted_error += f" [Context: {context_info}]"
 
         # Categorize error by type
         if "missing" in error_type or "required" in error_type:
@@ -372,17 +389,21 @@ def validate_config_json(json_data: str | bytes) -> ValidationResult:
     Returns
     -------
     ValidationResult
-        Tuple of (is_valid, error_message)
+        Tuple of (is_valid, result_or_error_message)
     """
     if not json_data:
         return False, "JSON data cannot be empty"
 
     try:
         # Validate directly from JSON for better performance
-        RawConfigDictModel.model_validate_json(json_data)
+        RawConfigDictModel.model_validate_json(
+            json_data,
+            context={"source": "json_input"},  # Add context for validators
+        )
     except ValidationError as e:
         return False, format_pydantic_errors(e)
     except Exception as e:
         return False, f"Invalid JSON: {e!s}"
     else:
+        # Return success with no error message
         return True, None

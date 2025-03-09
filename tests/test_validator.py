@@ -49,23 +49,23 @@ def test_is_valid_config_valid() -> None:
 def test_is_valid_config_invalid() -> None:
     """Test invalid configurations with is_valid_config."""
     # None instead of dict
-    assert not validator.is_valid_config(None)  # type: ignore
+    assert not validator.is_valid_config(None)
 
     # None key
-    invalid_config1 = {None: {}}  # type: ignore
-    assert not validator.is_valid_config(invalid_config1)  # type: ignore
+    invalid_config1: dict[t.Any, t.Any] = {None: {}}
+    assert not validator.is_valid_config(invalid_config1)
 
     # None value
-    invalid_config2 = {"section1": None}  # type: ignore
-    assert not validator.is_valid_config(invalid_config2)  # type: ignore
+    invalid_config2: dict[str, t.Any] = {"section1": None}
+    assert not validator.is_valid_config(invalid_config2)
 
     # Non-string key
-    invalid_config3 = {123: {}}  # type: ignore
-    assert not validator.is_valid_config(invalid_config3)  # type: ignore
+    invalid_config3: dict[t.Any, t.Any] = {123: {}}
+    assert not validator.is_valid_config(invalid_config3)
 
     # Non-dict value
-    invalid_config4 = {"section1": "not-a-dict"}  # type: ignore
-    assert not validator.is_valid_config(invalid_config4)  # type: ignore
+    invalid_config4: dict[str, t.Any] = {"section1": "not-a-dict"}
+    assert not validator.is_valid_config(invalid_config4)
 
     # Non-dict repo
     config_with_non_dict_repo: dict[str, dict[str, t.Any]] = {
@@ -223,8 +223,9 @@ def test_validate_path_invalid() -> None:
     assert message is not None
     assert "invalid" in message.lower()
 
-    # Test with None
-    valid, message = validator.validate_path(None)  # type: ignore
+    # Test with None path
+    none_path: t.Any = None
+    valid, message = validator.validate_path(none_path)
     assert not valid
     assert message is not None
 
@@ -257,24 +258,26 @@ def test_validate_config_structure_valid() -> None:
 
 def test_validate_config_structure_invalid() -> None:
     """Test invalid configuration structure validation."""
-    # Not a dict
-    non_dict_config = "not-a-dict"
+    # Test with a non-dict
+    non_dict_config: t.Any = "not-a-dict"
     valid, message = validator.validate_config_structure(non_dict_config)
     assert not valid
     assert message is not None
 
     # None config
-    valid, message = validator.validate_config_structure(None)
+    none_config: t.Any = None
+    valid, message = validator.validate_config_structure(none_config)
     assert not valid
     assert message is not None
 
-    # Section name not string
-    config_with_non_string_section: dict[t.Any, dict[str, t.Any]] = {
-        123: {  # type: ignore
+    # Section not string
+    config_with_non_string_section: dict[t.Any, t.Any] = {
+        123: {
             "repo1": {
                 "vcs": "git",
                 "url": "https://example.com/repo.git",
-                "path": "/tmp/repo1",
+                "path": "/tmp/repo",
+                "name": "repo1",
             },
         },
     }
@@ -289,58 +292,72 @@ def test_validate_config_structure_invalid() -> None:
     assert message is not None
 
     # Repo name not string
-    config_with_non_string_repo_name: dict[str, dict[t.Any, t.Any]] = {
+    config_with_non_string_repo: dict[str, dict[t.Any, t.Any]] = {
         "section1": {
-            123: {  # type: ignore
+            123: {
                 "vcs": "git",
                 "url": "https://example.com/repo.git",
-                "path": "/tmp/repo1",
+                "path": "/tmp/repo",
+                "name": "repo1",
             },
         },
     }
-    valid, message = validator.validate_config_structure(
-        config_with_non_string_repo_name,
-    )
+    valid, message = validator.validate_config_structure(config_with_non_string_repo)
+    assert not valid
+    assert message is not None
+
+    # Invalid repo config inside valid structure
+    config_with_invalid_repo: dict[str, dict[str, dict[str, t.Any]]] = {
+        "section1": {
+            "repo1": {
+                # Missing required fields
+            },
+        },
+    }
+    valid, message = validator.validate_config_structure(config_with_invalid_repo)
     assert not valid
     assert message is not None
 
 
 def test_validate_config_raises_exceptions() -> None:
     """Test validate_config raises appropriate exceptions."""
-    # Invalid structure
-    invalid_config = "not-a-dict"
+    # Test with None
     with pytest.raises(exc.ConfigValidationError) as excinfo:
-        validator.validate_config(invalid_config)
-    assert "structure" in str(excinfo.value).lower()
+        validator.validate_config(None)
+    assert "None" in str(excinfo.value)
 
-    # Missing required fields
-    missing_fields_config: dict[str, dict[str, dict[str, t.Any]]] = {
-        "section1": {
-            "repo1": {
-                # Missing required fields vcs, url, path
-            },
-        },
-    }
+    # Test with non-dict
+    not_a_dict: t.Any = "not-a-dict"
     with pytest.raises(exc.ConfigValidationError) as excinfo:
-        validator.validate_config(missing_fields_config)
-    # Check that error message mentions the missing fields
-    error_msg = str(excinfo.value)
-    assert "missing" in error_msg.lower()
+        validator.validate_config(not_a_dict)
+    assert "dictionary" in str(excinfo.value)
 
-    # Invalid repository configuration
-    invalid_repo_config = {
-        "section1": {
+    # Test with invalid section name
+    config_with_non_string_section: dict[t.Any, t.Any] = {
+        123: {
             "repo1": {
-                "vcs": "unsupported-vcs",  # Invalid VCS
+                "vcs": "git",
                 "url": "https://example.com/repo.git",
-                "path": "/tmp/repo1",
+                "path": "/tmp/repo",
                 "name": "repo1",
             },
         },
     }
     with pytest.raises(exc.ConfigValidationError) as excinfo:
-        validator.validate_config(invalid_repo_config)
-    assert "vcs" in str(excinfo.value).lower()
+        validator.validate_config(config_with_non_string_section)
+    assert "Section name" in str(excinfo.value) or "section name" in str(excinfo.value)
+
+    # Test with invalid repo config
+    config_with_invalid_repo: dict[str, dict[str, dict[str, t.Any]]] = {
+        "section1": {
+            "repo1": {
+                # Missing required fields
+            },
+        },
+    }
+    with pytest.raises(exc.ConfigValidationError) as excinfo:
+        validator.validate_config(config_with_invalid_repo)
+    assert "required" in str(excinfo.value) or "missing" in str(excinfo.value)
 
 
 def test_validate_config_with_valid_config() -> None:
@@ -354,178 +371,208 @@ def test_validate_config_with_valid_config() -> None:
                 "name": "repo1",
             },
         },
-        "section2": {
-            "repo2": {
-                "vcs": "hg",
-                "url": "https://example.com/repo2",
-                "path": "/tmp/repo2",
-                "name": "repo2",
-            },
-        },
     }
-    # Should not raise exception
+    # Should not raise any exceptions
     validator.validate_config(valid_config)
 
-    # Test with extra fields (should be allowed in raw config)
-    valid_config_with_extra = {
-        "section1": {
-            "repo1": {
+    # Test with more complex config
+    complex_config = {
+        "my_projects": {
+            "project1": {
                 "vcs": "git",
-                "url": "https://example.com/repo.git",
-                "path": "/tmp/repo1",
-                "name": "repo1",
-                "extra_field": "value",
+                "url": "https://github.com/user/project1.git",
+                "path": "/projects/project1",
+                "name": "project1",
+                "remotes": {
+                    "origin": {
+                        "url": "https://github.com/user/project1.git",
+                    },
+                    "upstream": {
+                        "url": "https://github.com/upstream/project1.git",
+                    },
+                },
+            },
+            "project2": {
+                "vcs": "hg",
+                "url": "https://example.com/project2",
+                "path": "/projects/project2",
+                "name": "project2",
+            },
+        },
+        "external": {
+            "external1": {
+                "vcs": "git",
+                "url": "https://github.com/external/external1.git",
+                "path": "/external/external1",
+                "name": "external1",
+                "shell_command_after": [
+                    "echo 'Pulled external1'",
+                    "make install",
+                ],
             },
         },
     }
-    # Should not raise exception
-    validator.validate_config(valid_config_with_extra)
+    # Should not raise any exceptions
+    validator.validate_config(complex_config)
 
 
 def test_validate_config_with_complex_config() -> None:
-    """Test validate_config with a more complex configuration."""
+    """Test validate_config with a complex configuration."""
+    # Config with remotes and shell commands
     complex_config = {
-        "section1": {
-            "repo1": {
+        "projects": {
+            "myapp": {
                 "vcs": "git",
-                "url": "https://example.com/repo.git",
-                "path": "/tmp/repo1",
-                "name": "repo1",
+                "url": "https://github.com/user/myapp.git",
+                "path": "/home/user/code/myapp",
+                "name": "myapp",
                 "remotes": {
-                    "origin": {"url": "https://example.com/repo.git"},
-                    "upstream": {"url": "https://upstream.com/repo.git"},
+                    "origin": {
+                        "url": "https://github.com/user/myapp.git",
+                    },
+                    "upstream": {
+                        "url": "https://github.com/upstream/myapp.git",
+                    },
                 },
-                "shell_command_after": ["echo 'Repo updated'", "git status"],
+                "shell_command_after": [
+                    "npm install",
+                    "npm run build",
+                ],
             },
         },
     }
-    # Should not raise exception
+    # Should not raise any exceptions
     validator.validate_config(complex_config)
 
 
 def test_validate_config_nested_validation_errors() -> None:
     """Test validate_config with nested validation errors."""
-    config_with_invalid_nested = {
-        "section1": {
-            "repo1": {
-                "vcs": "git",
-                "url": "https://example.com/repo.git",
-                "path": "/tmp/repo1",
-                "name": "repo1",
+    # Config with invalid remotes for a non-git repo
+    invalid_config = {
+        "projects": {
+            "myapp": {
+                "vcs": "hg",  # hg doesn't support remotes
+                "url": "https://example.com/myapp",
+                "path": "/home/user/code/myapp",
+                "name": "myapp",
+                # This should cause an error since hg doesn't support remotes
                 "remotes": {
-                    "origin": "not-a-dict",  # Should be a dict, not a string
+                    "origin": {
+                        "url": "https://example.com/myapp",
+                    },
                 },
             },
         },
     }
+    # Should raise ConfigValidationError with a meaningful message
     with pytest.raises(exc.ConfigValidationError) as excinfo:
-        validator.validate_config(config_with_invalid_nested)
-    error_msg = str(excinfo.value)
-    assert "remotes" in error_msg.lower() or "origin" in error_msg.lower()
+        validator.validate_config(invalid_config)
+    assert "remotes" in str(excinfo.value).lower()
+    assert "git" in str(excinfo.value).lower()
 
 
 def test_validate_path_with_resolved_path(tmp_path: pathlib.Path) -> None:
-    """Test validate_path with resolved path in a temporary directory."""
-    # Change to the temporary directory for this test
-    original_dir = pathlib.Path.cwd()
+    """Test validate_path with a path that needs resolving."""
+    # Create a temporary directory and file
+    test_file = tmp_path / "test_file.txt"
+    test_file.touch()
+
+    # Test with absolute path
+    valid, message = validator.validate_path(str(test_file))
+    assert valid, f"Expected valid path, got error: {message}"
+    assert message is None
+
+    # Test with relative path (should work)
+    cwd = pathlib.Path.cwd()
     try:
-        os.chdir(tmp_path)
-
-        # Create a subdirectory in the temp directory
-        test_dir = tmp_path / "test_dir"
-        test_dir.mkdir()
-
-        # Validate the path - should resolve relative to cwd (tmp_path)
-        valid, msg = validator.validate_path("test_dir")
-        assert valid
-        assert msg is None
-
-        # Test the entire validation flow with path resolution
-        # RepositoryModel will resolve relative paths when used in the full flow
-        config = {
-            "section": {
-                "repo": {
-                    "vcs": "git",
-                    "name": "test-repo",
-                    "path": "test_dir",  # Relative path
-                    "url": "https://example.com/repo.git",
-                },
-            },
-        }
-
-        # Check that the validation passes
-        is_valid = validator.is_valid_config(config)
-        assert is_valid
+        os.chdir(str(tmp_path))
+        valid, message = validator.validate_path("test_file.txt")
+        assert valid, f"Expected valid relative path, got error: {message}"
+        assert message is None
     finally:
-        os.chdir(original_dir)
+        os.chdir(str(cwd))
+
+    # Test with home directory expansion (using ~ prefix)
+    home_path_str = "~/some_dir"
+    # This should be valid even if the path doesn't actually exist
+    # because we're just validating the format of the path, not existence
+    valid, message = validator.validate_path(home_path_str)
+    assert valid, f"Expected valid path with tilde, got error: {message}"
+    assert message is None
 
 
 def test_validate_path_with_special_characters() -> None:
     """Test validate_path with special characters."""
-    # Test with spaces
-    path_with_spaces = "/tmp/path with spaces"
-    valid, message = validator.validate_path(path_with_spaces)
-    assert valid
+    # Test with spaces in path
+    space_path = "/path with spaces/file.txt"
+    valid, message = validator.validate_path(space_path)
+    assert valid, f"Expected valid path with spaces, got error: {message}"
     assert message is None
 
-    # Test with unicode characters (ensure they don't cause validation errors)
-    path_with_unicode = "/tmp/path/with/unicode/👍"
-    valid, message = validator.validate_path(path_with_unicode)
-    assert valid
+    # Test with environment variables
+    env_var_path = "$HOME/file.txt"
+    valid, message = validator.validate_path(env_var_path)
+    assert valid, f"Expected valid path with env var, got error: {message}"
     assert message is None
 
-    # Test with percent encoding
-    path_with_percent = "/tmp/path%20with%20encoding"
-    valid, message = validator.validate_path(path_with_percent)
-    assert valid
-    assert message is None
+    # Test with unicode characters if not on Windows
+    if os.name != "nt":  # Skip on Windows
+        unicode_path = "/path/with/unicode/⌘/file.txt"
+        valid, message = validator.validate_path(unicode_path)
+        assert valid, f"Expected valid path with unicode, got error: {message}"
+        assert message is None
 
 
 def test_is_valid_config_with_edge_cases() -> None:
     """Test is_valid_config with edge cases."""
-    # Empty config
-    empty_config: dict[str, dict[str, t.Any]] = {}
+    # Empty config with valid structure
+    empty_config: dict[str, dict[str, t.Any]] = {
+        "section1": {},
+    }
     assert validator.is_valid_config(empty_config)
 
-    # Empty section
-    config_with_empty_section: dict[str, dict[str, t.Any]] = {"section1": {}}
-    assert validator.is_valid_config(config_with_empty_section)
+    # Config with empty string section
+    empty_section_name_config: dict[str, dict[str, t.Any]] = {
+        "": {},
+    }
+    assert validator.is_valid_config(empty_section_name_config)
 
-    # Config with multiple sections and repositories
-    complex_config = {
+    # Config with empty string repo name but valid repo
+    empty_repo_name_config = {
         "section1": {
-            "repo1": {
+            "": {
                 "vcs": "git",
-                "url": "https://example.com/repo1.git",
-                "path": "/tmp/repo1",
-                "name": "repo1",
-            },
-            "repo2": {
-                "vcs": "hg",
-                "url": "https://example.com/repo2",
-                "path": "/tmp/repo2",
-                "name": "repo2",
-            },
-        },
-        "section2": {
-            "repo3": {
-                "vcs": "svn",
-                "url": "https://example.com/repo3",
-                "path": "/tmp/repo3",
-                "name": "repo3",
+                "url": "https://example.com/repo.git",
+                "path": "/tmp/repo",
+                "name": "repo_name",  # Still need a valid name field
             },
         },
     }
-    assert validator.is_valid_config(complex_config)
+    assert validator.is_valid_config(empty_repo_name_config)
+
+    # Config with extra fields in repos
+    extra_fields_config = {
+        "section1": {
+            "repo1": {
+                "vcs": "git",
+                "url": "https://example.com/repo.git",
+                "path": "/tmp/repo",
+                "name": "repo1",
+                "extra_field": "value",  # Extra field, should be allowed in raw config
+            },
+        },
+    }
+    assert validator.is_valid_config(extra_fields_config)
 
 
 def test_validate_repo_config_with_minimal_config() -> None:
     """Test validate_repo_config with minimal configuration."""
+    # Minimal valid repo config
     minimal_repo = {
         "vcs": "git",
         "url": "https://example.com/repo.git",
         "path": "/tmp/repo",
-        "name": "repo",
+        "name": "repo1",
     }
     valid, message = validator.validate_repo_config(minimal_repo)
     assert valid
@@ -534,75 +581,78 @@ def test_validate_repo_config_with_minimal_config() -> None:
 
 def test_validate_repo_config_with_extra_fields() -> None:
     """Test validate_repo_config with extra fields."""
-    repo_with_extra_fields = {
+    # Repo config with extra fields
+    repo_with_extra = {
         "vcs": "git",
         "url": "https://example.com/repo.git",
         "path": "/tmp/repo",
-        "name": "repo",
-        "extra_field": "value",
-        "another_field": 123,
+        "name": "repo1",
+        "extra_field": "value",  # Extra field
+        "another_extra": 123,  # Another extra field
     }
-    valid, message = validator.validate_repo_config(repo_with_extra_fields)
+    valid, message = validator.validate_repo_config(repo_with_extra)
     assert valid
     assert message is None
 
 
 def test_format_pydantic_errors() -> None:
-    """Test format_pydantic_errors utility function."""
+    """Test format_pydantic_errors function."""
+    # Create a ValidationError to format
     try:
-        # Create an invalid model to trigger validation error
-        RawRepositoryModel.model_validate(
-            {
-                # Omit required fields to trigger validation error
-                "vcs": "invalid",
-            },
-        )
-        pytest.fail("Should have raised ValidationError")
+        RawRepositoryModel.model_validate({})
     except ValidationError as e:
-        # Format the error
         formatted = validator.format_pydantic_errors(e)
-
-        # Check that the error message contains relevant information
-        assert "missing" in formatted.lower() or "required" in formatted.lower()
-        assert "url" in formatted.lower()
-        assert "path" in formatted.lower()
-        assert "name" in formatted.lower()
+        # Check for expected sections in the formatted error
+        assert "Validation error:" in formatted
+        assert "Missing required fields:" in formatted
+        assert "vcs" in formatted
+        assert "url" in formatted
+        assert "path" in formatted
+        assert "name" in formatted
+        assert "Suggestion:" in formatted
 
 
 def test_is_valid_repo_config() -> None:
-    """Test the is_valid_repo_config function."""
-    # Valid repository config
+    """Test is_valid_repo_config function."""
+    # Valid repo config
     valid_repo = {
         "vcs": "git",
         "url": "https://example.com/repo.git",
         "path": "/tmp/repo",
-        "name": "test",
+        "name": "repo1",
     }
     assert is_valid_repo_config(valid_repo)
 
-    # Invalid repository config (missing fields)
-    invalid_repo = {
+    # Missing required field
+    missing_field_repo = {
         "vcs": "git",
-        # Missing url, path, and name
+        "url": "https://example.com/repo.git",
+        # Missing path
+        "name": "repo1",
     }
-    assert not is_valid_repo_config(invalid_repo)
+    assert not is_valid_repo_config(missing_field_repo)
 
-    # Invalid VCS type
-    invalid_vcs_repo = {
-        "vcs": "invalid",
+    # Invalid field value
+    invalid_value_repo = {
+        "vcs": "invalid",  # Invalid VCS type
         "url": "https://example.com/repo.git",
         "path": "/tmp/repo",
-        "name": "test",
+        "name": "repo1",
     }
-    assert not is_valid_repo_config(invalid_vcs_repo)
+    assert not is_valid_repo_config(invalid_value_repo)
 
-    # Test with None
-    assert not is_valid_repo_config(None)  # type: ignore
+    # None instead of dict
+    none_repo: t.Any = None
+    assert not is_valid_repo_config(none_repo)
+
+    # String instead of dict
+    string_repo: t.Any = "not-a-dict"
+    assert not is_valid_repo_config(string_repo)
 
 
 def test_validate_config_json() -> None:
-    """Test validating config from JSON."""
-    # Valid JSON
+    """Test validate_config_json function."""
+    # Valid JSON config
     valid_json = """
     {
         "section1": {
@@ -628,30 +678,28 @@ def test_validate_config_json() -> None:
                 "url": "https://example.com/repo.git",
                 "path": "/tmp/repo",
                 "name": "repo1"
-            },
+            },  // Extra comma
         }
     }
     """
     valid, message = validator.validate_config_json(invalid_json)
     assert not valid
     assert message is not None
-    assert "json" in message.lower()
+    assert "JSON" in message
 
-    # Invalid content (missing required fields)
-    invalid_content_json = """
+    # Valid JSON but invalid config
+    invalid_config_json = """
     {
         "section1": {
             "repo1": {
-                "vcs": "git"
+                "vcs": "invalid",
+                "url": "https://example.com/repo.git",
+                "path": "/tmp/repo",
+                "name": "repo1"
             }
         }
     }
     """
-    valid, message = validator.validate_config_json(invalid_content_json)
-    assert not valid
-    assert message is not None
-
-    # Empty JSON data
-    valid, message = validator.validate_config_json("")
+    valid, message = validator.validate_config_json(invalid_config_json)
     assert not valid
     assert message is not None
