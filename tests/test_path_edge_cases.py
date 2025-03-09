@@ -17,7 +17,7 @@ if t.TYPE_CHECKING:
 def test_unicode_paths() -> None:
     """Test handling of paths with unicode characters."""
     # Create a config with unicode characters in paths
-    # Note: These paths represent examples of international 
+    # Note: These paths represent examples of international
     # project names in various languages
     config_dict: dict[str, dict[str, str]] = {
         "/tmp/unicode_paths/español": {

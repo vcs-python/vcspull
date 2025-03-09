@@ -86,13 +86,15 @@ def test_cli_custom_working_directory(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test that the -c/--config option correctly passes the config path
     test_config_path = "/test/config.yaml"
     monkeypatch.setattr(os.path, "exists", lambda x: True)  # Make any path "exist"
-    monkeypatch.setattr(os.path, "isdir", lambda x: True)   # And be a directory
+    monkeypatch.setattr(os.path, "isdir", lambda x: True)  # And be a directory
 
     # Test both short and long forms
     for option in ["-c", "--config"]:
         with (
             patch("vcspull.cli.sync") as mock_sync,
-            patch("sys.argv", ["vcspull", "sync", "some_repo", option, test_config_path]),
+            patch(
+                "sys.argv", ["vcspull", "sync", "some_repo", option, test_config_path]
+            ),
             patch("sys.exit"),  # Prevent actual exit
         ):
             cli.cli()
