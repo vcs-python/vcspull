@@ -963,3 +963,454 @@ pets: list[PetUnion] = [
     Dog(name='Fido', likes_walks=False)
 ]
 ```
+
+## Migration from Pydantic v1
+
+If you're migrating from Pydantic v1 to v2, there are several important changes to be aware of:
+
+### Key Changes in v2
+
+```python
+# v1
+from pydantic import BaseModel
+
+# v2 - same import, but different functionality
+from pydantic import BaseModel
+
+# If you need v1 compatibility
+from pydantic.v1 import BaseModel  # Access v1 functionality
+```
+
+### Migration Tool
+
+Pydantic provides an automated migration tool:
+
+```bash
+# Install migration tool
+pip install bump-pydantic
+
+# Use the tool
+cd /path/to/your/project
+bump-pydantic your_package_directory
+```
+
+### Main API Changes
+
+- `parse_obj` → `model_validate`
+- `parse_raw` → `model_validate_json`
+- `schema` → `model_json_schema`
+- `dict` → `model_dump`
+- `json` → `model_dump_json`
+- `copy` → `model_copy`
+- `update_forward_refs` → `model_rebuild`
+- `construct` → `model_construct`
+
+### Error Handling
+
+Pydantic provides detailed error information through the `ValidationError` class:
+
+```python
+import typing as t
+from pydantic import BaseModel, ValidationError
+
+
+class User(BaseModel):
+    id: int
+    name: str
+    email: str
+
+
+try:
+    User(id="not-an-int", name=None, email="invalid-email")
+except ValidationError as e:
+    # Get all errors
+    print(e)
+    
+    # Get error details
+    print(f"Error count: {e.error_count()}")
+    
+    # Get detailed error list
+    for error in e.errors():
+        print(f"Location: {error['loc']}")
+        print(f"Type: {error['type']}")
+        print(f"Message: {error['msg']}")
+    
+    # Get JSON representation
+    error_json = e.json()
+```
+
+### Performance Improvements
+
+Pydantic v2 core validation logic is written in Rust, resulting in significant performance improvements:
+
+- Validation is 5-50x faster
+- Serialization is 4-20x faster
+- Model creation is 2-50x faster
+
+For optimal performance:
+- Reuse TypeAdapters instead of creating them repeatedly
+- Avoid using abstract types like `Sequence` in favor of concrete types like `list`
+- Use `model_construct` when creating models from validated data
+
+## Integrations
+
+Pydantic integrates well with many libraries and development tools.
+
+### Web Frameworks
+
+```python
+# FastAPI integration (built on Pydantic)
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class Item(BaseModel):
+    name: str
+    price: float
+
+@app.post("/items/")
+async def create_item(item: Item):
+    return item
+```
+
+### Development Tools
+
+#### IDE Support
+
+Pydantic works with:
+
+- **PyCharm**: Smart completion, type checking and error highlighting
+- **VS Code**: With Python extension, provides validation and autocompletion
+- **mypy**: Full type checking support
+
+#### Linting and Testing
+
+```python
+# Hypothesis integration for property-based testing
+from hypothesis import given
+from hypothesis.strategies import builds
+from pydantic import BaseModel
+
+class User(BaseModel):
+    name: str
+    age: int
+
+@given(builds(User))
+def test_user(user):
+    assert user.age >= 0
+```
+
+### Utility Libraries
+
+#### Data Generation
+
+```python
+# Generate Pydantic models from JSON data
+# pip install datamodel-code-generator
+from datamodel_code_generator import generate
+
+code = generate(
+    json_data,
+    input_file_type='json',
+    output_model_name='MyModel'
+)
+print(code)
+```
+
+#### Debugging and Visualization
+
+```python
+# Rich integration for pretty printing
+# pip install rich
+from rich.pretty import pprint
+from pydantic import BaseModel
+
+class User(BaseModel):
+    name: str
+    age: int
+
+user = User(name="John", age=30)
+pprint(user)  # Pretty printed output
+
+# Logfire monitoring (created by Pydantic team)
+# pip install logfire
+import logfire
+from pydantic import BaseModel
+
+logfire.configure()
+logfire.instrument_pydantic()  # Monitor Pydantic validations
+
+class User(BaseModel):
+    name: str
+    age: int
+
+user = User(name="John", age=30)  # Validation will be recorded
+```
+
+## Best Practices
+
+### Type Annotation Patterns
+
+```python
+import typing as t
+from datetime import datetime
+from uuid import UUID
+from pydantic import BaseModel, Field
+
+
+# Prefer concrete types over abstract ones
+class Good:
+    items: list[int]  # Better performance than Sequence[int]
+    data: dict[str, float]  # Better than Mapping[str, float]
+
+
+# Use Optional for nullable fields
+class User:
+    name: str  # Required
+    middle_name: t.Optional[str] = None  # Optional
+
+
+# Use Union for multiple types (Python 3.10+ syntax)
+class Item:
+    id: int | str  # Can be either int or string
+    tags: list[str] | None = None  # Optional list
+
+
+# Use Field with default_factory for mutable defaults
+class Post:
+    title: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    tags: list[str] = Field(default_factory=list)  # Empty list default
+```
+
+### Model Organization
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+# Use inheritance for shared attributes
+class BaseResponse(BaseModel):
+    success: bool
+    timestamp: int
+
+
+class SuccessResponse(BaseResponse):
+    success: t.Literal[True] = True
+    data: dict[str, t.Any]
+
+
+class ErrorResponse(BaseResponse):
+    success: t.Literal[False] = False
+    error: str
+    error_code: int
+
+
+# Group related models in modules
+# users/models.py
+class UserBase(BaseModel):
+    email: str
+    username: str
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+
+
+# Keep models focused on specific use cases
+class UserProfile(BaseModel):
+    """User profile data shown to other users."""
+    username: str
+    bio: t.Optional[str] = None
+    joined_date: str
+```
+
+### Validation Strategies
+
+```python
+import typing as t
+import re
+from pydantic import BaseModel, field_validator, model_validator
+
+
+# Use field validators for simple field validations
+class User(BaseModel):
+    username: str
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('Username must be alphanumeric')
+        return v
+
+
+# Use model validators for cross-field validations
+class TimeRange(BaseModel):
+    start: int
+    end: int
+    
+    @model_validator(mode='after')
+    def check_times(self) -> 'TimeRange':
+        if self.start >= self.end:
+            raise ValueError('End time must be after start time')
+        return self
+
+
+# Use annotated pattern for reusable validations
+from pydantic import AfterValidator
+
+def validate_even(v: int) -> int:
+    if v % 2 != 0:
+        raise ValueError('Value must be even')
+    return v
+
+EvenInt = t.Annotated[int, AfterValidator(validate_even)]
+
+class Config(BaseModel):
+    port: EvenInt  # Must be an even number
+```
+
+### Performance Optimization
+
+```python
+import typing as t
+from pydantic import BaseModel, TypeAdapter
+
+
+# Create adapters once, reuse them
+INT_LIST_ADAPTER = TypeAdapter(list[int])
+
+def process_numbers(raw_lists: list[list[str]]) -> list[int]:
+    results = []
+    
+    for raw_list in raw_lists:
+        # Reuse adapter instead of creating new ones
+        numbers = INT_LIST_ADAPTER.validate_python(raw_list)
+        results.append(sum(numbers))
+    
+    return results
+
+
+# Use model_construct for pre-validated data
+class Item(BaseModel):
+    id: int
+    name: str
+
+# Slow: re-validates data
+item1 = Item(id=1, name='example')
+
+# Fast: skips validation for known valid data
+item2 = Item.model_construct(id=1, name='example')
+```
+
+## Common Pitfalls and Solutions
+
+### Mutable Default Values
+
+```python
+import typing as t
+from pydantic import BaseModel, Field
+
+
+# WRONG: Mutable defaults are shared between instances
+class Wrong(BaseModel):
+    tags: list[str] = []  # All instances will share the same list
+
+
+# CORRECT: Use Field with default_factory
+class Correct(BaseModel):
+    tags: list[str] = Field(default_factory=list)  # Each instance gets its own list
+```
+
+### Forward References
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+# WRONG: Direct self-reference without quotes
+class WrongNode(BaseModel):
+    value: int
+    children: list[WrongNode] = []  # Error: WrongNode not defined yet
+
+
+# CORRECT: String literal reference
+class CorrectNode(BaseModel):
+    value: int
+    children: list["CorrectNode"] = []  # Works with string reference
+
+# Remember to rebuild the model for forward references
+CorrectNode.model_rebuild()
+```
+
+### Overriding Model Fields
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+class Parent(BaseModel):
+    name: str
+    age: int = 30
+
+
+# WRONG: Field overridden but wrong type
+class WrongChild(Parent):
+    age: str  # Type mismatch with parent
+
+
+# CORRECT: Field overridden with compatible type
+class CorrectChild(Parent):
+    age: int = 18  # Same type, different default
+```
+
+### Optional Fields vs. Default Values
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+# Not what you might expect
+class User1(BaseModel):
+    # This is Optional but still required - must be provided, can be None
+    nickname: t.Optional[str]  
+
+
+# Probably what you want
+class User2(BaseModel):
+    # This is Optional AND has a default - doesn't need to be provided
+    nickname: t.Optional[str] = None
+```
+
+## Conclusion
+
+Pydantic v2 offers robust data validation with a clean, type-driven API and exceptional performance. This document covered:
+
+- Core model usage and customization
+- Field validation and constraints
+- Schema generation and serialization
+- Performance optimization
+- Integration with other frameworks
+- Migration from v1
+
+For further details, refer to the [official Pydantic documentation](https://docs.pydantic.dev/).
+
+When working with Pydantic:
+- Leverage Python's type system
+- Use the Annotated pattern for complex field requirements
+- Favor concrete container types for better performance
+- Reuse TypeAdapters for validation-heavy applications
+- Organize models to reflect domain entities
+
+Pydantic's combination of static typing and runtime validation makes it an excellent choice for data-intensive applications, APIs, and projects where data integrity is critical.
