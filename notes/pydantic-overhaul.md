@@ -1260,39 +1260,138 @@ def create_repository_config(repo_type: str, **kwargs) -> BaseConfig:
 
 ## Migration Strategy
 
-The transition to a fully Pydantic-based approach should be implemented gradually:
+A practical, step-by-step approach to migrating the codebase to fully leverage Pydantic v2 features:
 
-1. **Phase 1: Enhance Models**
-   - Update model definitions with richer type hints (Literal, Annotated)
-   - Add computed fields and model methods
-   - Implement cross-field validation with model_validator
-   - Configure serialization options with field aliases
-   - Create reusable field types with Annotated
-   - Establish base models for consistency and inheritance
+### Phase 1: Enhance Models and Types (Foundation)
 
-2. **Phase 2: Optimize Validation**
-   - Introduce TypeAdapter for key validation points
-   - Refine error handling to use Pydantic's structured errors
-   - Consolidate validation logic in models
-   - Add JSON schema customization for better documentation
-   - Replace generic type validators with specialized ones
-   - Configure appropriate validation modes for fields
+1. **Create Reusable Field Types**
+   - Define `Annotated` types for common constraints:
+     ```python
+     NonEmptyStr = Annotated[str, AfterValidator(validate_not_empty)]
+     ```
+   - Create specialized types for paths, URLs, and VCS identifiers
+   - Add proper JSON schema information via `WithJsonSchema`
+   - Use `Doc` annotations for better documentation
 
-3. **Phase 3: Eliminate Manual Validation**
-   - Remove redundant manual validation in is_valid_config
-   - Replace manual checks with model validation
-   - Remove fallback validation mechanisms
-   - Implement caching strategies for performance
-   - Convert to tagged unions for better type discrimination
-   - Use model_validate_json for direct JSON parsing
+2. **Improve Model Structure**
+   - Update models to use `ConfigDict` with appropriate settings:
+     ```python
+     model_config = ConfigDict(
+         strict=True,
+         str_strip_whitespace=True,
+         extra="forbid"
+     )
+     ```
+   - Add field descriptions and constraints to existing models
+   - Implement base models for common configuration patterns
+   - Convert regular properties to `@computed_field` for proper serialization
 
-4. **Phase 4: Clean Up and Optimize**
-   - Remove deprecated code paths
-   - Add performance optimizations
-   - Complete documentation and tests
-   - Implement advanced serialization patterns
-   - Add error URL links for better error messages
-   - Implement factory methods for model creation
+3. **Set Up Module-Level Validators**
+   - Create and cache `TypeAdapter` instances at module level:
+     ```python
+     @lru_cache(maxsize=32)
+     def get_validator_for(model_type: Type[T]) -> TypeAdapter[T]:
+         return TypeAdapter(model_type, config=ConfigDict(defer_build=True))
+     ```
+   - Initialize validators early with `.rebuild()`
+   - Replace inline validation with reusable validator functions
+
+### Phase 2: Validation Logic and Error Handling
+
+1. **Consolidate Validation Logic**
+   - Replace manual validation with field validators:
+     ```python
+     @field_validator('url')
+     @classmethod
+     def validate_url(cls, value: str, info: ValidationInfo) -> str:
+         # Validation logic here
+         return value
+     ```
+   - Use model validators for cross-field validation:
+     ```python
+     @model_validator(mode='after')
+     def validate_model(self) -> 'MyModel':
+         # Cross-field validation
+         return self
+     ```
+   - Move repository-specific validation logic into respective models
+
+2. **Enhance Error Handling**
+   - Update error formatting to use structured errors:
+     ```python
+     errors = validation_error.errors(
+         include_url=True,
+         include_context=True,
+         include_input=True
+     )
+     ```
+   - Categorize errors by type for better user feedback
+   - Create API-friendly error output formats
+   - Add contextual suggestions based on error types
+
+3. **Implement Direct JSON Validation**
+   - Use `model_validate_json` for direct JSON handling:
+     ```python
+     config = RawConfigDictModel.model_validate_json(json_data)
+     ```
+   - Skip intermediate parsing steps for better performance
+   - Properly handle JSON errors with structured responses
+
+### Phase 3: Advanced Model Features
+
+1. **Implement Discriminated Unions**
+   - Define type-specific repository models:
+     ```python
+     class GitRepositoryDetails(BaseModel):
+         type: Literal["git"] = "git"
+         remotes: dict[str, "GitRemote"] | None = None
+     ```
+   - Create discriminated unions with `Discriminator` and `Tag`
+   - Add helper methods for easier type discrimination
+
+2. **Enhance Model Serialization**
+   - Configure serialization aliases for field names
+   - Use conditional serialization with `.model_dump()` options:
+     ```python
+     def model_dump_config(self, include_shell_commands: bool = False) -> dict:
+         exclude = set() if include_shell_commands else {"shell_command_after"}
+         return self.model_dump(exclude=exclude, by_alias=True)
+     ```
+   - Implement custom serialization methods for complex types
+
+3. **Add JSON Schema Customization**
+   - Enhance schema documentation with `json_schema_extra`:
+     ```python
+     model_config = ConfigDict(
+         json_schema_extra={
+             "title": "Repository Configuration",
+             "description": "Configuration for a VCS repository",
+             "examples": [...]
+         }
+     )
+     ```
+   - Add examples to schemas for better documentation
+   - Configure schema generation for API documentation
+
+### Phase 4: Clean Up and Optimize
+
+1. **Eliminate Manual Validation**
+   - Remove redundant validation in helper functions
+   - Replace custom checks with model validators
+   - Ensure consistent validation across the codebase
+
+2. **Optimize Performance**
+   - Use specific container types (e.g., `list[int]` vs. `Sequence[int]`)
+   - Configure validation modes for unions
+   - Apply appropriate caching strategies for repetitive operations
+
+3. **Refactor External Functions**
+   - Move helper functions into model methods where appropriate
+   - Create factory methods for complex model creation
+   - Implement conversion methods between model types
+   - Ensure proper type information for static type checking
+
+Each phase should include updating tests to verify proper behavior and documentation to explain the new patterns and API changes.
 
 ## Conclusion
 
