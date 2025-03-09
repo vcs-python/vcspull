@@ -1414,3 +1414,265 @@ When working with Pydantic:
 - Organize models to reflect domain entities
 
 Pydantic's combination of static typing and runtime validation makes it an excellent choice for data-intensive applications, APIs, and projects where data integrity is critical.
+
+## Advanced Features
+
+### Generic Models
+
+Generic models allow you to create reusable model structures with type parameters:
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+# Define a generic model with TypeVar
+T = t.TypeVar('T')
+
+
+class Response(BaseModel, t.Generic[T]):
+    """Generic response wrapper"""
+    data: T
+    status: str = "success"
+    metadata: dict[str, t.Any] = {}
+
+
+# Use the generic model with specific types
+class User(BaseModel):
+    id: int
+    name: str
+
+
+# Instantiate with specific type
+user_response = Response[User](data=User(id=1, name="John"))
+print(user_response.data.name)  # "John"
+
+# Also works with primitive types
+int_response = Response[int](data=42)
+print(int_response.data)  # 42
+
+# Can be nested
+list_response = Response[list[User]](
+    data=[
+        User(id=1, name="John"),
+        User(id=2, name="Jane")
+    ]
+)
+```
+
+### Generic Type Constraints
+
+You can constrain generic type parameters:
+
+```python
+import typing as t
+from decimal import Decimal
+from pydantic import BaseModel
+
+
+# TypeVar with constraints (must be int, float, or Decimal)
+Number = t.TypeVar('Number', int, float, Decimal)
+
+
+class Statistics(BaseModel, t.Generic[Number]):
+    """Statistical calculations on numeric data"""
+    values: list[Number]
+    
+    @property
+    def average(self) -> float:
+        if not self.values:
+            return 0.0
+        return sum(self.values) / len(self.values)
+
+
+# Use with different numeric types
+int_stats = Statistics[int](values=[1, 2, 3, 4, 5])
+print(int_stats.average)  # 3.0
+
+float_stats = Statistics[float](values=[1.1, 2.2, 3.3])
+print(float_stats.average)  # 2.2
+```
+
+### Recursive Models
+
+Models can reference themselves to create recursive structures like trees:
+
+```python
+import typing as t
+from pydantic import BaseModel, Field
+
+
+class TreeNode(BaseModel):
+    """Tree structure with recursive node references"""
+    value: str
+    children: list["TreeNode"] = Field(default_factory=list)
+    parent: t.Optional["TreeNode"] = None
+
+
+# Must call model_rebuild() to process forward references
+TreeNode.model_rebuild()
+
+# Create a tree
+root = TreeNode(value="root")
+child1 = TreeNode(value="child1", parent=root)
+child2 = TreeNode(value="child2", parent=root)
+grandchild = TreeNode(value="grandchild", parent=child1)
+
+# Set up the children relationships
+root.children = [child1, child2]
+child1.children = [grandchild]
+
+# Model is fully connected in both directions
+assert root.children[0].value == "child1"
+assert grandchild.parent.value == "child1"
+assert grandchild.parent.parent.value == "root"
+```
+
+### Deeply Nested Models
+
+For deeply nested models, you may need to handle the recursive structure differently:
+
+```python
+import typing as t
+from pydantic import BaseModel, Field
+
+
+class Employee(BaseModel):
+    """Employee with recursive manager relationship"""
+    name: str
+    position: str
+    # Using Optional to handle leaf nodes (employees with no direct reports)
+    direct_reports: t.Optional[list["Employee"]] = None
+    manager: t.Optional["Employee"] = None
+
+
+# Call model_rebuild to process the self-references
+Employee.model_rebuild()
+
+# Create an organization structure
+ceo = Employee(name="Alice", position="CEO")
+cto = Employee(name="Bob", position="CTO", manager=ceo)
+dev_manager = Employee(name="Charlie", position="Dev Manager", manager=cto)
+dev1 = Employee(name="Dave", position="Developer", manager=dev_manager)
+dev2 = Employee(name="Eve", position="Developer", manager=dev_manager)
+
+# Set up the direct reports relationships
+ceo.direct_reports = [cto]
+cto.direct_reports = [dev_manager]
+dev_manager.direct_reports = [dev1, dev2]
+
+# Helper function to print org chart
+def print_org_chart(employee: Employee, level: int = 0):
+    print("  " * level + f"{employee.name} ({employee.position})")
+    if employee.direct_reports:
+        for report in employee.direct_reports:
+            print_org_chart(report, level + 1)
+
+
+# Print the organization chart
+print_org_chart(ceo)
+```
+
+### Settings Management
+
+Pydantic offers `BaseSettings` for configuration management with environment variables:
+
+```python
+import typing as t
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class AppSettings(BaseSettings):
+    """Application settings with environment variable support"""
+    
+    # Configure settings behavior
+    model_config = SettingsConfigDict(
+        env_file='.env',              # Load from .env file
+        env_file_encoding='utf-8',    # Encoding for .env file
+        env_nested_delimiter='__',    # For nested settings (e.g., DATABASE__HOST)
+        case_sensitive=False,         # Case-insensitive env vars
+    )
+    
+    # App settings with environment variable fallbacks
+    app_name: str = "MyApp"
+    debug: bool = Field(default=False, description="Enable debug mode")
+    api_key: t.Optional[str] = Field(default=None, env="API_SECRET_KEY")
+    
+    # Database configuration with nested structure
+    database_url: str = Field(
+        default="sqlite:///./app.db",
+        env="DATABASE_URL",
+        description="Database connection string"
+    )
+    database_pool_size: int = Field(default=5, env="DATABASE_POOL_SIZE", gt=0)
+    
+    # Secrets with sensitive=True are hidden in string representations
+    admin_password: str = Field(default="", env="ADMIN_PASSWORD", sensitive=True)
+
+
+# Load settings from environment variables and .env file
+settings = AppSettings()
+print(f"App name: {settings.app_name}")
+print(f"Debug mode: {settings.debug}")
+print(f"Database URL: {settings.database_url}")
+```
+
+Sample .env file:
+```
+APP_NAME=ProductionApp
+DEBUG=true
+API_SECRET_KEY=my-secret-key
+DATABASE_URL=postgresql://user:password@localhost:5432/mydb
+DATABASE_POOL_SIZE=10
+ADMIN_PASSWORD=super-secret
+```
+
+### Settings Sources
+
+You can customize settings sources and combine configuration from multiple places:
+
+```python
+import typing as t
+from pathlib import Path
+import json
+import toml
+from pydantic import Field
+from pydantic_settings import (
+    BaseSettings, 
+    SettingsConfigDict,
+    PydanticBaseSettingsSource,
+    JsonConfigSettingsSource,
+)
+
+
+class MySettings(BaseSettings):
+    """Settings with custom configuration sources"""
+    
+    model_config = SettingsConfigDict(
+        env_prefix="MYAPP_",  # All env vars start with MYAPP_
+        env_file=".env",      # Load from .env file
+        json_file="config.json",  # Also load from JSON
+    )
+    
+    name: str = "Default App"
+    version: str = "0.1.0"
+    features: list[str] = Field(default_factory=list)
+
+
+# Create settings from multiple sources
+# Precedence: environment variables > .env file > config.json > defaults
+settings = MySettings()
+
+# You can also override values at initialization
+debug_settings = MySettings(name="Debug Build", features=["experimental"])
+```
+
+Example config.json:
+```json
+{
+    "name": "My Application",
+    "version": "1.2.3",
+    "features": ["auth", "api", "export"]
+}
+```
