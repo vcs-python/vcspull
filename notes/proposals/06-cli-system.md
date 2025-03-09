@@ -60,21 +60,32 @@ The audit identified several issues with the current CLI system:
            config_obj = load_and_validate_config(config)
            
            # Filter repositories if patterns specified
-           repositories = filter_repositories(config_obj.repositories, repo)
+           repos_to_sync = filter_repositories(config_obj.repositories, repo)
            
-           if not repositories:
+           if not repos_to_sync:
                ctx.error("No matching repositories found.")
                return 1
            
            # Sync repositories
-           ctx.info(f"Syncing {len(repositories)} repositories...")
+           ctx.info(f"Syncing {len(repos_to_sync)} repositories...")
            
-           for repository in repositories:
-               try:
+           # Get progress manager
+           progress = ProgressManager(quiet=ctx.quiet)
+           
+           # Show progress during sync
+           with progress.progress_bar(len(repos_to_sync), "Syncing repositories") as bar:
+               for repository in repos_to_sync:
                    ctx.info(f"Syncing {repository.name}...")
-                   # Sync repository logic
-               except Exception as e:
-                   ctx.error(f"Failed to sync {repository.name}: {e}")
+                   try:
+                       # Sync repository
+                       sync_repository(repository)
+                       ctx.success(f"✓ {repository.name} synced successfully")
+                   except Exception as e:
+                       ctx.error(f"✗ Failed to sync {repository.name}: {e}")
+                   
+                   # Update progress bar
+                   if bar:
+                       bar.update(1)
            
            ctx.success("Sync completed successfully.")
            return 0
@@ -379,12 +390,13 @@ The audit identified several issues with the current CLI system:
    from vcspull.cli.options import common_options, config_option
    from vcspull.cli.errors import handle_exceptions
    from vcspull.config import load_and_validate_config
+   from vcspull.cli.output import OutputFormatter
    
    @click.command()
    @common_options
    @config_option
    @click.option(
-       "--format", "-f", type=click.Choice(["text", "json"]), default="text",
+       "--format", "-f", type=click.Choice(["text", "json", "yaml", "table"]), default="text",
        help="Output format."
    )
    @click.pass_obj
@@ -401,24 +413,29 @@ The audit identified several issues with the current CLI system:
        # Load configuration
        config_obj = load_and_validate_config(config)
        
+       # Get repositories info
+       repos_info = []
+       for repo in config_obj.repositories:
+           repos_info.append({
+               "name": repo.name,
+               "url": repo.url,
+               "path": repo.path,
+               "vcs": repo.vcs or "unknown"
+           })
+       
+       # Format output based on user selection
        if format == "json":
-           # JSON output
-           result = []
-           for repo in config_obj.repositories:
-               result.append({
-                   "name": repo.name,
-                   "url": repo.url,
-                   "path": repo.path,
-                   "vcs": repo.vcs
-               })
-           click.echo(json.dumps(result, indent=2))
+           click.echo(OutputFormatter.format_json(repos_info))
+       elif format == "yaml":
+           click.echo(OutputFormatter.format_yaml(repos_info))
+       elif format == "table":
+           click.echo(OutputFormatter.format_table(repos_info, columns=["name", "vcs", "path"]))
        else:
            # Text output
-           ctx.info(f"Found {len(config_obj.repositories)} repository configuration(s):")
-           for repo in config_obj.repositories:
-               ctx.info(f"- {repo.name} ({repo.vcs})")
-               ctx.info(f"  URL: {repo.url}")
-               ctx.info(f"  Path: {repo.path}")
+           for repo in repos_info:
+               ctx.info(f"- {repo['name']} ({repo['vcs']})")
+               ctx.info(f"  URL: {repo['url']}")
+               ctx.info(f"  Path: {repo['path']}")
        
        return 0
    ```
@@ -568,22 +585,39 @@ The audit identified several issues with the current CLI system:
 1. **Enhanced Help System**:
    ```python
    # src/vcspull/cli/main.py
+   import typing as t
    import click
-   
+
    # Define custom help formatter
    class VCSPullHelpFormatter(click.HelpFormatter):
        """Custom help formatter for VCSPull CLI."""
        
        def write_usage(self, prog, args='', prefix='Usage: '):
-           """Write usage line with custom formatting."""
+           """Write usage line with custom formatting.
+           
+           Parameters
+           ----
+           prog : str
+               Program name
+           args : str, optional
+               Command arguments, by default ''
+           prefix : str, optional
+               Prefix for usage line, by default 'Usage: '
+           """
            super().write_usage(prog, args, prefix)
            # Add extra newline for readability
            self.write("\n")
        
        def write_heading(self, heading):
-           """Write section heading with custom formatting."""
+           """Write section heading with custom formatting.
+           
+           Parameters
+           ----
+           heading : str
+               Section heading
+           """
            self.write(f"\n{click.style(heading, fg='green', bold=True)}:\n")
-   
+
    # Use custom formatter for CLI group
    @click.group(cls=click.Group, context_settings={
        "help_option_names": ["--help", "-h"],
@@ -679,10 +713,10 @@ The audit identified several issues with the current CLI system:
    from pathlib import Path
    import os
    import click
-   
+
    from vcspull.config import find_configs, load_and_validate_config
    from vcspull.schemas import VCSPullConfig
-   
+
    def get_config(path: t.Optional[Path] = None) -> VCSPullConfig:
        """Get configuration from file or standard locations.
        
