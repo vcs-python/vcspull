@@ -123,7 +123,7 @@ def test_empty_url() -> None:
             "url": "",  # Empty URL
             "path": "/tmp/repo",
             "name": "repo",
-        }
+        },
     )
 
     # Check that validation fails
@@ -141,7 +141,7 @@ def test_invalid_url_format() -> None:
             "url": "",  # Empty URL
             "path": "/tmp/repo",
             "name": "repo",
-        }
+        },
     )
 
     # Check that validation fails

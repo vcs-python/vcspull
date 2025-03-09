@@ -67,7 +67,10 @@ def test_conflicting_repo_configs() -> None:
     """Test handling of conflicting repository configurations."""
     # Create two temporary config files with conflicting definitions
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+        mode="w",
+        suffix=".yaml",
+        delete=False,
+        encoding="utf-8",
     ) as file1:
         file1.write("""
 /tmp/test_repos/:
@@ -78,7 +81,10 @@ def test_conflicting_repo_configs() -> None:
         file1_path = pathlib.Path(file1.name)
 
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+        mode="w",
+        suffix=".yaml",
+        delete=False,
+        encoding="utf-8",
     ) as file2:
         file2.write("""
 /tmp/test_repos/:
@@ -116,7 +122,10 @@ def test_conflicting_repo_types() -> None:
     """Test handling of conflicting repository VCS types."""
     # Create two temporary config files with different VCS types
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+        mode="w",
+        suffix=".yaml",
+        delete=False,
+        encoding="utf-8",
     ) as file1:
         file1.write("""
 /tmp/test_repos/:
@@ -127,7 +136,10 @@ def test_conflicting_repo_types() -> None:
         file1_path = pathlib.Path(file1.name)
 
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+        mode="w",
+        suffix=".yaml",
+        delete=False,
+        encoding="utf-8",
     ) as file2:
         file2.write("""
 /tmp/test_repos/:

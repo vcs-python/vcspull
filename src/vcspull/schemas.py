@@ -10,6 +10,7 @@ import typing as t
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     RootModel,
     field_validator,
 )
@@ -32,8 +33,8 @@ class VCSType(str, enum.Enum):
 class GitRemote(BaseModel):
     """Git remote configuration."""
 
-    name: str
-    url: str
+    name: str = Field(min_length=1)
+    url: str = Field(min_length=1)
     fetch: str | None = None
     push: str | None = None
 
@@ -57,10 +58,10 @@ class RepositoryModel(BaseModel):
         Commands to run after repository operations
     """
 
-    vcs: str
-    name: str
-    path: str | pathlib.Path
-    url: str
+    vcs: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    path: str | pathlib.Path = Field()
+    url: str = Field(min_length=1)
     remotes: dict[str, GitRemote] | None = None
     shell_command_after: list[str] | None = None
 
@@ -276,10 +277,12 @@ class ConfigDictModel(RootModel[dict[str, ConfigSectionDictModel]]):
 class RawRepositoryModel(BaseModel):
     """Raw repository configuration model before validation and path resolution."""
 
-    vcs: str
-    name: str
-    path: str | pathlib.Path
-    url: str
+    vcs: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    path: str | pathlib.Path = Field(
+        min_length=1 if isinstance(path := ..., str) else 0,
+    )
+    url: str = Field(min_length=1)
     remotes: dict[str, dict[str, t.Any]] | None = None
     shell_command_after: list[str] | None = None
 
@@ -287,6 +290,31 @@ class RawRepositoryModel(BaseModel):
         extra="allow",  # Allow extra fields in raw config
         str_strip_whitespace=True,
     )
+
+    @field_validator("vcs")
+    @classmethod
+    def validate_vcs(cls, v: str) -> str:
+        """Validate VCS type.
+
+        Parameters
+        ----------
+        v : str
+            VCS type to validate
+
+        Returns
+        -------
+        str
+            Validated VCS type
+
+        Raises
+        ------
+        ValueError
+            If VCS type is invalid
+        """
+        if v.lower() not in {"git", "hg", "svn"}:
+            msg = f"Invalid VCS type: {v}. Supported types are: git, hg, svn"
+            raise ValueError(msg)
+        return v.lower()
 
 
 # Use a type alias for the complex type in RawConfigSectionDictModel
