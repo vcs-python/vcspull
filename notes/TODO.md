@@ -7,7 +7,7 @@
 - [x] **Phase 1: Schema Definition**
   - [x] Define complete Pydantic v2 models for configuration
   - [x] Implement comprehensive validation logic
-  - [ ] Generate schema documentation from models
+  - [x] Generate schema documentation from models
 
 - [x] **Phase 2: Configuration Handling**
   - [x] Implement configuration loading functions
@@ -232,3 +232,8 @@
   - Fixed mypy errors and improved type annotations
 - All tests are now passing with no linter or mypy errors
 - Improved configuration handling with robust include resolution and merging
+- Integrated autodoc_pydantic for comprehensive schema documentation:
+  - Added configuration in docs/conf.py
+  - Created API reference for Pydantic models in docs/api/config_models.md
+  - Added JSON Schema generation in docs/configuration/schema.md
+  - Updated documentation navigation to include new pages
