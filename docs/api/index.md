@@ -23,10 +23,6 @@ If you need an internal API stabilized please [file an issue](https://github.com
 
 ```{toctree}
 cli/index
-exc
-log
-internals/index
-validator
-util
 types
+logger
 ```
