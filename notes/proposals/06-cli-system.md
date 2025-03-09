@@ -118,6 +118,7 @@ The audit identified several issues with the current CLI system:
 2. **Command Registry**:
    ```python
    # src/vcspull/cli/main.py
+   import typing as t
    import click
    
    from vcspull.cli.context import CliContext
@@ -161,7 +162,7 @@ The audit identified several issues with the current CLI system:
    # src/vcspull/cli/context.py
    import typing as t
    import sys
-   from pydantic import BaseModel, Field
+   from pydantic import BaseModel, ConfigDict
    import click
    
    class CliContext(BaseModel):
@@ -169,7 +170,7 @@ The audit identified several issues with the current CLI system:
        
        Manages state and utilities for command execution.
        
-       Attributes
+       Parameters
        ----
        verbose : bool
            Whether to show verbose output
@@ -182,10 +183,10 @@ The audit identified several issues with the current CLI system:
        quiet: bool = False
        color: bool = True
        
-       model_config = {
-           "arbitrary_types_allowed": True,
-           "extra": "forbid",
-       }
+       model_config = ConfigDict(
+           arbitrary_types_allowed=True,
+           extra="forbid",
+       )
        
        def info(self, message: str) -> None:
            """Display informational message.
@@ -371,6 +372,7 @@ The audit identified several issues with the current CLI system:
    # src/vcspull/cli/commands/info.py
    import typing as t
    import click
+   import json
    from pathlib import Path
    
    from vcspull.cli.context import CliContext
@@ -475,7 +477,7 @@ The audit identified several issues with the current CLI system:
                fill_char="="
            )
        
-       def spinner(self, text: str = "Working...") -> t.Optional[click.progressbar]:
+       def spinner(self, text: str = "Working...") -> t.Optional["Spinner"]:
            """Create a spinner for indeterminate progress.
            
            Parameters
@@ -485,7 +487,7 @@ The audit identified several issues with the current CLI system:
                
            Returns
            ----
-           Optional[click.progressbar]
+           Optional[Spinner]
                Spinner object or None if quiet
            """
            if self.quiet:
