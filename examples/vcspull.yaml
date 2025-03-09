@@ -1,0 +1,39 @@
+# Example VCSPull configuration file
+
+# Global settings
+settings:
+  sync_remotes: true
+  default_vcs: git
+  depth: 1
+
+# Repository definitions
+repositories:
+  # Git repositories
+  - name: vcspull
+    url: https://github.com/vcs-python/vcspull.git
+    path: ~/code/vcspull
+    vcs: git
+    rev: main
+  
+  - name: libvcs
+    url: https://github.com/vcs-python/libvcs.git
+    path: ~/code/libvcs
+    vcs: git
+    remotes:
+      upstream: https://github.com/vcs-python/libvcs.git
+  
+  # Mercurial repository
+  - name: mercurial-repo
+    url: https://www.mercurial-scm.org/repo/hello
+    path: ~/code/mercurial-hello
+    vcs: hg
+  
+  # Subversion repository
+  - name: svn-repo
+    url: https://svn.apache.org/repos/asf/subversion/trunk
+    path: ~/code/svn-trunk
+    vcs: svn
+
+# Include other configuration files
+includes:
+  - ~/more-repos.yaml 
