@@ -879,6 +879,182 @@ except ValidationError:
     print("Strict validation failed")
 ```
 
+## Error Handling
+
+Pydantic provides comprehensive error handling mechanisms to help you understand and manage validation issues.
+
+### ValidationError
+
+Most validation failures raise `ValidationError` which contains detailed information about what went wrong:
+
+```python
+import typing as t
+from pydantic import BaseModel, ValidationError, Field
+
+
+class User(BaseModel):
+    username: str = Field(min_length=3)
+    password: str = Field(min_length=8)
+    age: int = Field(gt=0, lt=120)
+
+
+try:
+    # Multiple validation errors
+    User(username="a", password="123", age=-5)
+except ValidationError as e:
+    # Access the errors
+    print(f"Error count: {len(e.errors())}")
+    
+    # Print pretty formatted error
+    print(e)
+    
+    # Get JSON representation of errors
+    json_errors = e.json()
+    
+    # Get error details
+    for error in e.errors():
+        print(f"Field: {'.'.join(error['loc'])}")
+        print(f"Error type: {error['type']}")
+        print(f"Message: {error['msg']}")
+```
+
+### Working with Error Messages
+
+You can customize error messages and access errors in structured ways:
+
+```python
+import typing as t
+from pydantic import BaseModel, Field, model_validator, ValidationError
+
+
+class SignupForm(BaseModel):
+    username: str = Field(min_length=3, description="Username for the account")
+    password1: str = Field(min_length=8)
+    password2: str
+    
+    @model_validator(mode='after')
+    def passwords_match(self) -> 'SignupForm':
+        if self.password1 != self.password2:
+            # Custom error using ValueError
+            raise ValueError("Passwords don't match")
+        return self
+
+
+try:
+    SignupForm(username="user", password1="password123", password2="different")
+except ValidationError as e:
+    # Get a mapping of field name to error messages
+    error_map = {'.'.join(err['loc']): err['msg'] for err in e.errors()}
+    
+    # Now you can access errors by field name
+    if '__root__' in error_map:
+        print(f"Form error: {error_map['__root__']}")
+    
+    if 'username' in error_map:
+        print(f"Username error: {error_map['username']}")
+        
+    # Or render form with errors
+    for field, error in error_map.items():
+        print(f"<div class='error'>{field}: {error}</div>")
+```
+
+### Handling Errors in API Contexts
+
+When working with frameworks like FastAPI, ValidationError is automatically caught and converted to appropriate HTTP responses:
+
+```python
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field, ValidationError
+
+app = FastAPI()
+
+class Item(BaseModel):
+    name: str = Field(min_length=3)
+    price: float = Field(gt=0)
+
+
+@app.post("/items/")
+async def create_item(item_data: dict):
+    try:
+        # Manual validation of dictionary data
+        item = Item.model_validate(item_data)
+        return {"status": "success", "item": item}
+    except ValidationError as e:
+        # Convert to HTTP exception
+        raise HTTPException(
+            status_code=422,
+            detail=e.errors(),
+        )
+```
+
+### Custom Error Types
+
+You can create custom error types and error handlers:
+
+```python
+import typing as t
+from pydantic import BaseModel, field_validator, ValidationInfo
+
+
+class CustomValidationError(Exception):
+    """Custom validation error with additional context"""
+    def __init__(self, field: str, message: str, context: dict = None):
+        self.field = field
+        self.message = message
+        self.context = context or {}
+        super().__init__(f"{field}: {message}")
+
+
+class PaymentCard(BaseModel):
+    card_number: str
+    expiry_date: str
+    
+    @field_validator('card_number')
+    @classmethod
+    def validate_card_number(cls, v: str, info: ValidationInfo) -> str:
+        # Remove spaces
+        v = v.replace(' ', '')
+        
+        # Simple validation for demonstration
+        if not v.isdigit():
+            raise CustomValidationError(
+                field='card_number',
+                message='Card number must contain only digits',
+                context={'raw_value': v}
+            )
+            
+        if len(v) not in (13, 15, 16):
+            raise CustomValidationError(
+                field='card_number', 
+                message='Invalid card number length',
+                context={'length': len(v)}
+            )
+            
+        return v
+
+
+# Handler for custom errors
+def process_payment(payment_data: dict) -> dict:
+    try:
+        card = PaymentCard.model_validate(payment_data)
+        return {"status": "success", "card": card.model_dump()}
+    except CustomValidationError as e:
+        return {
+            "status": "error",
+            "field": e.field,
+            "message": e.message,
+            "context": e.context
+        }
+    except ValidationError as e:
+        return {"status": "error", "errors": e.errors()}
+
+
+# Usage
+result = process_payment({"card_number": "4111 1111 1111 111", "expiry_date": "12/24"})
+print(result)
+# {'status': 'error', 'field': 'card_number', 'message': 'Invalid card number length', 'context': {'length': 15}}
+```
+
 ## Additional Features
 
 ### Computed Fields
