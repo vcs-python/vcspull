@@ -6,9 +6,9 @@ import os
 import pathlib
 import typing as t
 
-import pytest
-
 from vcspull import config
+from vcspull.schemas import PATH_EMPTY_ERROR
+from vcspull.validator import validate_path
 
 if t.TYPE_CHECKING:
     from vcspull.types import RawConfigDict
@@ -111,8 +111,19 @@ def test_special_characters_in_paths() -> None:
 
 def test_invalid_path_characters_direct_validation() -> None:
     """Test validation of paths with invalid characters."""
-    # Skip this test as the validator doesn't raise exceptions for empty paths
-    pytest.skip("Empty path validation not implemented in the validator")
+    # Test empty path
+    result = validate_path("")
+    assert result.valid is False
+    assert PATH_EMPTY_ERROR in result.errors
+
+    # Test null character in path
+    result = validate_path("/path/with\0nullchar")
+    assert result.valid is False
+    assert "Invalid path: contains null character" in result.errors
+
+    # Test valid path
+    result = validate_path("/valid/path")
+    assert result.valid is True
 
 
 def test_relative_paths() -> None:
