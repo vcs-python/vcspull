@@ -1676,3 +1676,170 @@ Example config.json:
     "features": ["auth", "api", "export"]
 }
 ```
+
+### Working with Advanced Types
+
+Pydantic provides special handling for many complex types:
+
+```python
+import typing as t
+from uuid import UUID
+from datetime import datetime, date, time, timedelta
+from decimal import Decimal
+from ipaddress import IPv4Address, IPv6Address
+from pathlib import Path
+from pydantic import BaseModel, HttpUrl, EmailStr, SecretStr
+
+
+class AdvancedTypes(BaseModel):
+    """Example of various advanced types supported by Pydantic"""
+    
+    # Network types
+    url: HttpUrl = "https://example.com"
+    ip_v4: IPv4Address = "127.0.0.1"
+    ip_v6: IPv6Address = "::1"
+    
+    # String types with validation
+    email: EmailStr = "user@example.com"  # Requires email-validator package
+    password: SecretStr = "secret123"  # Hidden in repr and serialization
+    
+    # Date & Time types
+    created_at: datetime = datetime.now()
+    birthday: date = date(1990, 1, 1)
+    meeting_time: time = time(9, 30)
+    duration: timedelta = timedelta(hours=1)
+    
+    # File system
+    config_path: Path = Path("/etc/config.ini")
+    
+    # Other special types
+    unique_id: UUID = "a6c18a4a-6987-4b6b-8d70-893e2b8c667c"
+    price: Decimal = "19.99"  # High precision decimal
+
+
+advanced = AdvancedTypes()
+print(f"Email: {advanced.email}")
+print(f"Password: {advanced.password}")  # Will print SecretStr('**********')
+print(f"URL host: {advanced.url.host}")  # HttpUrl has properties like host, scheme, etc.
+```
+
+### Custom Types
+
+Create your own custom types with validators:
+
+```python
+import typing as t
+import re
+from pydantic import (
+    GetCoreSchemaHandler, 
+    GetJsonSchemaHandler,
+    BaseModel,
+    ValidationError,
+    AfterValidator, 
+)
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import core_schema
+
+
+# 1. Simple approach using Annotated
+def validate_isbn(v: str) -> str:
+    """Validate ISBN-10 or ISBN-13 format"""
+    # Remove hyphens and spaces
+    isbn = re.sub(r'[\s-]', '', v)
+    
+    # Validate ISBN-10
+    if len(isbn) == 10 and isbn[:9].isdigit() and (isbn[9].isdigit() or isbn[9].lower() == 'x'):
+        return isbn
+    
+    # Validate ISBN-13
+    if len(isbn) == 13 and isbn.isdigit() and isbn.startswith(('978', '979')):
+        return isbn
+    
+    raise ValueError("Invalid ISBN format")
+
+
+# Create a custom ISBN type using Annotated
+ISBN = t.Annotated[str, AfterValidator(validate_isbn)]
+
+
+# 2. More complex approach with custom type
+class PostalCode(str):
+    """Custom type for postal code validation"""
+
+    @classmethod
+    def __get_validators__(cls):
+        # For backwards compatibility with Pydantic v1
+        yield cls.validate
+        
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, _source_type: t.Any, _handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """Define the core schema for validation"""
+        return core_schema.with_info_schema(
+            core_schema.str_schema(),
+            serialization=core_schema.str_serializer(),
+            validator=cls.validate,
+            type=cls,
+        )
+    
+    @classmethod
+    def validate(cls, value: str) -> 'PostalCode':
+        """Validate postal code format"""
+        if not isinstance(value, str):
+            raise ValueError("Postal code must be a string")
+            
+        # Remove spaces
+        postal_code = value.strip().replace(" ", "")
+        
+        # Simple validation - should be customized for your country
+        if len(postal_code) < 3 or len(postal_code) > 10:
+            raise ValueError("Invalid postal code length")
+            
+        if not re.match(r'^[a-zA-Z0-9]+$', postal_code):
+            raise ValueError("Postal code should contain only letters and numbers")
+            
+        # Return a new instance of the custom type
+        return cls(postal_code)
+    
+    @classmethod
+    def __get_json_schema__(
+        cls, _source_type: t.Any, _handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """Define JSON schema for the custom type"""
+        return {
+            "type": "string",
+            "format": "postal-code",
+            "pattern": "^[a-zA-Z0-9]{3,10}$",
+            "description": "Postal/ZIP code in standard format",
+        }
+
+
+# 3. Using the custom types
+class Book(BaseModel):
+    title: str
+    isbn: ISBN
+    
+
+class Address(BaseModel):
+    street: str
+    city: str
+    postal_code: PostalCode
+    country: str
+
+
+# Test the custom types
+try:
+    book = Book(title="Python Programming", isbn="978-0-13-475759-9")
+    print(f"Valid ISBN: {book.isbn}")
+    
+    address = Address(
+        street="123 Main St",
+        city="Anytown",
+        postal_code="AB12 3CD",
+        country="UK"
+    )
+    print(f"Valid postal code: {address.postal_code}")
+except ValidationError as e:
+    print(f"Validation error: {e}")
+```
