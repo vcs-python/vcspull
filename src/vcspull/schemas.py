@@ -7,9 +7,9 @@ import os
 import pathlib
 import typing as t
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, TypeVar
 
-from typing_extensions import Literal, TypeGuard
+from typing_extensions import Doc, Literal, TypeGuard
 
 from pydantic import (
     AfterValidator,
@@ -31,7 +31,7 @@ PathLike = t.Union[str, pathlib.Path]
 ConfigName = str
 SectionName = str
 ShellCommand = str
-
+T = TypeVar("T")
 
 # Error message constants
 EMPTY_VALUE_ERROR = "Value cannot be empty or whitespace only"
@@ -56,27 +56,36 @@ def expand_path(path: str) -> pathlib.Path:
     return pathlib.Path(os.path.expandvars(path)).expanduser()
 
 
+def expand_user(path: str) -> str:
+    """Expand user directory in path string."""
+    return os.path.expanduser(path)
+
+
 # Define reusable field types with Annotated
 NonEmptyStr = Annotated[
     str,
     AfterValidator(validate_not_empty),
     WithJsonSchema({"type": "string", "minLength": 1}),
+    Doc("A string that cannot be empty or contain only whitespace"),
 ]
 
 # Path validation types
 PathStr = Annotated[
-    str | pathlib.Path,
+    str,  # Base type
     BeforeValidator(normalize_path),
     AfterValidator(validate_not_empty),
     WithJsonSchema({"type": "string", "description": "File system path"}),
+    Doc("A path string that will be validated as not empty"),
 ]
 
 ExpandedPath = Annotated[
-    str | pathlib.Path,
+    str,  # Base type
     BeforeValidator(normalize_path),
     BeforeValidator(os.path.expandvars),
+    BeforeValidator(expand_user),
     AfterValidator(expand_path),
     WithJsonSchema({"type": "string", "description": "Expanded file system path"}),
+    Doc("A path with environment variables and user directory expanded"),
 ]
 
 
@@ -99,6 +108,7 @@ class GitRemote(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
         str_strip_whitespace=True,
+        frozen=False,
     )
 
 
@@ -137,12 +147,23 @@ class RepositoryModel(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
         str_strip_whitespace=True,
+        validate_assignment=True,
     )
 
     @computed_field
     def is_git_repo(self) -> bool:
         """Determine if this is a Git repository."""
         return self.vcs == "git"
+
+    @computed_field
+    def is_hg_repo(self) -> bool:
+        """Determine if this is a Mercurial repository."""
+        return self.vcs == "hg"
+
+    @computed_field
+    def is_svn_repo(self) -> bool:
+        """Determine if this is a Subversion repository."""
+        return self.vcs == "svn"
 
     @model_validator(mode="after")
     def validate_vcs_specific_fields(self) -> RepositoryModel:
@@ -194,6 +215,32 @@ class RepositoryModel(BaseModel):
             return f"{v}.git"
 
         return v
+
+    def model_dump_config(
+        self,
+        include_shell_commands: bool = False,
+    ) -> dict[str, t.Any]:
+        """Dump model with conditional field inclusion.
+
+        Parameters
+        ----------
+        include_shell_commands : bool, optional
+            Whether to include shell commands in the output, by default False
+
+        Returns
+        -------
+        dict[str, Any]
+            Model data as dictionary
+        """
+        exclude = set()
+        if not include_shell_commands:
+            exclude.add("shell_command_after")
+
+        return self.model_dump(
+            exclude=exclude,
+            exclude_none=True,  # Omit None fields
+            exclude_unset=True,  # Omit unset fields
+        )
 
 
 class ConfigSectionDictModel(RootModel[dict[str, RepositoryModel]]):
@@ -481,7 +528,6 @@ class RawConfigSectionDictModel(RootModel[dict[str, RawRepoDataType]]):
     """Raw configuration section model before validation."""
 
     model_config = ConfigDict(
-        extra="allow",
         str_strip_whitespace=True,
     )
 
@@ -490,7 +536,6 @@ class RawConfigDictModel(RootModel[dict[str, RawConfigSectionDictModel]]):
     """Raw configuration model before validation and processing."""
 
     model_config = ConfigDict(
-        extra="allow",
         str_strip_whitespace=True,
     )
 
@@ -505,16 +550,7 @@ def get_repo_validator() -> TypeAdapter[RawRepositoryModel]:
     TypeAdapter[RawRepositoryModel]
         TypeAdapter for validating repositories
     """
-    return TypeAdapter(
-        RawRepositoryModel,
-        config=ConfigDict(
-            str_strip_whitespace=True,
-            extra="allow",
-            # Performance optimizations
-            defer_build=True,
-            validate_default=False,
-        ),
-    )
+    return TypeAdapter(RawRepositoryModel)
 
 
 @lru_cache(maxsize=8)
@@ -526,16 +562,7 @@ def get_config_validator() -> TypeAdapter[RawConfigDictModel]:
     TypeAdapter[RawConfigDictModel]
         TypeAdapter for validating configs
     """
-    return TypeAdapter(
-        RawConfigDictModel,
-        config=ConfigDict(
-            extra="allow",
-            str_strip_whitespace=True,
-            # Performance optimizations
-            defer_build=True,
-            validate_default=False,
-        ),
-    )
+    return TypeAdapter(RawConfigDictModel)
 
 
 # Initialize validators on module load
@@ -586,6 +613,19 @@ def is_valid_config_dict(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]
     """
     if config is None:
         return False
+
+    # Check that all keys are strings and all values are dictionaries
+    if not all(isinstance(k, str) for k in config):
+        return False
+
+    # Check that all values are dictionaries
+    if not all(isinstance(v, dict) for v in config.values()):
+        return False
+
+    # Check that all repository values are either dictionaries or strings (URL shorthand)
+    for section in config.values():
+        if not all(isinstance(repo, (dict, str)) for repo in section.values()):
+            return False
 
     try:
         config_validator.validate_python({"root": config})

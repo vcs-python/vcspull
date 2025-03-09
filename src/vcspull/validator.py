@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import typing as t
 
 from typing_extensions import TypeGuard
@@ -156,27 +157,7 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
     if not isinstance(config, dict):
         return False, "Configuration must be a dictionary"
 
-    # Basic structure checks for better error messages
-    # This provides more specific error messages than Pydantic
-    for section_name in config:
-        if not isinstance(section_name, str):
-            return (
-                False,
-                f"Section name must be a string, got {type(section_name).__name__}",
-            )
-
-        section = config[section_name]
-        if not isinstance(section, dict):
-            return False, f"Section '{section_name}' must be a dictionary"
-
-        for repo_name in section:
-            if not isinstance(repo_name, str):
-                return (
-                    False,
-                    f"Repository name must be a string, got {type(repo_name).__name__}",
-                )
-
-    # Now validate the entire config with Pydantic for deeper validation
+    # Use Pydantic validation through TypeAdapter for complete validation
     try:
         # Use type adapter for validation
         config_validator.validate_python({"root": config})
@@ -217,7 +198,7 @@ def validate_config(config: t.Any) -> None:
             suggestion="Provide a valid configuration dictionary.",
         )
 
-    # Important for test_validate_config_raises_exceptions
+    # Type check - important for test_validate_config_raises_exceptions
     if not isinstance(config, dict):
         raise exc.ConfigValidationError(
             message=(
@@ -230,19 +211,54 @@ def validate_config(config: t.Any) -> None:
             ),
         )
 
-    # Validate basic structure
-    is_valid, error = validate_config_structure(config)
-    if not is_valid:
-        raise exc.ConfigValidationError(
-            message=f"Invalid configuration structure: {error}",
-            suggestion="Ensure your configuration follows the required format.",
-        )
+    # Check that all keys are strings
+    for key in config:
+        if not isinstance(key, str):
+            raise exc.ConfigValidationError(
+                message=f"Invalid section name: {key} (type: {type(key).__name__})",
+                suggestion="Section names must be strings.",
+            )
 
-    # Use model validation for the whole configuration
+    # Check that all values are dictionaries
+    for section, section_value in config.items():
+        if not isinstance(section_value, dict):
+            raise exc.ConfigValidationError(
+                message=f"Invalid section value for '{section}': {section_value} (type: {type(section_value).__name__})",
+                suggestion="Section values must be dictionaries containing repositories.",
+            )
+
+        # Check repository configurations
+        for repo_name, repo_config in section_value.items():
+            # Skip string shorthand URLs
+            if isinstance(repo_config, str):
+                continue
+
+            # Check that repo config is a dictionary
+            if not isinstance(repo_config, dict):
+                raise exc.ConfigValidationError(
+                    message=f"Invalid repository configuration for '{section}.{repo_name}': {repo_config} (type: {type(repo_config).__name__})",
+                    suggestion="Repository configurations must be dictionaries or URL strings.",
+                )
+
+            # Check for required fields
+            if "vcs" not in repo_config:
+                raise exc.ConfigValidationError(
+                    message=f"Missing required field 'vcs' in repository '{section}.{repo_name}'",
+                    suggestion="Each repository configuration must include a 'vcs' field.",
+                )
+
+            # Check VCS value
+            if "vcs" in repo_config and repo_config["vcs"] not in {"git", "hg", "svn"}:
+                raise exc.ConfigValidationError(
+                    message=f"Invalid VCS type '{repo_config['vcs']}' in repository '{section}.{repo_name}'",
+                    suggestion="VCS type must be one of: 'git', 'hg', 'svn'.",
+                )
+
+    # Use Pydantic validation for complete validation
     try:
         config_validator.validate_python({"root": config})
     except ValidationError as e:
-        # Create a more user-friendly error message
+        # Create a more user-friendly error message with structure
         error_message = format_pydantic_errors(e)
         raise exc.ConfigValidationError(
             message=f"Invalid configuration: {error_message}",
@@ -293,7 +309,7 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
         formatted_error = f"{location}: {message}"
 
         # Add input value if available (for more context)
-        if input_value not in {"", None}:
+        if input_value != "" and input_value is not None:
             try:
                 # Format input value concisely
                 if isinstance(input_value, (dict, list)):
@@ -378,6 +394,53 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
     return "\n".join(result)
 
 
+def get_structured_errors(validation_error: ValidationError) -> dict[str, t.Any]:
+    """Get structured error representation suitable for API responses.
+
+    Parameters
+    ----------
+    validation_error : ValidationError
+        The validation error to format
+
+    Returns
+    -------
+    dict[str, t.Any]
+        Structured error format with categorized errors
+    """
+    # Get structured representation from errors method
+    errors = validation_error.errors(
+        include_url=True,
+        include_context=True,
+        include_input=True,
+    )
+
+    # Group by error type
+    categorized = {}
+    for error in errors:
+        location = ".".join(str(loc) for loc in error.get("loc", []))
+        error_type = error.get("type", "unknown")
+
+        if error_type not in categorized:
+            categorized[error_type] = []
+
+        categorized[error_type].append(
+            {
+                "location": location,
+                "message": error.get("msg", ""),
+                "context": error.get("ctx", {}),
+                "url": error.get("url", ""),
+                "input": error.get("input", ""),
+            },
+        )
+
+    return {
+        "error": "ValidationError",
+        "detail": categorized,
+        "error_count": validation_error.error_count(),
+        "summary": str(validation_error),
+    }
+
+
 def validate_config_json(json_data: str | bytes) -> ValidationResult:
     """Validate configuration from JSON string or bytes.
 
@@ -395,13 +458,43 @@ def validate_config_json(json_data: str | bytes) -> ValidationResult:
         return False, "JSON data cannot be empty"
 
     try:
-        # Validate directly from JSON for better performance
-        RawConfigDictModel.model_validate_json(
-            json_data,
-            context={"source": "json_input"},  # Add context for validators
-        )
-    except ValidationError as e:
-        return False, format_pydantic_errors(e)
+        # First parse the JSON
+        config_dict = json.loads(json_data)
+
+        # Then validate the parsed config
+        try:
+            # Validate the structure first
+            valid, message = validate_config_structure(config_dict)
+            if not valid:
+                return False, message
+
+            # Check for invalid VCS values
+            for section_name, section in config_dict.items():
+                if not isinstance(section, dict):
+                    continue
+
+                for repo_name, repo in section.items():
+                    if not isinstance(repo, dict):
+                        continue
+
+                    if "vcs" in repo and repo["vcs"] not in {"git", "hg", "svn"}:
+                        return (
+                            False,
+                            f"Invalid VCS type: {repo['vcs']} in {section_name}.{repo_name}",
+                        )
+
+            # Use Pydantic validation as a final check
+            RawConfigDictModel.model_validate(
+                config_dict,
+                context={"source": "json_input"},  # Add context for validators
+            )
+        except ValidationError as e:
+            return False, format_pydantic_errors(e)
+        except Exception as e:
+            return False, f"Invalid configuration: {e!s}"
+
+    except json.JSONDecodeError as e:
+        return False, f"Invalid JSON syntax: {e}"
     except Exception as e:
         return False, f"Invalid JSON: {e!s}"
     else:
