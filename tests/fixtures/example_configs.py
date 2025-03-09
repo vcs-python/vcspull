@@ -42,7 +42,7 @@ def simple_yaml_config(tmp_path: Path) -> Path:
     }
 
     config_file = tmp_path / "config.yaml"
-    with open(config_file, "w", encoding="utf-8") as f:
+    with config_file.open("w", encoding="utf-8") as f:
         yaml.dump(config_data, f)
 
     return config_file
@@ -95,7 +95,7 @@ def complex_yaml_config(tmp_path: Path) -> Path:
     }
 
     config_file = tmp_path / "complex-config.yaml"
-    with open(config_file, "w", encoding="utf-8") as f:
+    with config_file.open("w", encoding="utf-8") as f:
         yaml.dump(config_data, f)
 
     return config_file
@@ -131,7 +131,7 @@ def json_config(tmp_path: Path) -> Path:
     }
 
     config_file = tmp_path / "config.json"
-    with open(config_file, "w", encoding="utf-8") as f:
+    with config_file.open("w", encoding="utf-8") as f:
         json.dump(config_data, f)
 
     return config_file
@@ -164,7 +164,7 @@ def config_with_includes(tmp_path: Path) -> tuple[Path, Path]:
     }
 
     included_file = tmp_path / "included.yaml"
-    with open(included_file, "w", encoding="utf-8") as f:
+    with included_file.open("w", encoding="utf-8") as f:
         yaml.dump(included_config_data, f)
 
     # Create main config with include
@@ -187,7 +187,7 @@ def config_with_includes(tmp_path: Path) -> tuple[Path, Path]:
     }
 
     main_file = tmp_path / "main-config.yaml"
-    with open(main_file, "w", encoding="utf-8") as f:
+    with main_file.open("w", encoding="utf-8") as f:
         yaml.dump(main_config_data, f)
 
     return main_file, included_file

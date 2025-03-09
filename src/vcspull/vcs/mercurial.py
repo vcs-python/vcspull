@@ -64,11 +64,12 @@ class MercurialInterface(VCSInterface):
                 text=True,
             )
             logger.debug(result.stdout)
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to clone repository: {e}")
             logger.error(e.stderr)
             return False
+        else:
+            return True
 
     def pull(self) -> bool:
         """Pull changes from the remote repository.
@@ -103,11 +104,12 @@ class MercurialInterface(VCSInterface):
             )
             logger.debug(update_result.stdout)
 
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to pull repository: {e}")
             logger.error(e.stderr)
             return False
+        else:
+            return True
 
     def update(self) -> bool:
         """Update the repository to the specified revision.
@@ -128,15 +130,16 @@ class MercurialInterface(VCSInterface):
         try:
             logger.info(f"Updating to {self.repo.rev} in {self.path}")
             result = subprocess.run(
-                ["hg", "update", self.repo.rev],
+                ["hg", "update", "-r", self.repo.rev],
                 check=True,
                 cwd=str(self.path),
                 capture_output=True,
                 text=True,
             )
             logger.debug(result.stdout)
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to update to revision: {e}")
             logger.error(e.stderr)
             return False
+        else:
+            return True

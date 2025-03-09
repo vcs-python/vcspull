@@ -50,11 +50,19 @@ class TestRepository:
 
     def test_missing_required_fields(self) -> None:
         """Test validation error when required fields are missing."""
+        # Missing path parameter
         with pytest.raises(ValidationError):
-            Repository(url="https://github.com/user/repo.git")
+            # We need to use model_construct to bypass validation and then
+            # validate manually to check for specific missing fields
+            repo_no_path = Repository.model_construct(
+                url="https://github.com/user/repo.git"
+            )
+            Repository.model_validate(repo_no_path.model_dump())
 
+        # Missing url parameter
         with pytest.raises(ValidationError):
-            Repository(path="~/code/repo")
+            repo_no_url = Repository.model_construct(path="~/code/repo")
+            Repository.model_validate(repo_no_url.model_dump())
 
 
 class TestSettings:

@@ -50,7 +50,7 @@ class TestLoadConfig:
         }
 
         config_file = tmp_path / "config.yaml"
-        with open(config_file, "w", encoding="utf-8") as f:
+        with config_file.open("w", encoding="utf-8") as f:
             yaml.dump(config_data, f)
 
         config = load_config(config_file)
@@ -81,7 +81,7 @@ class TestLoadConfig:
         }
 
         config_file = tmp_path / "config.json"
-        with open(config_file, "w", encoding="utf-8") as f:
+        with config_file.open("w", encoding="utf-8") as f:
             json.dump(config_data, f)
 
         config = load_config(config_file)
@@ -97,7 +97,7 @@ class TestLoadConfig:
     def test_load_empty_config(self, tmp_path: Path) -> None:
         """Test loading an empty configuration file."""
         config_file = tmp_path / "empty.yaml"
-        with open(config_file, "w", encoding="utf-8") as f:
+        with config_file.open("w", encoding="utf-8") as f:
             f.write("")
 
         config = load_config(config_file)
@@ -115,7 +115,7 @@ class TestLoadConfig:
     def test_unsupported_format(self, tmp_path: Path) -> None:
         """Test error for unsupported file format."""
         config_file = tmp_path / "config.txt"
-        with open(config_file, "w", encoding="utf-8") as f:
+        with config_file.open("w", encoding="utf-8") as f:
             f.write("This is not a valid config file")
 
         with pytest.raises(ValueError, match="Unsupported file format"):
@@ -162,7 +162,7 @@ class TestResolveIncludes:
         }
 
         included_file = tmp_path / "included.yaml"
-        with open(included_file, "w", encoding="utf-8") as f:
+        with included_file.open("w", encoding="utf-8") as f:
             yaml.dump(included_config_data, f)
 
         # Create main config
@@ -214,7 +214,7 @@ class TestResolveIncludes:
         }
 
         nested_file = tmp_path / "nested.yaml"
-        with open(nested_file, "w", encoding="utf-8") as f:
+        with nested_file.open("w", encoding="utf-8") as f:
             yaml.dump(nested_config_data, f)
 
         # Create included config file with nested include
@@ -233,7 +233,7 @@ class TestResolveIncludes:
         }
 
         included_file = tmp_path / "included.yaml"
-        with open(included_file, "w", encoding="utf-8") as f:
+        with included_file.open("w", encoding="utf-8") as f:
             yaml.dump(included_config_data, f)
 
         # Create main config

@@ -15,7 +15,7 @@ from vcspull.vcs import get_vcs_handler
 
 
 def main() -> int:
-    """Main function."""
+    """Run the main application."""
     # Load configuration
     config_path = Path(__file__).parent / "vcspull.yaml"
 

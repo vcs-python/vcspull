@@ -70,11 +70,12 @@ class GitInterface(VCSInterface):
                 text=True,
             )
             logger.debug(result.stdout)
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to clone repository: {e}")
             logger.error(e.stderr)
             return False
+        else:
+            return True
 
     def pull(self) -> bool:
         """Pull changes from the remote repository.
@@ -98,11 +99,12 @@ class GitInterface(VCSInterface):
                 text=True,
             )
             logger.debug(result.stdout)
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to pull repository: {e}")
             logger.error(e.stderr)
             return False
+        else:
+            return True
 
     def update(self) -> bool:
         """Update the repository to the specified revision.
@@ -130,8 +132,9 @@ class GitInterface(VCSInterface):
                 text=True,
             )
             logger.debug(result.stdout)
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to checkout revision: {e}")
             logger.error(e.stderr)
             return False
+        else:
+            return True
