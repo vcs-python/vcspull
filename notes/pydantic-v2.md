@@ -2757,10 +2757,108 @@ except ValueError as e:
 
 Pydantic v2 offers a powerful, flexible and high-performance way to validate, serialize, and document your data models using Python's type system. Key benefits include:
 
-- Type-driven validation using standard Python type annotations
-- Exceptional performance via Rust-based validation engine
-- Flexible configuration options for various use cases
-- Rich ecosystem of integrations and extensions
-- Comprehensive JSON Schema generation
+- **Type-driven validation**: Use standard Python type annotations for schema definition
+- **Exceptional performance**: Rust-based validation engine provides up to 100x faster validation compared to v1
+- **Flexible coercion and strictness**: Toggle strict mode globally or per field
+- **Extensive validation tools**: Field validators, model validators, custom types
+- **Comprehensive serialization**: To dictionaries, JSON, with custom options
+- **TypeAdapters**: Validate data against any Python type without creating models
+- **Rich ecosystem**: Integrates with FastAPI, Django, testing frameworks, and more
 
-Whether you're building APIs with FastAPI, validating configuration settings, or just need robust data validation in your Python application, Pydantic provides an elegant solution that works with your IDE and type checker while ensuring runtime data correctness.
+In practice, Pydantic v2 excels in a wide range of scenarios including:
+
+- API schema validation with web frameworks like FastAPI
+- Configuration management with pydantic-settings
+- Data processing pipelines
+- Domain-driven design with rich model semantics
+- Database ORM integration
+
+This document covers the fundamentals through advanced uses of Pydantic v2, including:
+
+- Basic model definition and validation
+- Field customization and constraints
+- Validation with custom validators
+- Serialization options
+- Type adapters
+- JSON Schema generation
+- Error handling strategies
+- Performance optimization
+- Common pitfalls and solutions
+- Real-world examples and patterns
+
+Whether you're building robust APIs, data processing pipelines, or validating configuration, Pydantic provides an elegant solution that works with your IDE and type checker while ensuring runtime data correctness.
+
+
+
+# WRONG: Mutable defaults are shared between instances
+class Wrong(BaseModel):
+    tags: list[str] = []  # All instances will share the same list
+
+
+# CORRECT: Use Field with default_factory
+class Correct(BaseModel):
+    tags: list[str] = Field(default_factory=list)  # Each instance gets its own list
+```
+
+### Forward References
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+# WRONG: Direct self-reference without quotes
+class WrongNode(BaseModel):
+    value: int
+    children: list[WrongNode] = []  # Error: WrongNode not defined yet
+
+
+# CORRECT: String literal reference
+class CorrectNode(BaseModel):
+    value: int
+    children: list["CorrectNode"] = []  # Works with string reference
+
+# Remember to rebuild the model for forward references
+CorrectNode.model_rebuild()
+```
+
+### Overriding Model Fields
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+class Parent(BaseModel):
+    name: str
+    age: int = 30
+
+
+# WRONG: Field overridden but wrong type
+class WrongChild(Parent):
+    age: str  # Type mismatch with parent
+
+
+# CORRECT: Field overridden with compatible type
+class CorrectChild(Parent):
+    age: int = 18  # Same type, different default
+```
+
+### Optional Fields vs. Default Values
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+# Not what you might expect
+class User1(BaseModel):
+    # This is Optional but still required - must be provided, can be None
+    nickname: t.Optional[str]  
+
+
+# Probably what you want
+class User2(BaseModel):
+    # This is Optional AND has a default - doesn't need to be provided
+    nickname: t.Optional[str] = None
+```
