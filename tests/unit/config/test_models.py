@@ -55,7 +55,7 @@ class TestRepository:
             # We need to use model_construct to bypass validation and then
             # validate manually to check for specific missing fields
             repo_no_path = Repository.model_construct(
-                url="https://github.com/user/repo.git"
+                url="https://github.com/user/repo.git",
             )
             Repository.model_validate(repo_no_path.model_dump())
 

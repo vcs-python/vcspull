@@ -26,18 +26,17 @@ class SubversionInterface(VCSInterface):
             Repository configuration
         """
         self.repo = repo
-        self.path = Path(repo.path)
+        self.path = Path(repo.path).expanduser().resolve()
 
     def exists(self) -> bool:
-        """Check if the repository exists locally.
+        """Check if the repository exists.
 
         Returns
         -------
         bool
-            True if the repository exists locally
+            True if the repository exists, False otherwise
         """
-        svn_dir = self.path / ".svn"
-        return svn_dir.exists() and svn_dir.is_dir()
+        return (self.path / ".svn").exists()
 
     def clone(self) -> bool:
         """Clone the repository.
@@ -45,90 +44,195 @@ class SubversionInterface(VCSInterface):
         Returns
         -------
         bool
-            True if the operation was successful
+            True if successful, False otherwise
         """
         if self.exists():
-            logger.info(f"Repository already exists at {self.path}")
+            logger.info(f"Repository already exists: {self.path}")
             return True
 
         # Create parent directory if it doesn't exist
-        if not self.path.parent.exists():
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
-            logger.info(f"Checking out {self.repo.url} to {self.path}")
-            result = subprocess.run(
-                ["svn", "checkout", self.repo.url, str(self.path)],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            logger.debug(result.stdout)
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to checkout repository: {e}")
-            logger.error(e.stderr)
-            return False
-        else:
+            cmd = ["svn", "checkout", self.repo.url, str(self.path)]
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+            logger.info(f"Checked out repository: {self.path}")
             return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to checkout repository: {e.stderr}")
+            return False
 
     def pull(self) -> bool:
-        """Pull changes from the remote repository.
+        """Update the repository from the remote.
 
         Returns
         -------
         bool
-            True if the operation was successful
+            True if successful, False otherwise
         """
         if not self.exists():
-            logger.warning(f"Repository does not exist at {self.path}")
+            logger.error(f"Repository does not exist: {self.path}")
             return False
 
         try:
-            logger.info(f"Updating {self.path}")
-            result = subprocess.run(
-                ["svn", "update"],
-                check=True,
-                cwd=str(self.path),
-                capture_output=True,
-                text=True,
-            )
-            logger.debug(result.stdout)
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to update repository: {e}")
-            logger.error(e.stderr)
-            return False
-        else:
+            cmd = ["svn", "update", str(self.path)]
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+            logger.info(f"Updated repository: {self.path}")
             return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to update repository: {e.stderr}")
+            return False
 
     def update(self) -> bool:
-        """Update the repository to the specified revision.
+        """Update the repository.
 
         Returns
         -------
         bool
-            True if the operation was successful
+            True if successful, False otherwise
         """
         if not self.exists():
-            logger.warning(f"Repository does not exist at {self.path}")
-            return False
+            return self.clone()
+        return self.pull()
 
-        # If no revision is specified, just update
-        if not self.repo.rev:
-            return self.pull()
+
+class SubversionRepo:
+    """Subversion repository adapter for the new API."""
+
+    def __init__(self, repo_path: str | Path, url: str, **kwargs: t.Any) -> None:
+        """Initialize the Subversion repository adapter.
+
+        Parameters
+        ----------
+        repo_path : str | Path
+            Path to the repository
+        url : str
+            URL of the repository
+        **kwargs : t.Any
+            Additional keyword arguments
+        """
+        from vcspull.config.models import Repository
+
+        self.repo_path = Path(repo_path).expanduser().resolve()
+        self.url = url
+        self.kwargs = kwargs
+
+        # Create a Repository object for the SubversionInterface
+        self.repo = Repository(
+            path=str(self.repo_path),
+            url=self.url,
+            vcs="svn",
+        )
+
+        # Create the interface
+        self.interface = SubversionInterface(self.repo)
+
+    def is_repo(self) -> bool:
+        """Check if the directory is a Subversion repository.
+
+        Returns
+        -------
+        bool
+            True if the directory is a Subversion repository, False otherwise
+        """
+        return self.interface.exists()
+
+    def obtain(self, depth: int | None = None) -> bool:
+        """Checkout the repository.
+
+        Parameters
+        ----------
+        depth : int | None, optional
+            Checkout depth, by default None (ignored for SVN)
+
+        Returns
+        -------
+        bool
+            True if successful, False otherwise
+        """
+        return self.interface.clone()
+
+    def update(self) -> bool:
+        """Update the repository.
+
+        Returns
+        -------
+        bool
+            True if successful, False otherwise
+        """
+        return self.interface.update()
+
+    def set_remote(self, name: str, url: str) -> bool:
+        """Set a remote for the repository.
+
+        Parameters
+        ----------
+        name : str
+            Name of the remote (ignored for SVN)
+        url : str
+            URL of the remote (ignored for SVN)
+
+        Returns
+        -------
+        bool
+            Always returns False as SVN doesn't support multiple remotes
+        """
+        # SVN doesn't support multiple remotes in the same way as Git/Mercurial
+        return False
+
+    def update_remote(self, name: str) -> bool:
+        """Update from a remote.
+
+        Parameters
+        ----------
+        name : str
+            Name of the remote (ignored for SVN)
+
+        Returns
+        -------
+        bool
+            True if successful, False otherwise
+        """
+        # SVN doesn't have named remotes, so just update
+        return self.update()
+
+    def update_to_rev(self, rev: str) -> bool:
+        """Update to a specific revision.
+
+        Parameters
+        ----------
+        rev : str
+            Revision to update to
+
+        Returns
+        -------
+        bool
+            True if successful, False otherwise
+        """
+        if not self.is_repo():
+            return False
 
         try:
-            logger.info(f"Updating to revision {self.repo.rev} in {self.path}")
-            result = subprocess.run(
-                ["svn", "update", "-r", self.repo.rev],
-                check=True,
-                cwd=str(self.path),
-                capture_output=True,
-                text=True,
-            )
-            logger.debug(result.stdout)
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to update to revision: {e}")
-            logger.error(e.stderr)
-            return False
-        else:
+            cmd = ["svn", "update", "-r", rev, str(self.repo_path)]
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
             return True
+        except subprocess.CalledProcessError:
+            return False
+
+    def get_remote_url(self) -> str | None:
+        """Get the URL of the repository.
+
+        Returns
+        -------
+        str | None
+            URL of the repository, or None if not found
+        """
+        if not self.is_repo():
+            return None
+
+        try:
+            cmd = ["svn", "info", "--show-item", "url", str(self.repo_path)]
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return result.stdout.strip()
+        except subprocess.CalledProcessError:
+            return None

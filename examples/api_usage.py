@@ -20,49 +20,30 @@ def main() -> int:
     config_path = Path(__file__).parent / "vcspull.yaml"
 
     if not config_path.exists():
-        print(f"Configuration file not found: {config_path}")
         return 1
 
-    print(f"Loading configuration from {config_path}")
     config = load_config(config_path)
 
     # Resolve includes
     config = resolve_includes(config, config_path.parent)
 
     # Print settings
-    print("\nSettings:")
-    print(f"  sync_remotes: {config.settings.sync_remotes}")
-    print(f"  default_vcs: {config.settings.default_vcs}")
-    print(f"  depth: {config.settings.depth}")
 
     # Print repositories
-    print(f"\nRepositories ({len(config.repositories)}):")
     for repo in config.repositories:
-        print(f"  {repo.name or 'unnamed'}:")
-        print(f"    url: {repo.url}")
-        print(f"    path: {repo.path}")
-        print(f"    vcs: {repo.vcs}")
         if repo.rev:
-            print(f"    rev: {repo.rev}")
+            pass
         if repo.remotes:
-            print(f"    remotes: {repo.remotes}")
+            pass
 
     # Example of using VCS handlers
-    print("\nVCS Handler Example:")
     if config.repositories:
         repo = config.repositories[0]
         handler = get_vcs_handler(repo, config.settings.default_vcs)
 
-        print(f"  Handler type: {type(handler).__name__}")
-        print(f"  Repository exists: {handler.exists()}")
-
         # Clone the repository if it doesn't exist
-        if not handler.exists():
-            print(f"  Cloning repository {repo.name}...")
-            if handler.clone():
-                print("  Clone successful")
-            else:
-                print("  Clone failed")
+        if not handler.exists() and handler.clone():
+            pass
 
     return 0
 

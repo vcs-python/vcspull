@@ -157,3 +157,61 @@ def resolve_includes(
     merged_config.includes = []
 
     return merged_config
+
+
+def save_config(
+    config: VCSPullConfig,
+    config_path: str | Path,
+    format_type: str | None = None,
+) -> Path:
+    """Save configuration to a file.
+
+    Parameters
+    ----------
+    config : VCSPullConfig
+        Configuration to save
+    config_path : str | Path
+        Path to save the configuration file
+    format_type : str | None, optional
+        Force a specific format type ('yaml', 'json'), by default None
+        (inferred from file extension)
+
+    Returns
+    -------
+    Path
+        Path to the saved configuration file
+
+    Raises
+    ------
+    ValueError
+        If the format type is not supported
+    """
+    config_path = normalize_path(config_path)
+
+    # Create parent directories if they don't exist
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Convert config to dict
+    config_dict = config.model_dump()
+
+    # Determine format type
+    if format_type is None:
+        if config_path.suffix.lower() in {".yaml", ".yml"}:
+            format_type = "yaml"
+        elif config_path.suffix.lower() == ".json":
+            format_type = "json"
+        else:
+            format_type = "yaml"  # Default to YAML
+            config_path = config_path.with_suffix(".yaml")
+
+    # Write to file in the appropriate format
+    with config_path.open("w", encoding="utf-8") as f:
+        if format_type.lower() == "yaml":
+            yaml.dump(config_dict, f, default_flow_style=False, sort_keys=False)
+        elif format_type.lower() == "json":
+            json.dump(config_dict, f, indent=2)
+        else:
+            error_msg = f"Unsupported format type: {format_type}"
+            raise ValueError(error_msg)
+
+    return config_path

@@ -9,12 +9,23 @@
 from __future__ import annotations
 
 import logging
+import typing as t
 from logging import NullHandler
 
+# Import CLI entrypoints
 from . import cli
-from .__about__ import __version__
-from .config import load_config
+from .__about__ import __author__, __description__, __version__
+from .config import load_config, resolve_includes
+from .operations import detect_repositories, sync_repositories
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
-__all__ = ["__version__", "cli", "load_config"]
+__all__ = [
+    "__author__",
+    "__description__",
+    "__version__",
+    "detect_repositories",
+    "load_config",
+    "resolve_includes",
+    "sync_repositories",
+]
