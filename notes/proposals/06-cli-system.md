@@ -1,684 +1,995 @@
 # CLI System Proposal
 
-> Restructuring the CLI system to improve maintainability, extensibility, and user experience.
+> Restructuring the Command Line Interface to improve maintainability, extensibility, and user experience.
 
 ## Current Issues
 
-The audit identified several issues with the current CLI implementation:
+The audit identified several issues with the current CLI system:
 
-1. **Argument Parsing**: Overloaded functions for parser creation add unnecessary complexity
-2. **Sync Command Logic**: The sync command tries to handle multiple concerns simultaneously
-3. **Lack of Command Pattern**: The CLI doesn't follow a command pattern that would make it more testable
-4. **Error Handling**: Inconsistent error handling, with some errors raised as exceptions and others logged
-5. **Duplicated Code**: Similar argument validation repeated across different command handlers
+1. **Monolithic Command Structure**: CLI commands are all defined in large monolithic files with complex nesting.
+
+2. **Limited Command Discoverability**: Commands and options lack proper organization and documentation.
+
+3. **Inconsistent Error Handling**: Error reporting is inconsistent across commands.
+
+4. **Global State Dependencies**: Commands rely on global state, making testing difficult.
+
+5. **Complex Option Parsing**: Manual option parsing instead of leveraging modern libraries.
+
+6. **Lack of Progress Feedback**: Limited user feedback during long-running operations.
 
 ## Proposed Changes
 
-### 1. Command Pattern Structure
+### 1. Modular Command Structure
 
-1. **Command Interface**:
+1. **Command Organization**:
+   - Adopt a plugin-like architecture for commands
+   - Create a clear command hierarchy
+   - Separate command logic from CLI entry points
+
    ```python
-   from abc import ABC, abstractmethod
-   from argparse import ArgumentParser, Namespace
-   from typing import List, Optional
+   # src/vcspull/cli/commands/sync.py
+   import typing as t
+   import click
+   from pathlib import Path
    
-   class Command(ABC):
-       """Base class for CLI commands."""
+   from vcspull.cli.context import CliContext
+   from vcspull.cli.options import common_options, config_option
+   from vcspull.config import load_and_validate_config
+   from vcspull.types import Repository
+   
+   @click.command()
+   @common_options
+   @config_option
+   @click.option(
+       "--repo", "-r", multiple=True,
+       help="Repository names or patterns to sync (supports glob patterns)."
+   )
+   @click.pass_obj
+   def sync(
+       ctx: CliContext,
+       config: t.Optional[Path] = None,
+       repo: t.Optional[t.List[str]] = None
+   ) -> int:
+       """Synchronize repositories from configuration.
        
-       name: str  # Command name
-       help: str  # Help text for command
+       This command clones or updates repositories based on the configuration.
+       """
+       try:
+           # Load configuration
+           config_obj = load_and_validate_config(config)
+           
+           # Filter repositories if patterns specified
+           repositories = filter_repositories(config_obj.repositories, repo)
+           
+           if not repositories:
+               ctx.error("No matching repositories found.")
+               return 1
+           
+           # Sync repositories
+           ctx.info(f"Syncing {len(repositories)} repositories...")
+           
+           for repository in repositories:
+               try:
+                   ctx.info(f"Syncing {repository.name}...")
+                   # Sync repository logic
+               except Exception as e:
+                   ctx.error(f"Failed to sync {repository.name}: {e}")
+           
+           ctx.success("Sync completed successfully.")
+           return 0
+       except Exception as e:
+           ctx.error(f"Sync failed: {e}")
+           return 1
+   
+   def filter_repositories(
+       repositories: t.List[Repository],
+       patterns: t.Optional[t.List[str]]
+   ) -> t.List[Repository]:
+       """Filter repositories by name patterns.
        
-       @abstractmethod
-       def configure_parser(self, parser: ArgumentParser) -> None:
-           """Configure the argument parser for this command."""
-           pass
+       Parameters
+       ----
+       repositories : List[Repository]
+           List of repositories to filter
+       patterns : Optional[List[str]]
+           List of patterns to match against repository names
+           
+       Returns
+       ----
+       List[Repository]
+           Filtered repositories
+       """
+       if not patterns:
+           return repositories
        
-       @abstractmethod
-       def execute(self, args: Namespace) -> int:
-           """Execute the command with the parsed arguments."""
-           pass
+       import fnmatch
+       result = []
+       
+       for repo in repositories:
+           for pattern in patterns:
+               if fnmatch.fnmatch(repo.name, pattern):
+                   result.append(repo)
+                   break
+       
+       return result
    ```
 
 2. **Command Registry**:
    ```python
-   class CommandRegistry:
-       """Registry for CLI commands."""
-       
-       def __init__(self):
-           self._commands = {}
-       
-       def register(self, command: Command) -> None:
-           """Register a command."""
-           self._commands[command.name] = command
-       
-       def get_command(self, name: str) -> Optional[Command]:
-           """Get a command by name."""
-           return self._commands.get(name)
-       
-       def get_all_commands(self) -> List[Command]:
-           """Get all registered commands."""
-           return list(self._commands.values())
-   ```
-
-3. **CLI Application**:
-   ```python
-   class CLI:
-       """Main CLI application."""
-       
-       def __init__(self):
-           self.registry = CommandRegistry()
-           self._register_commands()
-       
-       def _register_commands(self) -> None:
-           """Register all commands."""
-           self.registry.register(SyncCommand())
-           self.registry.register(DetectCommand())
-           self.registry.register(LockCommand())
-           self.registry.register(ApplyCommand())
-       
-       def create_parser(self) -> ArgumentParser:
-           """Create the argument parser."""
-           parser = ArgumentParser(
-               description="VCSPull - synchronized multiple Git, SVN, and Mercurial repos"
-           )
-           
-           # Add global arguments
-           parser.add_argument(
-               "--log-level", 
-               choices=["debug", "info", "warning", "error", "critical"],
-               default="info",
-               help="Set log level"
-           )
-           
-           # Add subparsers
-           subparsers = parser.add_subparsers(dest="command", help="Command to execute")
-           
-           # Configure command parsers
-           for command in self.registry.get_all_commands():
-               command_parser = subparsers.add_parser(command.name, help=command.help)
-               command.configure_parser(command_parser)
-           
-           return parser
-       
-       def run(self, args: List[str] = None) -> int:
-           """Run the CLI application."""
-           parser = self.create_parser()
-           parsed_args = parser.parse_args(args)
-           
-           # Configure logging
-           setup_logging(parsed_args.log_level)
-           
-           if not parsed_args.command:
-               parser.print_help()
-               return 1
-           
-           # Get and execute the command
-           command = self.registry.get_command(parsed_args.command)
-           if not command:
-               logger.error(f"Unknown command: {parsed_args.command}")
-               return 1
-           
-           try:
-               return command.execute(parsed_args)
-           except Exception as e:
-               logger.error(f"Error executing command: {e}")
-               if parsed_args.log_level.lower() == "debug":
-                   logger.exception("Detailed error information:")
-               return 1
-   ```
-
-### 2. Command Implementations
-
-1. **Sync Command**:
-   ```python
-   class SyncCommand(Command):
-       """Command to synchronize repositories."""
-       
-       name = "sync"
-       help = "Synchronize repositories"
-       
-       def configure_parser(self, parser: ArgumentParser) -> None:
-           """Configure the argument parser for sync command."""
-           parser.add_argument(
-               "-c", "--config", 
-               dest="config_file",
-               metavar="CONFIG_FILE",
-               nargs="*",
-               help="Specify config file(s)"
-           )
-           parser.add_argument(
-               "repo_patterns",
-               nargs="*",
-               metavar="REPO_PATTERN",
-               help="Repository patterns to filter (supports globbing)"
-           )
-           parser.add_argument(
-               "-d", "--dry-run",
-               action="store_true",
-               help="Only show what would be done without making changes"
-           )
-       
-       def execute(self, args: Namespace) -> int:
-           """Execute the sync command."""
-           try:
-               # Load configuration
-               config = load_config(*args.config_file if args.config_file else [])
-               
-               # Sync repositories
-               results = sync_repositories(
-                   config=config,
-                   patterns=args.repo_patterns if args.repo_patterns else None,
-                   dry_run=args.dry_run,
-                   progress_callback=self._progress_callback
-               )
-               
-               # Print results
-               self._print_results(results)
-               
-               # Return success if all repos synced successfully
-               return 0 if all(r["success"] for r in results.values()) else 1
-           
-           except ConfigurationError as e:
-               logger.error(f"Configuration error: {e}")
-               return 1
-           except RepositoryError as e:
-               logger.error(f"Repository error: {e}")
-               return 1
-       
-       def _progress_callback(self, repo_name: str, current: int, total: int) -> None:
-           """Progress callback for repository sync."""
-           logger.info(f"[{current}/{total}] Processing {repo_name}")
-       
-       def _print_results(self, results: dict) -> None:
-           """Print sync results."""
-           for repo_name, result in results.items():
-               status = "Success" if result["success"] else "Failed"
-               logger.info(f"{repo_name}: {status} - {result['message']}")
-   ```
-
-2. **Detect Command**:
-   ```python
-   class DetectCommand(Command):
-       """Command to detect repositories in a directory."""
-       
-       name = "detect"
-       help = "Detect repositories in a directory"
-       
-       def configure_parser(self, parser: ArgumentParser) -> None:
-           """Configure the argument parser for detect command."""
-           parser.add_argument(
-               "directory",
-               help="Directory to scan for repositories"
-           )
-           parser.add_argument(
-               "-r", "--recursive",
-               action="store_true",
-               default=True,
-               help="Recursively scan subdirectories (default: true)"
-           )
-           parser.add_argument(
-               "-s", "--include-submodules",
-               action="store_true",
-               help="Include Git submodules in detection"
-           )
-           parser.add_argument(
-               "-o", "--output",
-               help="Output file for detected repositories (YAML format)"
-           )
-           parser.add_argument(
-               "-a", "--append",
-               action="store_true",
-               help="Append to existing config file instead of creating a new one"
-           )
-       
-       def execute(self, args: Namespace) -> int:
-           """Execute the detect command."""
-           try:
-               # Detect repositories
-               repos = detect_repositories(
-                   directory=args.directory,
-                   recursive=args.recursive,
-                   include_submodules=args.include_submodules
-               )
-               
-               # Print discovered repositories
-               logger.info(f"Detected {len(repos)} repositories:")
-               for repo in repos:
-                   logger.info(f"  {repo.name}: {repo.path} ({repo.vcs})")
-               
-               # Save to config file if specified
-               if args.output:
-                   self._save_to_config(repos, args.output, args.append)
-               
-               return 0
-           
-           except RepositoryError as e:
-               logger.error(f"Repository detection error: {e}")
-               return 1
-       
-       def _save_to_config(
-           self, repos: List[Repository], output_file: str, append: bool
-       ) -> None:
-           """Save detected repositories to config file."""
-           config = VCSPullConfig(repositories=repos)
-           
-           if append and os.path.exists(output_file):
-               try:
-                   existing_config = load_config(output_file)
-                   # Merge repositories
-                   for repo in config.repositories:
-                       if not any(r.path == repo.path for r in existing_config.repositories):
-                           existing_config.repositories.append(repo)
-                   config = existing_config
-               except ConfigurationError as e:
-                   logger.warning(f"Could not load existing config, creating new one: {e}")
-           
-           save_config(config, output_file)
-           logger.info(f"Saved configuration to {output_file}")
-   ```
-
-3. **Lock Command**:
-   ```python
-   class LockCommand(Command):
-       """Command to lock repositories to their current revisions."""
-       
-       name = "lock"
-       help = "Lock repositories to their current revisions"
-       
-       def configure_parser(self, parser: ArgumentParser) -> None:
-           """Configure the argument parser for lock command."""
-           parser.add_argument(
-               "-c", "--config", 
-               dest="config_file",
-               metavar="CONFIG_FILE",
-               nargs="*",
-               help="Specify config file(s)"
-           )
-           parser.add_argument(
-               "repo_patterns",
-               nargs="*",
-               metavar="REPO_PATTERN",
-               help="Repository patterns to filter (supports globbing)"
-           )
-           parser.add_argument(
-               "-o", "--output",
-               default="vcspull.lock.json",
-               help="Output lock file (default: vcspull.lock.json)"
-           )
-       
-       def execute(self, args: Namespace) -> int:
-           """Execute the lock command."""
-           try:
-               # Load configuration
-               config = load_config(*args.config_file if args.config_file else [])
-               
-               # Lock repositories
-               lock_info = lock_repositories(
-                   config=config,
-                   patterns=args.repo_patterns if args.repo_patterns else None,
-                   lock_file=args.output
-               )
-               
-               # Print results
-               logger.info(f"Locked {len(lock_info)} repositories to {args.output}")
-               return 0
-           
-           except ConfigurationError as e:
-               logger.error(f"Configuration error: {e}")
-               return 1
-           except RepositoryError as e:
-               logger.error(f"Repository error: {e}")
-               return 1
-   ```
-
-4. **Apply Command**:
-   ```python
-   class ApplyCommand(Command):
-       """Command to apply locked revisions to repositories."""
-       
-       name = "apply"
-       help = "Apply locked revisions to repositories"
-       
-       def configure_parser(self, parser: ArgumentParser) -> None:
-           """Configure the argument parser for apply command."""
-           parser.add_argument(
-               "-c", "--config", 
-               dest="config_file",
-               metavar="CONFIG_FILE",
-               nargs="*",
-               help="Specify config file(s)"
-           )
-           parser.add_argument(
-               "-l", "--lock-file",
-               default="vcspull.lock.json",
-               help="Lock file to apply (default: vcspull.lock.json)"
-           )
-           parser.add_argument(
-               "repo_patterns",
-               nargs="*",
-               metavar="REPO_PATTERN",
-               help="Repository patterns to filter (supports globbing)"
-           )
-           parser.add_argument(
-               "-d", "--dry-run",
-               action="store_true",
-               help="Only show what would be done without making changes"
-           )
-       
-       def execute(self, args: Namespace) -> int:
-           """Execute the apply command."""
-           try:
-               # Load configuration
-               config = load_config(*args.config_file if args.config_file else [])
-               
-               # Apply locks
-               results = apply_locks(
-                   config=config,
-                   lock_file=args.lock_file,
-                   patterns=args.repo_patterns if args.repo_patterns else None,
-                   dry_run=args.dry_run
-               )
-               
-               # Print results
-               for repo_name, result in results.items():
-                   status = "Success" if result["success"] else "Failed"
-                   logger.info(f"{repo_name}: {status} - {result['message']}")
-               
-               return 0 if all(r["success"] for r in results.values()) else 1
-           
-           except ConfigurationError as e:
-               logger.error(f"Configuration error: {e}")
-               return 1
-           except RepositoryError as e:
-               logger.error(f"Repository error: {e}")
-               return 1
-   ```
-
-### 3. Rich Output and Terminal UI
-
-1. **Rich Progress Bars**:
-   ```python
-   from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
+   # src/vcspull/cli/main.py
+   import click
    
-   def sync_with_progress(config, patterns=None, dry_run=False):
-       """Synchronize repositories with rich progress display."""
-       repos = filter_repositories(config, patterns)
-       
-       with Progress(
-           TextColumn("[bold blue]{task.description}"),
-           BarColumn(),
-           TaskProgressColumn(),
-           expand=True
-       ) as progress:
-           task = progress.add_task("Syncing repositories", total=len(repos))
-           
-           results = {}
-           for i, repo in enumerate(repos, 1):
-               progress.update(task, description=f"Syncing {repo.name}")
-               
-               try:
-                   result = sync_repository(repo, dry_run=dry_run)
-                   results[repo.name] = result
-               except Exception as e:
-                   results[repo.name] = {
-                       "success": False,
-                       "message": str(e),
-                       "details": {"error": repr(e)}
-                   }
-               
-               progress.update(task, advance=1)
-           
-           return results
-   ```
-
-2. **Interactive Mode**:
-   ```python
-   from rich.prompt import Confirm
+   from vcspull.cli.context import CliContext
+   from vcspull.cli.commands.sync import sync
+   from vcspull.cli.commands.info import info
+   from vcspull.cli.commands.detect import detect
    
-   class InteractiveSyncCommand(SyncCommand):
-       """Interactive version of sync command."""
+   @click.group()
+   @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output.")
+   @click.option("--quiet", "-q", is_flag=True, help="Suppress output.")
+   @click.version_option()
+   @click.pass_context
+   def cli(click_ctx, verbose: bool = False, quiet: bool = False):
+       """VCSPull - Version Control System Repository Manager.
        
-       name = "isync"
-       help = "Interactive repository synchronization"
-       
-       def configure_parser(self, parser: ArgumentParser) -> None:
-           """Configure the argument parser for interactive sync command."""
-           super().configure_parser(parser)
-           parser.add_argument(
-               "-i", "--interactive",
-               action="store_true",
-               default=True,  # Always true for this command
-               help=argparse.SUPPRESS
-           )
-       
-       def execute(self, args: Namespace) -> int:
-           """Execute the interactive sync command."""
-           try:
-               # Load configuration
-               config = load_config(*args.config_file if args.config_file else [])
-               
-               # Filter repositories
-               repos = filter_repositories(
-                   config,
-                   patterns=args.repo_patterns if args.repo_patterns else None
-               )
-               
-               # Interactive sync
-               return self._interactive_sync(repos, args.dry_run)
-           
-           except ConfigurationError as e:
-               logger.error(f"Configuration error: {e}")
-               return 1
-           except RepositoryError as e:
-               logger.error(f"Repository error: {e}")
-               return 1
-       
-       def _interactive_sync(self, repos: List[Repository], dry_run: bool) -> int:
-           """Interactive repository synchronization."""
-           if not repos:
-               logger.info("No repositories found.")
-               return 0
-           
-           results = {}
-           for repo in repos:
-               logger.info(f"Repository: {repo.name} ({repo.path})")
-               
-               if Confirm.ask("Synchronize this repository?"):
-                   try:
-                       result = sync_repository(repo, dry_run=dry_run)
-                       results[repo.name] = result
-                       logger.info(f"Result: {'Success' if result['success'] else 'Failed'} - {result['message']}")
-                   except Exception as e:
-                       results[repo.name] = {
-                           "success": False,
-                           "message": str(e),
-                           "details": {"error": repr(e)}
-                       }
-                       logger.error(f"Error: {e}")
-               else:
-                   logger.info("Skipped.")
-           
-           return 0 if all(r["success"] for r in results.values()) else 1
-   ```
-
-### 4. Consistent Error Handling
-
-1. **Error Levels and User Messages**:
-   ```python
-   def handle_error(e: Exception, args: Namespace) -> int:
-       """Handle exceptions with appropriate error messages."""
-       if isinstance(e, ConfigurationError):
-           logger.error(f"Configuration error: {e}")
-           return 1
-       elif isinstance(e, RepositoryError):
-           logger.error(f"Repository error: {e}")
-           return 1
-       elif isinstance(e, VCSError):
-           logger.error(f"VCS error ({e.vcs_type}): {e}")
-           if args.log_level.lower() == "debug" and e.command:
-               logger.debug(f"Command: {e.command}")
-               logger.debug(f"Output: {e.output}")
-           return 1
-       else:
-           logger.error(f"Unexpected error: {e}")
-           if args.log_level.lower() == "debug":
-               logger.exception("Detailed error information:")
-           return 1
-   ```
-
-2. **Common Error Handling Implementation**:
-   ```python
-   class BaseCommand(Command):
-       """Base class with common functionality for commands."""
-       
-       @abstractmethod
-       def configure_parser(self, parser: ArgumentParser) -> None:
-           """Configure the argument parser for this command."""
-           pass
-       
-       @abstractmethod
-       def run_command(self, args: Namespace) -> int:
-           """Run the command implementation."""
-           pass
-       
-       def execute(self, args: Namespace) -> int:
-           """Execute the command with error handling."""
-           try:
-               return self.run_command(args)
-           except Exception as e:
-               return handle_error(e, args)
-   ```
-
-### 5. Command-Line Help and Documentation
-
-1. **Improved Help Text**:
-   ```python
-   def create_main_parser() -> ArgumentParser:
-       """Create the main argument parser with improved help."""
-       parser = ArgumentParser(
-           description="VCSPull - synchronized multiple Git, SVN, and Mercurial repos",
-           epilog="""
-Examples:
-  vcspull sync                   # Sync all repositories in default config
-  vcspull sync project*          # Sync repositories matching 'project*'
-  vcspull sync -c custom.yaml    # Sync repositories from custom config file
-  vcspull detect ~/projects      # Detect repositories in directory
-  vcspull lock                   # Lock repositories to current revisions
-  vcspull apply                  # Apply locked revisions to repositories
-           """,
-           formatter_class=argparse.RawDescriptionHelpFormatter
-       )
-       # ... other parser configuration
-       return parser
-   ```
-
-2. **Command-Specific Help**:
-   ```python
-   def configure_sync_parser(parser: ArgumentParser) -> None:
-       """Configure the sync command parser with detailed help."""
-       parser.description = """
-Synchronize repositories according to configuration.
-
-This command will:
-1. Clone repositories that don't exist locally
-2. Update existing repositories to the latest version
-3. Configure remotes as specified in the configuration
-
-If repository patterns are provided, only repositories matching those patterns
-will be synchronized. Patterns support Unix shell-style wildcards.
+       This tool helps manage multiple version control repositories.
        """
-       # ... argument configuration
+       # Initialize our custom context
+       ctx = CliContext(verbose=verbose, quiet=quiet)
+       click_ctx.obj = ctx
+   
+   # Register commands
+   cli.add_command(sync)
+   cli.add_command(info)
+   cli.add_command(detect)
+   
+   if __name__ == "__main__":
+       cli()
    ```
 
-### 6. YAML Output Format
+3. **Benefits**:
+   - Clear organization of commands
+   - Commands can be tested in isolation
+   - Easier to add new commands
+   - Improved code readability
 
-1. **YAML Output Helper**:
+### 2. Context Management
+
+1. **CLI Context Object**:
    ```python
-   def print_yaml_output(data, output_file=None):
-       """Print data as YAML to stdout or file."""
-       yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+   # src/vcspull/cli/context.py
+   import typing as t
+   import sys
+   from pydantic import BaseModel, Field
+   import click
+   
+   class CliContext(BaseModel):
+       """Context for CLI commands.
        
-       if output_file:
-           with open(output_file, 'w') as f:
-               f.write(yaml_str)
-       else:
-           print(yaml_str)
+       Manages state and utilities for command execution.
+       """
+       verbose: bool = False
+       quiet: bool = False
+       color: bool = True
+       
+       model_config = {
+           "arbitrary_types_allowed": True
+       }
+       
+       def info(self, message: str) -> None:
+           """Display informational message.
+           
+           Parameters
+           ----
+           message : str
+               Message to display
+           """
+           if not self.quiet:
+               click.secho(message, fg="blue" if self.color else None)
+       
+       def success(self, message: str) -> None:
+           """Display success message.
+           
+           Parameters
+           ----
+           message : str
+               Message to display
+           """
+           if not self.quiet:
+               click.secho(message, fg="green" if self.color else None)
+       
+       def warning(self, message: str) -> None:
+           """Display warning message.
+           
+           Parameters
+           ----
+           message : str
+               Message to display
+           """
+           if not self.quiet:
+               click.secho(message, fg="yellow" if self.color else None)
+       
+       def error(self, message: str) -> None:
+           """Display error message.
+           
+           Parameters
+           ----
+           message : str
+               Message to display
+           """
+           click.secho(message, fg="red" if self.color else None, err=True)
+       
+       def debug(self, message: str) -> None:
+           """Display debug message.
+           
+           Parameters
+           ----
+           message : str
+               Message to display
+           """
+           if self.verbose and not self.quiet:
+               click.secho(f"DEBUG: {message}", fg="cyan" if self.color else None)
    ```
 
-2. **JSON/YAML Output Arguments**:
+2. **Dependency Management**:
    ```python
-   def add_output_format_args(parser: ArgumentParser) -> None:
-       """Add arguments for output format control."""
-       group = parser.add_argument_group("output format")
-       group.add_argument(
-           "--json",
-           action="store_true",
-           help="Output in JSON format"
+   # src/vcspull/cli/options.py
+   import typing as t
+   import click
+   from pathlib import Path
+   import functools
+   
+   def common_options(func):
+       """Common options for all commands.
+       
+       Parameters
+       ----
+       func : Callable
+           Command function to decorate
+           
+       Returns
+       ----
+       Callable
+           Decorated function
+       """
+       @click.option(
+           "--no-color", is_flag=True, help="Disable colored output."
        )
-       group.add_argument(
-           "--yaml",
-           action="store_true",
-           help="Output in YAML format (default)"
+       @functools.wraps(func)
+       def wrapper(*args, no_color: bool = False, **kwargs):
+           # Get CLI context from Click
+           ctx = click.get_current_context().obj
+           # Update context
+           ctx.color = not no_color
+           # Call original function
+           return func(*args, **kwargs)
+       return wrapper
+   
+   def config_option(func):
+       """Option for specifying configuration file.
+       
+       Parameters
+       ----
+       func : Callable
+           Command function to decorate
+           
+       Returns
+       ----
+       Callable
+           Decorated function
+       """
+       @click.option(
+           "--config", "-c", type=click.Path(exists=True, dir_okay=False, path_type=Path),
+           help="Path to configuration file."
        )
-       group.add_argument(
-           "--output-file",
-           help="Write output to file instead of stdout"
-       )
+       @functools.wraps(func)
+       def wrapper(*args, **kwargs):
+           return func(*args, **kwargs)
+       return wrapper
    ```
+
+3. **Benefits**:
+   - Centralized context management
+   - Consistent output formatting
+   - Easier to extend with new functionality
+   - Improved testability
+
+### 3. Improved Error Handling
+
+1. **Structured Error Reporting**:
+   ```python
+   # src/vcspull/cli/errors.py
+   import typing as t
+   import sys
+   import click
+   from vcspull.exceptions import VCSPullError, ConfigError, VCSError
+   
+   def handle_exceptions(func):
+       """Handle exceptions in CLI commands.
+       
+       Parameters
+       ----
+       func : Callable
+           Command function to decorate
+           
+       Returns
+       ----
+       Callable
+           Decorated function
+       """
+       from functools import wraps
+       
+       @wraps(func)
+       def wrapper(*args, **kwargs):
+           try:
+               return func(*args, **kwargs)
+           except ConfigError as e:
+               ctx = click.get_current_context().obj
+               ctx.error(f"Configuration error: {e}")
+               if ctx.verbose:
+                   import traceback
+                   ctx.debug(traceback.format_exc())
+               return 1
+           except VCSError as e:
+               ctx = click.get_current_context().obj
+               ctx.error(f"VCS operation error: {e}")
+               if ctx.verbose:
+                   import traceback
+                   ctx.debug(traceback.format_exc())
+               return 1
+           except VCSPullError as e:
+               ctx = click.get_current_context().obj
+               ctx.error(f"Error: {e}")
+               if ctx.verbose:
+                   import traceback
+                   ctx.debug(traceback.format_exc())
+               return 1
+           except Exception as e:
+               ctx = click.get_current_context().obj
+               ctx.error(f"Unexpected error: {e}")
+               if ctx.verbose:
+                   import traceback
+                   ctx.debug(traceback.format_exc())
+               return 1
+       
+       return wrapper
+   ```
+
+2. **Usage in Commands**:
+   ```python
+   # src/vcspull/cli/commands/info.py
+   import typing as t
+   import click
+   from pathlib import Path
+   
+   from vcspull.cli.context import CliContext
+   from vcspull.cli.options import common_options, config_option
+   from vcspull.cli.errors import handle_exceptions
+   from vcspull.config import load_and_validate_config
+   
+   @click.command()
+   @common_options
+   @config_option
+   @click.option(
+       "--format", "-f", type=click.Choice(["text", "json"]), default="text",
+       help="Output format."
+   )
+   @click.pass_obj
+   @handle_exceptions
+   def info(
+       ctx: CliContext,
+       config: t.Optional[Path] = None,
+       format: str = "text"
+   ) -> int:
+       """Display information about repositories.
+       
+       Shows details about configured repositories.
+       """
+       # Load configuration
+       config_obj = load_and_validate_config(config)
+       
+       if format == "json":
+           # JSON output
+           result = []
+           for repo in config_obj.repositories:
+               result.append({
+                   "name": repo.name,
+                   "url": repo.url,
+                   "path": repo.path,
+                   "vcs": repo.vcs
+               })
+           click.echo(json.dumps(result, indent=2))
+       else:
+           # Text output
+           ctx.info(f"Found {len(config_obj.repositories)} repository configuration(s):")
+           for repo in config_obj.repositories:
+               ctx.info(f"- {repo.name} ({repo.vcs})")
+               ctx.info(f"  URL: {repo.url}")
+               ctx.info(f"  Path: {repo.path}")
+       
+       return 0
+   ```
+
+3. **Benefits**:
+   - Consistent error handling across commands
+   - Detailed error reporting in verbose mode
+   - Clean error messages for users
+   - Proper exit codes for scripts
+
+### 4. Progress Reporting
+
+1. **Progress Bar Integration**:
+   ```python
+   # src/vcspull/cli/progress.py
+   import typing as t
+   from pydantic import BaseModel
+   import click
+   
+   class ProgressManager:
+       """Manager for CLI progress reporting."""
+       
+       def __init__(self, quiet: bool = False):
+           """Initialize progress manager.
+           
+           Parameters
+           ----
+           quiet : bool, optional
+               Whether to suppress output, by default False
+           """
+           self.quiet = quiet
+       
+       def progress_bar(self, length: int, label: str = "Progress") -> t.Optional[click.progressbar]:
+           """Create a progress bar.
+           
+           Parameters
+           ----
+           length : int
+               Total length of the progress bar
+           label : str, optional
+               Label for the progress bar, by default "Progress"
+               
+           Returns
+           ----
+           Optional[click.progressbar]
+               Progress bar object or None if quiet
+           """
+           if self.quiet:
+               return None
+           
+           return click.progressbar(
+               length=length,
+               label=label,
+               show_eta=True,
+               show_percent=True,
+               fill_char="="
+           )
+       
+       def spinner(self, text: str = "Working...") -> t.Optional[click.progressbar]:
+           """Create a spinner for indeterminate progress.
+           
+           Parameters
+           ----
+           text : str, optional
+               Text to display, by default "Working..."
+               
+           Returns
+           ----
+           Optional[click.progressbar]
+               Spinner object or None if quiet
+           """
+           if self.quiet:
+               return None
+           
+           import itertools
+           import time
+           import threading
+           import sys
+           
+           spinner_symbols = itertools.cycle(["-", "/", "|", "\\"])
+           
+           class Spinner:
+               def __init__(self, text):
+                   self.text = text
+                   self.running = False
+                   self.spinner_thread = None
+               
+               def __enter__(self):
+                   self.running = True
+                   self.spinner_thread = threading.Thread(target=self._spin)
+                   self.spinner_thread.start()
+                   return self
+               
+               def __exit__(self, exc_type, exc_val, exc_tb):
+                   self.running = False
+                   if self.spinner_thread:
+                       self.spinner_thread.join()
+                   sys.stdout.write("\r")
+                   sys.stdout.write(" " * (len(self.text) + 4))
+                   sys.stdout.write("\r")
+                   sys.stdout.flush()
+               
+               def _spin(self):
+                   while self.running:
+                       symbol = next(spinner_symbols)
+                       sys.stdout.write(f"\r{symbol} {self.text}")
+                       sys.stdout.flush()
+                       time.sleep(0.1)
+           
+           return Spinner(text)
+   ```
+
+2. **Usage in Commands**:
+   ```python
+   # src/vcspull/cli/commands/sync.py 
+   # In the sync command function
+   
+   # Get progress manager
+   progress = ProgressManager(quiet=ctx.quiet)
+   
+   # Show progress during sync
+   repos_to_sync = filter_repositories(config_obj.repositories, repo)
+   
+   with progress.progress_bar(len(repos_to_sync), "Syncing repositories") as bar:
+       for repository in repos_to_sync:
+           ctx.info(f"Syncing {repository.name}...")
+           try:
+               # Sync repository
+               sync_repository(repository)
+               ctx.success(f"✓ {repository.name} synced successfully")
+           except Exception as e:
+               ctx.error(f"✗ Failed to sync {repository.name}: {e}")
+           
+           # Update progress bar
+           if bar:
+               bar.update(1)
+   ```
+
+3. **Benefits**:
+   - Visual feedback for long-running operations
+   - Improved user experience
+   - Optional (can be disabled with --quiet)
+   - Consistent progress reporting across commands
+
+### 5. Command Discovery and Help
+
+1. **Enhanced Help System**:
+   ```python
+   # src/vcspull/cli/main.py
+   import click
+   
+   # Define custom help formatter
+   class VCSPullHelpFormatter(click.HelpFormatter):
+       """Custom help formatter for VCSPull CLI."""
+       
+       def write_usage(self, prog, args='', prefix='Usage: '):
+           """Write usage line with custom formatting."""
+           super().write_usage(prog, args, prefix)
+           # Add extra newline for readability
+           self.write("\n")
+       
+       def write_heading(self, heading):
+           """Write section heading with custom formatting."""
+           self.write(f"\n{click.style(heading, fg='green', bold=True)}:\n")
+   
+   # Use custom formatter for CLI group
+   @click.group(cls=click.Group, context_settings={
+       "help_option_names": ["--help", "-h"],
+       "max_content_width": 100
+   })
+   @click.version_option()
+   @click.pass_context
+   def cli(ctx):
+       """VCSPull - Version Control System Repository Manager.
+       
+       This tool helps you manage multiple version control repositories.
+       
+       Basic Commands:
+         sync      Clone or update repositories
+         info      Show information about repositories
+         detect    Auto-detect repositories in a directory
+       
+       Configuration:
+         VCSPull looks for configuration in:
+         - ./.vcspull.yaml
+         - ~/.vcspull.yaml
+         - ~/.config/vcspull/config.yaml
+       
+       Examples:
+         vcspull sync               # Sync all repositories
+         vcspull sync -r project1   # Sync specific repository
+         vcspull info --format json # Show repository info in JSON format
+       """
+       # Custom formatter for help text
+       ctx.ensure_object(dict)
+       ctx.obj["formatter"] = VCSPullHelpFormatter()
+   ```
+
+2. **Command Documentation**:
+   ```python
+   # src/vcspull/cli/commands/detect.py
+   import typing as t
+   import click
+   from pathlib import Path
+   
+   from vcspull.cli.context import CliContext
+   from vcspull.cli.options import common_options
+   from vcspull.cli.errors import handle_exceptions
+   
+   @click.command()
+   @common_options
+   @click.argument("directory", type=click.Path(exists=True, file_okay=False, path_type=Path), default=".")
+   @click.option(
+       "--recursive", "-r", is_flag=True,
+       help="Recursively search for repositories."
+   )
+   @click.option(
+       "--max-depth", type=int, default=3,
+       help="Maximum recursion depth (with --recursive)."
+   )
+   @click.pass_obj
+   @handle_exceptions
+   def detect(
+       ctx: CliContext,
+       directory: Path,
+       recursive: bool = False,
+       max_depth: int = 3
+   ) -> int:
+       """Detect version control repositories in a directory.
+       
+       This command scans the specified DIRECTORY for version control
+       repositories and displays information about them.
+       
+       Examples:
+       
+         vcspull detect                   # Scan current directory
+         vcspull detect ~/code            # Scan specific directory
+         vcspull detect ~/code --recursive # Scan recursively
+       """
+       # Implementation
+       ctx.info(f"Scanning {directory}{' recursively' if recursive else ''}...")
+       # ...
+       return 0
+   ```
+
+3. **Benefits**:
+   - Improved command discoverability
+   - Better help text formatting
+   - Examples and usage guidance
+   - Consistent command documentation
+
+### 6. Configuration Integration
+
+1. **Automated Configuration Discovery**:
+   ```python
+   # src/vcspull/cli/config.py
+   import typing as t
+   from pathlib import Path
+   import os
+   import click
+   
+   from vcspull.config import find_configs, load_and_validate_config
+   from vcspull.schemas import VCSPullConfig
+   
+   def get_config(path: t.Optional[Path] = None) -> VCSPullConfig:
+       """Get configuration from file or standard locations.
+       
+       Parameters
+       ----
+       path : Optional[Path], optional
+           Explicit configuration path, by default None
+           
+       Returns
+       ----
+       VCSPullConfig
+           Loaded and validated configuration
+           
+       Raises
+       ----
+       click.ClickException
+           If no configuration is found or configuration is invalid
+       """
+       try:
+           if path:
+               # Explicit path provided
+               return load_and_validate_config(path)
+           
+           # Find configuration in standard locations
+           config_paths = find_configs()
+           
+           if not config_paths:
+               # No configuration found
+               raise click.ClickException(
+                   "No configuration file found. Please create one or specify with --config."
+               )
+           
+           # Load first found configuration
+           return load_and_validate_config(config_paths[0])
+       except Exception as e:
+           # Wrap exceptions in ClickException for nice error reporting
+           raise click.ClickException(f"Configuration error: {e}")
+   ```
+
+2. **Configuration Output**:
+   ```python
+   # src/vcspull/cli/commands/config.py
+   import typing as t
+   import click
+   import json
+   import yaml
+   from pathlib import Path
+   
+   from vcspull.cli.context import CliContext
+   from vcspull.cli.options import common_options
+   from vcspull.cli.errors import handle_exceptions
+   from vcspull.config import find_configs, load_and_validate_config
+   from vcspull.schemas import VCSPullConfig
+   
+   @click.group(name="config")
+   def config_group():
+       """Configuration management commands."""
+       pass
+   
+   @config_group.command(name="list")
+   @common_options
+   @click.pass_obj
+   @handle_exceptions
+   def list_configs(ctx: CliContext) -> int:
+       """List available configuration files."""
+       configs = find_configs()
+       
+       if not configs:
+           ctx.warning("No configuration files found.")
+           return 0
+       
+       ctx.info("Found configuration files:")
+       for config_path in configs:
+           ctx.info(f"- {config_path}")
+       
+       return 0
+   
+   @config_group.command(name="validate")
+   @common_options
+   @click.argument("config_file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+   @click.pass_obj
+   @handle_exceptions
+   def validate_config(ctx: CliContext, config_file: Path) -> int:
+       """Validate a configuration file."""
+       try:
+           config = load_and_validate_config(config_file)
+           ctx.success(f"Configuration is valid: {config_file}")
+           ctx.info(f"Found {len(config.repositories)} repositories")
+           return 0
+       except Exception as e:
+           ctx.error(f"Invalid configuration: {e}")
+           return 1
+   
+   @config_group.command(name="show-schema")
+   @common_options
+   @click.option(
+       "--format", "-f", type=click.Choice(["json", "yaml"]), default="json",
+       help="Output format for schema."
+   )
+   @click.pass_obj
+   @handle_exceptions
+   def show_schema(ctx: CliContext, format: str = "json") -> int:
+       """Show JSON schema for configuration."""
+       schema = VCSPullConfig.model_json_schema()
+       
+       if format == "yaml":
+           click.echo(yaml.dump(schema, sort_keys=False))
+       else:
+           click.echo(json.dumps(schema, indent=2))
+       
+       return 0
+   ```
+
+3. **Benefits**:
+   - Simplified configuration handling in commands
+   - User-friendly configuration management
+   - Schema documentation for users
+   - Configuration validation tools
+
+### 7. Rich Output Formatting
+
+1. **Output Format System**:
+   ```python
+   # src/vcspull/cli/output.py
+   import typing as t
+   import json
+   import yaml
+   import click
+   from pydantic import BaseModel
+   
+   class OutputFormatter:
+       """Format command output in different formats."""
+       
+       @staticmethod
+       def format_json(data: t.Any) -> str:
+           """Format data as JSON.
+           
+           Parameters
+           ----
+           data : Any
+               Data to format
+               
+           Returns
+           ----
+           str
+               Formatted JSON string
+           """
+           if isinstance(data, BaseModel):
+               data = data.model_dump()
+           return json.dumps(data, indent=2)
+       
+       @staticmethod
+       def format_yaml(data: t.Any) -> str:
+           """Format data as YAML.
+           
+           Parameters
+           ----
+           data : Any
+               Data to format
+               
+           Returns
+           ----
+           str
+               Formatted YAML string
+           """
+           if isinstance(data, BaseModel):
+               data = data.model_dump()
+           return yaml.dump(data, sort_keys=False)
+       
+       @staticmethod
+       def format_table(data: t.List[t.Dict[str, t.Any]], columns: t.List[str] = None) -> str:
+           """Format data as an ASCII table.
+           
+           Parameters
+           ----
+           data : List[Dict[str, Any]]
+               List of dictionaries to format as a table
+           columns : List[str], optional
+               Column names to include, by default all columns
+               
+           Returns
+           ----
+           str
+               Formatted table string
+           """
+           if not data:
+               return "No data"
+           
+           # Convert BaseModel instances to dictionaries
+           formatted_data = []
+           for item in data:
+               if isinstance(item, BaseModel):
+                   formatted_data.append(item.model_dump())
+               else:
+                   formatted_data.append(item)
+           
+           # Get all columns if not specified
+           if not columns:
+               columns = set()
+               for item in formatted_data:
+                   columns.update(item.keys())
+               columns = sorted(columns)
+           
+           # Calculate column widths
+           widths = {col: len(col) for col in columns}
+           for item in formatted_data:
+               for col in columns:
+                   if col in item:
+                       widths[col] = max(widths[col], len(str(item[col])))
+           
+           # Create table
+           header = " | ".join(col.ljust(widths[col]) for col in columns)
+           separator = "-+-".join("-" * widths[col] for col in columns)
+           
+           rows = []
+           for item in formatted_data:
+               row = " | ".join(
+                   str(item.get(col, "")).ljust(widths[col]) for col in columns
+               )
+               rows.append(row)
+           
+           return "\n".join([header, separator] + rows)
+   ```
+
+2. **Usage in Commands**:
+   ```python
+   # src/vcspull/cli/commands/info.py
+   # In the info command function
+   
+   from vcspull.cli.output import OutputFormatter
+   
+   # Get repositories info
+   repos_info = []
+   for repo in config_obj.repositories:
+       repos_info.append({
+           "name": repo.name,
+           "url": repo.url,
+           "path": repo.path,
+           "vcs": repo.vcs or "unknown"
+       })
+   
+   # Format output based on user selection
+   if format == "json":
+       click.echo(OutputFormatter.format_json(repos_info))
+   elif format == "yaml":
+       click.echo(OutputFormatter.format_yaml(repos_info))
+   elif format == "table":
+       click.echo(OutputFormatter.format_table(repos_info, columns=["name", "vcs", "path"]))
+   else:
+       # Text output
+       for repo in repos_info:
+           ctx.info(f"- {repo['name']} ({repo['vcs']})")
+           ctx.info(f"  URL: {repo['url']}")
+           ctx.info(f"  Path: {repo['path']}")
+   ```
+
+3. **Benefits**:
+   - Consistent output formatting across commands
+   - Multiple output formats for different use cases
+   - Machine-readable outputs (JSON/YAML)
+   - Pretty-printed human-readable output
 
 ## Implementation Plan
 
-1. **Phase 1: Command Pattern Structure**
-   - Implement the Command base class
-   - Create CommandRegistry
-   - Implement CLI application class
+1. **Phase 1: Basic CLI Structure**
+   - Create modular command structure
+   - Implement CLI context
+   - Set up basic error handling
+   - Define shared command options
 
-2. **Phase 2: Core Commands**
-   - Implement Sync command
-   - Implement Detect command
-   - Implement Lock and Apply commands
+2. **Phase 2: Command Implementation**
+   - Migrate existing commands to new structure
+   - Add proper documentation to all commands
+   - Implement missing command functionality
+   - Add comprehensive tests
 
-3. **Phase 3: Error Handling**
-   - Implement consistent error handling
-   - Update commands to use common error handling
-   - Add debug logging
+3. **Phase 3: Output Formatting**
+   - Implement progress feedback
+   - Add rich output formatting
+   - Create table and structured output formats
+   - Implement color and styling
 
-4. **Phase 4: Rich UI**
-   - Add progress bar support
-   - Implement interactive mode
-   - Improve terminal output formatting
+4. **Phase 4: Configuration Integration**
+   - Implement configuration discovery
+   - Add configuration validation command
+   - Create schema documentation command
+   - Improve error messages for configuration issues
 
-5. **Phase 5: Documentation**
-   - Improve command help text
-   - Add examples to help documentation
-   - Create man pages
+5. **Phase 5: User Experience Enhancement**
+   - Improve help text and documentation
+   - Add examples for all commands
+   - Implement command completion
+   - Create user guides
 
 ## Benefits
 
-1. **Improved Maintainability**: Command pattern makes the code more maintainable
-2. **Better Testability**: Commands can be tested in isolation
-3. **Consistent User Experience**: Error handling and output formatting is consistent
-4. **Extensibility**: New commands can be easily added
-5. **Better Error Reporting**: Users get more actionable error messages
-6. **Enhanced User Interface**: Progress bars and interactive mode improve usability
+1. **Improved Maintainability**: Modular, testable command structure
+2. **Better User Experience**: Rich output, progress feedback, and better error messages
+3. **Enhanced Discoverability**: Improved help text and documentation
+4. **Extensibility**: Easier to add new commands and features
+5. **Testability**: Commands can be tested in isolation
+6. **Consistency**: Uniform error handling and output formatting
 
 ## Drawbacks and Mitigation
 
-1. **Learning Curve for Contributors**:
-   - Comprehensive documentation for command implementation
-   - Examples of adding new commands
-   - Clear guidelines for error handling
+1. **Migration Effort**:
+   - Implement changes incrementally
+   - Preserve backward compatibility for common commands
+   - Document changes for users
 
-2. **Increased Complexity**:
-   - Keep the command pattern implementation simple
-   - Focus on practical use cases
-   - Provide base classes for common functionality
-
-3. **Breaking Changes**:
-   - Ensure backward compatibility where possible
-   - Deprecation warnings before removing features
-   - Clear migration documentation
+2. **Learning Curve**:
+   - Improved help text and examples
+   - Comprehensive documentation
+   - Intuitive command structure
 
 ## Conclusion
 
-The proposed CLI system will significantly improve the maintainability, testability, and user experience of VCSPull. By adopting the command pattern, we can create a more extensible CLI that is easier to maintain and test. The improved error handling and rich UI features will enhance the user experience, while the consistent design will make it easier for users to learn and use the tool effectively. 
+The proposed CLI system will significantly improve the maintainability, extensibility, and user experience of VCSPull. By restructuring the command system, enhancing error handling, and improving output formatting, we can create a more professional and user-friendly command-line interface.
+
+These changes will make VCSPull easier to use for both new and existing users, while also simplifying future development by providing a clear, modular structure for CLI commands.
+
+These changes will make VCSPull easier to use for both new and existing users, while also simplifying future development by providing a clear, modular structure for CLI commands. 

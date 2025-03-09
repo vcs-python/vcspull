@@ -1,96 +1,144 @@
 # Testing System Proposal
 
-> Restructuring the testing framework to improve maintainability, coverage, and reliability.
+> Enhancing the testing infrastructure to improve maintainability, coverage, and developer experience.
 
 ## Current Issues
 
 The audit identified several issues with the current testing system:
 
-1. **Large Test Files**: Some test files like `test_config.py` (520 lines) and `test_cli.py` (349 lines) are too large to maintain effectively.
-2. **Lack of Test Isolation**: Many tests depend on global state or real filesystem access.
-3. **Manual Test Fixtures**: Most test fixtures are manually created rather than using pytest's fixture system.
-4. **Limited Coverage**: Significant parts of the codebase lack proper test coverage.
-5. **Inconsistent Testing Approach**: Multiple approaches to testing (pytest, unittest style, manual) create confusion.
-6. **Missing Property-Based and Doctest Testing**: No property-based tests or doctests for library functions.
+1. **Large Test Files**: Some test files are very large (e.g., `test_config.py` at 1270 lines), making maintenance difficult.
+
+2. **Confusing Test Structure**: Tests are organized by topic rather than matching the source code structure.
+
+3. **Limited Test Isolation**: Some tests have side effects that can affect other tests.
+
+4. **Fixture Duplication**: Similar fixtures defined in multiple files rather than shared.
+
+5. **Limited Coverage**: Functionality like CLI is not well covered by tests.
+
+6. **Manual Testing Required**: Certain operations require manual testing due to lack of proper mocks or fixtures.
 
 ## Proposed Changes
 
-### 1. Test Organization
+### 1. Restructured Test Organization
 
-1. **Directory Structure Aligned with Source**:
-   - Restructure test directories to mirror source directories
-   - Split large test files into focused test modules
-
+1. **Mirror Source Structure**:
+   - Organize tests to match the package structure
+   - Example directory structure:
    ```
    tests/
-   ├── conftest.py              # Main pytest fixtures
-   ├── unit/                    # Unit tests
-   │   ├── cli/                 # CLI tests (matching src structure)
-   │   │   ├── test_sync.py
-   │   │   └── test_detect.py
-   │   ├── config/              # Config tests
-   │   │   ├── test_loading.py
-   │   │   ├── test_validation.py
-   │   │   └── test_parsing.py
-   │   └── vcs/                 # VCS tests
-   │       ├── test_git.py
-   │       ├── test_hg.py
-   │       └── test_detect.py
-   ├── integration/             # Integration tests
-   │   ├── test_config_loading.py
-   │   └── test_repo_operations.py
-   ├── functional/              # End-to-end tests
-   │   └── test_cli_commands.py
-   ├── examples/                # Documented examples (used in doctests)
-   │   ├── config/
-   │   └── cli/
-   └── fixtures/                # Test fixtures and data
-       ├── configs/             # Example config files
-       └── repositories/        # Test repo structures
+     unit/
+       vcspull/
+         config/
+           test_loader.py
+           test_validation.py
+         cli/
+           test_sync.py
+           test_detect.py
+         vcs/
+           test_git.py
+           test_hg.py
+     integration/
+       test_config_loading.py
+       test_sync_operations.py
+     functional/
+       test_cli_commands.py
+     examples/
+       config/
+         basic_usage.py
+         advanced_config.py
    ```
 
-2. **Naming Conventions**:
-   - Unit tests: `test_<unit>_<behavior>.py` (e.g., `test_config_validation.py`)
-   - Integration tests: `test_<component1>_<component2>.py` (e.g., `test_config_loading.py`)
-   - Functional tests: `test_<feature>.py` (e.g., `test_cli_commands.py`)
+2. **Benefits**:
+   - Easier to find tests for specific functionality
+   - Better correlation between source and test code
+   - Clearer separation of test types (unit, integration, functional)
+   - Examples serve as both documentation and tests
 
-### 2. Improved Fixtures System
+### 2. Improved Test Fixtures
 
-1. **Centralized Fixture Management**:
-   - Create hierarchical fixtures in `conftest.py` files
-   - Use fixture factories for parameterized fixtures
-   - Provide isolated filesystem fixtures using `tmp_path`
-
+1. **Centralized Fixture Definition**:
    ```python
-   import typing as t
-   import os
+   # tests/conftest.py
    import pytest
+   import typing as t
    from pathlib import Path
-   import yaml
-   
-   from vcspull import Repository
-   from vcspull.config import ConfigFile
-   
-   # Path fixtures
-   @pytest.fixture
-   def config_dir(tmp_path: Path) -> Path:
-       """Create a temporary directory for config files."""
-       config_dir = tmp_path / "configs"
-       config_dir.mkdir()
-       return config_dir
+   import tempfile
+   import shutil
+   import os
+   from vcspull.schemas import Repository, VCSPullConfig, Settings
    
    @pytest.fixture
-   def repos_dir(tmp_path: Path) -> Path:
-       """Create a temporary directory for repositories."""
-       repos_dir = tmp_path / "repos"
-       repos_dir.mkdir()
-       return repos_dir
+   def tmp_path_factory(request) -> t.Callable[[str], Path]:
+       """Factory for creating temporary directories.
+       
+       Parameters
+       ----
+       request : pytest.FixtureRequest
+           The pytest request object
+           
+       Returns
+       ----
+       Callable[[str], Path]
+           Function to create temporary directories
+       """
+       base_temp = Path(tempfile.mkdtemp(prefix="vcspull_test_"))
+       
+       def _factory(name: str) -> Path:
+           path = base_temp / name
+           path.mkdir(parents=True, exist_ok=True)
+           return path
+       
+       yield _factory
+       
+       # Cleanup after test
+       shutil.rmtree(base_temp, ignore_errors=True)
    
-   # Configuration fixtures
    @pytest.fixture
-   def sample_config_dict() -> dict:
-       """Return a sample configuration dictionary."""
-       return {
+   def sample_config() -> VCSPullConfig:
+       """Create a sample configuration for testing.
+       
+       Returns
+       ----
+       VCSPullConfig
+           Sample configuration object
+       """
+       return VCSPullConfig(
+           settings=Settings(sync_remotes=True, default_vcs="git"),
+           repositories=[
+               Repository(
+                   name="repo1",
+                   url="https://github.com/user/repo1.git",
+                   path="/tmp/repo1",
+                   vcs="git"
+               ),
+               Repository(
+                   name="repo2",
+                   url="https://github.com/user/repo2.git",
+                   path="/tmp/repo2",
+                   vcs="git"
+               )
+           ],
+           includes=[]
+       )
+   
+   @pytest.fixture
+   def sample_config_file(tmp_path) -> Path:
+       """Create a sample configuration file for testing.
+       
+       Parameters
+       ----
+       tmp_path : Path
+           Temporary directory for the test
+           
+       Returns
+       ----
+       Path
+           Path to the sample configuration file
+       """
+       import yaml
+       
+       config_data = {
            "settings": {
                "sync_remotes": True,
                "default_vcs": "git"
@@ -99,510 +147,508 @@ The audit identified several issues with the current testing system:
                {
                    "name": "repo1",
                    "url": "https://github.com/user/repo1.git",
-                   "path": "~/code/repo1"
+                   "path": str(tmp_path / "repo1"),
+                   "vcs": "git"
                },
                {
                    "name": "repo2",
                    "url": "https://github.com/user/repo2.git",
-                   "path": "~/code/repo2",
-                   "remotes": {
-                       "upstream": "https://github.com/upstream/repo2.git"
-                   }
+                   "path": str(tmp_path / "repo2"),
+                   "vcs": "git"
                }
            ]
        }
+       
+       config_file = tmp_path / "config.yaml"
+       with open(config_file, "w") as f:
+           yaml.dump(config_data, f)
+       
+       return config_file
    
    @pytest.fixture
-   def sample_config_file(config_dir: Path, sample_config_dict: dict) -> Path:
-       """Create a sample configuration file.
+   def mock_git_repo(tmp_path_factory) -> t.Callable[[str], Path]:
+       """Factory for creating mock git repositories.
        
        Parameters
-       ----------
-       config_dir : Path
-           Directory to place the config file
-       sample_config_dict : dict
-           Configuration dictionary to write
+       ----
+       tmp_path_factory : Callable[[str], Path]
+           Factory for creating temporary directories
            
        Returns
-       -------
-       Path
-           Path to the created config file
+       ----
+       Callable[[str], Path]
+           Function to create mock git repositories
        """
-       config_path = config_dir / "config.yaml"
-       with open(config_path, "w") as f:
-           yaml.safe_dump(sample_config_dict, f)
-       return config_path
-   
-   @pytest.fixture
-   def validated_config(sample_config_dict: dict) -> ConfigFile:
-       """Return a validated configuration object.
+       import subprocess
        
-       Parameters
-       ----------
-       sample_config_dict : dict
-           Configuration dictionary to validate
+       def _factory(name: str) -> Path:
+           repo_path = tmp_path_factory(f"git_repo_{name}")
            
-       Returns
-       -------
-       ConfigFile
-           Validated configuration object
-       """
-       return ConfigFile.model_validate(sample_config_dict)
-   
-   # Repository fixtures
-   @pytest.fixture
-   def sample_repository() -> Repository:
-       """Return a sample repository object."""
-       return Repository(
-           name="test-repo",
-           url="https://github.com/user/test-repo.git",
-           path="~/code/test-repo"
-       )
-   
-   # Mock repository fixtures
-   @pytest.fixture
-   def git_repo_factory(repos_dir: Path):
-       """Factory for creating git repository test fixtures.
-       
-       Parameters
-       ----------
-       repos_dir : Path
-           Base directory for repositories
+           # Initialize git repo
+           subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
            
-       Returns
-       -------
-       Callable
-           Function to create git repositories
-       """
-       def _create_git_repo(name: str, with_remote: bool = False) -> Path:
-           """Create a git repository for testing.
+           # Create a dummy file and commit it
+           dummy_file = repo_path / "README.md"
+           dummy_file.write_text(f"# {name}\n\nThis is a test repository.")
            
-           Parameters
-           ----------
-           name : str
-               Repository name
-           with_remote : bool, optional
-               Whether to add a remote, by default False
-               
-           Returns
-           -------
-           Path
-               Path to the repository
-           """
-           repo_path = repos_dir / name
-           repo_path.mkdir(parents=True, exist_ok=True)
-           
-           # Git initialization
-           os.system(f"git init {repo_path}")
-           
-           # Add some content
-           readme = repo_path / "README.md"
-           readme.write_text(f"# {name}\n\nTest repository")
-           
-           # Initial commit
-           os.chdir(repo_path)
-           os.system("git add README.md")
-           os.system("git config user.email 'test@example.com'")
-           os.system("git config user.name 'Test User'")
-           os.system("git commit -m 'Initial commit'")
-           
-           # Add remote if requested
-           if with_remote:
-               os.system("git remote add origin https://github.com/user/test-repo.git")
+           subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
+           subprocess.run(
+               ["git", "commit", "-m", "Initial commit"],
+               cwd=repo_path, check=True, capture_output=True,
+               env={**os.environ, "GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.com"}
+           )
            
            return repo_path
        
-       return _create_git_repo
+       return _factory
    ```
 
-2. **Pydantic Model Testing Fixtures**:
-   - Add fixtures for generating and validating models
-   - Provide helpers for property-based testing
-   - Support testing validation with bad input
+2. **Benefits**:
+   - Reusable fixtures across test files
+   - Standardized test data creation
+   - Better isolation between tests
+   - Improved cleanup of test resources
 
+### 3. Test Isolation Improvements
+
+1. **Environment Variable Handling**:
    ```python
-   import typing as t
+   # tests/unit/test_config_env.py
    import pytest
-   from pydantic import ValidationError
-   from hypothesis import given, strategies as st
-   from hypothesis.provisional import urls
-   
-   from vcspull.config import Repository, ConfigFile, Settings
-   
-   # Pydantic validation testing
-   @pytest.fixture
-   def assert_validation_error():
-       """Fixture to assert that validation errors occur for bad input.
-       
-       Returns
-       -------
-       Callable
-           Function to assert validation errors
-       """
-       def _assert_validation_error(model_cls, data: dict, expected_error_count: int = 1):
-           """Assert that validation raises an error.
-           
-           Parameters
-           ----------
-           model_cls : Type[BaseModel]
-               Pydantic model class to validate against
-           data : dict
-               Data to validate
-           expected_error_count : int, optional
-               Expected number of errors, by default 1
-           """
-           with pytest.raises(ValidationError) as excinfo:
-               model_cls.model_validate(data)
-           
-           errors = excinfo.value.errors()
-           assert len(errors) >= expected_error_count, \
-               f"Expected at least {expected_error_count} error(s), got {len(errors)}"
-       
-       return _assert_validation_error
-   
-   # Hypothesis strategies for model generation
-   @pytest.fixture
-   def repository_strategy():
-       """Strategy for generating valid Repository models.
-       
-       Returns
-       -------
-       SearchStrategy
-           Hypothesis strategy for generating repositories
-       """
-       return st.builds(
-           Repository,
-           name=st.one_of(st.none(), st.text(min_size=1)),
-           url=urls(),
-           path=st.text(min_size=1),
-           vcs=st.one_of(st.none(), st.just("git"), st.just("hg"), st.just("svn")),
-           rev=st.one_of(st.none(), st.text()),
-           remotes=st.dictionaries(
-               keys=st.text(min_size=1),
-               values=urls(),
-               max_size=3
-           )
-       )
+   import os
+   from vcspull.config import apply_env_overrides
    
    @pytest.fixture
-   def config_strategy(repository_strategy):
-       """Strategy for generating valid ConfigFile models.
+   def clean_env():
+       """Provide a clean environment for testing.
        
-       Parameters
-       ----------
-       repository_strategy : SearchStrategy
-           Strategy for generating repositories
-           
-       Returns
-       -------
-       SearchStrategy
-           Hypothesis strategy for generating config files
+       This fixture saves the current environment variables,
+       clears relevant variables for the test, and restores
+       the original environment afterward.
        """
-       return st.builds(
-           ConfigFile,
-           settings=st.builds(Settings),
-           repositories=st.lists(repository_strategy, max_size=5),
-           includes=st.lists(st.text(), max_size=3)
-       )
+       # Save original environment
+       original_env = {k: v for k, v in os.environ.items() if k.startswith("VCSPULL_")}
+       
+       # Clear relevant environment variables
+       for k in list(os.environ.keys()):
+           if k.startswith("VCSPULL_"):
+               del os.environ[k]
+       
+       yield
+       
+       # Restore original environment
+       for k in list(os.environ.keys()):
+           if k.startswith("VCSPULL_"):
+               del os.environ[k]
+       
+       for k, v in original_env.items():
+           os.environ[k] = v
+   
+   def test_env_override_log_level(clean_env, sample_config):
+       """Test that environment variables override configuration settings."""
+       # Set environment variable
+       os.environ["VCSPULL_LOG_LEVEL"] = "DEBUG"
+       
+       # Apply environment overrides
+       config = apply_env_overrides(sample_config)
+       
+       # Check that the environment variable was applied
+       assert config.settings.log_level == "DEBUG"
    ```
 
-### 3. Testing Approaches
-
-1. **Unit Testing with pytest**:
-   - Test each component in isolation
-   - Use proper mocking and fixtures
-   - Focus on good test coverage
-
+2. **Filesystem Isolation**:
    ```python
-   import typing as t
+   # tests/unit/test_config_loading.py
    import pytest
    from pathlib import Path
+   from vcspull.config import load_and_validate_config
    
-   from vcspull.config import load_config_file, ConfigError
-   
-   def test_load_config_file_yaml(config_dir: Path):
-       """Test loading YAML configuration.
+   def test_load_config(tmp_path, sample_config_file):
+       """Test loading configuration from a file."""
+       # Load the sample configuration file
+       config = load_and_validate_config(sample_config_file)
        
-       Parameters
-       ----------
-       config_dir : Path
-           Temporary directory for config files
-       """
-       # Arrange
-       config_path = config_dir / "config.yaml"
-       with open(config_path, "w") as f:
-           f.write("repositories:\n  - name: test\n    url: https://github.com/test/test.git\n    path: ~/test")
-       
-       # Act
-       config = load_config_file(config_path)
-       
-       # Assert
-       assert config == {
-           "repositories": [
-               {
-                   "name": "test", 
-                   "url": "https://github.com/test/test.git", 
-                   "path": "~/test"
-               }
-           ]
-       }
-   
-   def test_load_config_file_error(config_dir: Path):
-       """Test handling of invalid configuration files.
-       
-       Parameters
-       ----------
-       config_dir : Path
-           Temporary directory for config files
-       """
-       # Arrange
-       config_path = config_dir / "invalid.yaml"
-       with open(config_path, "w") as f:
-           f.write("invalid: yaml: content")
-       
-       # Act & Assert
-       with pytest.raises(ConfigError) as excinfo:
-           load_config_file(config_path)
-       
-       assert "Failed to parse" in str(excinfo.value)
-   ```
-
-2. **Property-Based Testing with Hypothesis**:
-   - Use property-based testing for validation and serialization
-   - Test invariants and properties rather than specific examples
-
-   ```python
-   import typing as t
-   import pytest
-   from hypothesis import given, strategies as st
-   
-   from vcspull.config import Repository
-   
-   @given(
-       url=urls(),
-       path=st.text(min_size=1)
-   )
-   def test_repository_path_normalization(url: str, path: str):
-       """Test that path normalization works for any valid input.
-       
-       Parameters
-       ----------
-       url : str
-           Repository URL (generated)
-       path : str
-           Repository path (generated)
-       """
-       # Arrange & Act
-       repo = Repository(url=url, path=path)
-       
-       # Assert
-       assert repo.path is not None
-       # Path should never end with path separator
-       assert not repo.path.endswith("/")
-       assert not repo.path.endswith("\\")
-   
-   @given(st.data())
-   def test_repository_model_roundtrip(data):
-       """Test model serialization/deserialization roundtrip.
-       
-       Parameters
-       ----------
-       data : st.DataObject
-           Hypothesis data object
-       """
-       # Arrange
-       repo_strategy = data.draw(repository_strategy())
-       
-       # Act
-       repo_dict = repo_strategy.model_dump()
-       new_repo = Repository.model_validate(repo_dict)
-       new_dict = new_repo.model_dump()
-       
-       # Assert
-       assert repo_dict == new_dict, "Serialization roundtrip failed"
-   ```
-
-3. **Integration Testing**:
-   - Test multiple components working together
-   - Use test fixtures to simulate real-world usage
-   - Focus on boundaries between components
-
-   ```python
-   import typing as t
-   import pytest
-   from pathlib import Path
-   
-   from vcspull.config import process_configuration
-   
-   def test_process_configuration_with_includes(config_dir: Path):
-       """Test processing configuration with includes.
-       
-       Parameters
-       ----------
-       config_dir : Path
-           Temporary directory for config files
-       """
-       # Arrange
-       main_config = config_dir / "main.yaml"
-       with open(main_config, "w") as f:
-           f.write("""
-           settings:
-             sync_remotes: true
-           repositories:
-             - name: repo1
-               url: https://github.com/user/repo1.git
-               path: ~/code/repo1
-           includes:
-             - {}
-           """.format(str(config_dir / "included.yaml")))
-       
-       included_config = config_dir / "included.yaml"
-       with open(included_config, "w") as f:
-           f.write("""
-           repositories:
-             - name: repo2
-               url: https://github.com/user/repo2.git
-               path: ~/code/repo2
-           """)
-       
-       # Act
-       config = process_configuration([main_config])
-       
-       # Assert
+       # Check that the configuration was loaded correctly
        assert len(config.repositories) == 2
        assert config.repositories[0].name == "repo1"
        assert config.repositories[1].name == "repo2"
-       assert config.settings.sync_remotes is True
    ```
 
-4. **Doctests for Examples**:
-   - Add doctests to key functions for documentation
-   - Create examples that serve as both docs and tests
-   - Focus on showing how to use the library
+3. **Benefits**:
+   - Tests don't interfere with each other
+   - No side effects from one test to another
+   - Reproducible test results
+   - Easier to run in parallel
 
+### 4. Property-Based Testing
+
+1. **Validate Configuration Handling**:
    ```python
-   def normalize_path(path_str: str) -> str:
-       """Normalize path to string representation.
+   # tests/unit/test_config_properties.py
+   import pytest
+   from hypothesis import given, strategies as st
+   from vcspull.schemas import Repository, Settings, VCSPullConfig
+   from vcspull.config import merge_configs
+   
+   # Strategy for generating repository objects
+   repository_strategy = st.builds(
+       Repository,
+       name=st.text(min_size=1, max_size=50),
+       url=st.text(min_size=1, max_size=200),
+       path=st.text(min_size=1, max_size=200),
+       vcs=st.sampled_from(["git", "hg", "svn", None]),
+       remotes=st.dictionaries(
+           keys=st.text(min_size=1, max_size=20),
+           values=st.text(min_size=1, max_size=200),
+           max_size=5
+       ),
+       rev=st.one_of(st.none(), st.text(max_size=50))
+   )
+   
+   # Strategy for generating config objects
+   config_strategy = st.builds(
+       VCSPullConfig,
+       settings=st.builds(
+           Settings,
+           sync_remotes=st.booleans(),
+           default_vcs=st.one_of(st.none(), st.sampled_from(["git", "hg", "svn"])),
+           depth=st.one_of(st.none(), st.integers(min_value=1, max_value=100))
+       ),
+       repositories=st.lists(repository_strategy, max_size=10),
+       includes=st.lists(st.text(min_size=1, max_size=200), max_size=5)
+   )
+   
+   @given(configs=st.lists(config_strategy, min_size=1, max_size=5))
+   def test_merge_configs_property(configs):
+       """Test that merging configurations preserves all repositories."""
+       # Get all repositories from all configs
+       all_repos_urls = set()
+       for config in configs:
+           all_repos_urls.update(repo.url for repo in config.repositories)
        
-       Expands user home directory (~) and environment variables.
-       Returns an absolute path.
+       # Merge the configs
+       merged = merge_configs(configs)
+       
+       # Check that all repositories are present in the merged config
+       # (possibly with different values for some fields)
+       merged_urls = {repo.url for repo in merged.repositories}
+       assert merged_urls == all_repos_urls
+   ```
+
+2. **Benefits**:
+   - Tests a wide range of inputs automatically
+   - Catches edge cases that might be missed in manual tests
+   - Validates properties that should hold across all inputs
+   - Automatic shrinking to find minimal failing examples
+
+### 5. Integrated Documentation and Testing
+
+1. **Doctest Examples**:
+   ```python
+   # src/vcspull/schemas.py
+   import typing as t
+   from pydantic import BaseModel, Field
+   
+   class Repository(BaseModel):
+       """Repository configuration model.
+       
+       This model represents a version control repository with its
+       associated configuration.
+       
+       Examples
+       -----
+       Create a repository with minimum required fields:
+       
+       >>> repo = Repository(
+       ...     url="https://github.com/user/repo.git",
+       ...     path="/path/to/repo"
+       ... )
+       >>> repo.url
+       'https://github.com/user/repo.git'
+       
+       With optional fields:
+       
+       >>> repo = Repository(
+       ...     name="myrepo",
+       ...     url="https://github.com/user/repo.git",
+       ...     path="/path/to/repo",
+       ...     vcs="git",
+       ...     remotes={"upstream": "https://github.com/upstream/repo.git"}
+       ... )
+       >>> repo.name
+       'myrepo'
+       >>> repo.vcs
+       'git'
+       >>> repo.remotes["upstream"]
+       'https://github.com/upstream/repo.git'
+       """
+       name: t.Optional[str] = None
+       url: str
+       path: str
+       vcs: t.Optional[str] = None
+       remotes: dict[str, str] = Field(default_factory=dict)
+       rev: t.Optional[str] = None
+       web_url: t.Optional[str] = None
+   ```
+
+2. **Example-based Test Files**:
+   ```python
+   # tests/examples/config/test_repo_creation.py
+   import pytest
+   from vcspull.schemas import Repository, VCSPullConfig
+   
+   def test_repository_creation_examples():
+       """Example of creating repository configurations.
+       
+       This test demonstrates how to create and work with Repository objects.
+       """
+       # Create a basic repository
+       repo = Repository(
+           url="https://github.com/user/repo.git",
+           path="/path/to/repo"
+       )
+       assert repo.url == "https://github.com/user/repo.git"
+       assert repo.path == "/path/to/repo"
+       assert repo.vcs is None  # Will be inferred later
+       
+       # Create a repository with all optional fields
+       full_repo = Repository(
+           name="fullrepo",
+           url="https://github.com/user/fullrepo.git",
+           path="/path/to/fullrepo",
+           vcs="git",
+           remotes={
+               "upstream": "https://github.com/upstream/fullrepo.git",
+               "colleague": "https://github.com/colleague/fullrepo.git"
+           },
+           rev="main",
+           web_url="https://github.com/user/fullrepo"
+       )
+       assert full_repo.name == "fullrepo"
+       assert full_repo.rev == "main"
+       assert len(full_repo.remotes) == 2
+       
+       # Add to a configuration
+       config = VCSPullConfig()
+       config.repositories.append(repo)
+       config.repositories.append(full_repo)
+       assert len(config.repositories) == 2
+   ```
+
+3. **Benefits**:
+   - Documentation and tests are kept in sync
+   - Examples serve as both documentation and tests
+   - Improved understanding for users and contributors
+   - Tests verify that documentation is accurate
+
+### 6. Enhanced CLI Testing
+
+1. **CLI Command Testing**:
+   ```python
+   # tests/functional/test_cli_commands.py
+   import pytest
+   from click.testing import CliRunner
+   from vcspull.cli.main import cli
+   import yaml
+   
+   @pytest.fixture
+   def cli_runner():
+       """Provide a Click CLI runner for testing.
+       
+       Returns
+       ----
+       CliRunner
+           Click test runner instance
+       """
+       return CliRunner()
+   
+   def test_sync_command(cli_runner, sample_config_file, tmp_path):
+       """Test the sync command.
        
        Parameters
-       ----------
-       path_str : str
-           Path string to normalize
-           
-       Returns
-       -------
-       str
-           Normalized path as string
-           
-       Examples
-       --------
-       >>> from vcspull.utils.path import normalize_path
-       >>> import os
-       
-       Normalize home directory:
-       
-       >>> path = normalize_path("~/projects")
-       >>> path.startswith(os.path.expanduser("~"))
-       True
-       
-       Normalize environment variables:
-       
-       >>> os.environ["TEST_DIR"] = "/tmp/test"
-       >>> normalize_path("$TEST_DIR/project")
-       '/tmp/test/project'
+       ----
+       cli_runner : CliRunner
+           Click test runner
+       sample_config_file : Path
+           Path to sample configuration file
+       tmp_path : Path
+           Temporary directory for the test
        """
-       path = Path(os.path.expandvars(path_str)).expanduser()
-       return str(path.resolve() if path.exists() else path.absolute())
-   ```
-
-### 4. Continuous Testing Setup
-
-1. **Test Watcher Configuration**:
-   - Set up `pytest-watcher` for continuous testing during development
-   - Configure different watch modes for different test types
-
-   ```ini
-   # pyproject.toml
-   [tool.pytest.ini_options]
-   testpaths = ["tests"]
-   python_files = ["test_*.py"]
-   doctest_optionflags = ["NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL"]
+       # Run the sync command with the sample config file
+       result = cli_runner.invoke(
+           cli, ["sync", "--config", str(sample_config_file)]
+       )
+       
+       # Check the command executed successfully
+       assert result.exit_code == 0
+       assert "Syncing repositories" in result.stdout
    
-   [tool.ptw]
-   runner = "pytest"
+   def test_info_command(cli_runner, sample_config_file):
+       """Test the info command.
+       
+       Parameters
+       ----
+       cli_runner : CliRunner
+           Click test runner
+       sample_config_file : Path
+           Path to sample configuration file
+       """
+       # Run the info command with the sample config file
+       result = cli_runner.invoke(
+           cli, ["info", "--config", str(sample_config_file)]
+       )
+       
+       # Check the command executed successfully
+       assert result.exit_code == 0
+       assert "repository configuration(s)" in result.stdout
+       
+       # Check that both repositories are listed
+       assert "repo1" in result.stdout
+       assert "repo2" in result.stdout
    ```
 
-2. **CI Pipeline Integration**:
-   - Configure CI to run tests, coverage, and linting
-   - Structure tests to run in logical groupings (unit, integration, functional)
-   - Generate and publish coverage reports
+2. **Benefits**:
+   - Comprehensive testing of CLI commands
+   - Verification of command output
+   - Easy to test different command variations
+   - Improves CLI usability
 
-### 5. Focused Test Coverage Strategy
+### 7. Consistent Assertions and Output Validation
 
-1. **Coverage Goals**:
-   - Aim for 90%+ coverage on core modules
-   - Focus on critical paths and error handling
-   - Identify and prioritize under-tested components
+1. **Standard Assertion Patterns**:
+   ```python
+   # tests/unit/test_validation.py
+   import pytest
+   import typing as t
+   from pydantic import ValidationError
+   from vcspull.schemas import Repository
+   
+   def test_repository_validation_errors():
+       """Test validation errors for Repository model."""
+       # Test missing required fields
+       with pytest.raises(ValidationError) as excinfo:
+           Repository()
+       
+       # Verify specific validation errors
+       errors = {
+           (error["loc"][0], error["type"]) 
+           for error in excinfo.value.errors()
+       }
+       assert ("url", "missing") in errors
+       assert ("path", "missing") in errors
+       
+       # Test invalid URL
+       with pytest.raises(ValidationError) as excinfo:
+           Repository(url="", path="/path/to/repo")
+       
+       # Verify the specific error message
+       errors = excinfo.value.errors()
+       assert any(
+           error["loc"][0] == "url" and "empty" in error["msg"].lower()
+           for error in errors
+       )
+   ```
 
-2. **Coverage Reports**:
-   - Generate coverage reports as part of CI
-   - Track coverage trends over time
-   - Highlight areas needing attention
+2. **Output Format Verification**:
+   ```python
+   # tests/functional/test_cli_output.py
+   import pytest
+   import json
+   import yaml
+   from click.testing import CliRunner
+   from vcspull.cli.main import cli
+   
+   def test_list_json_output(cli_runner, sample_config_file):
+       """Test JSON output format of the list command.
+       
+       Parameters
+       ----
+       cli_runner : CliRunner
+           Click test runner
+       sample_config_file : Path
+           Path to sample configuration file
+       """
+       # Run the list command with JSON output
+       result = cli_runner.invoke(
+           cli, ["list", "--config", str(sample_config_file), "--format", "json"]
+       )
+       
+       # Check the command executed successfully
+       assert result.exit_code == 0
+       
+       # Verify the output is valid JSON
+       output_data = json.loads(result.stdout)
+       
+       # Verify the structure of the output
+       assert isinstance(output_data, list)
+       assert len(output_data) == 2
+       assert all("name" in repo for repo in output_data)
+       assert all("url" in repo for repo in output_data)
+       assert all("path" in repo for repo in output_data)
+   ```
+
+3. **Benefits**:
+   - Consistent approach to testing across the codebase
+   - Clear expectations for what tests should verify
+   - Better error reporting when tests fail
+   - Easier to maintain and extend
 
 ## Implementation Plan
 
 1. **Phase 1: Test Structure Reorganization**
-   - Restructure test directories to match source structure
-   - Split large test files into focused modules
-   - Add missing conftest.py files with basic fixtures
+   - Create new test directory structure
+   - Move existing tests to appropriate locations
+   - Update imports and references
+   - Add missing `__init__.py` files for test discovery
 
-2. **Phase 2: Fixture Development**
-   - Create comprehensive test fixtures
-   - Implement property-based test strategies
-   - Add support for isolated filesystem testing
+2. **Phase 2: Fixture Implementation**
+   - Create centralized fixtures in `conftest.py`
+   - Refactor tests to use standard fixtures
+   - Remove duplicate fixture definitions
+   - Ensure proper cleanup in fixtures
 
-3. **Phase 3: Test Coverage Improvement**
-   - Identify under-tested components from coverage reports
-   - Write tests for critical functionality
-   - Focus on error handling and edge cases
+3. **Phase 3: Test Isolation Improvements**
+   - Add environment isolation to relevant tests
+   - Ensure proper filesystem isolation
+   - Update tests with side effects
+   - Add clean environment fixtures
 
-4. **Phase 4: Documentation and Examples**
-   - Add doctests to key functions
-   - Create example code in tests/examples
-   - Update documentation with examples
+4. **Phase 4: Enhanced Test Coverage**
+   - Add property-based tests for core functionality
+   - Implement missing test cases for CLI commands
+   - Add doctests for key modules
+   - Create example-based test files
 
-5. **Phase 5: Continuous Testing Setup**
-   - Configure test watcher for development
-   - Set up CI pipeline integration
-   - Create reporting and monitoring for test results
+5. **Phase 5: Continuous Integration Enhancement**
+   - Configure test coverage reporting
+   - Implement test parallelization
+   - Set up test environment matrices (Python versions, OS)
+   - Add doctests runner to CI pipeline
 
 ## Benefits
 
-1. **Improved Maintainability**: Better organized tests are easier to understand and extend
-2. **Higher Test Coverage**: Comprehensive testing of all components improves reliability
-3. **Better Documentation**: Doctests provide both documentation and verification
-4. **Faster Development**: Continuous testing catches issues early
-5. **Clearer Requirements**: Tests document expected behavior clearly
-6. **Easier Refactoring**: Comprehensive tests make refactoring safer
-7. **Improved Onboarding**: New developers can understand the code through tests
+1. **Improved Maintainability**: Better organized tests that are easier to understand and update
+2. **Enhanced Coverage**: More comprehensive testing of all functionality
+3. **Better Test Isolation**: Tests don't interfere with each other
+4. **Self-documenting Tests**: Tests that serve as examples and documentation
+5. **Faster Test Execution**: Tests can run in parallel with proper isolation
+6. **Reproducible Test Results**: Tests are consistent regardless of environment
+7. **Better Developer Experience**: Easier to locate and update tests
 
 ## Drawbacks and Mitigation
 
-1. **Initial Implementation Effort**:
-   - Implement changes gradually, focusing on most critical components first
-   - Automate test organization where possible
-   - Consider tools for helping generate initial tests
+1. **Migration Effort**:
+   - Implement changes incrementally, starting with the most critical areas
+   - Maintain test coverage during migration
+   - Use automated tools to assist in refactoring
 
-2. **Potential Over-Testing**:
-   - Focus on value-adding tests rather than test count
-   - Use code coverage to guide testing efforts
-   - Balance unit, integration, and property-based tests
+2. **Learning Curve**:
+   - Document the new test structure and approach
+   - Provide examples of best practices
+   - Use consistent patterns across tests
 
 ## Conclusion
 
-The proposed testing system will significantly improve the maintainability and reliability of the VCSPull codebase. By organizing tests to match the source structure, improving fixtures, and using multiple testing approaches, we can ensure comprehensive test coverage and make the codebase more robust. The addition of property-based testing and doctests will also improve documentation and catch more edge cases.
+The proposed testing system will significantly improve the maintainability, coverage, and developer experience of the VCSPull codebase. By reorganizing tests, improving fixtures, ensuring test isolation, and enhancing coverage, we will build a more robust and reliable test suite.
 
-This proposal aligns with the broader goal of streamlining the VCSPull codebase, making it more maintainable and intuitive. The improved testing system will support other proposals by providing a safety net for refactoring and ensuring new components meet quality standards. 
+The changes align with modern Python testing best practices and will make the codebase easier to maintain and extend. The improved test suite will catch bugs earlier, provide better documentation, and make the development process more efficient. 
