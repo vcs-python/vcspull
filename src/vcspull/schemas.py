@@ -33,32 +33,86 @@ SectionName = str
 ShellCommand = str
 T = TypeVar("T")
 
-# Error message constants
+# Error message constants for consistency
 EMPTY_VALUE_ERROR = "Value cannot be empty or whitespace only"
 REMOTES_GIT_ONLY_ERROR = "Remotes are only supported for Git repositories"
+INVALID_VCS_ERROR = "VCS type must be one of: 'git', 'hg', 'svn'"
+URL_EMPTY_ERROR = "URL cannot be empty"
+URL_WHITESPACE_ERROR = "URL cannot be empty or whitespace"
+PATH_EMPTY_ERROR = "Path cannot be empty"
+INVALID_REMOTE_ERROR = "Invalid remote configuration"
 
 
 # Validation functions for Annotated types
 def validate_not_empty(v: str) -> str:
-    """Validate string is not empty after stripping."""
+    """Validate string is not empty after stripping.
+
+    Parameters
+    ----------
+    v : str
+        String to validate
+
+    Returns
+    -------
+    str
+        The input string if valid
+
+    Raises
+    ------
+    ValueError
+        If the string is empty or contains only whitespace
+    """
     if v.strip() == "":
         raise ValueError(EMPTY_VALUE_ERROR)
     return v
 
 
 def normalize_path(path: str | pathlib.Path) -> str:
-    """Convert path to string form."""
+    """Convert path to string form.
+
+    Parameters
+    ----------
+    path : str | pathlib.Path
+        Path to normalize
+
+    Returns
+    -------
+    str
+        String representation of the path
+    """
     return str(path)
 
 
 def expand_path(path: str) -> pathlib.Path:
-    """Expand variables and user directory in path."""
+    """Expand variables and user directory in path.
+
+    Parameters
+    ----------
+    path : str
+        Path string to expand
+
+    Returns
+    -------
+    pathlib.Path
+        Path object with expanded variables and user directory
+    """
     return pathlib.Path(os.path.expandvars(path)).expanduser()
 
 
 def expand_user(path: str) -> str:
-    """Expand user directory in path string."""
-    return os.path.expanduser(path)
+    """Expand user directory in path string.
+
+    Parameters
+    ----------
+    path : str
+        Path string with potential user directory reference
+
+    Returns
+    -------
+    str
+        Path with expanded user directory
+    """
+    return pathlib.Path(path).expanduser().as_posix()
 
 
 # Define reusable field types with Annotated
@@ -98,7 +152,21 @@ class VCSType(str, enum.Enum):
 
 
 class GitRemote(BaseModel):
-    """Git remote configuration."""
+    """Git remote configuration.
+
+    Represents a remote repository configuration for Git repositories.
+
+    Attributes
+    ----------
+    name : str
+        Remote name (e.g., 'origin', 'upstream')
+    url : str
+        Remote URL
+    fetch : str | None
+        Fetch specification (optional)
+    push : str | None
+        Push specification (optional)
+    """
 
     name: NonEmptyStr = Field(description="Remote name")
     url: NonEmptyStr = Field(description="Remote URL")
@@ -117,11 +185,11 @@ class RepositoryModel(BaseModel):
 
     Parameters
     ----------
-    vcs : str
+    vcs : Literal["git", "hg", "svn"]
         Version control system type (e.g., 'git', 'hg', 'svn')
     name : str
         Name of the repository
-    path : str | Path
+    path : pathlib.Path
         Path to the repository
     url : str
         URL of the repository
@@ -167,7 +235,21 @@ class RepositoryModel(BaseModel):
 
     @model_validator(mode="after")
     def validate_vcs_specific_fields(self) -> RepositoryModel:
-        """Validate VCS-specific fields."""
+        """Validate VCS-specific fields.
+
+        Ensures that certain fields only appear with the appropriate VCS type.
+        For example, remotes are only valid for Git repositories.
+
+        Returns
+        -------
+        RepositoryModel
+            The validated repository model
+
+        Raises
+        ------
+        ValueError
+            If there's a VCS-specific validation error
+        """
         # Git remotes are only for Git repositories
         if self.remotes and self.vcs != "git":
             raise ValueError(REMOTES_GIT_ONLY_ERROR)
@@ -198,16 +280,14 @@ class RepositoryModel(BaseModel):
             If URL is invalid
         """
         if not v:
-            msg = "URL cannot be empty"
-            raise ValueError(msg)
+            raise ValueError(URL_EMPTY_ERROR)
 
         # Get VCS type from validation context
         vcs_type = info.data.get("vcs", "").lower() if info.data else ""
 
         # Basic validation for all URL types
         if v.strip() == "":
-            msg = "URL cannot be empty or whitespace"
-            raise ValueError(msg)
+            raise ValueError(URL_WHITESPACE_ERROR)
 
         # VCS-specific validation
         if vcs_type == "git" and "github.com" in v and not v.endswith(".git"):
@@ -229,7 +309,7 @@ class RepositoryModel(BaseModel):
 
         Returns
         -------
-        dict[str, Any]
+        dict[str, t.Any]
             Model data as dictionary
         """
         exclude = set()
@@ -358,7 +438,7 @@ class RawRepositoryModel(BaseModel):
 
     Parameters
     ----------
-    vcs : str
+    vcs : Literal["git", "hg", "svn"]
         Version control system type (e.g., 'git', 'hg', 'svn')
     name : str
         Name of the repository
@@ -394,7 +474,20 @@ class RawRepositoryModel(BaseModel):
 
     @model_validator(mode="after")
     def validate_vcs_specific_fields(self) -> RawRepositoryModel:
-        """Validate VCS-specific fields."""
+        """Validate VCS-specific fields.
+
+        Ensures that certain fields are only used with the appropriate VCS type.
+
+        Returns
+        -------
+        RawRepositoryModel
+            The validated model
+
+        Raises
+        ------
+        ValueError
+            If validation fails
+        """
         # Git remotes are only for Git repositories
         if self.remotes and self.vcs != "git":
             raise ValueError(REMOTES_GIT_ONLY_ERROR)
@@ -418,9 +511,17 @@ class RawRepositoryModel(BaseModel):
         -------
         str
             Validated URL
+
+        Raises
+        ------
+        ValueError
+            If URL validation fails
         """
         # Access other values using context
         vcs_type = info.data.get("vcs", "") if info.data else ""
+
+        if not v or v.strip() == "":
+            raise ValueError(URL_EMPTY_ERROR)
 
         # Git-specific URL validation
         if vcs_type == "git" and "github.com" in v and not v.endswith(".git"):
@@ -517,6 +618,11 @@ class RawRepositoryModel(BaseModel):
             msg = "All shell commands must be strings"
             raise ValueError(msg)
 
+        # Check for empty commands
+        if any(cmd.strip() == "" for cmd in v if isinstance(cmd, str)):
+            msg = "Shell commands cannot be empty"
+            raise ValueError(msg)
+
         return v
 
 
@@ -565,7 +671,7 @@ def get_config_validator() -> TypeAdapter[RawConfigDictModel]:
     return TypeAdapter(RawConfigDictModel)
 
 
-# Initialize validators on module load
+# Initialize validators on module load for better performance
 repo_validator = get_repo_validator()
 config_validator = get_config_validator()
 
@@ -592,10 +698,9 @@ def is_valid_repo_config(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]
 
     try:
         repo_validator.validate_python(config)
+        return True
     except Exception:
         return False
-    else:
-        return True
 
 
 def is_valid_config_dict(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]]:
@@ -622,17 +727,21 @@ def is_valid_config_dict(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]
     if not all(isinstance(v, dict) for v in config.values()):
         return False
 
-    # Check that all repository values are either dictionaries or strings (URL shorthand)
+    # Check that repository values are either dictionaries or strings (URL shorthand)
     for section in config.values():
-        if not all(isinstance(repo, (dict, str)) for repo in section.values()):
-            return False
+        for repo in section.values():
+            # Only string URLs or proper repository dictionaries are valid
+            if not isinstance(repo, dict) and not isinstance(repo, str):
+                return False
+            # If it's a string, it should be a valid URL
+            if isinstance(repo, str) and not repo.strip():
+                return False
 
     try:
         config_validator.validate_python({"root": config})
+        return True
     except Exception:
         return False
-    else:
-        return True
 
 
 # Functions to convert between raw and validated models
@@ -715,6 +824,9 @@ def validate_config_from_json(
     tuple[bool, dict[str, Any] | str]
         Tuple of (is_valid, validated_config_or_error_message)
     """
+    if not json_data:
+        return False, "JSON data cannot be empty"
+
     try:
         # Direct JSON validation - more performant
         config = RawConfigDictModel.model_validate_json(

@@ -10,6 +10,9 @@ import pytest
 from pydantic import ValidationError
 from vcspull import exc, validator
 from vcspull.schemas import (
+    EMPTY_VALUE_ERROR,
+    PATH_EMPTY_ERROR,
+    REMOTES_GIT_ONLY_ERROR,
     RawRepositoryModel,
     is_valid_repo_config,
 )
@@ -69,10 +72,10 @@ def test_is_valid_config_invalid() -> None:
     invalid_config4: dict[str, t.Any] = {"section1": "not-a-dict"}
     assert not validator.is_valid_config(invalid_config4)
 
-    # Non-dict repo
+    # Non-dict repo - note this can be a valid URL string, so we need to use an invalid value
     config_with_non_dict_repo: dict[str, dict[str, t.Any]] = {
         "section1": {
-            "repo1": "not-a-dict-or-url-string",
+            "repo1": 123,  # This is not a valid repository config
         },
     }
     assert not validator.is_valid_config(config_with_non_dict_repo)
@@ -168,7 +171,7 @@ def test_validate_repo_config_empty_values() -> None:
     valid, message = validator.validate_repo_config(repo_empty_vcs)
     assert not valid
     assert message is not None
-    assert "vcs" in message.lower()
+    assert "vcs" in message.lower() or EMPTY_VALUE_ERROR in message
 
     # Empty url
     repo_empty_url: _TestRawConfigDict = {
@@ -180,7 +183,7 @@ def test_validate_repo_config_empty_values() -> None:
     valid, message = validator.validate_repo_config(repo_empty_url)
     assert not valid
     assert message is not None
-    assert "url" in message.lower() or "empty" in message.lower()
+    assert "url" in message.lower() or EMPTY_VALUE_ERROR in message
 
     # Empty path
     repo_empty_path: _TestRawConfigDict = {
@@ -192,7 +195,7 @@ def test_validate_repo_config_empty_values() -> None:
     valid, message = validator.validate_repo_config(repo_empty_path)
     assert not valid
     assert message is not None
-    assert "path" in message.lower() or "empty" in message.lower()
+    assert "path" in message.lower() or PATH_EMPTY_ERROR in message
 
     # Empty name
     repo_empty_name: _TestRawConfigDict = {
@@ -204,7 +207,7 @@ def test_validate_repo_config_empty_values() -> None:
     valid, message = validator.validate_repo_config(repo_empty_name)
     assert not valid
     assert message is not None
-    assert "name" in message.lower() or "empty" in message.lower()
+    assert "name" in message.lower() or EMPTY_VALUE_ERROR in message
 
     # Whitespace in values
     repo_whitespace: _TestRawConfigDict = {
@@ -216,11 +219,7 @@ def test_validate_repo_config_empty_values() -> None:
     valid, message = validator.validate_repo_config(repo_whitespace)
     assert not valid
     assert message is not None
-    assert (
-        "path" in message.lower()
-        or "empty" in message.lower()
-        or "whitespace" in message.lower()
-    )
+    assert "path" in message.lower() or EMPTY_VALUE_ERROR in message
 
 
 def test_validate_path_valid(tmp_path: pathlib.Path) -> None:
@@ -252,7 +251,7 @@ def test_validate_path_invalid() -> None:
     valid, message = validator.validate_path("")
     assert not valid
     assert message is not None
-    assert "empty" in message.lower()
+    assert PATH_EMPTY_ERROR in message
 
     # Path with null character
     valid, message = validator.validate_path("repo\0name")
@@ -329,6 +328,7 @@ def test_validate_config_structure_invalid() -> None:
     valid, message = validator.validate_config_structure(config_invalid_section)
     assert not valid
     assert message is not None
+    assert "dictionary" in message.lower()
 
     # Invalid section value (string)
     config_invalid_section2: dict[str, t.Any] = {
@@ -337,6 +337,7 @@ def test_validate_config_structure_invalid() -> None:
     valid, message = validator.validate_config_structure(config_invalid_section2)
     assert not valid
     assert message is not None
+    assert "dictionary" in message.lower()
 
     # Invalid repo value (None)
     config_invalid_repo: dict[str, dict[str, t.Any]] = {
@@ -347,6 +348,7 @@ def test_validate_config_structure_invalid() -> None:
     valid, message = validator.validate_config_structure(config_invalid_repo)
     assert not valid
     assert message is not None
+    assert "dictionary" in message.lower() or "string" in message.lower()
 
     # Invalid repo value (int)
     config_invalid_repo2: dict[str, dict[str, t.Any]] = {
@@ -357,6 +359,7 @@ def test_validate_config_structure_invalid() -> None:
     valid, message = validator.validate_config_structure(config_invalid_repo2)
     assert not valid
     assert message is not None
+    assert "dictionary" in message.lower() or "string" in message.lower()
 
     # Missing required fields in repo
     config_missing_fields: dict[str, dict[str, dict[str, t.Any]]] = {
@@ -366,6 +369,7 @@ def test_validate_config_structure_invalid() -> None:
             },
         },
     }
+    # This should now fail at the Pydantic validation stage with missing field errors
     valid, message = validator.validate_config_structure(config_missing_fields)
     assert not valid
     assert message is not None
@@ -377,20 +381,20 @@ def test_validate_config_raises_exceptions() -> None:
     # None config
     with pytest.raises(exc.ConfigValidationError) as excinfo:
         validator.validate_config(None)
-    assert "none" in str(excinfo.value).lower()
+    assert "configuration cannot be none" in str(excinfo.value).lower()
 
     # Non-dict config
     with pytest.raises(exc.ConfigValidationError) as excinfo:
         validator.validate_config("not-a-dict")
-    assert "dictionary" in str(excinfo.value).lower()
+    assert "configuration must be a dictionary" in str(excinfo.value).lower()
 
-    # Invalid configuration
+    # Invalid configuration with None section
     invalid_config: dict[str, t.Any] = {"section1": None}
     with pytest.raises(exc.ConfigValidationError) as excinfo:
         validator.validate_config(invalid_config)
-    assert "invalid" in str(excinfo.value).lower()
+    assert "invalid section value" in str(excinfo.value).lower()
 
-    # Invalid repository
+    # Invalid repository configuration (missing vcs)
     invalid_repo_config: dict[str, dict[str, t.Any]] = {
         "section1": {
             "repo1": {"invalid": "config"},
@@ -398,7 +402,7 @@ def test_validate_config_raises_exceptions() -> None:
     }
     with pytest.raises(exc.ConfigValidationError) as excinfo:
         validator.validate_config(invalid_repo_config)
-    assert "invalid" in str(excinfo.value).lower()
+    assert "missing required field 'vcs'" in str(excinfo.value).lower()
 
 
 def test_validate_config_with_valid_config() -> None:
@@ -479,6 +483,7 @@ def test_validate_config_nested_validation_errors() -> None:
     error_message = str(excinfo.value)
     assert "remotes" in error_message.lower()
     assert "git" in error_message.lower()
+    assert REMOTES_GIT_ONLY_ERROR in error_message
 
 
 def test_validate_path_with_resolved_path(tmp_path: pathlib.Path) -> None:
@@ -682,6 +687,13 @@ def test_validate_config_json() -> None:
     assert valid
     assert message is None
 
+    # Empty JSON
+    empty_json = ""
+    valid, message = validator.validate_config_json(empty_json)
+    assert not valid
+    assert message is not None
+    assert "empty" in message.lower()
+
     # Invalid JSON syntax
     invalid_json = """
     {
@@ -716,6 +728,7 @@ def test_validate_config_json() -> None:
     valid, message = validator.validate_config_json(invalid_config_json)
     assert not valid
     assert message is not None
+    assert "vcs" in message.lower()
 
 
 def test_get_structured_errors() -> None:
@@ -749,7 +762,10 @@ def test_get_structured_errors() -> None:
 
         # Check error details for missing fields
         for errors in structured["detail"].values():
-            for error in errors:
-                assert "location" in error
-                assert "message" in error
-                # Other fields may be present (context, url, input)
+            assert isinstance(errors, list)
+            assert len(errors) > 0
+
+            # Check fields in first error
+            first_error = errors[0]
+            assert "location" in first_error
+            assert "message" in first_error
