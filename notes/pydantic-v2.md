@@ -1718,100 +1718,280 @@ Key modern patterns to follow:
 
 ### Performance Optimization
 
+Pydantic v2 offers significant performance improvements over v1 due to its Rust-based core. Here are best practices for optimizing performance further:
+
+#### Using TypeAdapter Efficiently
+
+For maximum performance with collections or repeated validations, create TypeAdapter instances once and reuse them:
+
 ```python
 import typing as t
-from pydantic import BaseModel, TypeAdapter
+from pydantic import TypeAdapter
 
 
-# Create adapters once, reuse them
+# Create adapters at module level
 INT_LIST_ADAPTER = TypeAdapter(list[int])
+USER_DICT_ADAPTER = TypeAdapter(dict[str, t.Any])
 
-def process_numbers(raw_lists: list[list[str]]) -> list[int]:
+
+def process_many_items(data_batches: list[list[str]]) -> list[list[int]]:
+    """Process many batches of items"""
     results = []
     
-    for raw_list in raw_lists:
-        # Reuse adapter instead of creating new ones
-        numbers = INT_LIST_ADAPTER.validate_python(raw_list)
-        results.append(sum(numbers))
+    # Reuse the same adapter for each batch
+    for batch in data_batches:
+        # Convert strings to integers and validate
+        validated_batch = INT_LIST_ADAPTER.validate_python(batch)
+        results.append(validated_batch)
     
     return results
 
 
-# Use model_construct for pre-validated data
-class Item(BaseModel):
+def parse_many_user_dicts(user_dicts: list[dict]) -> list[dict]:
+    """Parse and validate user dictionaries"""
+    return [USER_DICT_ADAPTER.validate_python(user_dict) for user_dict in user_dicts]
+```
+
+#### Choosing the Right Validation Mode
+
+Pydantic offers different validation modes that trade off between performance and strictness:
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+
+# Strict mode - slower but safest
+class StrictUser(BaseModel):
+    model_config = ConfigDict(strict=True)
     id: int
     name: str
 
-# Slow: re-validates data
-item1 = Item(id=1, name='example')
 
-# Fast: skips validation for known valid data
-item2 = Item.model_construct(id=1, name='example')
+# Default mode - balanced
+class DefaultUser(BaseModel):
+    id: int
+    name: str
+
+
+# Lax mode - fastest but less type checking
+class LaxUser(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+    id: int  # Will accept strings like "123" and convert
+    name: str
+
+
+# Performance comparison
+strict_user = StrictUser(id=1, name="John")  # id must be int
+default_user = DefaultUser(id="1", name="John")  # "1" converted to int
+lax_user = LaxUser(id="1", name="John")  # "1" converted to int, more conversions allowed
 ```
 
-#### Advanced Performance Tips
+#### Deferring Schema Building
 
-For maximum performance in Pydantic v2:
+For types with complex or circular references, defer schema building:
 
-1. **Reuse Type Adapters**: Creating a TypeAdapter has overhead from analyzing types and building schemas. Create them once and reuse.
+```python
+import typing as t
+from pydantic import TypeAdapter, ConfigDict
 
-    ```python
-    # WRONG: Creating TypeAdapter in a loop
-    def process_items(items_data: list[dict]) -> list:
-        processed = []
-        for item_data in items_data:
-            adapter = TypeAdapter(Item)  # Expensive! Created repeatedly
-            processed.append(adapter.validate_python(item_data))
-        return processed
+
+# Forward references
+class Tree:
+    value: int
+    children: list["Tree"] = []
+
+
+# Defer expensive schema building
+tree_adapter = TypeAdapter("Tree", ConfigDict(defer_build=True))
+
+# Build schema when needed
+tree_adapter.rebuild()
+
+# Now use the adapter
+tree = tree_adapter.validate_python({"value": 1, "children": []})
+```
+
+#### Minimizing Model Validation
+
+When working with trusted data or for performance reasons, consider skipping validation:
+
+```python
+import typing as t
+from pydantic import BaseModel
+
+
+class User(BaseModel):
+    id: int
+    name: str
+    email: str
+
+
+# Without validation (unsafe but fast)
+user_dict = {"id": 1, "name": "John", "email": "john@example.com"}
+user = User.model_construct(**user_dict)  # No validation
+
+# With validation (safe but slower)
+validated_user = User.model_validate(user_dict)
+```
+
+#### Optimizing JSON Operations
+
+When working with JSON data, use the built-in JSON methods for best performance:
+
+```python
+import typing as t
+import json
+from pydantic import BaseModel, TypeAdapter
+
+
+class LogEntry(BaseModel):
+    timestamp: str
+    level: str
+    message: str
+
+
+# Process JSON logs efficiently
+log_adapter = TypeAdapter(list[LogEntry])
+
+def process_log_file(file_path: str) -> list[LogEntry]:
+    """Process a file of JSON log entries"""
+    with open(file_path, 'r') as f:
+        # Parse JSON first
+        log_data = json.load(f)
+        
+    # Then validate with Pydantic
+    return log_adapter.validate_python(log_data)
+
+
+# Generate JSON efficiently
+def serialize_logs(logs: list[LogEntry]) -> str:
+    """Serialize logs to JSON"""
+    # Use model_dump_json directly
+    return f"[{','.join(log.model_dump_json() for log in logs)}]"
+```
+
+#### Benchmarking Performance
+
+To identify bottlenecks in your Pydantic usage, use profiling tools:
+
+```python
+import cProfile
+import typing as t
+from pydantic import BaseModel
+
+
+class Item(BaseModel):
+    id: int
+    name: str
+    tags: list[str] = []
+
+
+def create_many_items(count: int) -> list[Item]:
+    """Create many items for benchmarking"""
+    return [
+        Item(id=i, name=f"Item {i}", tags=[f"tag{i}", "common"])
+        for i in range(count)
+    ]
+
+
+# Profile item creation
+cProfile.run('create_many_items(10000)')
+```
+
+#### Memory Usage Optimization
+
+For applications handling large data volumes, consider these memory optimizations:
+
+```python
+import typing as t
+from pydantic import BaseModel, Field
+
+
+class LightweightModel(BaseModel):
+    # Use __slots__ to reduce memory overhead
+    model_config = {"extra": "ignore", "frozen": True}
     
-    # RIGHT: Create once, reuse many times
-    ITEM_ADAPTER = TypeAdapter(Item)  # Create once
+    id: int
+    # Use simple types where possible
+    name: str = ""  # Empty string default uses less memory than None
+    active: bool = True  # Boolean uses less memory than string flags
     
-    def process_items(items_data: list[dict]) -> list:
-        return [ITEM_ADAPTER.validate_python(item) for item_data in items_data]
-    ```
-
-2. **Use direct core mode access**: In ultra-performance-critical code, you can use core mode:
-
-    ```python
-    from pydantic_core import SchemaValidator, core_schema
+    # Avoid large collections with unbounded size
+    # Use Field constraints to limit collection sizes
+    tags: list[str] = Field(default_factory=list, max_length=10)
     
-    # Direct core schema creation for maximum performance
-    schema = core_schema.dict_schema(
-        keys_schema=core_schema.str_schema(),
-        values_schema=core_schema.int_schema()
-    )
-    validator = SchemaValidator(schema)
+    # Avoid deeply nested structures where possible
+    # Use flatter structures when handling large volumes
+
+
+# Process items in chunks to reduce peak memory usage
+def process_large_dataset(file_path: str, chunk_size: int = 1000):
+    """Process a large dataset in chunks to reduce memory usage"""
+    from itertools import islice
     
-    # Using the validator directly
-    result = validator.validate_python({"key1": 1, "key2": "2"})
-    # {"key1": 1, "key2": 2}
-    ```
+    with open(file_path, 'r') as f:
+        # Create a generator to avoid loading everything at once
+        def item_generator():
+            for line in f:
+                yield LightweightModel.model_validate_json(line)
+        
+        # Process in chunks
+        items = item_generator()
+        while chunk := list(islice(items, chunk_size)):
+            process_chunk(chunk)
+            # Each chunk is garbage collected after processing
 
-3. **Avoid unnecessary model creations**: Use `model_construct` when data is already validated, or validate collections in bulk:
 
-    ```python
-    # Bulk validation of multiple items at once (one schema traversal)
-    items_adapter = TypeAdapter(list[Item])
-    validated_items = items_adapter.validate_python(items_data)
-    ```
+def process_chunk(items: list[LightweightModel]):
+    """Process a chunk of items"""
+    for item in items:
+        # Do something with each item
+        pass
+```
 
-4. **Prefer concrete types**: Concrete types like `list` and `dict` have faster validation than abstract types like `Sequence` or `Mapping`.
+### Pydantic Core Access
 
-5. **Use frozen models** for immutable data:
+For the most performance-critical applications, you can access Pydantic's Rust core directly:
 
-    ```python
-    class Config(BaseModel, frozen=True):
-        api_key: str
-        timeout: int = 60
-    ```
+```python
+import typing as t
+from pydantic import BaseModel
+from pydantic_core import CoreSchema, core_schema
 
-6. **Disable validation when appropriate**: For trusted input, you can skip validation with `model_construct` or bypass it with direct attribute assignment when appropriate:
 
-    ```python
-    # For trusted data that doesn't need validation
-    user = User.model_construct(**trusted_data)
-    ```
+# Define a custom schema directly with pydantic_core
+int_str_schema = core_schema.union_schema([
+    core_schema.int_schema(),
+    core_schema.str_schema()
+])
+
+# Use in a model
+class OptimizedModel(BaseModel):
+    # Use a pre-defined core schema for a field
+    value: t.Any = None
+    
+    # Override the core schema for this field
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: t.Any, handler: t.Any
+    ) -> CoreSchema:
+        schema = handler(source_type)
+        # Modify the schema for the 'value' field
+        for field in schema['schema']['schema']['fields']:
+            if field['name'] == 'value':
+                field['schema'] = int_str_schema
+        return schema
+```
+
+#### Core Performance Tips
+
+1. **Reuse TypeAdapters**: Create once, use many times
+2. **Batch validation**: Validate collections at once rather than items individually
+3. **Choose the right validation mode**: Strict for safety, lax for performance
+4. **Use model_construct**: Skip validation for trusted data
+5. **Profile and benchmark**: Identify bottlenecks specific to your application
+6. **Consider memory usage**: Especially important for large datasets
+7. **Use Pydantic core directly**: For extreme performance requirements
 
 ## Integrations
 
@@ -2788,260 +2968,191 @@ class UserBase(BaseModel):
 
 # Input models (for API requests)
 class UserCreate(UserBase):
-    """Data needed to create a new user"""
+    """Model for creating new users"""
     password: str = Field(min_length=8)
-    password_confirm: str
+    password_confirm: str = Field(min_length=8)
+    
+    @field_validator('password')
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain an uppercase letter')
+        if not any(c.islower() for c in v):
+            raise ValueError('Password must contain a lowercase letter')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Password must contain a digit')
+        return v
     
     @model_validator(mode='after')
-    def check_passwords_match(self) -> 'UserCreate':
+    def passwords_match(self) -> 'UserCreate':
         if self.password != self.password_confirm:
-            raise ValueError("Passwords do not match")
+            raise ValueError('Passwords do not match')
         return self
-
-
-class UserUpdate(BaseModel):
-    """Data for updating user profile (all fields optional)"""
-    email: t.Optional[EmailStr] = None
-    username: t.Optional[str] = Field(None, min_length=3, max_length=50)
 
 
 # Output models (for API responses)
 class UserRead(UserBase):
-    """User data returned from API"""
+    """Model for user responses"""
     id: UUID
-    is_active: bool
     created_at: datetime
+    is_active: bool
+
+
+# Update models (for partial updates)
+class UserUpdate(BaseModel):
+    """Model for updating existing users"""
+    email: t.Optional[EmailStr] = None
+    username: t.Optional[str] = Field(None, min_length=3, max_length=50)
+    is_active: t.Optional[bool] = None
+
+
+# Database models (internal representation)
+class UserDB(UserBase):
+    """Internal database model for users"""
+    id: UUID = Field(default_factory=uuid4)
+    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.now)
     updated_at: t.Optional[datetime] = None
+    is_active: bool = True
 
 
-class UserList(BaseModel):
-    """Paginated list of users"""
-    items: list[UserRead]
+# Usage in a REST API context
+def register_user(user_data: UserCreate) -> UserRead:
+    """Register a new user"""
+    # Validate input with UserCreate model
+    user = UserCreate(**user_data)
+    
+    # Convert to database model
+    user_db = UserDB(
+        email=user.email,
+        username=user.username,
+        hashed_password=f"hashed_{user.password}"  # Replace with actual hashing
+    )
+    
+    # Save to database (simulated)
+    print(f"Saving user to database: {user_db.model_dump(exclude={'hashed_password'})}")
+    
+    # Return read model for API response
+    return UserRead(
+        id=user_db.id,
+        email=user_db.email,
+        username=user_db.username,
+        created_at=user_db.created_at,
+        is_active=user_db.is_active
+    )
+
+
+# API endpoint example
+def update_user(user_id: UUID, user_data: UserUpdate) -> UserRead:
+    """Update an existing user"""
+    # Get existing user from database (simulated)
+    existing_user = UserDB(
+        id=user_id,
+        email="existing@example.com",
+        username="existing_user",
+        hashed_password="hashed_password",
+        created_at=datetime(2023, 1, 1)
+    )
+    
+    # Update only fields that are set in the update model
+    update_data = user_data.model_dump(exclude_unset=True)
+    
+    # Apply updates to existing user
+    for field, value in update_data.items():
+        setattr(existing_user, field, value)
+    
+    # Update the updated_at timestamp
+    existing_user.updated_at = datetime.now()
+    
+    # Save to database (simulated)
+    print(f"Updating user in database: {existing_user.model_dump(exclude={'hashed_password'})}")
+    
+    # Return read model for API response
+    return UserRead(
+        id=existing_user.id,
+        email=existing_user.email,
+        username=existing_user.username,
+        created_at=existing_user.created_at,
+        is_active=existing_user.is_active
+    )
+```
+
+### Pagination and Collection Responses
+
+Use generic models for consistent API responses:
+
+```python
+import typing as t
+from pydantic import BaseModel, Field
+
+
+T = t.TypeVar('T')
+
+
+class Page(t.Generic[T]):
+    """Generic paginated response"""
+    items: list[T]
     total: int
     page: int
     size: int
     
     @property
     def pages(self) -> int:
-        """Calculate total pages based on items and page size"""
+        """Calculate total number of pages"""
         return (self.total + self.size - 1) // self.size
 
 
-# Internal models (for database operations)
-class UserInDB(UserRead):
-    """User model with password hash for internal use"""
-    hashed_password: str
+class PaginationParams(BaseModel):
+    """Common pagination parameters"""
+    page: int = Field(default=1, gt=0)
+    size: int = Field(default=50, gt=0, le=100)
+
+
+class ResponseList(t.Generic[T], BaseModel):
+    """Generic list response model"""
+    data: list[T]
+    count: int
     
-    @classmethod
-    def from_create(cls, user_create: UserCreate, password_hash: str) -> 'UserInDB':
-        """Create internal user from registration data"""
-        return cls(
+    
+class ResponsePage(t.Generic[T], BaseModel):
+    """Generic paginated response model"""
+    data: list[T]
+    pagination: Page
+    
+    
+# Example usage with user model
+def list_users(params: PaginationParams) -> ResponsePage[UserRead]:
+    """List users with pagination"""
+    # Fetch from database (simulated)
+    users = [
+        UserRead(
             id=uuid4(),
-            email=user_create.email,
-            username=user_create.username,
-            hashed_password=password_hash,
-            is_active=True,
-            created_at=datetime.now()
+            email=f"user{i}@example.com",
+            username=f"user{i}",
+            created_at=datetime.now(),
+            is_active=True
         )
-
-
-# FastAPI example usage
-from fastapi import FastAPI, HTTPException, Depends
-
-app = FastAPI()
-
-# Mock database
-users_db = {}
-
-# Dependencies
-def get_user_by_id(user_id: UUID) -> UserInDB:
-    if user_id not in users_db:
-        raise HTTPException(status_code=404, detail="User not found")
-    return users_db[user_id]
-
-
-@app.post("/users/", response_model=UserRead)
-async def create_user(user_data: UserCreate):
-    # Hash the password (in a real app, use proper hashing)
-    hashed_password = f"hashed_{user_data.password}"
+        for i in range(1, 101)
+    ]
     
-    # Create user in DB
-    user = UserInDB.from_create(user_data, hashed_password)
-    users_db[user.id] = user
+    # Apply pagination
+    start = (params.page - 1) * params.size
+    end = start + params.size
+    page_users = users[start:end]
     
-    # Return user without hashed_password
-    return user
-
-
-@app.get("/users/{user_id}", response_model=UserRead)
-async def read_user(user: UserInDB = Depends(get_user_by_id)):
-    return user
-
-
-@app.patch("/users/{user_id}", response_model=UserRead)
-async def update_user(update_data: UserUpdate, user: UserInDB = Depends(get_user_by_id)):
-    # Update user with provided data, ignoring None values
-    user_data = user.model_dump()
-    update_dict = update_data.model_dump(exclude_unset=True, exclude_none=True)
+    # Create pagination info
+    pagination = Page(
+        items=page_users,
+        total=len(users),
+        page=params.page,
+        size=params.size
+    )
     
-    # Handle password separately
-    if 'password' in update_dict:
-        update_dict['hashed_password'] = f"hashed_{update_dict.pop('password')}"
-    
-    # Update the user data
-    updated_user_data = {**user_data, **update_dict, 'updated_at': datetime.now()}
-    updated_user = UserInDB.model_validate(updated_user_data)
-    users_db[user.id] = updated_user
-    
-    return updated_user
-```
-
-### Data Processing Pipeline
-
-Use Pydantic in a data processing pipeline for validation and transformation:
-
-```python
-import typing as t
-from datetime import datetime, date
-from enum import Enum
-from pydantic import BaseModel, Field, ValidationError, field_validator, TypeAdapter
-
-
-# Input data models
-class DataSource(str, Enum):
-    CSV = "csv"
-    API = "api"
-    DATABASE = "db"
-
-
-class RawDataPoint(BaseModel):
-    timestamp: str
-    temperature: t.Any  # Could be string or number
-    humidity: t.Any
-    pressure: t.Any
-    location_id: str
-    source: DataSource
-    
-    @field_validator('timestamp')
-    @classmethod
-    def validate_timestamp(cls, v: str) -> str:
-        # Basic timestamp format validation
-        formats = ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"]
-        for fmt in formats:
-            try:
-                datetime.strptime(v, fmt)
-                return v
-            except ValueError:
-                continue
-        raise ValueError("Invalid timestamp format")
-
-
-# Processed data model
-class ProcessedDataPoint(BaseModel):
-    timestamp: datetime
-    date: date
-    temperature: float = Field(ge=-50.0, le=100.0)  # Celsius
-    humidity: float = Field(ge=0.0, le=100.0)  # Percentage
-    pressure: float = Field(ge=800.0, le=1200.0)  # hPa
-    location_id: str
-    source: DataSource
-    
-    @classmethod
-    def from_raw(cls, raw: RawDataPoint) -> 'ProcessedDataPoint':
-        """Convert raw data to processed format with type conversion."""
-        timestamp = datetime.strptime(
-            raw.timestamp, 
-            "%Y-%m-%dT%H:%M:%S" if "T" in raw.timestamp else "%Y-%m-%d %H:%M:%S"
-        )
-        
-        return cls(
-            timestamp=timestamp,
-            date=timestamp.date(),
-            temperature=float(raw.temperature),
-            humidity=float(raw.humidity),
-            pressure=float(raw.pressure),
-            location_id=raw.location_id,
-            source=raw.source
-        )
-
-
-# Processing pipeline
-class DataProcessor:
-    def __init__(self):
-        # Create adapter once for performance
-        self.raw_adapter = TypeAdapter(list[RawDataPoint])
-        
-    def process_batch(self, raw_data: list[dict]) -> dict[str, t.Any]:
-        """Process a batch of raw data points."""
-        start_time = datetime.now()
-        result = {
-            "processed": 0,
-            "errors": 0,
-            "error_details": [],
-            "processed_data": []
-        }
-        
-        try:
-            # Validate all raw data points at once
-            validated_raw = self.raw_adapter.validate_python(raw_data)
-            
-            # Process each point
-            for raw_point in validated_raw:
-                try:
-                    processed = ProcessedDataPoint.from_raw(raw_point)
-                    result["processed_data"].append(processed.model_dump())
-                    result["processed"] += 1
-                except ValidationError as e:
-                    result["errors"] += 1
-                    result["error_details"].append({
-                        "raw_data": raw_point.model_dump(),
-                        "error": e.errors()
-                    })
-                    
-        except ValidationError as e:
-            result["errors"] = len(raw_data)
-            result["error_details"].append({"error": "Batch validation failed", "details": e.errors()})
-            
-        result["processing_time"] = (datetime.now() - start_time).total_seconds()
-        return result
-
-
-
-# Usage
-processor = DataProcessor()
-
-# Sample data batch
-sample_data = [
-    {
-        "timestamp": "2023-09-15T12:30:45",
-        "temperature": "22.5",
-        "humidity": "65",
-        "pressure": "1013.2",
-        "location_id": "sensor-001",
-        "source": "csv"
-    },
-    {
-        "timestamp": "2023-09-15 12:45:00",
-        "temperature": 23.1,
-        "humidity": 64.5,
-        "pressure": 1012.8,
-        "location_id": "sensor-002",
-        "source": "api"
-    },
-    # Invalid data point to demonstrate error handling
-    {
-        "timestamp": "invalid-date",
-        "temperature": "too hot",
-        "humidity": 200,  # Out of range
-        "pressure": "1010",
-        "location_id": "sensor-003",
-        "source": "db"
-    }
-]
-
-# Process the batch
-result = processor.process_batch(sample_data)
-print(f"Processed: {result['processed']}, Errors: {result['errors']}")
+    # Return paginated response
+    return ResponsePage(
+        data=page_users,
+        pagination=pagination
+    )
 ```
 
 ### Domain-Driven Design with Pydantic
@@ -3470,7 +3581,6 @@ config = config_adapter.validate_python({"api_key": "secret"})  # debug and log_
 user_config = user_config_adapter.validate_python({"api_key": "secret", "username": "john"})
 product = product_adapter.validate_python({"id": 1, "name": "Laptop"})  # description is optional
 ```
-
 #### Limitations of TypedDict
 
 There are some limitations to be aware of when using TypedDict with Pydantic:
@@ -3582,3 +3692,868 @@ When to use protocols:
 - Plugin architectures
 - Testing with mock objects
 - Domain modeling with behavior focus
+
+### Data Processing Pipeline
+
+Use Pydantic in data processing pipelines for validation and transformation:
+
+```python
+import typing as t
+from datetime import datetime, date
+from enum import Enum
+from pydantic import BaseModel, Field, ValidationError, field_validator, TypeAdapter
+
+
+# Input data models
+class DataSource(str, Enum):
+    CSV = "csv"
+    API = "api"
+    DATABASE = "db"
+
+
+class RawDataPoint(BaseModel):
+    """Raw sensor data with potentially unparsed values"""
+    timestamp: str
+    temperature: t.Any  # Could be string or number
+    humidity: t.Any
+    pressure: t.Any
+    location_id: str
+    source: DataSource
+    
+    @field_validator('timestamp')
+    @classmethod
+    def validate_timestamp(cls, v: str) -> str:
+        # Basic timestamp format validation
+        formats = ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"]
+        for fmt in formats:
+            try:
+                datetime.strptime(v, fmt)
+                return v
+            except ValueError:
+                continue
+        raise ValueError("Invalid timestamp format")
+
+
+# Processed data model with type conversion and validation
+class ProcessedDataPoint(BaseModel):
+    """Cleaned and validated sensor data with proper types"""
+    timestamp: datetime
+    date: date
+    temperature: float = Field(ge=-50.0, le=100.0)  # Celsius
+    humidity: float = Field(ge=0.0, le=100.0)  # Percentage
+    pressure: float = Field(ge=800.0, le=1200.0)  # hPa
+    location_id: str
+    source: DataSource
+    
+    @classmethod
+    def from_raw(cls, raw: RawDataPoint) -> 'ProcessedDataPoint':
+        """Convert raw data to processed format with type conversion."""
+        timestamp = datetime.strptime(
+            raw.timestamp, 
+            "%Y-%m-%dT%H:%M:%S" if "T" in raw.timestamp else "%Y-%m-%d %H:%M:%S"
+        )
+        
+        return cls(
+            timestamp=timestamp,
+            date=timestamp.date(),
+            temperature=float(raw.temperature),
+            humidity=float(raw.humidity),
+            pressure=float(raw.pressure),
+            location_id=raw.location_id,
+            source=raw.source
+        )
+
+
+# Pipeline result model
+class ProcessingResult(BaseModel):
+    """Results of a data processing batch operation"""
+    processed: int = 0
+    errors: int = 0
+    error_details: list[dict] = Field(default_factory=list)
+    processing_time: float = 0.0
+    processed_data: list[ProcessedDataPoint] = Field(default_factory=list)
+
+
+# ETL Processing pipeline
+class DataProcessor:
+    def __init__(self):
+        # Create adapter once for performance
+        self.raw_adapter = TypeAdapter(list[RawDataPoint])
+        
+    def process_batch(self, raw_data: list[dict]) -> ProcessingResult:
+        """Process a batch of raw data points."""
+        start_time = datetime.now()
+        result = ProcessingResult()
+        
+        try:
+            # Validate all raw data points at once
+            validated_raw = self.raw_adapter.validate_python(raw_data)
+            
+            # Process each point
+            for raw_point in validated_raw:
+                try:
+                    processed = ProcessedDataPoint.from_raw(raw_point)
+                    result.processed_data.append(processed)
+                    result.processed += 1
+                except ValidationError as e:
+                    result.errors += 1
+                    result.error_details.append({
+                        "raw_data": raw_point.model_dump(),
+                        "error": e.errors()
+                    })
+                    
+        except ValidationError as e:
+            result.errors = len(raw_data)
+            result.error_details.append({"error": "Batch validation failed", "details": e.errors()})
+            
+        result.processing_time = (datetime.now() - start_time).total_seconds()
+        return result
+
+
+# Usage example
+def process_sensor_data(data_batch: list[dict]) -> dict:
+    """Process a batch of sensor data."""
+    processor = DataProcessor()
+    result = processor.process_batch(data_batch)
+    
+    # Create a summary report
+    return {
+        "summary": {
+            "total": result.processed + result.errors,
+            "processed": result.processed,
+            "errors": result.errors,
+            "processing_time_ms": result.processing_time * 1000
+        },
+        "data": [point.model_dump() for point in result.processed_data],
+        "errors": result.error_details
+    }
+
+
+# Example usage with sample data
+sample_data = [
+    {
+        "timestamp": "2023-09-15T12:30:45",
+        "temperature": "22.5",
+        "humidity": "65",
+        "pressure": "1013.2",
+        "location_id": "sensor-001",
+        "source": "csv"
+    },
+    {
+        "timestamp": "2023-09-15 12:45:00",
+        "temperature": 23.1,
+        "humidity": 64.5,
+        "pressure": 1012.8,
+        "location_id": "sensor-002",
+        "source": "api"
+    },
+    # Invalid data point to demonstrate error handling
+    {
+        "timestamp": "invalid-date",
+        "temperature": "too hot",
+        "humidity": 200,  # Out of range
+        "pressure": "1010",
+        "location_id": "sensor-003",
+        "source": "db"
+    }
+]
+
+# Results of processing
+# result = process_sensor_data(sample_data)
+# print(f"Processed {result['summary']['processed']} records with {result['summary']['errors']} errors")
+```
+
+### Configuration and Settings Management
+
+Pydantic is ideal for managing application settings:
+
+```python
+import typing as t
+import os
+from pydantic import BaseModel, Field, field_validator, SecretStr
+from functools import lru_cache
+
+
+class DatabaseSettings(BaseModel):
+    """Database connection settings"""
+    url: str
+    port: int = 5432
+    username: str
+    password: SecretStr
+    database: str
+    
+    @property
+    def connection_string(self) -> str:
+        """Build PostgreSQL connection string"""
+        return f"postgresql://{self.username}:{self.password.get_secret_value()}@{self.url}:{self.port}/{self.database}"
+
+
+class LoggingSettings(BaseModel):
+    """Logging configuration"""
+    level: str = "INFO"
+    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: t.Optional[str] = None
+    
+    @field_validator('level')
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        """Ensure log level is valid"""
+        allowed = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if v.upper() not in allowed:
+            raise ValueError(f"Log level must be one of {', '.join(allowed)}")
+        return v.upper()
+
+
+class AppSettings(BaseModel):
+    """Application settings"""
+    app_name: str = "My Application"
+    version: str = "0.1.0"
+    debug: bool = False
+    env: str = Field(default="development")
+    allowed_origins: list[str] = ["http://localhost:3000"]
+    db: DatabaseSettings
+    logging: LoggingSettings = Field(default_factory=lambda: LoggingSettings())
+    
+    @field_validator('env')
+    @classmethod
+    def validate_env(cls, v: str) -> str:
+        """Validate environment name"""
+        allowed_envs = ['development', 'testing', 'production']
+        if v not in allowed_envs:
+            raise ValueError(f"Environment must be one of: {', '.join(allowed_envs)}")
+        return v
+    
+    @classmethod
+    def from_env(cls) -> 'AppSettings':
+        """Load settings from environment variables with proper prefixing"""
+        return cls(
+            app_name=os.getenv("APP_NAME", "My Application"),
+            version=os.getenv("APP_VERSION", "0.1.0"),
+            debug=os.getenv("APP_DEBUG", "false").lower() in ("true", "1", "yes"),
+            env=os.getenv("APP_ENV", "development"),
+            allowed_origins=os.getenv("APP_ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+            db=DatabaseSettings(
+                url=os.getenv("DB_URL", "localhost"),
+                port=int(os.getenv("DB_PORT", "5432")),
+                username=os.getenv("DB_USERNAME", "postgres"),
+                password=SecretStr(os.getenv("DB_PASSWORD", "")),
+                database=os.getenv("DB_DATABASE", "app"),
+            ),
+            logging=LoggingSettings(
+                level=os.getenv("LOG_LEVEL", "INFO"),
+                format=os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"),
+                file=os.getenv("LOG_FILE"),
+            )
+        )
+
+
+# Use lru_cache to avoid loading settings multiple times
+@lru_cache()
+def get_settings() -> AppSettings:
+    """Load settings from environment with caching."""
+    try:
+        return AppSettings.from_env()
+    except ValidationError as e:
+        print(f"Settings validation error: {e}")
+        raise
+
+
+# Usage in the application
+def main():
+    settings = get_settings()
+    print(f"Starting {settings.app_name} v{settings.version}")
+    print(f"Database URL: {settings.db.url}")
+    print(f"Log level: {settings.logging.level}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### Pydantic with SQLAlchemy
+
+Pydantic can be used alongside SQLAlchemy to create a clean separation between database models and API schemas:
+
+```python
+import typing as t
+from datetime import datetime
+from uuid import UUID, uuid4
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, ForeignKey, create_engine
+from sqlalchemy.dialects.postgresql import UUID as SQLUUID
+from sqlalchemy.orm import declarative_base, relationship, Session
+from pydantic import BaseModel, Field, ConfigDict
+
+
+# SQLAlchemy Models
+Base = declarative_base()
+
+
+class UserDB(Base):
+    """SQLAlchemy User model"""
+    __tablename__ = "users"
+    
+    id = Column(SQLUUID, primary_key=True, default=uuid4)
+    email = Column(String, unique=True, index=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    posts = relationship("PostDB", back_populates="author")
+    
+
+class PostDB(Base):
+    """SQLAlchemy Post model"""
+    __tablename__ = "posts"
+    
+    id = Column(SQLUUID, primary_key=True, default=uuid4)
+    title = Column(String, index=True)
+    content = Column(String)
+    published = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.now)
+    author_id = Column(SQLUUID, ForeignKey("users.id"))
+    
+    # Relationships
+    author = relationship("UserDB", back_populates="posts")
+
+
+# Pydantic Models for API
+class UserBase(BaseModel):
+    """Base Pydantic model for User"""
+    email: str
+    username: str
+    is_active: bool = True
+
+
+class UserCreate(UserBase):
+    """User creation model"""
+    password: str
+
+
+class UserRead(UserBase):
+    """User response model"""
+    id: UUID
+    created_at: datetime
+    
+    # Configure ORM integration
+    model_config = ConfigDict(
+        from_attributes=True  # Allow creating model from SQLAlchemy model
+    )
+
+
+class PostBase(BaseModel):
+    """Base Pydantic model for Post"""
+    title: str
+    content: str
+    published: bool = False
+
+
+class PostCreate(PostBase):
+    """Post creation model"""
+    pass
+
+
+class PostRead(PostBase):
+    """Post response model"""
+    id: UUID
+    created_at: datetime
+    author_id: UUID
+    
+    # Optional nested author model
+    author: t.Optional[UserRead] = None
+    
+    # Configure ORM integration
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+
+# Database CRUD operations
+class UserRepository:
+    def __init__(self, session: Session):
+        self.session = session
+    
+    def create(self, user_data: UserCreate) -> UserDB:
+        """Create a new user"""
+        # Hash password in a real application
+        hashed_password = f"hashed_{user_data.password}"
+        
+        # Convert Pydantic model to SQLAlchemy model
+        db_user = UserDB(
+            email=user_data.email,
+            username=user_data.username,
+            hashed_password=hashed_password,
+            is_active=user_data.is_active
+        )
+        
+        # Add to database
+        self.session.add(db_user)
+        self.session.commit()
+        self.session.refresh(db_user)
+        
+        return db_user
+    
+    def get_by_id(self, user_id: UUID) -> t.Optional[UserDB]:
+        """Get user by ID"""
+        return self.session.query(UserDB).filter(UserDB.id == user_id).first()
+    
+    def get_with_posts(self, user_id: UUID) -> t.Optional[UserDB]:
+        """Get user with related posts"""
+        return (
+            self.session.query(UserDB)
+            .filter(UserDB.id == user_id)
+            .options(relationship("posts"))
+            .first()
+        )
+
+
+# API endpoints (example usage)
+def create_user_endpoint(user_data: UserCreate, session: Session) -> UserRead:
+    """API endpoint to create user"""
+    # Use repository pattern
+    repo = UserRepository(session)
+    db_user = repo.create(user_data)
+    
+    # Convert SQLAlchemy model to Pydantic model
+    return UserRead.model_validate(db_user)
+
+
+def get_user_with_posts(user_id: UUID, session: Session) -> dict:
+    """API endpoint to get user with posts"""
+    repo = UserRepository(session)
+    db_user = repo.get_with_posts(user_id)
+    
+    if not db_user:
+        raise ValueError("User not found")
+    
+    # Convert user and nested posts
+    user = UserRead.model_validate(db_user)
+    posts = [PostRead.model_validate(post) for post in db_user.posts]
+    
+    # Return combined response
+    return {
+        "user": user.model_dump(),
+        "posts": [post.model_dump() for post in posts]
+    }
+```
+
+#### Best Practices with Pydantic and ORMs
+
+When using Pydantic with ORMs like SQLAlchemy, Django ORM, or others:
+
+1. **Separation of concerns**: Keep database models separate from API models
+   - Database models: Focus on storage, relationships, and database constraints
+   - API models: Focus on validation, serialization, and documentation
+
+2. **Use `from_attributes=True`** in model_config to enable creating Pydantic models from ORM models:
+   ```python
+   model_config = ConfigDict(from_attributes=True)
+   ```
+
+3. **Convert at boundaries**: Convert between ORM and Pydantic models at application boundaries
+   - Incoming data → Pydantic validation → ORM model → Database
+   - Database → ORM model → Pydantic model → API response
+
+4. **Avoid circular imports**:
+   - Place ORM models in separate modules from Pydantic models
+   - Use forward references for circular relationships: `author: "UserRead" = None`
+
+5. **Handle relationships carefully**:
+   - Use lazily-loaded relationships in ORM models
+   - Use explicit joins when needed for performance
+   - Consider depth limitations for nested serialization
+
+### FastAPI Integration
+
+FastAPI is built around Pydantic models for request validation and documentation:
+
+```python
+import typing as t
+from datetime import datetime
+from uuid import UUID, uuid4
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel, Field, EmailStr
+
+
+# Pydantic models
+class UserCreate(BaseModel):
+    email: EmailStr
+    username: str = Field(min_length=3, max_length=50)
+    password: str = Field(min_length=8)
+
+
+class UserRead(BaseModel):
+    id: UUID
+    email: EmailStr
+    username: str
+    created_at: datetime
+    is_active: bool
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+# FastAPI app
+app = FastAPI(title="Pydantic API Example")
+
+# Auth utilities (simplified)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserRead:
+    """Get current user from token"""
+    # This would validate the token and get the user in a real app
+    # For this example, just return a mock user
+    return UserRead(
+        id=uuid4(),
+        email="user@example.com",
+        username="current_user",
+        created_at=datetime.now(),
+        is_active=True
+    )
+
+
+# API endpoints
+@app.post("/users/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+async def create_user(user_data: UserCreate) -> UserRead:
+    """Create a new user"""
+    # In a real app, we would save to database
+    # For example purposes, just create a mock response
+    return UserRead(
+        id=uuid4(),
+        email=user_data.email,
+        username=user_data.username,
+        created_at=datetime.now(),
+        is_active=True
+    )
+
+
+@app.get("/users/me/", response_model=UserRead)
+async def read_users_me(current_user: UserRead = Depends(get_current_user)) -> UserRead:
+    """Get current user information"""
+    return current_user
+
+
+@app.get("/users/{user_id}", response_model=UserRead)
+async def read_user(user_id: UUID) -> UserRead:
+    """Get user by ID"""
+    # In a real app, we would query the database
+    # Simulate user not found for a specific ID
+    if user_id == UUID("00000000-0000-0000-0000-000000000000"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return UserRead(
+        id=user_id,
+        email=f"user-{user_id}@example.com",
+        username=f"user-{str(user_id)[:8]}",
+        created_at=datetime.now(),
+        is_active=True
+    )
+```
+
+#### Key Benefits of Pydantic in FastAPI
+
+1. **Automatic request validation**: FastAPI automatically validates request bodies, query parameters, path parameters, etc., using Pydantic models
+
+2. **Automatic documentation**: Pydantic models are used to generate OpenAPI schema and Swagger UI documentation
+
+3. **Type safety**: Type annotations in Pydantic models provide type hints for better IDE support and catch errors at development time
+
+4. **Response serialization**: `response_model` parameter uses Pydantic to serialize responses according to the model definition
+
+5. **Integration with dependency injection**: Pydantic models can be used as dependencies to validate and transform input data
+
+### Testing with Pydantic
+
+Pydantic models can be very useful in testing to create fixtures, validate test data, and simplify test assertions:
+
+```python
+import typing as t
+import json
+import pytest
+from datetime import datetime, timedelta
+from pydantic import BaseModel, TypeAdapter, ValidationError, Field
+
+
+# Models to test
+class User(BaseModel):
+    id: int
+    name: str
+    email: str
+    role: str = "user"
+    created_at: datetime
+
+
+class UserService:
+    """Example service class to test"""
+    def get_user(self, user_id: int) -> User:
+        """Get user from database (mocked)"""
+        # This would normally fetch from a database
+        if user_id == 404:
+            return None
+        return User(
+            id=user_id,
+            name=f"User {user_id}",
+            email=f"user{user_id}@example.com",
+            role="admin" if user_id == 1 else "user",
+            created_at=datetime.now() - timedelta(days=user_id)
+        )
+    
+    def create_user(self, user_data: dict) -> User:
+        """Create a new user (mocked)"""
+        # Validate user data
+        user = User(**user_data, created_at=datetime.now())
+        # Would normally save to database
+        return user
+
+
+# Test fixtures using pydantic
+@pytest.fixture
+def admin_user() -> User:
+    """Create an admin user fixture"""
+    return User(
+        id=1,
+        name="Admin User",
+        email="admin@example.com",
+        role="admin",
+        created_at=datetime.now()
+    )
+
+
+@pytest.fixture
+def regular_user() -> User:
+    """Create a regular user fixture"""
+    return User(
+        id=2,
+        name="Regular User",
+        email="user@example.com",
+        role="user",
+        created_at=datetime.now()
+    )
+
+
+@pytest.fixture
+def user_service() -> UserService:
+    """Create a user service for testing"""
+    return UserService()
+
+
+# Unit tests
+def test_get_user(user_service: UserService):
+    """Test getting a user by ID"""
+    user = user_service.get_user(1)
+    
+    # Use model_dump to get dict for assertions
+    user_dict = user.model_dump()
+    assert user_dict["id"] == 1
+    assert user_dict["role"] == "admin"
+    assert isinstance(user_dict["created_at"], datetime)
+
+
+def test_create_user(user_service: UserService):
+    """Test creating a user"""
+    new_user_data = {
+        "id": 3,
+        "name": "New User",
+        "email": "new@example.com"
+    }
+    
+    user = user_service.create_user(new_user_data)
+    assert user.id == 3
+    assert user.name == "New User"
+    assert user.role == "user"  # Default value
+    
+    # Test with invalid data
+    invalid_data = {
+        "id": "not-an-int",  # Type error
+        "name": "Invalid User",
+        "email": "invalid-email"  # Invalid email format
+    }
+    
+    with pytest.raises(ValidationError):
+        user_service.create_user(invalid_data)
+
+
+# Test with parametrize
+@pytest.mark.parametrize("user_id,expected_role", [
+    (1, "admin"),  # Admin user
+    (2, "user"),   # Regular user
+    (3, "user"),   # Another regular user
+])
+def test_user_roles(user_service: UserService, user_id: int, expected_role: str):
+    """Test different user roles"""
+    user = user_service.get_user(user_id)
+    assert user.role == expected_role
+
+
+# Test with TypeAdapter for bulk validation
+def test_bulk_user_validation():
+    """Test validating multiple users at once"""
+    # Define test data
+    users_data = [
+        {"id": 1, "name": "User 1", "email": "user1@example.com", "created_at": "2023-01-01T00:00:00"},
+        {"id": 2, "name": "User 2", "email": "user2@example.com", "created_at": "2023-01-02T00:00:00"},
+        {"id": 3, "name": "User 3", "email": "user3@example.com", "created_at": "2023-01-03T00:00:00"},
+    ]
+    
+    # Create a TypeAdapter for List[User]
+    user_list_adapter = TypeAdapter(list[User])
+    
+    # Validate all users at once
+    validated_users = user_list_adapter.validate_python(users_data)
+    
+    # Assertions
+    assert len(validated_users) == 3
+    assert all(isinstance(user, User) for user in validated_users)
+    assert validated_users[0].id == 1
+    assert validated_users[1].name == "User 2"
+    assert validated_users[2].email == "user3@example.com"
+
+
+# Integration test with JSON responses
+def test_api_response(client):
+    """Test API response validation (with a mock client)"""
+    # This would normally be an HTTP client
+    class MockClient:
+        def get(self, url: str) -> dict:
+            if url == "/users/1":
+                return {
+                    "id": 1,
+                    "name": "API User",
+                    "email": "api@example.com",
+                    "role": "user",
+                    "created_at": "2023-01-01T00:00:00"
+                }
+            return {"error": "Not found"}
+    
+    client = MockClient()
+    
+    # Get response from API
+    response = client.get("/users/1")
+    
+    # Validate response against Pydantic model
+    user = User.model_validate(response)
+    
+    # Assert using model
+    assert user.id == 1
+    assert user.name == "API User"
+    assert user.created_at.year == 2023
+```
+
+#### Pydantic for API Testing
+
+When testing APIs that use Pydantic models, you can leverage the same models for validation:
+
+```python
+import typing as t
+import pytest
+import requests
+from pydantic import BaseModel, TypeAdapter, ValidationError
+
+
+# API Models
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+
+
+class ErrorResponse(BaseModel):
+    detail: str
+    status_code: int
+
+
+# Response validator
+class ResponseValidator:
+    @staticmethod
+    def validate_user_response(response_json: dict) -> UserResponse:
+        """Validate a user response against the expected schema"""
+        return UserResponse.model_validate(response_json)
+    
+    @staticmethod
+    def validate_user_list_response(response_json: list) -> list[UserResponse]:
+        """Validate a list of users against the expected schema"""
+        user_list_adapter = TypeAdapter(list[UserResponse])
+        return user_list_adapter.validate_python(response_json)
+    
+    @staticmethod
+    def validate_error_response(response_json: dict) -> ErrorResponse:
+        """Validate an error response against the expected schema"""
+        return ErrorResponse.model_validate(response_json)
+
+
+# API tests
+class TestUserAPI:
+    BASE_URL = "https://api.example.com"
+    
+    def test_get_user(self):
+        """Test getting a user by ID"""
+        # This would normally make a real API call
+        # Mocked for example purposes
+        response_json = {
+            "id": 1,
+            "name": "John Doe",
+            "email": "john@example.com"
+        }
+        
+        # Validate response structure
+        user = ResponseValidator.validate_user_response(response_json)
+        
+        # Assert using model
+        assert user.id == 1
+        assert user.name == "John Doe"
+        assert user.email == "john@example.com"
+    
+    def test_get_users(self):
+        """Test getting a list of users"""
+        # Mocked response
+        response_json = [
+            {"id": 1, "name": "User 1", "email": "user1@example.com"},
+            {"id": 2, "name": "User 2", "email": "user2@example.com"},
+        ]
+        
+        # Validate response structure
+        users = ResponseValidator.validate_user_list_response(response_json)
+        
+        # Assert using models
+        assert len(users) == 2
+        assert users[0].id == 1
+        assert users[1].name == "User 2"
+    
+    def test_error_response(self):
+        """Test error response validation"""
+        # Mocked error response
+        response_json = {
+            "detail": "User not found",
+            "status_code": 404
+        }
+        
+        # Validate error response
+        error = ResponseValidator.validate_error_response(response_json)
+        
+        # Assert using model
+        assert error.detail == "User not found"
+        assert error.status_code == 404
+```
+
+#### Testing Best Practices with Pydantic
+
+1. **Create fixtures based on Pydantic models**: Use models to define test fixtures for consistent test data
+
+2. **Validate test input and output**: Use models to validate both test inputs and expected outputs
+
+3. **Simplify complex assertions**: Compare model instances instead of deep dictionary comparisons
+
+4. **Test validation logic**: Test model validation rules explicitly, especially for domain-specific validators
+
+5. **Use `TypeAdapter` for collections**: When testing with collections of objects, use TypeAdapter for efficient validation
+
+6. **Mock external services with validated data**: When mocking external services, ensure the mock data conforms to your models
