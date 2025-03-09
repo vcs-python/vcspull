@@ -46,30 +46,45 @@ Since the previous analysis, there have been several improvements:
    - This creates a dual validation system that may cause inconsistencies
 
 3. **Not Fully Leveraging Pydantic v2 Features**:
-   - Limited use of model validators for cross-field validation
-   - No use of computed fields or model methods for validation logic
-   - Not using `model_validator` for whole-model validation
-   - No use of Literal types for restricted string values
-   - Not leveraging TypeAdapter for performance-critical validation
-   - No JSON schema customization for better documentation
-   - Missing serialization options and aliases for flexible output formats
-   - No consistent Annotated pattern usage for field constraints
-   - Missing tagged unions for better type discrimination
+   - **Limited Validator Usage**:
+     - Not using `model_validator` for whole-model validation
+     - Missing field validator modes (`before`, `after`, `wrap`) for different validation scenarios
+     - Not using `info` parameter in field validators to access validation context
+   - **Missing Type System Features**:
+     - No use of `Literal` types for restricted string values (e.g., VCS types)
+     - No consistent `Annotated` pattern usage for field constraints
+     - Missing discriminated unions for better type discrimination
+   - **Performance Optimizations Needed**:
+     - Not leveraging `TypeAdapter` for performance-critical validation
+     - Creating validation structures inside functions instead of at module level
+     - Missing caching strategies for repeated validations
+   - **Model Architecture Gaps**:
+     - No computed fields for derived properties  
+     - Limited model inheritance for code reuse
+     - No factory methods for model creation
+   - **Serialization and Schema Limitations**:
+     - Missing serialization options and aliases for flexible output formats
+     - No JSON schema customization for better documentation
 
 4. **Manual Error Handling**:
-   - Custom error formatting in `format_pydantic_errors()` duplicates some Pydantic functionality
-   - Error propagation is handled manually rather than using Pydantic's exception system
-   - Not using structured JSON error reporting capabilities
-   - No use of error_url for better error documentation
+   - Custom error formatting in `format_pydantic_errors()` duplicates Pydantic functionality
+   - Not leveraging Pydantic's structured error reporting:
+     - Missing use of `ValidationError.errors()` with `include_url` and `include_context`
+     - No use of `ValidationError.json()` for structured error output
+   - Not using error URL links for better documentation
+   - Missing contextual error handling based on error types
 
 5. **Duplicated Validation Logic**:
    - VCS type validation happens in both validator.py and in the Pydantic models
    - URL validation is duplicated across functions
+   - Common constraints are reimplemented rather than using reusable types
 
 6. **Performance Bottlenecks**:
-   - Creating TypeAdapters in function scopes instead of module level
-   - Using model_validate with parsed JSON instead of model_validate_json
-   - Not utilizing specialized validation modes for known types
+   - Creating `TypeAdapter` instances in function scopes instead of module level
+   - Using `model_validate` with parsed JSON instead of `model_validate_json`
+   - Not utilizing `defer_build=True` for schema building optimization
+   - Missing specialized validation modes for unions with `union_mode`
+   - Using generic container types instead of specific ones for better performance
 
 ## Recommendations
 
@@ -77,52 +92,68 @@ Since the previous analysis, there have been several improvements:
    - Remove manual checks in `is_valid_config()` and replace with Pydantic validation
    - Eliminate redundant validation by fully relying on Pydantic models' validators
    - Move business logic into models rather than external validation functions
+   - Create a consistent validation hierarchy with clear separation of concerns
 
-2. **Use More Pydantic v2 Features**:
-   - Add `@model_validator` for cross-field validations
-   - Use `TypeAdapter` for validating partial structures and performance optimization
-   - Implement `@computed_field` for derived properties
-   - Use `Literal` types for enum-like fields (e.g., VCS types)
-   - Apply the Annotated pattern for field-level validation
-   - Configure serialization with aliases for flexible output formats
-   - Add JSON schema customization for better documentation
-   - Utilize tagged unions for more predictable type handling
-   - Use specialized field constraints instead of custom validators where possible
+2. **Leverage Advanced Validator Features**:
+   - Add `@model_validator(mode='after')` for cross-field validations that run after basic validation
+   - Use `@model_validator(mode='before')` for pre-processing input data before field validation
+   - Implement `@field_validator` with appropriate modes:
+     - `mode='before'` for preprocessing field values
+     - `mode='after'` for validating fields after type coercion (most common)
+     - `mode='plain'` for direct access to raw input
+     - `mode='wrap'` for complex validations requiring access to both raw and validated values
+   - Use `ValidationInfo` parameter in validators to access context information
+   - Replace custom error raising with standardized validation errors
+   - Create hierarchical validation with validator inheritance
 
-3. **Simplify Error Handling**:
-   - Refine `format_pydantic_errors()` to better leverage Pydantic's error structure
-   - Use Pydantic's `ValidationError.json()` for structured error output
-   - Consider using error_msg_templates for customized error messages
-   - Implement contextual error messages for better user guidance
-   - Add error URLs for better documentation links in errors
+3. **Utilize Type System Features**:
+   - Use `Literal` types for enum-like fields (e.g., `vcs: Literal["git", "hg", "svn"]`)
+   - Apply the `Annotated` pattern for field-level validation and reusable types
+   - Use `discriminated_union` for clearer repository type discrimination
+   - Implement `TypeAdapter` for validating partial structures and performance optimization
+   - Leverage generic types with proper constraints
 
-4. **Consolidate Validation Logic**:
+4. **Enhance Model Architecture**:
+   - Implement `@computed_field` for derived properties instead of regular properties
+   - Use model inheritance for code reuse and consistency
+   - Create factory methods for model instantiation
+   - Implement model conversion methods for handling transformations
+   - Define custom root models for specialized container validation
+
+5. **Optimize Error Handling**:
+   - Refine `format_pydantic_errors()` to use `ValidationError.errors(include_url=True, include_context=True)`
+   - Use structured error output via `ValidationError.json()`
+   - Add error_url links to guide users to documentation
+   - Implement contextual error handling based on error types
+   - Create custom error templates for better user messages
+
+6. **Consolidate Validation Logic**:
+   - Create reusable field types with `Annotated` and validation functions:
+     ```python
+     NonEmptyStr = Annotated[str, AfterValidator(validate_not_empty)]
+     ```
    - Move all validation logic to the Pydantic models where possible
    - Use model methods and validators to centralize business rules
-   - Implement model conversion methods for transformations
-   - Create a consistent validation hierarchy across the application
-   - Define reusable field types with Annotated for consistency
+   - Create a validation hierarchy for field types and models
+   - Implement model-specific validation logic in model methods
 
-5. **Advanced Validation Patterns**:
-   - Use `Annotated` types with custom validators
-   - Implement discriminated unions for different repository types
-   - Enable strict mode for more reliable type checking
-   - Apply union_mode settings for better control of union type validation
-   - Use specialized validators for known input patterns
+7. **Improve Performance**:
+   - Create `TypeAdapter` instances at module level with `@lru_cache`
+   - Enable `defer_build=True` for complex models
+   - Apply strict mode for faster validation in critical paths
+   - Use `model_validate_json` directly for JSON input
+   - Choose specific container types (list, dict) over generic ones
+   - Implement proper caching of validation results
+   - Use optimized serialization with `by_alias` and `exclude_none`
 
-6. **Performance Optimizations**:
-   - Use deferred validation for expensive validations
-   - Create TypeAdapter instances at module level for reuse
-   - Apply model_config tuning for performance-critical models
-   - Implement caching strategies for repetitive validations
-   - Use model_validate_json directly for JSON input instead of two-step parsing
-   - Choose specific container types (list, dict) over generic ones (Sequence, Mapping)
-
-7. **Enhanced Serialization and Export**:
+8. **Enhance Serialization and Schema**:
    - Use serialization aliases for field name transformations
+   - Configure `model_dump` options for different output formats
    - Implement custom serialization methods for complex types
-   - Configure model_dump options for different output formats
-   - Add JSON schema customization for better API documentation
+   - Add JSON schema customization via `json_schema_extra`
+   - Configure proper schema generation with examples
+   - Use schema annotations for better documentation
+   - Implement custom schema generators for specialized formats
 
 ## Implementation Examples
 
