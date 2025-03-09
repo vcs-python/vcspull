@@ -177,6 +177,16 @@ class GitRemote(BaseModel):
         extra="forbid",
         str_strip_whitespace=True,
         frozen=False,
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "origin",
+                    "url": "https://github.com/user/repo.git",
+                    "fetch": "+refs/heads/*:refs/remotes/origin/*",
+                    "push": "refs/heads/main:refs/heads/main",
+                },
+            ],
+        },
     )
 
 
@@ -216,22 +226,39 @@ class RepositoryModel(BaseModel):
         extra="forbid",
         str_strip_whitespace=True,
         validate_assignment=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "vcs": "git",
+                    "name": "example",
+                    "path": "~/repos/example",
+                    "url": "https://github.com/user/example.git",
+                    "remotes": {
+                        "origin": {
+                            "name": "origin",
+                            "url": "https://github.com/user/example.git",
+                        },
+                    },
+                    "shell_command_after": ["echo 'Repository updated'"],
+                },
+            ],
+        },
     )
 
     @computed_field
     def is_git_repo(self) -> bool:
         """Determine if this is a Git repository."""
-        return self.vcs == "git"
+        return self.vcs == VCSType.GIT.value
 
     @computed_field
     def is_hg_repo(self) -> bool:
         """Determine if this is a Mercurial repository."""
-        return self.vcs == "hg"
+        return self.vcs == VCSType.HG.value
 
     @computed_field
     def is_svn_repo(self) -> bool:
         """Determine if this is a Subversion repository."""
-        return self.vcs == "svn"
+        return self.vcs == VCSType.SVN.value
 
     @model_validator(mode="after")
     def validate_vcs_specific_fields(self) -> RepositoryModel:
@@ -250,7 +277,7 @@ class RepositoryModel(BaseModel):
         ValueError
             If remotes are provided for non-Git repositories
         """
-        is_git = self.vcs == "git"
+        is_git = self.vcs == VCSType.GIT.value
         if not is_git and self.remotes:
             raise ValueError(REMOTES_GIT_ONLY_ERROR)
         return self
@@ -313,9 +340,11 @@ class RepositoryModel(BaseModel):
 
 
 class ConfigSectionDictModel(RootModel[dict[str, RepositoryModel]]):
-    """Configuration section model (dictionary of repositories)."""
+    """Configuration section model (dictionary of repositories).
 
-    # Note: RootModel does not support the 'extra' configuration option
+    A ConfigSectionDictModel represents a section of the configuration file,
+    containing a dictionary of repository configurations keyed by repository name.
+    """
 
     def __getitem__(self, key: str) -> RepositoryModel:
         """Get repository by name.
@@ -364,9 +393,12 @@ class ConfigSectionDictModel(RootModel[dict[str, RepositoryModel]]):
 
 
 class ConfigDictModel(RootModel[dict[str, ConfigSectionDictModel]]):
-    """Configuration model (dictionary of sections)."""
+    """Configuration model (dictionary of sections).
 
-    # Note: RootModel does not support the 'extra' configuration option
+    A ConfigDictModel represents the entire configuration file,
+    containing a dictionary of sections keyed by section name.
+    Each section contains a dictionary of repository configurations.
+    """
 
     def __getitem__(self, key: str) -> ConfigSectionDictModel:
         """Get section by name.
@@ -478,7 +510,7 @@ class RawRepositoryModel(BaseModel):
         ValueError
             If remotes are provided for non-Git repositories
         """
-        if self.vcs != "git" and self.remotes:
+        if self.vcs != VCSType.GIT.value and self.remotes:
             raise ValueError(REMOTES_GIT_ONLY_ERROR)
         return self
 
@@ -542,7 +574,7 @@ class RawRepositoryModel(BaseModel):
 
         # Check that remotes are only used with Git repositories
         values = info.data
-        if "vcs" in values and values["vcs"] != "git":
+        if "vcs" in values and values["vcs"] != VCSType.GIT.value:
             raise ValueError(REMOTES_GIT_ONLY_ERROR)
 
         # Validate each remote
@@ -595,17 +627,18 @@ class RawRepositoryModel(BaseModel):
 
 
 # Create pre-instantiated TypeAdapters for better performance
-# These should be initialized once and reused throughout the codebase
 class RawConfigSectionDictModel(RootModel[dict[str, RawRepoDataType]]):
-    """Raw configuration section model before validation."""
+    """Raw configuration section model before validation.
 
-    # Note: RootModel does not support the 'extra' configuration option
+    Represents a section of the raw configuration file before validation.
+    """
 
 
 class RawConfigDictModel(RootModel[dict[str, RawConfigSectionDictModel]]):
-    """Raw configuration model before validation and processing."""
+    """Raw configuration model before validation and processing.
 
-    # Note: RootModel does not support the 'extra' configuration option
+    Represents the entire raw configuration file before validation.
+    """
 
 
 # Cache the type adapters for better performance
@@ -655,9 +688,10 @@ def is_valid_repo_config(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]
     try:
         # Use the pre-instantiated TypeAdapter
         repo_validator.validate_python(config)
-        return True
     except Exception:
         return False
+    else:
+        return True
 
 
 def is_valid_config_dict(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]]:
@@ -682,7 +716,7 @@ def is_valid_config_dict(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]
                 if isinstance(repo_config, str):
                     repo_config = {
                         "url": repo_config,
-                        "vcs": "git",  # Default to git
+                        "vcs": VCSType.GIT.value,  # Default to git
                         "name": repo_name,
                         "path": repo_name,  # Use name as default path
                     }
@@ -694,9 +728,10 @@ def is_valid_config_dict(config: dict[str, t.Any]) -> TypeGuard[dict[str, t.Any]
 
         # Use the pre-instantiated TypeAdapter for validation
         config_validator.validate_python(sections)
-        return True
     except Exception:
         return False
+    else:
+        return True
 
 
 def convert_raw_to_validated(
@@ -727,7 +762,7 @@ def convert_raw_to_validated(
             if isinstance(repo_config, str):
                 url = repo_config
                 repo_config = {
-                    "vcs": "git",  # Default to git
+                    "vcs": VCSType.GIT.value,  # Default to git
                     "url": url,
                     "name": repo_name,
                     "path": repo_name,  # Default path is repo name
