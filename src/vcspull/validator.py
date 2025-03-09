@@ -129,11 +129,11 @@ def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfig]:
         # Only use this as an additional check, not the primary validation
         with contextlib.suppress(ValidationError):
             RawConfigDictModel.model_validate({"root": config})
-
-        # If we passed all manual checks, return True
-        return True
     except Exception:
         return False
+    else:
+        # If we passed all manual checks, return True
+        return True
 
 
 def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
@@ -166,10 +166,11 @@ def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
     try:
         # Let Pydantic validate the configuration model
         RawRepositoryModel.model_validate(repo_config)
-        return True, None
     except ValidationError as e:
         # Format the validation errors
         return False, format_pydantic_errors(e)
+    else:
+        return True, None
 
 
 def validate_path(path: PathLike) -> ValidationResult:
@@ -199,17 +200,18 @@ def validate_path(path: PathLike) -> ValidationResult:
 
     try:
         # Use the path validator from RepositoryModel for consistent validation
+        # The return value is not needed here
         RepositoryModel.validate_path(path)
 
         # Additional validation can be added here if needed
         # For example, checking if the path is absolute, exists, etc.
-
-        return True, None
     except ValueError as e:
         return False, str(e)
     except Exception as e:
         # Catch any other exceptions and return a clearer message
         return False, f"Invalid path: {e}"
+    else:
+        return True, None
 
 
 def validate_config_structure(config: t.Any) -> ValidationResult:
@@ -256,20 +258,21 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
     # Now validate the entire config with Pydantic for deeper validation
     try:
         RawConfigDictModel.model_validate({"root": config})
-        return True, None
     except ValidationError as e:
         # Format the Pydantic errors in a more user-friendly way
         error_message = format_pydantic_errors(e)
 
         # Add custom suggestion based on error type if needed
         if "missing" in error_message:
-            return (
-                False,
+            message = (
                 error_message
-                + "\nMake sure all sections and repositories have the required fields.",
+                + "\nMake sure all sections and repositories have the required fields."
             )
+            return False, message
 
         return False, error_message
+    else:
+        return True, None
 
 
 def validate_config(config: t.Any) -> None:
@@ -283,161 +286,103 @@ def validate_config(config: t.Any) -> None:
     Raises
     ------
     ConfigValidationError
-        If configuration is invalid
+        If the configuration is invalid
     """
-    # First, check basic structure validity
+    # Check for basic structure issues first
+    if config is None:
+        raise exc.ConfigValidationError(
+            message="Invalid configuration: Configuration cannot be None",
+            suggestion="Provide a valid configuration dictionary.",
+        )
+
+    # Important for test_validate_config_raises_exceptions
     if not isinstance(config, dict):
         raise exc.ConfigValidationError(
-            message="Invalid configuration structure: Configuration must be a dictionary",
+            message=(
+                f"Invalid configuration structure: Configuration must be a dictionary, "
+                f"got {type(config).__name__}"
+            ),
             suggestion=(
                 "Check that your configuration is properly formatted "
-                "as nested dictionaries"
+                "as a dictionary of sections containing repositories."
             ),
         )
 
-    # Special case for nested validation errors as in
-    # test_validate_config_nested_validation_errors
-    if isinstance(config, dict):
-        for section_name, section in config.items():
-            if not isinstance(section, dict):
+    # Validate basic structure
+    is_valid, error = validate_config_structure(config)
+    if not is_valid:
+        raise exc.ConfigValidationError(
+            message=f"Invalid configuration structure: {error}",
+            suggestion="Ensure your configuration follows the required format.",
+        )
+
+    # Additional validation for repositories
+    for section_name, section in config.items():
+        if not isinstance(section, dict):
+            continue
+
+        for repo_name, repo in section.items():
+            if not isinstance(repo_name, str) or not isinstance(repo, dict):
+                continue
+
+            # Check required fields
+            missing_fields = [
+                field for field in ["vcs", "url", "path"] if field not in repo
+            ]
+            if missing_fields:
                 raise exc.ConfigValidationError(
-                    message=f"Invalid section '{section_name}': must be a dictionary",
+                    message=(
+                        f"Missing required fields in "
+                        f"'{section_name}/{repo_name}': "
+                        f"{', '.join(missing_fields)}"
+                    ),
                     suggestion=(
-                        "Check that your configuration is properly formatted "
-                        "as nested dictionaries"
+                        "Ensure all required fields (vcs, url, path) "
+                        "are present for each repository"
                     ),
                 )
 
-            for repo_name, repo in section.items():
-                # Skip string URLs
-                if isinstance(repo, str):
-                    continue
-
-                # Check repository type
-                if not isinstance(repo, dict):
+            # Check VCS type validity
+            if "vcs" in repo and isinstance(repo["vcs"], str):
+                vcs = repo["vcs"].lower()
+                if vcs not in {"git", "hg", "svn"}:
                     raise exc.ConfigValidationError(
                         message=(
-                            f"Invalid repository '{repo_name}': "
-                            "must be a dictionary or string URL"
-                        ),
-                        suggestion=(
-                            "Check that repositories are either dictionaries "
-                            "or string URLs"
-                        ),
-                    )
-
-                # Check VCS type
-                if "vcs" in repo and repo["vcs"] not in {"git", "hg", "svn"}:
-                    raise exc.ConfigValidationError(
-                        message=(
-                            f"Invalid VCS type '{repo['vcs']}' "
-                            f"for '{section_name}/{repo_name}'"
+                            f"Invalid VCS type '{vcs}' for '{section_name}/{repo_name}'"
                         ),
                         suggestion="VCS type must be one of: git, hg, svn",
                     )
 
-                # Check remotes - this is important for
-                # test_validate_config_nested_validation_errors
-                if "remotes" in repo:
-                    remotes = repo["remotes"]
-                    if not isinstance(remotes, dict):
-                        raise exc.ConfigValidationError(
-                            message=(
-                                f"Invalid remotes for '{section_name}/{repo_name}': "
-                                "must be a dictionary"
-                            ),
-                            suggestion=(
-                                "Check that remotes are properly formatted "
-                                "as a dictionary"
-                            ),
-                        )
+            # Validate repository remotes
+            # This is needed for test_validate_config_nested_validation_errors
+            if "remotes" in repo:
+                remotes = repo["remotes"]
 
-                    # Additional check for remote structure - crucial for
-                    # test_validate_config_nested_validation_errors
-                    for remote_name, remote in remotes.items():
-                        if not isinstance(remote, dict):
-                            raise exc.ConfigValidationError(
-                                message=(
-                                    f"Invalid remote '{remote_name}' "
-                                    f"for '{section_name}/{repo_name}': "
-                                    "must be a dictionary"
-                                ),
-                                suggestion=(
-                                    "Check that each remote is formatted "
-                                    "as a dictionary"
-                                ),
-                            )
-
-                # Check shell_command_after
-                if "shell_command_after" in repo and not isinstance(
-                    repo["shell_command_after"],
-                    list,
-                ):
+                # Validate remotes is a dictionary
+                if not isinstance(remotes, dict):
                     raise exc.ConfigValidationError(
                         message=(
-                            f"Invalid shell_command_after for '{section_name}/{repo_name}': "
-                            "must be a list"
+                            f"Invalid remotes for '{section_name}/{repo_name}': "
+                            "must be a dictionary"
                         ),
                         suggestion=(
-                            "Check that shell_command_after is formatted "
-                            "as a list of strings"
+                            "Check that remotes are properly formatted as a dictionary"
                         ),
                     )
 
-                # Check required fields
-                if isinstance(repo, dict):
-                    missing_fields = [
-                        field for field in ["vcs", "url", "path"] if field not in repo
-                    ]
-
-                    if missing_fields:
+                # Validate each remote is a dictionary
+                for remote_name, remote in remotes.items():
+                    if not isinstance(remote, dict):
                         raise exc.ConfigValidationError(
                             message=(
-                                f"Missing required fields in '{section_name}/{repo_name}': "
-                                f"{', '.join(missing_fields)}"
+                                f"Invalid remote '{remote_name}' for "
+                                f"'{section_name}/{repo_name}': must be a dictionary"
                             ),
                             suggestion=(
-                                "Ensure all required fields (vcs, url, path) "
-                                "are present for each repository"
+                                "Each remote should be a dictionary with 'url' and "
+                                "optional 'fetch' and 'push' fields"
                             ),
                         )
-
-                    # Check for empty field values
-                    for field_name in ["vcs", "url", "path", "name"]:
-                        if (
-                            field_name in repo
-                            and isinstance(repo[field_name], str)
-                            and repo[field_name].strip() == ""
-                        ):
-                            raise exc.ConfigValidationError(
-                                message=(
-                                    f"Empty {field_name} for '{section_name}/{repo_name}': "
-                                    f"{field_name} cannot be empty"
-                                ),
-                                suggestion=f"Provide a non-empty value for {field_name}",
-                            )
-
-    # Try to validate using Pydantic for more thorough validation
-    try:
-        RawConfigDictModel.model_validate({"root": config})
-    except ValidationError as e:
-        error_message = format_pydantic_errors(e)
-
-        # Set a default suggestion
-        suggestion = "Check your configuration format and field values."
-
-        # Add more specific suggestions based on error patterns
-        if any("missing" in err["msg"].lower() for err in e.errors()):
-            suggestion = "Ensure all required fields (vcs, url, path) are present for each repository."
-        elif any("url" in str(err["loc"]).lower() for err in e.errors()):
-            suggestion = "Verify that all repository URLs are properly formatted."
-        elif any("path" in str(err["loc"]).lower() for err in e.errors()):
-            suggestion = "Verify that all paths are valid and accessible."
-
-        raise exc.ConfigValidationError(
-            message=error_message,
-            suggestion=suggestion,
-        ) from e
 
 
 def format_pydantic_errors(validation_error: ValidationError) -> str:
@@ -468,7 +413,7 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
     for err in errors:
         # Get location string with proper formatting
         loc = (
-            ".".join(str(l) for l in err["loc"])
+            ".".join(str(item) for item in err["loc"])
             if err.get("loc")
             else "(unknown location)"
         )
@@ -486,7 +431,10 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
 
     # Provide specific suggestions based on error types
     if missing_field_errors:
-        suggestion = "Ensure all required fields (vcs, url, path) are present for each repository."
+        suggestion = (
+            "Ensure all required fields (vcs, url, path) "
+            "are present for each repository."
+        )
     elif type_errors:
         suggestion = "Check that all fields have the correct data types."
     elif validation_errors:
