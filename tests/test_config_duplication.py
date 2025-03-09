@@ -6,6 +6,7 @@ import pathlib
 import typing as t
 
 from vcspull import config
+from vcspull.types import RawConfigDict
 
 if t.TYPE_CHECKING:
     from vcspull.types import RawConfigDict
@@ -89,11 +90,10 @@ def test_conflicting_repo_configs() -> None:
 
     # Merge the configurations using the update_dict function (exported if needed)
     from vcspull.config import update_dict  # type: ignore
-
     merged_config = update_dict(config1, config2)
 
     # Get the flat list of repositories
-    repo_list = config.extract_repos(t.cast("RawConfigDict", merged_config))
+    repo_list = config.extract_repos(t.cast(RawConfigDict, merged_config))
 
     # Verify only one repository is included
     assert len(repo_list) == 1
@@ -102,32 +102,29 @@ def test_conflicting_repo_configs() -> None:
     merged_repo = repo_list[0]
     assert merged_repo["url"] == "https://gitlab.com/user/repo1.git"  # From config2
     assert merged_repo["vcs"] == "git"
-
+    
     # Check if remotes exists and then access it
     assert "remotes" in merged_repo
     if "remotes" in merged_repo and merged_repo["remotes"] is not None:
         # Access the remotes as a dictionary to avoid type comparison issues
         remotes_dict = merged_repo["remotes"]
         assert "upstream" in remotes_dict
-        # Check the fetch_url attribute of the GitRemote object
-        assert hasattr(remotes_dict["upstream"], "fetch_url")
-        assert (
-            remotes_dict["upstream"].fetch_url
-            == "https://github.com/upstream/repo1.git"
-        )  # From config1
-
+        # From config1, break line to avoid line length issues
+        fetch_url = "https://github.com/upstream/repo1.git"
+        assert remotes_dict["upstream"].fetch_url == fetch_url
+    
     assert merged_repo["shell_command_after"] == ["echo 'Repo synced'"]  # From config2
 
 
 def test_conflicting_repo_types() -> None:
     """Test merging of configurations with different repository specification types."""
-    # Create configurations with both shorthand and expanded formats
-
-    # Instead of using update_dict which has issues with string vs dict,
-    # we'll manually create a merged config
+    # Instead of creating and merging configs, we'll directly test with a final result
+    # This avoids the need for unused variables
+    
+    # Final merged configuration
     merged_config: dict[str, dict[str, t.Any]] = {
         "/tmp/repos/": {
-            "repo1": {  # Use the expanded format
+            "repo1": {  # Expanded format with values we want to test
                 "url": "https://gitlab.com/user/repo1.git",
                 "vcs": "git",
                 "shell_command_after": ["echo 'Repo synced'"],
@@ -136,7 +133,7 @@ def test_conflicting_repo_types() -> None:
     }
 
     # Get the flat list of repositories
-    repo_list = config.extract_repos(t.cast("RawConfigDict", merged_config))
+    repo_list = config.extract_repos(t.cast(RawConfigDict, merged_config))
 
     # Verify only one repository is included
     assert len(repo_list) == 1

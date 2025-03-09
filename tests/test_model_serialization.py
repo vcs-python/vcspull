@@ -147,8 +147,8 @@ def test_coercion_failures() -> None:
         TestModel.model_validate({"test_bool": complex(1, 2)})
 
     # Check the error message format
-    # Note: We're checking for 'literal_error' instead of 'string_type' since the error format
-    # has changed from Pydantic v1 to Pydantic v2. The important part is verifying type validation occurs.
+    # Note: We're checking for error types that might appear in different
+    # Pydantic versions (v1 vs v2)
     assert "type_error" in str(excinfo.value) or "bool_type" in str(excinfo.value)
 
 

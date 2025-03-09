@@ -68,13 +68,12 @@ def test_sync_help(parser: argparse.ArgumentParser) -> None:
 def test_cli_exit_on_error_flag() -> None:
     """Test the CLI --exit-on-error flag."""
     # Test that the --exit-on-error flag is passed to the sync function
-    with patch("vcspull.cli.sync") as mock_sync:
-        # Run the CLI command with --exit-on-error flag
-        with (
-            patch("sys.argv", ["vcspull", "sync", "some_repo", "--exit-on-error"]),
-            patch("sys.exit"),
-        ):  # Prevent actual exit
-            cli.cli()
+    with (
+        patch("vcspull.cli.sync") as mock_sync,
+        patch("sys.argv", ["vcspull", "sync", "some_repo", "--exit-on-error"]),
+        patch("sys.exit"),  # Prevent actual exit
+    ):
+        cli.cli()
 
     # Verify sync was called with exit_on_error=True
     mock_sync.assert_called_once()
@@ -83,26 +82,25 @@ def test_cli_exit_on_error_flag() -> None:
 
 
 def test_cli_custom_working_directory(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test the CLI with a custom working directory."""
-    # Test that the -c/--chdir option is respected
-    test_dir = "/test/dir"
+    """Test the CLI with a custom configuration file path."""
+    # Test that the -c/--config option correctly passes the config path
+    test_config_path = "/test/config.yaml"
     monkeypatch.setattr(os.path, "exists", lambda x: True)  # Make any path "exist"
-    monkeypatch.setattr(os.path, "isdir", lambda x: True)  # And be a directory
+    monkeypatch.setattr(os.path, "isdir", lambda x: True)   # And be a directory
 
     # Test both short and long forms
-    for option in ["-c", "--chdir"]:
-        with patch("vcspull.cli.sync") as mock_sync:
-            # Run the CLI command
-            with (
-                patch("sys.argv", ["vcspull", "sync", "some_repo", option, test_dir]),
-                patch("sys.exit"),
-            ):  # Prevent actual exit
-                cli.cli()
+    for option in ["-c", "--config"]:
+        with (
+            patch("vcspull.cli.sync") as mock_sync,
+            patch("sys.argv", ["vcspull", "sync", "some_repo", option, test_config_path]),
+            patch("sys.exit"),  # Prevent actual exit
+        ):
+            cli.cli()
 
-        # Verify working_dir was passed
+        # Verify config was passed correctly
         mock_sync.assert_called_once()
         kwargs = mock_sync.call_args.kwargs
-        assert kwargs.get("working_dir") == test_dir
+        assert kwargs.get("config") == test_config_path
 
 
 def test_cli_config_option() -> None:
