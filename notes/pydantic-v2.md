@@ -684,3 +684,282 @@ async def create_item(item: Item):
     """
     return item
 ```
+
+## Model Configuration
+
+Pydantic models can be configured using the `model_config` attribute or class arguments.
+
+### Configuration with ConfigDict
+
+```python
+import typing as t
+from pydantic import BaseModel, ConfigDict
+
+
+class User(BaseModel):
+    model_config = ConfigDict(
+        # Strict type checking
+        strict=False,  # Default is False, set True to disallow any coercion
+        
+        # Schema configuration
+        title='User Schema',
+        json_schema_extra={'examples': [{'id': 1, 'name': 'John'}]},
+        
+        # Additional fields behavior
+        extra='ignore',  # 'ignore', 'allow', or 'forbid'
+        
+        # Validation behavior
+        validate_default=True,
+        validate_assignment=False,
+        
+        # String constraints
+        str_strip_whitespace=True,
+        str_to_lower=False,
+        str_to_upper=False,
+        
+        # Serialization
+        populate_by_name=True,  # Allow populating models with alias names
+        use_enum_values=False,  # Use enum values instead of enum instances when serializing
+        arbitrary_types_allowed=False,
+        
+        # Frozen settings
+        frozen=False,  # Make the model immutable
+    )
+    
+    id: int
+    name: str
+
+
+# Alternative: Using class arguments
+class ReadOnlyUser(BaseModel, frozen=True):
+    id: int
+    name: str
+```
+
+### Global Configuration
+
+Create a base class with your preferred configuration:
+
+```python
+import typing as t
+from pydantic import BaseModel, ConfigDict
+
+
+class PydanticBase(BaseModel):
+    """Base model with common configuration."""
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra='forbid',
+        str_strip_whitespace=True
+    )
+
+
+class User(PydanticBase):
+    """Inherits configuration from PydanticBase."""
+    name: str
+    email: str
+```
+
+## Dataclasses
+
+Pydantic provides dataclass support for standard Python dataclasses with validation:
+
+```python
+import typing as t
+import dataclasses
+from datetime import datetime
+from pydantic import Field, TypeAdapter, ConfigDict
+from pydantic.dataclasses import dataclass
+
+
+# Basic usage
+@dataclass
+class User:
+    id: int
+    name: str = 'John Doe'
+    created_at: datetime = None
+
+
+# With pydantic field
+@dataclass
+class Product:
+    id: int
+    name: str
+    price: float = Field(gt=0)
+    tags: list[str] = dataclasses.field(default_factory=list)
+
+
+# With configuration
+@dataclass(config=ConfigDict(validate_assignment=True, extra='forbid'))
+class Settings:
+    api_key: str
+    debug: bool = False
+
+
+# Using validation
+user = User(id='123')  # String converted to int
+print(user)  # User(id=123, name='John Doe', created_at=None)
+
+# Access to validation and schema methods through TypeAdapter
+user_adapter = TypeAdapter(User)
+schema = user_adapter.json_schema()
+json_data = user_adapter.dump_json(user)
+```
+
+## Strict Mode
+
+Pydantic provides strict mode to disable type coercion (e.g., converting strings to numbers):
+
+### Field-Level Strict Mode
+
+```python
+import typing as t
+from pydantic import BaseModel, Field, Strict, StrictInt, StrictStr
+
+
+class User(BaseModel):
+    # Field-level strict mode using Field
+    id: int = Field(strict=True)  # Only accepts actual integers
+    
+    # Field-level strict mode using Annotated
+    name: t.Annotated[str, Strict()]  # Only accepts actual strings
+    
+    # Using built-in strict types
+    age: StrictInt  # Shorthand for Annotated[int, Strict()]
+    email: StrictStr  # Shorthand for Annotated[str, Strict()]
+```
+
+### Model-Level Strict Mode
+
+```python
+import typing as t
+from pydantic import BaseModel, ConfigDict, ValidationError
+
+
+class User(BaseModel):
+    model_config = ConfigDict(strict=True)  # Applies to all fields
+    
+    id: int
+    name: str
+
+
+# This will fail
+try:
+    user = User(id='123', name='John')
+except ValidationError as e:
+    print(e)
+    """
+    2 validation errors for User
+    id
+      Input should be a valid integer [type=int_type, input_value='123', input_type=str]
+    name
+      Input should be a valid string [type=str_type, input_value='John', input_type=str]
+    """
+```
+
+### Method-Level Strict Mode
+
+```python
+import typing as t
+from pydantic import BaseModel, ValidationError
+
+
+class User(BaseModel):
+    id: int
+    name: str
+
+
+# Standard validation allows coercion
+user1 = User.model_validate({'id': '123', 'name': 'John'})  # Works fine
+
+# Validation with strict mode at call time
+try:
+    user2 = User.model_validate({'id': '123', 'name': 'John'}, strict=True)
+except ValidationError:
+    print("Strict validation failed")
+```
+
+## Additional Features
+
+### Computed Fields
+
+Add computed properties that appear in serialized output:
+
+```python
+import typing as t
+from datetime import datetime
+from pydantic import BaseModel, computed_field
+
+
+class User(BaseModel):
+    first_name: str
+    last_name: str
+    birth_date: datetime
+    
+    @computed_field
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+    
+    @computed_field
+    def age(self) -> int:
+        delta = datetime.now() - self.birth_date
+        return delta.days // 365
+```
+
+### RootModel for Simple Types with Validation
+
+Use RootModel to add validation to simple types:
+
+```python
+import typing as t
+from pydantic import RootModel, Field
+
+
+# Validate a list of integers
+class IntList(RootModel[list[int]]):
+    root: list[int] = Field(min_length=1)  # Must have at least one item
+
+
+# Usage
+valid_list = IntList([1, 2, 3])
+print(valid_list.root)  # [1, 2, 3]
+```
+
+### Discriminated Unions
+
+Use discriminated unions for polymorphic models:
+
+```python
+import typing as t
+from enum import Enum
+from pydantic import BaseModel, Field
+
+
+class PetType(str, Enum):
+    cat = 'cat'
+    dog = 'dog'
+
+
+class Pet(BaseModel):
+    pet_type: PetType
+    name: str
+
+
+class Cat(Pet):
+    pet_type: t.Literal[PetType.cat]
+    lives_left: int = 9
+
+
+class Dog(Pet):
+    pet_type: t.Literal[PetType.dog]
+    likes_walks: bool = True
+
+
+# Using Annotated with Field to specify the discriminator
+PetUnion = t.Annotated[t.Union[Cat, Dog], Field(discriminator='pet_type')]
+
+pets: list[PetUnion] = [
+    Cat(name='Felix'),
+    Dog(name='Fido', likes_walks=False)
+]
+```
