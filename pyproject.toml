@@ -82,6 +82,7 @@ dev-dependencies = [
   "sphinx-copybutton",
   "sphinxext-rediraffe",
   "sphinx-argparse",
+  "autodoc_pydantic",
   "myst-parser",
   "linkify-it-py",
   # Testing
@@ -115,6 +116,7 @@ docs = [
   "sphinx-copybutton",
   "sphinxext-rediraffe",
   "sphinx-argparse",
+  "autodoc_pydantic",
   "myst-parser",
   "linkify-it-py",
 ]
