@@ -962,38 +962,151 @@ def validate_any_repo(repo_data: dict[str, t.Any]) -> t.Any:
 ### 8. Reusable Field Types with the Annotated Pattern
 
 ```python
-from typing import Annotated, TypeVar, get_type_hints
-from pydantic import AfterValidator, BeforeValidator, WithJsonSchema
+from typing import Annotated, TypeVar, Any, cast
+import pathlib
+import re
+import os
+from typing_extensions import Doc
 
-# Define reusable field types with validation
-T = TypeVar('T', str, bytes)
+from pydantic import (
+    AfterValidator, 
+    BeforeValidator, 
+    WithJsonSchema,
+    Field
+)
 
-def validate_not_empty(v: T) -> T:
+# Define TypeVars with constraints
+StrT = TypeVar('StrT', str, bytes)
+
+# Validation functions
+def validate_not_empty(v: StrT) -> StrT:
     """Validate that value is not empty."""
     if not v:
         raise ValueError("Value cannot be empty")
     return v
 
-# Create reusable field types
+def is_valid_url(v: str) -> bool:
+    """Check if string is a valid URL."""
+    url_pattern = re.compile(
+        r'^(?:http|ftp)s?://'  # http://, https://, ftp://, ftps://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain
+        r'localhost|'  # localhost
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IP
+        r'(?::\d+)?'  # optional port
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE
+    )
+    return bool(url_pattern.match(v))
+
+def validate_url(v: str) -> str:
+    """Validate that string is a URL."""
+    if not is_valid_url(v):
+        raise ValueError(f"Invalid URL format: {v}")
+    return v
+
+def normalize_path(v: str | pathlib.Path) -> str:
+    """Convert path to string."""
+    return str(v)
+
+def expand_user_path(v: str) -> pathlib.Path:
+    """Expand user directory in path."""
+    path = pathlib.Path(v)
+    try:
+        expanded = path.expanduser()
+        return expanded
+    except Exception as e:
+        raise ValueError(f"Invalid path: {v}. Error: {e}")
+
+def expand_vars_in_path(v: str) -> str:
+    """Expand environment variables in path."""
+    try:
+        return os.path.expandvars(v)
+    except Exception as e:
+        raise ValueError(f"Error expanding environment variables in path: {v}. Error: {e}")
+
+# Create reusable field types with documentation
 NonEmptyStr = Annotated[
     str, 
     AfterValidator(validate_not_empty),
-    WithJsonSchema({"minLength": 1, "description": "Non-empty string"})
+    WithJsonSchema({
+        "type": "string", 
+        "minLength": 1, 
+        "description": "Non-empty string value"
+    }),
+    Doc("A string that cannot be empty")
+]
+
+UrlStr = Annotated[
+    str,
+    BeforeValidator(lambda v: v.strip() if isinstance(v, str) else v),
+    AfterValidator(validate_url),
+    WithJsonSchema({
+        "type": "string", 
+        "format": "uri",
+        "description": "Valid URL string"
+    }),
+    Doc("A valid URL string (http, https, ftp, etc.)")
 ]
 
 # Path validation
-PathStr = Annotated[
-    str,
-    BeforeValidator(lambda v: str(v) if isinstance(v, pathlib.Path) else v),
-    AfterValidator(lambda v: v.strip() if isinstance(v, str) else v),
-    WithJsonSchema({"description": "Path string or Path object"})
+PathInput = Annotated[
+    str | pathlib.Path,
+    BeforeValidator(normalize_path),
+    AfterValidator(validate_not_empty),
+    WithJsonSchema({
+        "type": "string", 
+        "description": "Path string or Path object"
+    }),
+    Doc("A string or Path object representing a file system path")
 ]
 
-# Use in models
+ExpandedPath = Annotated[
+    str | pathlib.Path,
+    BeforeValidator(normalize_path),
+    BeforeValidator(expand_vars_in_path),
+    AfterValidator(expand_user_path),
+    WithJsonSchema({
+        "type": "string", 
+        "description": "Path with expanded variables and user directory"
+    }),
+    Doc("A path with environment variables and user directory expanded")
+]
+
+# Composite field types
+OptionalUrl = Annotated[
+    UrlStr | None, 
+    Field(default=None),
+    Doc("An optional URL field")
+]
+
+GitRepoUrl = Annotated[
+    UrlStr,
+    AfterValidator(lambda v: v if v.endswith('.git') or 'github.com' not in v else f"{v}.git"),
+    WithJsonSchema({
+        "type": "string", 
+        "format": "uri",
+        "description": "Git repository URL"
+    }),
+    Doc("A Git repository URL (automatically adds .git suffix for GitHub URLs)")
+]
+
+# Demonstrate usage in models
+from pydantic import BaseModel
+
 class Repository(BaseModel):
+    """Repository model using reusable field types."""
     name: NonEmptyStr
     description: NonEmptyStr | None = None
-    path: PathStr
+    url: GitRepoUrl  # Use specialized URL type 
+    path: ExpandedPath  # Automatically expands path
+    homepage: OptionalUrl = None
+    
+    def get_clone_url(self) -> str:
+        """Get URL to clone repository."""
+        return cast(str, self.url)
+    
+    def get_absolute_path(self) -> pathlib.Path:
+        """Get absolute path to repository."""
+        return cast(pathlib.Path, self.path)
 ```
 
 ### 9. Direct JSON Validation for Better Performance
