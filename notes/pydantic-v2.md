@@ -2174,6 +2174,578 @@ async def get_user(
     )
 ```
 
+## Real-world Examples
+
+Here are several practical examples of how to use Pydantic in common scenarios.
+
+### Configuration System
+
+Create a robust configuration system with environment variable support:
+
+```python
+import typing as t
+from pathlib import Path
+import os
+from functools import lru_cache
+from pydantic import Field, SecretStr, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class DatabaseSettings(BaseSettings):
+    """Database connection settings with defaults and validation."""
+    model_config = SettingsConfigDict(env_prefix="DB_")
+    
+    host: str = "localhost"
+    port: int = 5432
+    user: str = "postgres"
+    password: SecretStr = Field(default=SecretStr(""))
+    name: str = "app"
+    pool_size: int = Field(default=5, gt=0, le=20)
+    
+    @property
+    def url(self) -> str:
+        """Construct the database URL from components."""
+        return f"postgresql://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
+
+
+class LoggingSettings(BaseSettings):
+    """Logging configuration."""
+    model_config = SettingsConfigDict(env_prefix="LOG_")
+    
+    level: t.Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: t.Optional[Path] = None
+
+
+class AppSettings(BaseSettings):
+    """Main application settings."""
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+    
+    app_name: str = "MyApp"
+    version: str = "0.1.0"
+    debug: bool = False
+    secret_key: SecretStr = Field(...)  # Required field
+    allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
+    
+    # Nested settings
+    db: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    logging: LoggingSettings = Field(default_factory=LoggingSettings)
+
+
+# Use lru_cache to avoid loading settings multiple times
+@lru_cache()
+def get_settings() -> AppSettings:
+    """Load settings from environment with caching."""
+    try:
+        return AppSettings()
+    except ValidationError as e:
+        print(f"Settings validation error: {e}")
+        raise
+
+
+# Usage in the application
+def main():
+    settings = get_settings()
+    print(f"Starting {settings.app_name} v{settings.version}")
+    print(f"Database URL: {settings.db.url}")
+    print(f"Log level: {settings.logging.level}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### REST API Request/Response Models
+
+Organize API models for clean separation of concerns:
+
+```python
+import typing as t
+from datetime import datetime
+from uuid import UUID, uuid4
+from pydantic import BaseModel, Field, EmailStr, model_validator, field_validator
+
+
+# Base models with common fields
+class UserBase(BaseModel):
+    """Common user fields"""
+    email: EmailStr
+    username: str = Field(min_length=3, max_length=50)
+
+
+# Input models (for API requests)
+class UserCreate(UserBase):
+    """Data needed to create a new user"""
+    password: str = Field(min_length=8)
+    password_confirm: str
+    
+    @model_validator(mode='after')
+    def check_passwords_match(self) -> 'UserCreate':
+        if self.password != self.password_confirm:
+            raise ValueError("Passwords do not match")
+        return self
+
+
+class UserUpdate(BaseModel):
+    """Data for updating user profile (all fields optional)"""
+    email: t.Optional[EmailStr] = None
+    username: t.Optional[str] = Field(None, min_length=3, max_length=50)
+
+
+# Output models (for API responses)
+class UserRead(UserBase):
+    """User data returned from API"""
+    id: UUID
+    is_active: bool
+    created_at: datetime
+    updated_at: t.Optional[datetime] = None
+
+
+class UserList(BaseModel):
+    """Paginated list of users"""
+    items: list[UserRead]
+    total: int
+    page: int
+    size: int
+    
+    @property
+    def pages(self) -> int:
+        """Calculate total pages based on items and page size"""
+        return (self.total + self.size - 1) // self.size
+
+
+# Internal models (for database operations)
+class UserInDB(UserRead):
+    """User model with password hash for internal use"""
+    hashed_password: str
+    
+    @classmethod
+    def from_create(cls, user_create: UserCreate, password_hash: str) -> 'UserInDB':
+        """Create internal user from registration data"""
+        return cls(
+            id=uuid4(),
+            email=user_create.email,
+            username=user_create.username,
+            hashed_password=password_hash,
+            is_active=True,
+            created_at=datetime.now()
+        )
+
+
+# FastAPI example usage
+from fastapi import FastAPI, HTTPException, Depends
+
+app = FastAPI()
+
+# Mock database
+users_db = {}
+
+# Dependencies
+def get_user_by_id(user_id: UUID) -> UserInDB:
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    return users_db[user_id]
+
+
+@app.post("/users/", response_model=UserRead)
+async def create_user(user_data: UserCreate):
+    # Hash the password (in a real app, use proper hashing)
+    hashed_password = f"hashed_{user_data.password}"
+    
+    # Create user in DB
+    user = UserInDB.from_create(user_data, hashed_password)
+    users_db[user.id] = user
+    
+    # Return user without hashed_password
+    return user
+
+
+@app.get("/users/{user_id}", response_model=UserRead)
+async def read_user(user: UserInDB = Depends(get_user_by_id)):
+    return user
+
+
+@app.patch("/users/{user_id}", response_model=UserRead)
+async def update_user(update_data: UserUpdate, user: UserInDB = Depends(get_user_by_id)):
+    # Update user with provided data, ignoring None values
+    user_data = user.model_dump()
+    update_dict = update_data.model_dump(exclude_unset=True, exclude_none=True)
+    
+    # Handle password separately
+    if 'password' in update_dict:
+        update_dict['hashed_password'] = f"hashed_{update_dict.pop('password')}"
+    
+    # Update the user data
+    updated_user_data = {**user_data, **update_dict, 'updated_at': datetime.now()}
+    updated_user = UserInDB.model_validate(updated_user_data)
+    users_db[user.id] = updated_user
+    
+    return updated_user
+```
+
+### Data Processing Pipeline
+
+Use Pydantic in a data processing pipeline for validation and transformation:
+
+```python
+import typing as t
+from datetime import datetime, date
+from enum import Enum
+from pydantic import BaseModel, Field, ValidationError, field_validator, TypeAdapter
+
+
+# Input data models
+class DataSource(str, Enum):
+    CSV = "csv"
+    API = "api"
+    DATABASE = "db"
+
+
+class RawDataPoint(BaseModel):
+    timestamp: str
+    temperature: t.Any  # Could be string or number
+    humidity: t.Any
+    pressure: t.Any
+    location_id: str
+    source: DataSource
+    
+    @field_validator('timestamp')
+    @classmethod
+    def validate_timestamp(cls, v: str) -> str:
+        # Basic timestamp format validation
+        formats = ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"]
+        for fmt in formats:
+            try:
+                datetime.strptime(v, fmt)
+                return v
+            except ValueError:
+                continue
+        raise ValueError("Invalid timestamp format")
+
+
+# Processed data model
+class ProcessedDataPoint(BaseModel):
+    timestamp: datetime
+    date: date
+    temperature: float = Field(ge=-50.0, le=100.0)  # Celsius
+    humidity: float = Field(ge=0.0, le=100.0)  # Percentage
+    pressure: float = Field(ge=800.0, le=1200.0)  # hPa
+    location_id: str
+    source: DataSource
+    
+    @classmethod
+    def from_raw(cls, raw: RawDataPoint) -> 'ProcessedDataPoint':
+        """Convert raw data to processed format with type conversion."""
+        timestamp = datetime.strptime(
+            raw.timestamp, 
+            "%Y-%m-%dT%H:%M:%S" if "T" in raw.timestamp else "%Y-%m-%d %H:%M:%S"
+        )
+        
+        return cls(
+            timestamp=timestamp,
+            date=timestamp.date(),
+            temperature=float(raw.temperature),
+            humidity=float(raw.humidity),
+            pressure=float(raw.pressure),
+            location_id=raw.location_id,
+            source=raw.source
+        )
+
+
+# Processing pipeline
+class DataProcessor:
+    def __init__(self):
+        # Create adapter once for performance
+        self.raw_adapter = TypeAdapter(list[RawDataPoint])
+        
+    def process_batch(self, raw_data: list[dict]) -> dict[str, t.Any]:
+        """Process a batch of raw data points."""
+        start_time = datetime.now()
+        result = {
+            "processed": 0,
+            "errors": 0,
+            "error_details": [],
+            "processed_data": []
+        }
+        
+        try:
+            # Validate all raw data points at once
+            validated_raw = self.raw_adapter.validate_python(raw_data)
+            
+            # Process each point
+            for raw_point in validated_raw:
+                try:
+                    processed = ProcessedDataPoint.from_raw(raw_point)
+                    result["processed_data"].append(processed.model_dump())
+                    result["processed"] += 1
+                except ValidationError as e:
+                    result["errors"] += 1
+                    result["error_details"].append({
+                        "raw_data": raw_point.model_dump(),
+                        "error": e.errors()
+                    })
+                    
+        except ValidationError as e:
+            result["errors"] = len(raw_data)
+            result["error_details"].append({"error": "Batch validation failed", "details": e.errors()})
+            
+        result["processing_time"] = (datetime.now() - start_time).total_seconds()
+        return result
+
+
+
+# Usage
+processor = DataProcessor()
+
+# Sample data batch
+sample_data = [
+    {
+        "timestamp": "2023-09-15T12:30:45",
+        "temperature": "22.5",
+        "humidity": "65",
+        "pressure": "1013.2",
+        "location_id": "sensor-001",
+        "source": "csv"
+    },
+    {
+        "timestamp": "2023-09-15 12:45:00",
+        "temperature": 23.1,
+        "humidity": 64.5,
+        "pressure": 1012.8,
+        "location_id": "sensor-002",
+        "source": "api"
+    },
+    # Invalid data point to demonstrate error handling
+    {
+        "timestamp": "invalid-date",
+        "temperature": "too hot",
+        "humidity": 200,  # Out of range
+        "pressure": "1010",
+        "location_id": "sensor-003",
+        "source": "db"
+    }
+]
+
+# Process the batch
+result = processor.process_batch(sample_data)
+print(f"Processed: {result['processed']}, Errors: {result['errors']}")
+```
+
+### Domain-Driven Design with Pydantic
+
+Structure your domain models cleanly with Pydantic:
+
+```python
+import typing as t
+from datetime import datetime
+from uuid import UUID, uuid4
+from decimal import Decimal
+from enum import Enum
+from pydantic import BaseModel, Field, computed_field, model_validator
+
+
+# Value objects
+class Money(BaseModel):
+    """Value object representing an amount in a specific currency."""
+    amount: Decimal = Field(ge=0)
+    currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
+    
+    def __add__(self, other: 'Money') -> 'Money':
+        if not isinstance(other, Money) or self.currency != other.currency:
+            raise ValueError(f"Cannot add {self.currency} and {other.currency}")
+        return Money(amount=self.amount + other.amount, currency=self.currency)
+    
+    def __mul__(self, quantity: int) -> 'Money':
+        return Money(amount=self.amount * quantity, currency=self.currency)
+    
+    def __str__(self) -> str:
+        return f"{self.amount:.2f} {self.currency}"
+
+
+class Address(BaseModel):
+    """Value object for addresses."""
+    street: str
+    city: str
+    state: str
+    postal_code: str
+    country: str = "USA"
+
+
+# Enums
+class OrderStatus(str, Enum):
+    PENDING = "pending"
+    PAID = "paid"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    CANCELLED = "cancelled"
+
+
+# Entities
+class ProductId(str):
+    """Strong type for product IDs."""
+    pass
+
+
+class Product(BaseModel):
+    """Product entity."""
+    id: ProductId
+    name: str
+    description: str
+    price: Money
+    weight_kg: float = Field(gt=0)
+    in_stock: int = Field(ge=0)
+    
+    @computed_field
+    def is_available(self) -> bool:
+        return self.in_stock > 0
+
+
+class OrderItem(BaseModel):
+    """Line item in an order."""
+    product_id: ProductId
+    product_name: str
+    unit_price: Money
+    quantity: int = Field(gt=0)
+    
+    @computed_field
+    def total_price(self) -> Money:
+        return self.unit_price * self.quantity
+
+
+class Order(BaseModel):
+    """Order aggregate root."""
+    id: UUID = Field(default_factory=uuid4)
+    customer_id: UUID
+    items: list[OrderItem] = Field(default_factory=list)
+    shipping_address: Address
+    billing_address: t.Optional[Address] = None
+    status: OrderStatus = OrderStatus.PENDING
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: t.Optional[datetime] = None
+    
+    # Business logic
+    @model_validator(mode='after')
+    def set_billing_address(self) -> 'Order':
+        """Default billing address to shipping address if not provided."""
+        if self.billing_address is None:
+            self.billing_address = self.shipping_address
+        return self
+    
+    @computed_field
+    def total_amount(self) -> Money:
+        """Calculate the total order amount."""
+        if not self.items:
+            return Money(amount=Decimal('0'))
+        
+        # Start with the first item's total and currency
+        total = self.items[0].total_price
+        
+        # Add remaining items (if any)
+        for item in self.items[1:]:
+            total += item.total_price
+            
+        return total
+    
+    def add_item(self, item: OrderItem) -> None:
+        """Add an item to the order."""
+        if self.status != OrderStatus.PENDING:
+            raise ValueError(f"Cannot modify order in {self.status} status")
+        self.items.append(item)
+        self.updated_at = datetime.now()
+    
+    def update_status(self, new_status: OrderStatus) -> None:
+        """Update the order status."""
+        # Validate status transitions
+        valid_transitions = {
+            OrderStatus.PENDING: {OrderStatus.PAID, OrderStatus.CANCELLED},
+            OrderStatus.PAID: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+            OrderStatus.SHIPPED: {OrderStatus.DELIVERED},
+            OrderStatus.DELIVERED: set(),
+            OrderStatus.CANCELLED: set()
+        }
+        
+        if new_status not in valid_transitions[self.status]:
+            raise ValueError(
+                f"Invalid status transition from {self.status} to {new_status}"
+            )
+            
+        self.status = new_status
+        self.updated_at = datetime.now()
+
+
+# Usage
+def create_sample_order() -> Order:
+    # Create products
+    product1 = Product(
+        id=ProductId("PROD-001"),
+        name="Mechanical Keyboard",
+        description="Tactile mechanical keyboard with RGB lighting",
+        price=Money(amount=Decimal("99.99")),
+        weight_kg=1.2,
+        in_stock=10
+    )
+    
+    product2 = Product(
+        id=ProductId("PROD-002"),
+        name="Wireless Mouse",
+        description="Ergonomic wireless mouse",
+        price=Money(amount=Decimal("45.50")),
+        weight_kg=0.3,
+        in_stock=20
+    )
+    
+    # Create order items
+    item1 = OrderItem(
+        product_id=product1.id,
+        product_name=product1.name,
+        unit_price=product1.price,
+        quantity=1
+    )
+    
+    item2 = OrderItem(
+        product_id=product2.id,
+        product_name=product2.name,
+        unit_price=product2.price,
+        quantity=2
+    )
+    
+    # Create the order
+    order = Order(
+        customer_id=uuid4(),
+        shipping_address=Address(
+            street="123 Main St",
+            city="Anytown",
+            state="CA",
+            postal_code="12345",
+            country="USA"
+        ),
+        items=[item1, item2]
+    )
+    
+    return order
+
+
+# Demo
+order = create_sample_order()
+print(f"Order ID: {order.id}")
+print(f"Total: {order.total_amount}")
+print(f"Initial status: {order.status}")
+
+# Process order
+order.update_status(OrderStatus.PAID)
+print(f"New status: {order.status}")
+
+# Try invalid transition
+try:
+    order.update_status(OrderStatus.PENDING)
+except ValueError as e:
+    print(f"Error: {e}")
+```
+
 ## Learning Resources
 
 - [Official Documentation](https://docs.pydantic.dev/)
