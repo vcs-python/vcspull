@@ -1298,25 +1298,64 @@ The transition to a fully Pydantic-based approach should be implemented graduall
 
 The codebase has made good progress in adopting Pydantic v2 patterns but still has a hybrid approach that mixes manual validation with Pydantic models. By fully embracing Pydantic's validation capabilities and removing redundant manual checks, the code could be more concise, maintainable, and less prone to validation inconsistencies.
 
-The transition to Pydantic v2's best practices would involve:
+### Top Priority Improvements
 
-1. Using Literal types instead of string validation for enumeration fields
-2. Leveraging the Annotated pattern for field-level validation
-3. Adding computed_field for derived properties
-4. Enabling strict mode for more reliable validation
-5. Creating model methods for operations that are currently external functions
-6. Structuring the codebase to use TypeAdapter efficiently for performance
-7. Using discriminated unions for different repository types
-8. Providing structured error reporting with better user feedback
-9. Adding serialization aliases for flexible output formats
-10. Implementing JSON schema customization for better documentation
-11. Using caching strategies for repetitive validations
-12. Creating reusable field types for consistent validation
-13. Using model_validate_json for direct JSON validation
-14. Implementing specific container types rather than generic ones
-15. Adding error URLs for better error documentation
-16. Creating model inheritance hierarchies for code reuse
-17. Configuring field-specific validation modes (especially for unions)
-18. Implementing factory methods for flexible model creation
-19. Using ValidationInfo to access context in validators
-20. Defining a clear migration path with backward compatibility 
+1. **Reusable Field Types with `Annotated`**
+   - Create reusable field types using `Annotated` with validators for common constraints
+   - Use specialized types for paths, URLs, and other common fields
+   - Add documentation with `Doc` to improve developer experience
+
+2. **Optimized TypeAdapter Usage**
+   - Create module-level cached TypeAdapters with `@lru_cache`
+   - Configure with `defer_build=True` for performance
+   - Implement direct JSON validation with `model_validate_json`
+
+3. **Enhanced Model Architecture**
+   - Use `@computed_field` for derived properties instead of regular properties
+   - Implement model inheritance for code reuse and maintainability
+   - Apply strict validation mode for better type safety
+
+4. **Discriminated Unions for Repository Types**
+   - Use `Discriminator` and `Tag` for clear type discrimination
+   - Implement specialized repository models for each VCS type
+   - Create helper methods to smooth usage of the discriminated models
+
+5. **Structured Error Handling**
+   - Utilize `ValidationError.errors()` with full context for better error reporting
+   - Implement contextual error handling based on error types
+   - Create structured error formats for both human and machine consumers
+
+### Long-Term Strategy
+
+A phased approach to implementing these improvements ensures stability while enhancing the codebase:
+
+1. **First Phase (Immediate Wins)**
+   - Create module-level `TypeAdapter` instances
+   - Update error handling to use Pydantic's structured errors
+   - Create initial `Annotated` types for common fields
+
+2. **Second Phase (Model Structure)**
+   - Implement discriminated unions for repository types
+   - Add computed fields for derived properties
+   - Enhance model configuration for better performance and validation
+
+3. **Third Phase (Eliminate Manual Validation)**
+   - Remove redundant manual validation in favor of model validators
+   - Implement proper validation hierarchy in models
+   - Use model methods for logic that's currently in external functions
+
+4. **Fourth Phase (Advanced Features)**
+   - Implement schema customization for better documentation
+   - Add specialized serialization patterns for different outputs
+   - Optimize validation performance for critical paths
+
+By adopting these Pydantic v2 patterns, the codebase will benefit from:
+
+- Stronger type safety and validation guarantees
+- Improved developer experience with clearer error messages
+- Better performance through optimized validation paths
+- More maintainable code structure with clear separation of concerns
+- Enhanced documentation through JSON schema customization
+- Simpler testing and fewer edge cases to handle
+
+The examples provided in this document offer practical implementations of these patterns and can be used as templates when updating the existing code. 
