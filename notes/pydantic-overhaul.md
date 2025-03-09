@@ -160,74 +160,166 @@ Since the previous analysis, there have been several improvements:
 ### 1. Using TypeAdapter for Validation
 
 ```python
-from pydantic import TypeAdapter, ConfigDict
+from functools import lru_cache
+from typing import Any, TypeVar
+import typing as t
 
-# Create once at module level for reuse (better performance)
+from pydantic import TypeAdapter, ConfigDict, ValidationError
+
+# Define the types we'll need to validate
+T = TypeVar('T')
+
+# Create cached TypeAdapters at module level for better performance
+@lru_cache(maxsize=32)
+def get_validator_for(model_type: type[T]) -> TypeAdapter[T]:
+    """Create and cache a TypeAdapter for a specific model type.
+    
+    Parameters
+    ----------
+    model_type : type[T]
+        The model type to validate against
+    
+    Returns
+    -------
+    TypeAdapter[T]
+        A cached TypeAdapter instance for the model type
+    """
+    return TypeAdapter(
+        model_type,
+        config=ConfigDict(
+            # Performance options
+            defer_build=True,  # Defer schema building until needed
+            strict=True,       # Stricter validation for better type safety
+            extra="forbid",    # Prevent extra fields for cleaner data
+        )
+    )
+
+# Pre-create commonly used validators at module level
 repo_validator = TypeAdapter(
     RawRepositoryModel, 
-    config=ConfigDict(defer_build=True)  # Defer build for performance
+    config=ConfigDict(
+        defer_build=True,     # Build schema when needed
+        str_strip_whitespace=True,  # Auto-strip whitespace from strings
+    )
 )
 
 # Build schemas when module is loaded
 repo_validator.rebuild()
 
-def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
+def validate_repo_config(repo_config: dict[str, Any]) -> tuple[bool, RawRepositoryModel | str]:
     """Validate a repository configuration using Pydantic.
 
     Parameters
     ----------
-    repo_config : Dict[str, Any]
+    repo_config : dict[str, Any]
         Repository configuration to validate
 
     Returns
     -------
-    ValidationResult
-        Tuple of (is_valid, error_message)
+    tuple[bool, RawRepositoryModel | str]
+        Tuple of (is_valid, validated_model_or_error_message)
     """
     try:
         # Use TypeAdapter for validation
-        repo_validator.validate_python(repo_config)
-        return True, None
+        validated_model = repo_validator.validate_python(repo_config)
+        return True, validated_model
     except ValidationError as e:
         # Convert to structured error format
+        return False, format_pydantic_errors(e)
+
+def validate_config_from_json(json_data: str | bytes) -> tuple[bool, dict[str, Any] | str]:
+    """Validate configuration directly from JSON.
+    
+    This is more efficient than parsing JSON first and then validating.
+    
+    Parameters
+    ----------
+    json_data : str | bytes
+        JSON data to validate
+        
+    Returns
+    -------
+    tuple[bool, dict[str, Any] | str]
+        Tuple of (is_valid, validated_data_or_error_message)
+    """
+    try:
+        # Direct JSON validation - more performant
+        config = RawConfigDictModel.model_validate_json(json_data)
+        return True, config.model_dump()
+    except ValidationError as e:
+        # Use structured error reporting
         return False, format_pydantic_errors(e)
 ```
 
 ### 2. Enhanced Repository Model with Serialization Options
 
 ```python
-from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from typing import Annotated, Literal, Any
+import pathlib
+import os
+import typing as t
 
-# Custom validators
-def validate_path(path: str | pathlib.Path) -> str | pathlib.Path:
-    """Validate path is not empty."""
-    if isinstance(path, str) and not path.strip():
-        raise ValueError("Path cannot be empty")
-    return path
+from pydantic import (
+    BaseModel, 
+    ConfigDict, 
+    Field, 
+    ValidationInfo,
+    computed_field, 
+    model_validator,
+    field_validator,
+    AfterValidator,
+    BeforeValidator
+)
 
+# Create reusable field types with the Annotated pattern
+def validate_not_empty(v: str) -> str:
+    """Validate string is not empty after stripping."""
+    if v.strip() == "":
+        raise ValueError("Value cannot be empty or whitespace only")
+    return v
+
+NonEmptyStr = Annotated[str, AfterValidator(validate_not_empty)]
+
+# Path validation
+def normalize_path(path: str | pathlib.Path) -> str:
+    """Convert path to string form."""
+    return str(path)
+
+def expand_path(path: str) -> pathlib.Path:
+    """Expand variables and user directory in path."""
+    expanded = pathlib.Path(os.path.expandvars(path)).expanduser()
+    return expanded
+
+PathInput = Annotated[
+    str | pathlib.Path, 
+    BeforeValidator(normalize_path),
+    AfterValidator(validate_not_empty)
+]
+
+# Repository model with advanced features
 class RawRepositoryModel(BaseModel):
     """Raw repository configuration model before validation and path resolution."""
 
-    # Use Literal instead of string with validators
+    # Use Literal instead of string with validators for better type safety
     vcs: Literal["git", "hg", "svn"] = Field(
         description="Version control system type"
     )
     
-    name: str = Field(min_length=1, description="Repository name")
+    # Use the custom field type
+    name: NonEmptyStr = Field(description="Repository name")
     
     # Use Annotated pattern for validation
-    path: Annotated[str | pathlib.Path, validate_path] = Field(
+    path: PathInput = Field(
         description="Path to the repository"
     )
     
     # Add serialization alias for API compatibility
-    url: str = Field(
-        min_length=1, 
+    url: NonEmptyStr = Field(
         description="Repository URL",
         serialization_alias="repository_url"
     )
     
+    # Improved container types with proper typing
     remotes: dict[str, dict[str, str]] | None = Field(
         default=None,
         description="Git remote configurations (name → config)",
@@ -240,11 +332,14 @@ class RawRepositoryModel(BaseModel):
     )
 
     model_config = ConfigDict(
-        extra="forbid",
-        str_strip_whitespace=True,
+        extra="forbid",  # Reject unexpected fields
+        str_strip_whitespace=True,  # Auto-strip whitespace
         strict=True,  # Stricter type checking
         populate_by_name=True,  # Allow population from serialized names
+        validate_assignment=True,  # Validate attributes when assigned
         json_schema_extra={
+            "title": "Repository Configuration",
+            "description": "Configuration for a version control repository",
             "examples": [
                 {
                     "vcs": "git",
@@ -257,36 +352,84 @@ class RawRepositoryModel(BaseModel):
         }
     )
 
+    @field_validator('url')
+    @classmethod
+    def validate_url(cls, value: str, info: ValidationInfo) -> str:
+        """Validate URL field based on VCS type."""
+        # Access other values using context
+        vcs_type = info.data.get('vcs', '')
+        
+        # Git-specific URL validation
+        if vcs_type == 'git' and not (
+            value.endswith('.git') or 
+            value.startswith('git@') or 
+            value.startswith('ssh://') or
+            '://github.com/' in value
+        ):
+            # Consider adding .git suffix for GitHub URLs
+            if 'github.com' in value and not value.endswith('.git'):
+                return f"{value}.git"
+        
+        # Additional URL validation could be added here
+        return value
+
     @model_validator(mode='after')
     def validate_cross_field_rules(self) -> 'RawRepositoryModel':
-        """Validate cross-field rules."""
+        """Validate cross-field rules after individual fields are validated."""
         # Git remotes are only for Git repos
         if self.remotes and self.vcs != "git":
             raise ValueError("Remotes are only supported for Git repositories")
+            
+        # Hg-specific validation could go here
+        if self.vcs == "hg":
+            # Validate Mercurial-specific constraints
+            pass
+            
+        # SVN-specific validation could go here
+        if self.vcs == "svn":
+            # Validate SVN-specific constraints
+            pass
+            
         return self
     
     @computed_field
-    @property
     def is_git_repo(self) -> bool:
         """Determine if this is a Git repository."""
         return self.vcs == "git"
     
+    @computed_field
+    def expanded_path(self) -> pathlib.Path:
+        """Get fully expanded path."""
+        return expand_path(str(self.path))
+    
     def as_validated_model(self) -> 'RepositoryModel':
         """Convert to a fully validated repository model."""
         # Implementation would convert to a fully validated model
-        # by resolving paths and other transformations
         return RepositoryModel(
             vcs=self.vcs,
             name=self.name,
-            path=pathlib.Path(os.path.expandvars(str(self.path))).expanduser(),
+            path=self.expanded_path,
             url=self.url,
-            remotes={name: GitRemote.model_validate(remote) 
-                    for name, remote in (self.remotes or {}).items()},
+            remotes={
+                name: GitRemote.model_validate(remote) 
+                for name, remote in (self.remotes or {}).items()
+            } if self.is_git_repo and self.remotes else None,
             shell_command_after=self.shell_command_after,
         )
         
-    def model_dump_config(self, include_shell_commands: bool = False) -> dict:
-        """Dump model with conditional field inclusion."""
+    def model_dump_config(self, include_shell_commands: bool = False) -> dict[str, Any]:
+        """Dump model with conditional field inclusion.
+        
+        Parameters
+        ----------
+        include_shell_commands : bool, optional
+            Whether to include shell commands in the output, by default False
+            
+        Returns
+        -------
+        dict[str, Any]
+            Model data as dictionary
+        """
         exclude = set()
         if not include_shell_commands:
             exclude.add('shell_command_after')
@@ -294,51 +437,158 @@ class RawRepositoryModel(BaseModel):
         return self.model_dump(
             exclude=exclude,
             by_alias=True,  # Use serialization aliases
-            exclude_none=True  # Omit None fields
+            exclude_none=True,  # Omit None fields
+            exclude_unset=True  # Omit unset fields
         )
 ```
 
 ### 3. Using Discriminated Unions for Repository Types
 
 ```python
-from typing import Literal, Union, Annotated
-from pydantic import BaseModel, Field, RootModel, model_validator, discriminated_union
+from typing import Annotated, Literal, Union, Any
+import pathlib
+import typing as t
 
-# Define discriminator field to use with the tagged union
+from pydantic import (
+    BaseModel, 
+    Field, 
+    RootModel, 
+    model_validator, 
+    tag_property,
+    Discriminator,
+    Tag
+)
+
+# Define VCS-specific repository models
 class GitRepositoryDetails(BaseModel):
     """Git-specific repository details."""
-    type: Literal["git"]
-    remotes: dict[str, GitRemote] | None = None
+    type: Literal["git"] = "git"
+    remotes: dict[str, "GitRemote"] | None = None
+    branches: list[str] | None = None
 
 class HgRepositoryDetails(BaseModel):
     """Mercurial-specific repository details."""
-    type: Literal["hg"]
+    type: Literal["hg"] = "hg"
     revset: str | None = None
-
+    
 class SvnRepositoryDetails(BaseModel):
     """Subversion-specific repository details."""
-    type: Literal["svn"]
+    type: Literal["svn"] = "svn"
     revision: int | None = None
+    externals: bool = False
 
-# Use the discriminated_union function to create a tagged union
+# Use a property-based discriminator for type determination
+def repo_type_discriminator(v: Any) -> str:
+    """Determine repository type from input.
+    
+    Works with both dict and model instances.
+    """
+    if isinstance(v, dict):
+        return v.get('type', '')
+    elif isinstance(v, BaseModel):
+        return getattr(v, 'type', '')
+    return ''
+
+# Using Discriminator and Tag to create a tagged union
 RepositoryDetails = Annotated[
-    Union[GitRepositoryDetails, HgRepositoryDetails, SvnRepositoryDetails],
-    discriminated_union("type")
+    Union[
+        Annotated[GitRepositoryDetails, Tag('git')],
+        Annotated[HgRepositoryDetails, Tag('hg')],
+        Annotated[SvnRepositoryDetails, Tag('svn')],
+    ],
+    Discriminator(repo_type_discriminator)
 ]
 
+# Alternative method using tag_property
+class AltRepositoryDetails(BaseModel):
+    """Base class for repository details with discriminator."""
+    
+    # Use tag_property to automatically handle type discrimination
+    @tag_property
+    def type(self) -> str:
+        """Get repository type for discrimination."""
+        ...  # Will be overridden in subclasses
+
+class AltGitRepositoryDetails(AltRepositoryDetails):
+    """Git-specific repository details."""
+    type: Literal["git"] = "git"
+    remotes: dict[str, "GitRemote"] | None = None
+
+class AltHgRepositoryDetails(AltRepositoryDetails):
+    """Mercurial-specific repository details."""
+    type: Literal["hg"] = "hg"
+    revset: str | None = None
+
+# Complete repository model using discriminated union
 class RepositoryModel(BaseModel):
-    """Repository model with type-specific details."""
+    """Repository model with type-specific details using discrimination."""
+    
     name: str = Field(min_length=1)
     path: pathlib.Path
     url: str = Field(min_length=1)
-    details: RepositoryDetails  # Tagged union field with type discriminator
+    
+    # Use the discriminated union field
+    details: RepositoryDetails
     
     shell_command_after: list[str] | None = None
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "name": "example-repo",
+                    "path": "/path/to/repo",
+                    "url": "https://github.com/user/repo.git",
+                    "details": {
+                        "type": "git",
+                        "remotes": {
+                            "origin": {"url": "https://github.com/user/repo.git"}
+                        }
+                    }
+                }
+            ]
+        }
+    }
+    
+    @model_validator(mode='before')
+    @classmethod
+    def expand_shorthand(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Pre-process input data to handle shorthand notation.
+        
+        This allows users to provide a simpler format that gets expanded
+        into the required structure.
+        """
+        if isinstance(data, dict):
+            # If 'vcs' is provided but 'details' is not, create details from vcs
+            if 'vcs' in data and 'details' not in data:
+                vcs_type = data.pop('vcs')
+                # Create details structure based on vcs_type
+                data['details'] = {'type': vcs_type}
+                
+                # Move remotes into details if present (for Git)
+                if vcs_type == 'git' and 'remotes' in data:
+                    data['details']['remotes'] = data.pop('remotes')
+                    
+                # Move revision into details if present (for SVN)
+                if vcs_type == 'svn' and 'revision' in data:
+                    data['details']['revision'] = data.pop('revision')
+                    
+        return data
+        
+    @property
+    def vcs(self) -> str:
+        """Get the VCS type (for backward compatibility)."""
+        return self.details.type
 ```
 
 ### 4. Improved Error Formatting with Structured Errors
 
 ```python
+from typing import Any, Dict, List
+import json
+from pydantic import ValidationError
+from pydantic_core import ErrorDetails
+
 def format_pydantic_errors(validation_error: ValidationError) -> str:
     """Format Pydantic validation errors into a user-friendly message.
     
@@ -352,40 +602,59 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
     str
         Formatted error message
     """
-    # Get structured error representation
-    errors = validation_error.errors(include_url=True, include_context=True)
+    # Get structured error representation with URLs and context
+    errors: List[ErrorDetails] = validation_error.errors(
+        include_url=True,       # Include documentation URLs
+        include_context=True,   # Include validation context
+        include_input=True,     # Include input values
+    )
     
     # Group errors by type for better organization
-    error_categories = {
+    error_categories: Dict[str, List[str]] = {
         "missing_required": [],
         "type_error": [],
         "value_error": [],
+        "url_error": [],
+        "path_error": [],
         "other": []
     }
     
     for error in errors:
+        # Format location as dot-notation path
         location = ".".join(str(loc) for loc in error.get("loc", []))
         message = error.get("msg", "Unknown error")
         error_type = error.get("type", "")
         url = error.get("url", "")
         ctx = error.get("ctx", {})
+        input_value = error.get("input", "")
         
-        # Create a more detailed error message
+        # Create a detailed error message
         formatted_error = f"{location}: {message}"
+        
+        # Add input value if available
+        if input_value not in ("", None):
+            formatted_error += f" (input: {input_value!r})"
+            
+        # Add documentation URL if available
         if url:
-            formatted_error += f" (See: {url})"
+            formatted_error += f" (docs: {url})"
         
         # Add context information if available
         if ctx:
             context_info = ", ".join(f"{k}={v!r}" for k, v in ctx.items())
             formatted_error += f" [Context: {context_info}]"
         
+        # Categorize error by type
         if "missing" in error_type or "required" in error_type:
             error_categories["missing_required"].append(formatted_error)
         elif "type" in error_type:
             error_categories["type_error"].append(formatted_error)
         elif "value" in error_type:
             error_categories["value_error"].append(formatted_error)
+        elif "url" in error_type:
+            error_categories["url_error"].append(formatted_error)
+        elif "path" in error_type:
+            error_categories["path_error"].append(formatted_error)
         else:
             error_categories["other"].append(formatted_error)
     
@@ -403,20 +672,78 @@ def format_pydantic_errors(validation_error: ValidationError) -> str:
     if error_categories["value_error"]:
         result.append("\nValue errors:")
         result.extend(f"  • {err}" for err in error_categories["value_error"])
+        
+    if error_categories["url_error"]:
+        result.append("\nURL errors:")
+        result.extend(f"  • {err}" for err in error_categories["url_error"])
+        
+    if error_categories["path_error"]:
+        result.append("\nPath errors:")
+        result.extend(f"  • {err}" for err in error_categories["path_error"])
     
     if error_categories["other"]:
         result.append("\nOther errors:")
         result.extend(f"  • {err}" for err in error_categories["other"])
     
-    # Add suggestion based on error types
+    # Add suggestions based on error types
     if error_categories["missing_required"]:
         result.append("\nSuggestion: Ensure all required fields are provided.")
     elif error_categories["type_error"]:
         result.append("\nSuggestion: Check that field values have the correct types.")
     elif error_categories["value_error"]:
         result.append("\nSuggestion: Verify that values meet constraints (length, format, etc.).")
+    elif error_categories["url_error"]:
+        result.append("\nSuggestion: Ensure URLs are properly formatted and accessible.")
+    elif error_categories["path_error"]:
+        result.append("\nSuggestion: Verify that file paths exist and are accessible.")
+    
+    # Add JSON representation of errors for structured output
+    # For API/CLI integrations or debugging
+    result.append("\nJSON representation of errors:")
+    result.append(json.dumps(errors, indent=2))
     
     return "\n".join(result)
+
+def get_structured_errors(validation_error: ValidationError) -> dict[str, Any]:
+    """Get structured error representation suitable for API responses.
+    
+    Parameters
+    ----------
+    validation_error : ValidationError
+        The validation error to format
+        
+    Returns
+    -------
+    dict[str, Any]
+        Structured error format with categorized errors
+    """
+    # Get structured representation from errors method
+    errors = validation_error.errors(
+        include_url=True,
+        include_context=True
+    )
+    
+    # Group by error type
+    categorized = {}
+    for error in errors:
+        location = ".".join(str(loc) for loc in error.get("loc", []))
+        error_type = error.get("type", "unknown")
+        
+        if error_type not in categorized:
+            categorized[error_type] = []
+            
+        categorized[error_type].append({
+            "location": location,
+            "message": error.get("msg", ""),
+            "context": error.get("ctx", {}),
+            "url": error.get("url", "")
+        })
+    
+    return {
+        "error": "ValidationError",
+        "detail": categorized,
+        "error_count": validation_error.error_count()
+    }
 ```
 
 ### 5. Using is_valid_config with TypeAdapter
