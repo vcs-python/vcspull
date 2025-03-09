@@ -161,7 +161,7 @@ def test_validate_repo_config_empty_values() -> None:
         "name": "test-repo",
     }
     valid, message = validator.validate_repo_config(
-        t.cast(dict[str, t.Any], repo_empty_vcs)
+        t.cast("dict[str, t.Any]", repo_empty_vcs),
     )
     assert not valid
     assert message is not None
@@ -304,7 +304,8 @@ def test_validate_config_structure_invalid() -> None:
     assert not valid
     assert message is not None
     # The actual error message is about the section needing to be a dictionary
-    assert "section" in str(message).lower() and "dictionary" in str(message).lower()
+    assert "section" in str(message).lower()
+    assert "dictionary" in str(message).lower()
 
     # Test repository with non-string key
     config_with_non_string_repo = {"section1": {123: {}}}  # type: ignore
@@ -317,7 +318,7 @@ def test_validate_config_structure_invalid() -> None:
     # Note: The current implementation doesn't validate the type of URL
     # in the structure validation
     config_with_invalid_url = {
-        "section1": {"repo1": {"url": 123, "vcs": "git", "path": "/tmp"}}
+        "section1": {"repo1": {"url": 123, "vcs": "git", "path": "/tmp"}},
     }
     valid, message = validator.validate_config_structure(config_with_invalid_url)
     # Document the current behavior
@@ -326,7 +327,7 @@ def test_validate_config_structure_invalid() -> None:
 
     # Test missing required fields
     config_with_missing_fields: dict[str, dict[str, dict[str, t.Any]]] = {
-        "section1": {"repo1": {}}
+        "section1": {"repo1": {}},
     }
     valid, message = validator.validate_config_structure(config_with_missing_fields)
     assert not valid

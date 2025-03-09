@@ -6,7 +6,9 @@ import pathlib
 import typing as t
 
 from vcspull import config
-from vcspull.types import RawConfigDict
+
+if t.TYPE_CHECKING:
+    from vcspull.types import RawConfigDict
 
 
 def test_duplicate_repo_detection() -> None:
@@ -23,7 +25,7 @@ def test_duplicate_repo_detection() -> None:
 
     # Get the flat list of repositories
     # Cast the dictionary to RawConfigDict for type checking
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict))
 
     # Check if duplicates are identified
     # Note: The current implementation might not deduplicate entries
@@ -51,7 +53,7 @@ def test_duplicate_repo_different_urls() -> None:
     }
 
     # Get the flat list of repositories
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict))
 
     # Verify both repositories are included
     assert len(repo_list) == 2
@@ -91,7 +93,7 @@ def test_conflicting_repo_configs() -> None:
     merged_config = update_dict(config1, config2)
 
     # Get the flat list of repositories
-    repo_list = config.extract_repos(t.cast(RawConfigDict, merged_config))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", merged_config))
 
     # Verify only one repository is included
     assert len(repo_list) == 1
@@ -120,21 +122,6 @@ def test_conflicting_repo_configs() -> None:
 def test_conflicting_repo_types() -> None:
     """Test merging of configurations with different repository specification types."""
     # Create configurations with both shorthand and expanded formats
-    config1: dict[str, dict[str, t.Any]] = {
-        "/tmp/repos/": {
-            "repo1": "git+https://github.com/user/repo1.git",  # Shorthand format
-        },
-    }
-
-    config2: dict[str, dict[str, t.Any]] = {
-        "/tmp/repos/": {
-            "repo1": {  # Expanded format
-                "url": "https://gitlab.com/user/repo1.git",
-                "vcs": "git",
-                "shell_command_after": ["echo 'Repo synced'"],
-            },
-        },
-    }
 
     # Instead of using update_dict which has issues with string vs dict,
     # we'll manually create a merged config
@@ -149,7 +136,7 @@ def test_conflicting_repo_types() -> None:
     }
 
     # Get the flat list of repositories
-    repo_list = config.extract_repos(t.cast(RawConfigDict, merged_config))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", merged_config))
 
     # Verify only one repository is included
     assert len(repo_list) == 1

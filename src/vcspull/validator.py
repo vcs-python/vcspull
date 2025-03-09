@@ -15,7 +15,9 @@ from vcspull.schemas import (
     RawConfigDictModel,
     RawRepositoryModel,
 )
-from vcspull.types import PathLike, RawConfigDict
+
+if t.TYPE_CHECKING:
+    from vcspull.types import PathLike, RawConfigDict
 
 # Type adapter for fast validation of repository configurations
 is_valid_repo_config = TypeAdapter(RawRepositoryModel).validate_python
@@ -42,7 +44,7 @@ class ValidationResult:
         error_message = None
         if self.errors:
             error_message = "Configuration validation failed:\n  " + "\n  ".join(
-                self.errors
+                self.errors,
             )
         yield error_message
 
@@ -159,9 +161,10 @@ def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfigDict]:
         # Fast validation using the cached type adapter
         # The validate_python method returns a model, but we need to return a boolean
         is_valid_config_dict(config)
-        return True
     except Exception:
         return False
+    else:
+        return True
 
 
 def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
@@ -183,7 +186,7 @@ def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
     if not isinstance(repo_config, dict):
         result.valid = False
         result.errors.append(
-            f"Repository config must be a dictionary, got {type(repo_config).__name__}"
+            f"Repository config must be a dictionary, got {type(repo_config).__name__}",
         )
         return result
 
@@ -203,7 +206,7 @@ def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
         elif not vcs.strip():  # Check for empty or whitespace-only strings
             result.valid = False
             result.errors.append("VCS cannot be empty")
-        elif vcs not in ["git", "hg", "svn"]:
+        elif vcs not in {"git", "hg", "svn"}:
             result.valid = False
             result.errors.append(f"Invalid VCS type: {vcs}")
 
@@ -326,7 +329,7 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
         # Section name must be a string
         if not isinstance(section_name, str):
             errors.append(
-                f"Section name must be a string, got {type(section_name).__name__}"
+                f"Section name must be a string, got {type(section_name).__name__}",
             )
             result.valid = False
 
@@ -340,7 +343,7 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
             # Repository name must be a string
             if not isinstance(repo_name, str):
                 errors.append(
-                    f"Repository name must be a string, got {type(repo_name).__name__}"
+                    f"Repository name must be a string, got {type(repo_name).__name__}",
                 )
                 result.valid = False
 
@@ -349,7 +352,7 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
                 # Check for empty URL
                 if not repo.strip():
                     errors.append(
-                        f"Empty URL for repository '{section_name}.{repo_name}'"
+                        f"Empty URL for repository '{section_name}.{repo_name}'",
                     )
                     result.valid = False
                 continue
@@ -358,7 +361,7 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
             if not isinstance(repo, dict):
                 errors.append(
                     f"Repository '{section_name}.{repo_name}' "
-                    "must be a dictionary or string URL"
+                    "must be a dictionary or string URL",
                 )
                 result.valid = False
                 continue
@@ -370,15 +373,15 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
                     if field not in repo:
                         errors.append(
                             f"Missing required field '{field}' in repository "
-                            f"'{section_name}.{repo_name}'"
+                            f"'{section_name}.{repo_name}'",
                         )
                         result.valid = False
 
                 # Check for invalid values
-                if "vcs" in repo and repo["vcs"] not in ["git", "hg", "svn"]:
+                if "vcs" in repo and repo["vcs"] not in {"git", "hg", "svn"}:
                     errors.append(
                         f"Invalid VCS type '{repo['vcs']}' in repository "
-                        f"'{section_name}.{repo_name}'"
+                        f"'{section_name}.{repo_name}'",
                     )
                     result.valid = False
 
@@ -386,7 +389,7 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
                 # (test_validate_config_nested_validation_errors)
                 if "url" in repo and not repo["url"]:
                     errors.append(
-                        f"Repository '{section_name}.{repo_name}': URL cannot be empty"
+                        f"Repository '{section_name}.{repo_name}': URL cannot be empty",
                     )
                     result.valid = False
 
@@ -395,7 +398,7 @@ def validate_config_structure(config: t.Any) -> ValidationResult:
                 if "path" in repo and not repo["path"]:
                     errors.append(
                         f"Repository '{section_name}.{repo_name}': "
-                        "Path cannot be empty or whitespace only"
+                        "Path cannot be empty or whitespace only",
                     )
                     result.valid = False
 
@@ -431,13 +434,11 @@ def validate_config(config: t.Any) -> None:
     if isinstance(error_message, str):
         if "must be a dictionary" in error_message:
             raise exc.ConfigValidationError(error_message)
-        else:
-            # Generic validation error
-            raise exc.ConfigValidationError(error_message)
-    else:
-        # Fallback for unexpected error format
-        error_msg = "Configuration validation failed with an unknown error"
-        raise exc.ConfigValidationError(error_msg)
+        # Generic validation error
+        raise exc.ConfigValidationError(error_message)
+    # Fallback for unexpected error format
+    error_msg = "Configuration validation failed with an unknown error"
+    raise exc.ConfigValidationError(error_msg)
 
 
 def validate_config_json(json_data: str | bytes) -> ValidationResult:
@@ -581,7 +582,7 @@ def get_structured_errors(validation_error: ValidationError) -> dict[str, t.Any]
                 {
                     "type": error.get("type", "unknown_error"),
                     "msg": error.get("msg", "Unknown error"),
-                }
+                },
             )
 
     # Add path field for test_get_structured_errors
@@ -591,7 +592,7 @@ def get_structured_errors(validation_error: ValidationError) -> dict[str, t.Any]
                 "type": "value_error",
                 "msg": "Value added for test compatibility",
                 "input": "",
-            }
+            },
         ]
 
     return structured_errors

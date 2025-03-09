@@ -9,7 +9,9 @@ import typing as t
 import pytest
 
 from vcspull import config
-from vcspull.types import RawConfigDict
+
+if t.TYPE_CHECKING:
+    from vcspull.types import RawConfigDict
 
 
 def test_unicode_paths() -> None:
@@ -32,7 +34,7 @@ def test_unicode_paths() -> None:
     }
 
     # Process the configuration - this should not raise any exceptions
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict))
 
     # Verify all paths were processed
     assert len(repo_list) == 4
@@ -55,7 +57,7 @@ def test_very_long_paths() -> None:
     }
 
     # Extract repositories (should work regardless of path length limitations)
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict))
 
     # Verify path is processed
     assert len(repo_list) == 1
@@ -73,7 +75,7 @@ def test_very_long_paths() -> None:
     }
 
     # This should also work
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict))
     assert len(repo_list) == 1
     repo = repo_list[0]
     assert repo["name"] == very_long_repo_name
@@ -100,7 +102,7 @@ def test_special_characters_in_paths() -> None:
     }
 
     # Extract repositories - should handle special characters properly
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict))
 
     # Verify all paths were processed
     assert len(repo_list) == 4
@@ -129,7 +131,7 @@ def test_relative_paths() -> None:
 
     # Extract repositories with a specific current working directory
     cwd = pathlib.Path("/tmp/vcspull_test")
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict), cwd=cwd)
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict), cwd=cwd)
 
     # Check that paths are properly resolved
     paths = {str(repo["path"]) for repo in repo_list}
@@ -148,7 +150,7 @@ def test_path_traversal_attempts() -> None:
     }
 
     # Extract repositories - this should normalize the path
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict))
 
     # Verify the path exists in the result
     path = str(repo_list[0]["path"])
@@ -177,7 +179,7 @@ def test_empty_path_components() -> None:
     }
 
     # Extract repositories - this should normalize the paths
-    repo_list = config.extract_repos(t.cast(RawConfigDict, config_dict))
+    repo_list = config.extract_repos(t.cast("RawConfigDict", config_dict))
 
     # Verify all paths were normalized
     assert len(repo_list) == 2
