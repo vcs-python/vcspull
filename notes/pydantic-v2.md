@@ -677,6 +677,85 @@ class Product(BaseModel):
 schema = Product.model_json_schema(ref_template="{model}")
 ```
 
+#### JSON Schema Modes
+
+Pydantic v2 supports two JSON schema modes that control how the schema is generated:
+
+```python
+from decimal import Decimal
+from pydantic import BaseModel
+
+class Price(BaseModel):
+    amount: Decimal
+
+# Validation schema - includes all valid input formats
+validation_schema = Price.model_json_schema(mode='validation')
+# {
+#   "properties": {
+#     "amount": {
+#       "anyOf": [{"type": "number"}, {"type": "string"}],
+#       "title": "Amount"
+#     }
+#   },
+#   "required": ["amount"],
+#   "title": "Price",
+#   "type": "object"
+# }
+
+# Serialization schema - only includes output format
+serialization_schema = Price.model_json_schema(mode='serialization')
+# {
+#   "properties": {
+#     "amount": {"type": "string", "title": "Amount"}
+#   },
+#   "required": ["amount"],
+#   "title": "Price",
+#   "type": "object"
+# }
+```
+
+#### Advanced Schema Customization
+
+For more complex schema customization, you can also:
+
+1. **Use `json_schema_extra` in `Field()`**:
+   ```python
+   website: str = Field(
+       json_schema_extra={
+           "format": "uri",
+           "pattern": "^https?://",
+           "examples": ["https://example.com"]
+       }
+   )
+   ```
+
+2. **Add custom keywords with model_config**:
+   ```python
+   model_config = ConfigDict(
+       json_schema_extra={
+           "$comment": "This schema is for internal use only.",
+           "additionalProperties": False
+       }
+   )
+   ```
+
+3. **Use the ref_template parameter** to control how references are generated:
+   ```python
+   # Use full paths in references
+   schema = model.model_json_schema(ref_template="#/$defs/{model}")
+   
+   # Inline all references (no $refs)
+   schema = model.model_json_schema(ref_template="{model}")
+   ```
+
+4. **Generate schema from TypeAdapter**:
+   ```python
+   from pydantic import TypeAdapter
+   
+   ListOfUsers = TypeAdapter(list[User])
+   schema = ListOfUsers.json_schema()
+   ```
+
 ### OpenAPI Integration
 
 Pydantic schemas can be used directly with FastAPI for automatic API documentation:
@@ -1104,6 +1183,84 @@ class User(BaseModel):
         return delta.days // 365
 ```
 
+#### Computed Field Options
+
+The `@computed_field` decorator accepts several parameters to customize its behavior:
+
+```python
+from datetime import datetime
+from functools import cached_property
+from pydantic import BaseModel, computed_field
+
+
+class Rectangle(BaseModel):
+    width: float
+    height: float
+    
+    @computed_field(
+        alias="area_sq_m",         # Custom alias for serialization
+        title="Area",              # JSON schema title
+        description="Area in m²",  # JSON schema description
+        repr=True,                 # Include in string representation
+        examples=[25.0, 36.0],     # Examples for JSON schema
+    )
+    @property
+    def area(self) -> float:
+        return self.width * self.height
+    
+    @computed_field(repr=False)    # Exclude from string representation
+    @cached_property               # Use cached_property for performance
+    def perimeter(self) -> float:
+        return 2 * (self.width + self.height)
+
+
+# Create an instance
+rect = Rectangle(width=5, height=10)
+print(rect)             # Rectangle(width=5.0, height=10.0, area=50.0)
+print(rect.perimeter)   # 30.0 (cached after first access)
+print(rect.model_dump()) 
+# {'width': 5.0, 'height': 10.0, 'area': 50.0, 'perimeter': 30.0}
+
+# Customized serialization with alias
+print(rect.model_dump(by_alias=True))
+# {'width': 5.0, 'height': 10.0, 'area_sq_m': 50.0, 'perimeter': 30.0}
+
+# JSON schema includes computed fields in serialization mode
+print(Rectangle.model_json_schema(mode='serialization'))
+# Output includes 'area' and 'perimeter' fields
+```
+
+#### Important Notes on Computed Fields
+
+1. **Property vs. Method**: The `@computed_field` decorator converts methods to properties if they aren't already.
+
+2. **Type Hinting**: Always provide return type annotations for proper JSON schema generation.
+
+3. **With cached_property**: Use `@cached_property` for expensive calculations (apply it before `@computed_field`).
+
+4. **Readonly in Schema**: Computed fields are marked as `readOnly: true` in JSON schema.
+
+5. **Field Dependencies**: Computed fields depend on other fields but these dependencies aren't tracked automatically.
+
+6. **Deprecating Computed Fields**: You can mark computed fields as deprecated:
+   ```python
+   from typing_extensions import deprecated
+   
+   @computed_field
+   @property
+   @deprecated("Use 'area' instead")
+   def square_area(self) -> float:
+       return self.width * self.height
+   ```
+
+7. **Private Fields**: Private computed fields (starting with `_`) have `repr=False` by default.
+   ```python
+   @computed_field  # repr=False by default for _private fields
+   @property
+   def _internal_value(self) -> int:
+       return 42
+   ```
+
 ### RootModel for Simple Types with Validation
 
 Use RootModel to add validation to simple types:
@@ -1391,6 +1548,173 @@ EvenInt = t.Annotated[int, AfterValidator(validate_even)]
 class Config(BaseModel):
     port: EvenInt  # Must be an even number
 ```
+
+### Immutable Models
+
+Using immutable (frozen) models can help prevent bugs from unexpected state changes:
+
+```python
+import typing as t
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# Make the entire model immutable
+class Config(BaseModel, frozen=True):
+    api_key: str
+    timeout: int = 60
+    created_at: datetime = Field(default_factory=datetime.now)
+
+# Only make specific fields immutable
+class User(BaseModel):
+    id: int = Field(frozen=True)  # ID can't be changed
+    username: str = Field(frozen=True)  # Username can't be changed
+    display_name: str  # Can be modified
+    last_login: datetime = Field(default_factory=datetime.now)  # Can be modified
+
+
+# Create instances
+config = Config(api_key="secret")
+user = User(id=1, username="johndoe", display_name="John")
+
+# Try to modify
+try:
+    config.timeout = 30  # Raises ValidationError, entire model is frozen
+except Exception as e:
+    print(f"Error: {e}")
+
+try:
+    user.id = 2  # Raises ValidationError, field is frozen
+except Exception as e:
+    print(f"Error: {e}")
+
+# This works because the field isn't frozen
+user.display_name = "John Doe" 
+```
+
+Benefits of immutable models:
+
+1. **Thread safety**: Immutable objects are inherently thread-safe
+2. **Predictable behavior**: No surprise state changes
+3. **Better caching**: Safe to cache without worrying about modifications
+4. **Simpler debugging**: State doesn't change unexpectedly
+
+When to use frozen models:
+- Configuration objects
+- Value objects
+- Models representing completed transactions
+- Any model where state shouldn't change after creation
+
+### Modern Pydantic Practices
+
+These patterns represent evolving best practices in Pydantic v2 development:
+
+```python
+import typing as t
+from datetime import datetime
+from uuid import UUID, uuid4
+from pydantic import BaseModel, Field, ConfigDict, ValidationInfo, field_validator
+
+
+# 1. Use ConfigDict instead of Config class
+class User(BaseModel):
+    model_config = ConfigDict(
+        frozen=False,
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        extra='forbid'
+    )
+    # ...fields...
+
+
+# 2. Use classmethod validators with ValidationInfo
+class Order(BaseModel):
+    items: list[str]
+    
+    @field_validator('items')
+    @classmethod
+    def validate_items(cls, v: list[str], info: ValidationInfo) -> list[str]:
+        # ValidationInfo provides access to context like:
+        # - info.context: the validation context
+        # - info.config: model configuration
+        # - info.data: all data being validated
+        return v
+
+
+# 3. Prefer Annotated pattern for field constraints
+from typing import Annotated
+
+# Define reusable constraints
+UserId = Annotated[int, Field(gt=0)]
+Username = Annotated[str, Field(min_length=3, max_length=50)]
+Email = Annotated[str, Field(pattern=r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')]
+
+# Use them consistently across models
+class CreateUser(BaseModel):
+    username: Username
+    email: Email
+    
+class UpdateUser(BaseModel):
+    id: UserId
+    username: Username
+    email: Email
+
+
+# 4. Separate models based on purpose
+# API Input Model
+class UserCreateInput(BaseModel):
+    """Validates user input from API"""
+    username: str
+    email: str
+    password: str
+    
+    model_config = ConfigDict(extra='forbid')  # Reject unknown fields
+
+# Database Model
+class UserDB(BaseModel):
+    """Represents user in database"""
+    id: UUID = Field(default_factory=uuid4)
+    username: str
+    email: str
+    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    @classmethod
+    def from_input(cls, input_data: UserCreateInput, hashed_pw: str) -> 'UserDB':
+        """Create DB model from input model"""
+        return cls(
+            username=input_data.username,
+            email=input_data.email,
+            hashed_password=hashed_pw
+        )
+
+# API Output Model
+class UserResponse(BaseModel):
+    """Returns user data to client"""
+    id: UUID
+    username: str
+    email: str
+    created_at: datetime
+    
+    @classmethod
+    def from_db(cls, db_model: UserDB) -> 'UserResponse':
+        """Create response model from DB model"""
+        return cls(
+            id=db_model.id,
+            username=db_model.username,
+            email=db_model.email,
+            created_at=db_model.created_at
+        )
+```
+
+Key modern patterns to follow:
+
+1. **Model separation**: Use separate models for input validation, domain logic, and API responses
+2. **Factory methods**: Add classmethod factory methods for common transformations
+3. **Reusable type definitions**: Define and reuse complex types with `Annotated`
+4. **Explicit configuration**: Use `ConfigDict` with clear settings
+5. **Context-aware validation**: Use `ValidationInfo` to access field context
+6. **Type adapter usage**: Prefer TypeAdapter for validating non-model types
 
 ### Performance Optimization
 
@@ -3062,3 +3386,199 @@ Available pipeline components include:
 - **`pipeline.computed(func, dependencies)`**: Computes a value based on other fields (specified in dependencies)
 
 While this API is still experimental, it represents a more elegant approach to complex validation scenarios and may become the preferred way to handle sophisticated validation in future versions.
+
+### Working With TypedDict
+
+TypeAdapter makes it easy to use Python's `TypedDict` with Pydantic validation:
+
+```python
+import typing as t
+from typing_extensions import NotRequired, Required, TypedDict
+from pydantic import TypeAdapter, ValidationError
+
+# Define a TypedDict
+class UserDict(TypedDict):
+    id: int
+    name: str
+    email: NotRequired[str]  # Optional field in Python 3.11+
+
+# Create a TypeAdapter for the TypedDict
+user_adapter = TypeAdapter(UserDict)
+
+# Validate data against the TypedDict
+try:
+    # Validation works with type coercion
+    user = user_adapter.validate_python({"id": "123", "name": "John"})
+    print(user)  # {'id': 123, 'name': 'John'}
+    
+    # Validation errors are raised for invalid data
+    user_adapter.validate_python({"name": "John"})  # Missing required 'id'
+except ValidationError as e:
+    print(e)
+    # 1 validation error for typed dict
+    # id
+    #   Field required [type=missing, input_value={'name': 'John'}, input_type=dict]
+
+# Generate JSON schema
+schema = user_adapter.json_schema()
+print(schema)
+# {
+#   "properties": {
+#     "id": {"title": "Id", "type": "integer"},
+#     "name": {"title": "Name", "type": "string"},
+#     "email": {"title": "Email", "type": "string"}
+#   },
+#   "required": ["id", "name"],
+#   "title": "UserDict",
+#   "type": "object"
+# }
+```
+
+#### TypedDict Advanced Features
+
+Pydantic supports many TypedDict features introduced in newer Python versions:
+
+```python
+from typing_extensions import NotRequired, Required, TypedDict
+from pydantic import TypeAdapter
+
+# Total=False makes all fields optional by default
+class ConfigDict(TypedDict, total=False):
+    debug: bool
+    log_level: str
+    
+    # Required marks specific fields as required
+    api_key: Required[str]
+
+# Inheritance works as expected
+class UserConfig(ConfigDict):
+    username: str  # Inherited fields remain with their original required status
+    
+# With NotRequired (Python 3.11+) you can mark specific fields as optional
+class Product(TypedDict):
+    id: int
+    name: str
+    description: NotRequired[str]  # Optional field
+
+# Create adapters
+config_adapter = TypeAdapter(ConfigDict)
+user_config_adapter = TypeAdapter(UserConfig)
+product_adapter = TypeAdapter(Product)
+
+# Validate
+config = config_adapter.validate_python({"api_key": "secret"})  # debug and log_level are optional
+user_config = user_config_adapter.validate_python({"api_key": "secret", "username": "john"})
+product = product_adapter.validate_python({"id": 1, "name": "Laptop"})  # description is optional
+```
+
+#### Limitations of TypedDict
+
+There are some limitations to be aware of when using TypedDict with Pydantic:
+
+1. **Computed fields** are not yet supported with TypedDict (as of Pydantic v2.8)
+2. When validating nested TypedDict structures, all validation happens at once rather than step by step
+3. Some advanced field customization features may not work with TypedDict fields
+
+#### Protocol Validation with Custom Validators
+
+Pydantic v2 allows powerful protocol validation with custom validators:
+
+```python
+import typing as t
+from datetime import datetime
+from typing_extensions import Protocol, runtime_checkable
+from pydantic import TypeAdapter, ValidationError, GetCoreSchemaHandler, BeforeValidator
+from pydantic_core import core_schema
+
+
+# Define a protocol
+@runtime_checkable
+class HasTimestamp(Protocol):
+    """Protocol for objects with timestamp access"""
+    def get_timestamp(self) -> datetime: ...
+    
+
+# Define classes that implement the protocol
+class Event:
+    def __init__(self, event_time: datetime):
+        self._time = event_time
+        
+    def get_timestamp(self) -> datetime:
+        return self._time
+
+
+class LogEntry:
+    def __init__(self, log_time: datetime, level: str, message: str):
+        self.log_time = log_time
+        self.level = level
+        self.message = message
+        
+    def get_timestamp(self) -> datetime:
+        return self.log_time
+
+
+# Custom validator for protocol checking
+def validate_has_timestamp(v: t.Any) -> HasTimestamp:
+    if isinstance(v, HasTimestamp):
+        return v
+    raise ValueError(f"Expected object with get_timestamp method, got {type(v)}")
+
+
+# Create a type adapter with the protocol
+timestamp_adapter = TypeAdapter(
+    t.Annotated[HasTimestamp, BeforeValidator(validate_has_timestamp)]
+)
+
+# Use the adapter to validate objects
+event = Event(datetime.now())
+log_entry = LogEntry(datetime.now(), "INFO", "System started")
+
+# Both objects implement the protocol and pass validation
+valid_event = timestamp_adapter.validate_python(event)
+valid_log = timestamp_adapter.validate_python(log_entry)
+
+# This will fail - does not implement the protocol
+try:
+    timestamp_adapter.validate_python({"timestamp": "2023-01-01T12:00:00"})
+except ValidationError as e:
+    print(f"Validation error: {e}")
+
+
+# Advanced: Creating a protocol validator directly with core schema
+class HasIDAndName(Protocol):
+    id: int
+    name: str
+
+def create_protocol_validator_schema(
+    _core_schema: core_schema.CoreSchema, handler: GetCoreSchemaHandler
+) -> core_schema.CoreSchema:
+    return core_schema.general_after_validator_function(
+        lambda v: v if hasattr(v, 'id') and hasattr(v, 'name') else None,
+        handler(t.Any),
+        error_message="Object must have 'id' and 'name' attributes",
+    )
+
+# Use in a model
+from pydantic import create_model
+
+ProtocolModel = create_model(
+    'ProtocolModel',
+    item=(
+        t.Annotated[HasIDAndName, create_protocol_validator_schema],
+        ...  # Required field
+    )
+)
+```
+
+#### Benefits of Protocol Validation
+
+1. **Structural typing**: Validate based on what objects can do, not what they are
+2. **Loose coupling**: No inheritance requirements between validated classes
+3. **Framework-agnostic**: Works with any objects that match the protocol
+4. **Runtime verification**: Uses Python's runtime protocol checking
+
+When to use protocols:
+- Integration between different libraries or systems
+- Plugin architectures
+- Testing with mock objects
+- Domain modeling with behavior focus
