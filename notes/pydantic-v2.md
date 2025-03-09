@@ -1843,3 +1843,145 @@ try:
 except ValidationError as e:
     print(f"Validation error: {e}")
 ```
+
+### Protocol Validation
+
+Pydantic supports validation against protocols (structural typing):
+
+```python
+import typing as t
+from typing_extensions import Protocol, runtime_checkable
+from pydantic import TypeAdapter, ValidationError
+
+
+# Define a protocol - a structural interface
+@runtime_checkable
+class Drivable(Protocol):
+    """Protocol for objects that can be driven"""
+    def drive(self) -> str: ...
+    speed: int
+
+
+# Classes that structurally match the protocol
+class Car:
+    speed: int = 120
+    
+    def __init__(self, make: str):
+        self.make = make
+    
+    def drive(self) -> str:
+        return f"Driving {self.make} at {self.speed} km/h"
+
+
+class Bicycle:
+    speed: int = 25
+    
+    def drive(self) -> str:
+        return f"Pedaling at {self.speed} km/h"
+
+
+class Plane:
+    altitude: int = 10000
+    
+    def fly(self) -> str:
+        return f"Flying at {self.altitude} feet"
+
+
+# Validate against the protocol
+drivable_adapter = TypeAdapter(Drivable)
+
+# These conform to the Drivable protocol
+car = drivable_adapter.validate_python(Car("Toyota"))
+bicycle = drivable_adapter.validate_python(Bicycle())
+
+try:
+    # This will fail - Plane doesn't implement drive()
+    plane = drivable_adapter.validate_python(Plane())
+except ValidationError as e:
+    print(f"Validation error: {e}")
+```
+
+### Dynamic Model Generation
+
+Create Pydantic models dynamically at runtime:
+
+```python
+import typing as t
+from pydantic import create_model, BaseModel, Field
+
+
+# Function to generate a model dynamically
+def create_product_model(category: str, fields: dict[str, tuple[t.Type, t.Any]]) -> t.Type[BaseModel]:
+    """
+    Dynamically create a product model based on category and fields.
+    
+    Args:
+        category: Product category name
+        fields: Dictionary mapping field names to (type, default) tuples
+    
+    Returns:
+        A new Pydantic model class
+    """
+    # Common fields for all products
+    common_fields = {
+        "id": (int, Field(..., description="Product ID")),
+        "name": (str, Field(..., min_length=1, max_length=100)),
+        "category": (str, Field(category, description="Product category")),
+        "price": (float, Field(..., gt=0)),
+    }
+    
+    # Combine common fields with category-specific fields
+    all_fields = {**common_fields, **fields}
+    
+    # Create and return the model
+    return create_model(
+        f"{category.title()}Product",
+        **all_fields,
+        __doc__=f"Dynamically generated model for {category} products"
+    )
+
+
+# Create different product models
+ElectronicProduct = create_product_model(
+    "electronic",
+    {
+        "warranty_months": (int, Field(12, ge=0)),
+        "voltage": (float, Field(220.0)),
+        "has_bluetooth": (bool, Field(False)),
+    }
+)
+
+ClothingProduct = create_product_model(
+    "clothing",
+    {
+        "size": (str, Field(..., pattern=r'^(XS|S|M|L|XL|XXL)$')),
+        "color": (str, Field(...)),
+        "material": (str, Field("cotton")),
+    }
+)
+
+# Use the dynamically generated models
+laptop = ElectronicProduct(
+    id=1001,
+    name="Laptop Pro",
+    price=1299.99,
+    warranty_months=24,
+    voltage=110.0,
+    has_bluetooth=True
+)
+
+shirt = ClothingProduct(
+    id=2001,
+    name="Summer Shirt",
+    price=29.99,
+    size="M",
+    color="Blue"
+)
+
+# Access fields normally
+print(f"{laptop.name}: ${laptop.price} with {laptop.warranty_months} months warranty")
+print(f"{shirt.name}: ${shirt.price}, Size: {shirt.size}, Material: {shirt.material}")
+
+# Generate schema for dynamic models
+print(ElectronicProduct.model_json_schema()["title"])  # "ElectronicProduct"
+```
