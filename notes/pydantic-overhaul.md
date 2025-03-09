@@ -49,10 +49,13 @@ Since the previous analysis, there have been several improvements:
    - Limited use of model validators for cross-field validation
    - No use of computed fields or model methods for validation logic
    - Not using `model_validator` for whole-model validation
+   - No use of Literal types for restricted string values
+   - Not leveraging TypeAdapter for performance-critical validation
 
 4. **Manual Error Handling**:
    - Custom error formatting in `format_pydantic_errors()` duplicates some Pydantic functionality
    - Error propagation is handled manually rather than using Pydantic's exception system
+   - Not using structured JSON error reporting capabilities
 
 5. **Duplicated Validation Logic**:
    - VCS type validation happens in both validator.py and in the Pydantic models
@@ -63,29 +66,51 @@ Since the previous analysis, there have been several improvements:
 1. **Complete Migration to Pydantic-First Approach**:
    - Remove manual checks in `is_valid_config()` and replace with Pydantic validation
    - Eliminate redundant validation by fully relying on Pydantic models' validators
+   - Move business logic into models rather than external validation functions
 
 2. **Use More Pydantic v2 Features**:
    - Add `@model_validator` for cross-field validations
-   - Use `TypeAdapter` for validating partial structures
-   - Consider using computed fields for derived properties
+   - Use `TypeAdapter` for validating partial structures and performance optimization
+   - Implement `@computed_field` for derived properties
+   - Use `Literal` types for enum-like fields (e.g., VCS types)
+   - Apply the Annotated pattern for field-level validation
 
 3. **Simplify Error Handling**:
    - Refine `format_pydantic_errors()` to better leverage Pydantic's error structure
-   - Consider using Pydantic's `ValidationError.json()` for structured error output
+   - Use Pydantic's `ValidationError.json()` for structured error output
+   - Consider using error_msg_templates for customized error messages
 
 4. **Consolidate Validation Logic**:
    - Move all validation logic to the Pydantic models where possible
    - Use model methods and validators to centralize business rules
+   - Implement model conversion methods for transformations
 
 5. **Advanced Validation Patterns**:
-   - Consider using `Annotated` types with custom validators
-   - Implement proper discriminated unions for different repository types
+   - Use `Annotated` types with custom validators
+   - Implement discriminated unions for different repository types
+   - Enable strict mode for more reliable type checking
 
-## Example Implementation
+6. **Performance Optimizations**:
+   - Use deferred validation for expensive validations
+   - Create TypeAdapter instances at module level for reuse
+   - Apply model_config tuning for performance-critical models
 
-Here's how `validate_repo_config()` could be refactored to fully leverage Pydantic:
+## Implementation Examples
+
+### 1. Using TypeAdapter for Validation
 
 ```python
+from pydantic import TypeAdapter, ConfigDict
+
+# Create once at module level for reuse (better performance)
+repo_validator = TypeAdapter(
+    RawRepositoryModel, 
+    config=ConfigDict(defer_build=True)  # Defer build for performance
+)
+
+# Build schemas when module is loaded
+repo_validator.rebuild()
+
 def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
     """Validate a repository configuration using Pydantic.
 
@@ -100,32 +125,49 @@ def validate_repo_config(repo_config: dict[str, t.Any]) -> ValidationResult:
         Tuple of (is_valid, error_message)
     """
     try:
-        # Let Pydantic handle all validation including empty strings
-        # All constraints should be defined in the model
-        RawRepositoryModel.model_validate(repo_config)
+        # Use TypeAdapter for validation
+        repo_validator.validate_python(repo_config)
         return True, None
     except ValidationError as e:
-        # Use format_pydantic_errors to provide user-friendly messages
+        # Convert to structured error format
         return False, format_pydantic_errors(e)
 ```
 
-And the corresponding model could be enhanced:
+### 2. Enhanced Repository Model
 
 ```python
+from typing import Annotated, Literal
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+
+# Custom validators
+def validate_path(path: str | pathlib.Path) -> str | pathlib.Path:
+    """Validate path is not empty."""
+    if isinstance(path, str) and not path.strip():
+        raise ValueError("Path cannot be empty")
+    return path
+
 class RawRepositoryModel(BaseModel):
     """Raw repository configuration model before validation and path resolution."""
 
-    vcs: str = Field(
-        min_length=1,
-        description="Version control system type (git, hg, svn)",
+    # Use Literal instead of string with validators
+    vcs: Literal["git", "hg", "svn"] = Field(
+        description="Version control system type"
     )
+    
     name: str = Field(min_length=1, description="Repository name")
-    path: str | pathlib.Path = Field(description="Path to the repository")
+    
+    # Use Annotated pattern for validation
+    path: Annotated[str | pathlib.Path, validate_path] = Field(
+        description="Path to the repository"
+    )
+    
     url: str = Field(min_length=1, description="Repository URL")
-    remotes: dict[str, dict[str, t.Any]] | None = Field(
+    
+    remotes: dict[str, dict[str, str]] | None = Field(
         default=None,
         description="Git remote configurations (name → config)",
     )
+    
     shell_command_after: list[str] | None = Field(
         default=None,
         description="Commands to run after repository operations",
@@ -134,22 +176,230 @@ class RawRepositoryModel(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
         str_strip_whitespace=True,
+        strict=True,  # Stricter type checking
     )
 
     @model_validator(mode='after')
-    def validate_vcs_compatibility(self) -> 'RawRepositoryModel':
-        """Validate that remotes are only used with Git repositories."""
-        if self.remotes is not None and self.vcs.lower() != 'git':
+    def validate_cross_field_rules(self) -> 'RawRepositoryModel':
+        """Validate cross-field rules."""
+        # Git remotes are only for Git repos
+        if self.remotes and self.vcs != "git":
             raise ValueError("Remotes are only supported for Git repositories")
         return self
+    
+    @computed_field
+    @property
+    def is_git_repo(self) -> bool:
+        """Determine if this is a Git repository."""
+        return self.vcs == "git"
+    
+    def as_validated_model(self) -> 'RepositoryModel':
+        """Convert to a fully validated repository model."""
+        # Implementation would convert to a fully validated model
+        # by resolving paths and other transformations
+        return RepositoryModel(
+            vcs=self.vcs,
+            name=self.name,
+            path=pathlib.Path(os.path.expandvars(str(self.path))).expanduser(),
+            url=self.url,
+            remotes={name: GitRemote.model_validate(remote) 
+                    for name, remote in (self.remotes or {}).items()},
+            shell_command_after=self.shell_command_after,
+        )
 ```
+
+### 3. Using Discriminated Unions for Repository Types
+
+```python
+from typing import Literal, Union
+from pydantic import BaseModel, Field, RootModel, model_validator
+
+class GitRepositoryDetails(BaseModel):
+    """Git-specific repository details."""
+    remotes: dict[str, GitRemote] | None = None
+
+class HgRepositoryDetails(BaseModel):
+    """Mercurial-specific repository details."""
+    revset: str | None = None
+
+class SvnRepositoryDetails(BaseModel):
+    """Subversion-specific repository details."""
+    revision: int | None = None
+
+class RepositoryModel(BaseModel):
+    """Repository model with type-specific details."""
+    name: str = Field(min_length=1)
+    path: pathlib.Path
+    url: str = Field(min_length=1)
+    vcs: Literal["git", "hg", "svn"]
+    
+    # Type-specific details
+    git_details: GitRepositoryDetails | None = None
+    hg_details: HgRepositoryDetails | None = None
+    svn_details: SvnRepositoryDetails | None = None
+    
+    shell_command_after: list[str] | None = None
+
+    @model_validator(mode='after')
+    def validate_vcs_details(self) -> 'RepositoryModel':
+        """Ensure the correct details are provided for the VCS type."""
+        vcs_detail_map = {
+            "git": (self.git_details, "git_details"),
+            "hg": (self.hg_details, "hg_details"),
+            "svn": (self.svn_details, "svn_details"),
+        }
+        
+        # Ensure the matching details field is present
+        expected_details, field_name = vcs_detail_map[self.vcs]
+        if expected_details is None:
+            raise ValueError(f"{field_name} must be provided for {self.vcs} repositories")
+            
+        # Ensure other detail fields are None
+        for vcs_type, (details, detail_name) in vcs_detail_map.items():
+            if vcs_type != self.vcs and details is not None:
+                raise ValueError(f"{detail_name} should only be provided for {vcs_type} repositories")
+                
+        return self
+```
+
+### 4. Improved Error Formatting with Structured Errors
+
+```python
+def format_pydantic_errors(validation_error: ValidationError) -> str:
+    """Format Pydantic validation errors into a user-friendly message.
+    
+    Parameters
+    ----------
+    validation_error : ValidationError
+        Pydantic ValidationError
+        
+    Returns
+    -------
+    str
+        Formatted error message
+    """
+    # Get structured error representation
+    errors = validation_error.errors(include_url=False, include_context=False)
+    
+    # Group errors by type for better organization
+    error_categories = {
+        "missing_required": [],
+        "type_error": [],
+        "value_error": [],
+        "other": []
+    }
+    
+    for error in errors:
+        location = ".".join(str(loc) for loc in error.get("loc", []))
+        message = error.get("msg", "Unknown error")
+        error_type = error.get("type", "")
+        
+        formatted_error = f"{location}: {message}"
+        
+        if "missing" in error_type or "required" in error_type:
+            error_categories["missing_required"].append(formatted_error)
+        elif "type" in error_type:
+            error_categories["type_error"].append(formatted_error)
+        elif "value" in error_type:
+            error_categories["value_error"].append(formatted_error)
+        else:
+            error_categories["other"].append(formatted_error)
+    
+    # Build user-friendly message
+    result = ["Validation error:"]
+    
+    if error_categories["missing_required"]:
+        result.append("\nMissing required fields:")
+        result.extend(f"  • {err}" for err in error_categories["missing_required"])
+    
+    if error_categories["type_error"]:
+        result.append("\nType errors:")
+        result.extend(f"  • {err}" for err in error_categories["type_error"])
+    
+    if error_categories["value_error"]:
+        result.append("\nValue errors:")
+        result.extend(f"  • {err}" for err in error_categories["value_error"])
+    
+    if error_categories["other"]:
+        result.append("\nOther errors:")
+        result.extend(f"  • {err}" for err in error_categories["other"])
+    
+    # Add suggestion based on error types
+    if error_categories["missing_required"]:
+        result.append("\nSuggestion: Ensure all required fields are provided.")
+    elif error_categories["type_error"]:
+        result.append("\nSuggestion: Check that field values have the correct types.")
+    elif error_categories["value_error"]:
+        result.append("\nSuggestion: Verify that values meet constraints (length, format, etc.).")
+    
+    return "\n".join(result)
+```
+
+### 5. Using is_valid_config with TypeAdapter
+
+```python
+def is_valid_config(config: dict[str, t.Any]) -> TypeGuard[RawConfig]:
+    """Return true and upcast if vcspull configuration file is valid.
+    
+    Parameters
+    ----------
+    config : Dict[str, Any]
+        Configuration dictionary to validate
+        
+    Returns
+    -------
+    TypeGuard[RawConfig]
+        True if config is a valid RawConfig
+    """
+    # Handle trivial cases first
+    if config is None or not isinstance(config, dict):
+        return False
+        
+    try:
+        # Use TypeAdapter for validation
+        config_validator = TypeAdapter(RawConfigDictModel)
+        config_validator.validate_python({"root": config})
+        return True
+    except Exception:
+        return False
+```
+
+## Migration Strategy
+
+The transition to a fully Pydantic-based approach should be implemented gradually:
+
+1. **Phase 1: Enhance Models**
+   - Update model definitions with richer type hints (Literal, Annotated)
+   - Add computed fields and model methods
+   - Implement cross-field validation with model_validator
+
+2. **Phase 2: Optimize Validation**
+   - Introduce TypeAdapter for key validation points
+   - Refine error handling to use Pydantic's structured errors
+   - Consolidate validation logic in models
+
+3. **Phase 3: Eliminate Manual Validation**
+   - Remove redundant manual validation in is_valid_config
+   - Replace manual checks with model validation
+   - Remove fallback validation mechanisms
+
+4. **Phase 4: Clean Up and Optimize**
+   - Remove deprecated code paths
+   - Add performance optimizations
+   - Complete documentation and tests
 
 ## Conclusion
 
 The codebase has made good progress in adopting Pydantic v2 patterns but still has a hybrid approach that mixes manual validation with Pydantic models. By fully embracing Pydantic's validation capabilities and removing redundant manual checks, the code could be more concise, maintainable, and less prone to validation inconsistencies.
 
-The transition would primarily involve:
-1. Consolidating validation logic into the Pydantic models
-2. Simplifying validator.py to rely more on Pydantic's validation
-3. Improving error reporting using Pydantic's built-in error handling capabilities
-4. Adding more advanced validation using Pydantic v2's features like `model_validator` 
+The transition to Pydantic v2's best practices would involve:
+
+1. Using Literal types instead of string validation for enumeration fields
+2. Leveraging the Annotated pattern for field-level validation
+3. Adding computed_field for derived properties
+4. Enabling strict mode for more reliable validation
+5. Creating model methods for operations that are currently external functions
+6. Structuring the codebase to use TypeAdapter efficiently for performance
+7. Using discriminated unions for different repository types
+8. Providing structured error reporting with better user feedback
+9. Defining a clear migration path with backward compatibility 
