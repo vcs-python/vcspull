@@ -136,7 +136,7 @@
 - [x] **Repository Operations API**
   - [x] Implement sync_repositories function
   - [x] Create detect_repositories function
-  - [ ] Add lock_repositories functionality
+  - [x] Add lock_repositories functionality
 
 - [x] **Versioning Strategy**
   - [x] Implement semantic versioning
@@ -192,15 +192,15 @@
   - [x] Create detection command
   - [x] Add options for filtering repositories
 
-- [ ] **Version Locking**
-  - [ ] Add lock file format
-  - [ ] Implement lock command
-  - [ ] Create apply-lock command
+- [x] **Version Locking**
+  - [x] Add lock file format
+  - [x] Implement lock command
+  - [x] Create apply-lock command
 
-- [ ] **Lock Application**
-  - [ ] Implement lock application logic
-  - [ ] Add options for selective lock application
-  - [ ] Create verification for locked repositories
+- [x] **Lock Application**
+  - [x] Implement lock application logic
+  - [x] Add options for selective lock application
+  - [x] Create verification for locked repositories
 
 - [x] **Enhanced Repository Information**
   - [x] Add info command with detailed output
@@ -221,8 +221,8 @@
 | Internal APIs | High | 4 weeks | Validation System | ✅ Completed |
 | Testing System | Medium | 3 weeks | None | ✅ Mostly Complete |
 | CLI System | Medium | 3 weeks | Internal APIs | ✅ Mostly Complete |
-| External APIs | Medium | 2 weeks | Internal APIs | ✅ Mostly Complete |
-| CLI Tools | Low | 2 weeks | CLI System | ✅ Mostly Complete |
+| External APIs | Medium | 2 weeks | Internal APIs | ✅ Completed |
+| CLI Tools | Low | 2 weeks | CLI System | ✅ Completed |
 
 ## Recent Progress
 
@@ -247,3 +247,8 @@
   - Added rich output formatting with colorized text
   - Implemented JSON output option for machine-readable results
 - Added save_config function to complete the Configuration API
+- Implemented Version Locking functionality:
+  - Added LockFile and LockedRepository models for lock file format
+  - Implemented lock_repositories and apply_lock functions
+  - Created lock and apply-lock CLI commands
+  - Added get_revision and update_repo methods to VCS handlers
