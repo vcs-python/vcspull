@@ -57,6 +57,15 @@ wheels = [
 ]
 
 [[package]]
+name = "attrs"
+version = "25.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/49/7c/fdf464bcc51d23881d110abd74b512a42b3d5d376a55a831b44c603ae17f/attrs-25.1.0.tar.gz", hash = "sha256:1c97078a80c814273a76b2a298a932eb681c87415c11dee0a6921de7f1b02c3e", size = 810562 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/30/d4986a882011f9df997a55e6becd864812ccfcd821d64aac8570ee39f719/attrs-25.1.0-py3-none-any.whl", hash = "sha256:c75a69e28a550a7e93789579c22aa26b0f5b83b75dc4e08fe092980051e1090a", size = 63152 },
+]
+
+[[package]]
 name = "autodoc-pydantic"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -339,6 +348,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f5/38/3af3d3633a34a3316095b39c8e8fb4853a28a536e55d347bd8d8e9a14b03/h11-0.14.0.tar.gz", hash = "sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c6f0a3b699d", size = 100418 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/04/ff642e65ad6b90db43e668d70ffb6736436c7ce41fcc549f4e9472234127/h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761", size = 58259 },
+]
+
+[[package]]
+name = "hypothesis"
+version = "6.128.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "sortedcontainers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b6/8c/67b9517d1210eaa15b3026e8dbdee5356bc1c59298cdbe3feef7ad105da9/hypothesis-6.128.1.tar.gz", hash = "sha256:f949f36f2c98f9b859f07fd5404d3ece0f4e0104b8e438c3c27ed6d6c31e2ced", size = 422415 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/bc/ca81fa5931eb16bd75a00f537b8b81e2cd9fb0e417eae5834d2cfa8a76d8/hypothesis-6.128.1-py3-none-any.whl", hash = "sha256:ceef043c5cc56e627a57c8b1976e8f9fd784c1a154c49198b4fb409c55fdcd22", size = 486227 },
 ]
 
 [[package]]
@@ -951,6 +974,15 @@ wheels = [
 ]
 
 [[package]]
+name = "sortedcontainers"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575 },
+]
+
+[[package]]
 name = "soupsieve"
 version = "2.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1369,6 +1401,7 @@ dev = [
     { name = "coverage" },
     { name = "furo" },
     { name = "gp-libs" },
+    { name = "hypothesis" },
     { name = "linkify-it-py" },
     { name = "mypy" },
     { name = "myst-parser", version = "3.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -1419,6 +1452,7 @@ lint = [
 ]
 testing = [
     { name = "gp-libs" },
+    { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-mock" },
     { name = "pytest-rerunfailures" },
@@ -1450,6 +1484,7 @@ dev = [
     { name = "coverage" },
     { name = "furo" },
     { name = "gp-libs" },
+    { name = "hypothesis" },
     { name = "linkify-it-py" },
     { name = "mypy" },
     { name = "myst-parser" },
@@ -1492,6 +1527,7 @@ lint = [
 ]
 testing = [
     { name = "gp-libs" },
+    { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-mock" },
     { name = "pytest-rerunfailures" },

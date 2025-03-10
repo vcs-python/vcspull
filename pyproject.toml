@@ -91,6 +91,7 @@ dev-dependencies = [
   "pytest-rerunfailures",
   "pytest-mock",
   "pytest-watcher",
+  "hypothesis",
   # Coverage
   "codecov",
   "coverage",
@@ -126,6 +127,7 @@ testing = [
   "pytest-rerunfailures",
   "pytest-mock",
   "pytest-watcher",
+  "hypothesis",
 ]
 coverage =[
   "codecov",
