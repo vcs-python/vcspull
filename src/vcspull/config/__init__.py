@@ -9,9 +9,11 @@ from .loader import (
     resolve_includes,
     save_config,
 )
-from .models import Repository, Settings, VCSPullConfig
+from .models import LockedRepository, LockFile, Repository, Settings, VCSPullConfig
 
 __all__ = [
+    "LockFile",
+    "LockedRepository",
     "Repository",
     "Settings",
     "VCSPullConfig",

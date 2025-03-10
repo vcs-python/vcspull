@@ -16,7 +16,12 @@ from logging import NullHandler
 from . import cli
 from .__about__ import __author__, __description__, __version__
 from .config import load_config, resolve_includes
-from .operations import detect_repositories, sync_repositories
+from .operations import (
+    apply_lock,
+    detect_repositories,
+    lock_repositories,
+    sync_repositories,
+)
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
@@ -24,8 +29,10 @@ __all__ = [
     "__author__",
     "__description__",
     "__version__",
+    "apply_lock",
     "detect_repositories",
     "load_config",
+    "lock_repositories",
     "resolve_includes",
     "sync_repositories",
 ]

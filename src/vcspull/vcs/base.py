@@ -67,6 +67,34 @@ class VCSInterface(ABC):
         """
         ...
 
+    @abstractmethod
+    def get_revision(self) -> str | None:
+        """Get the current revision of the repository.
+
+        Returns
+        -------
+        str | None
+            The current revision hash or identifier, or None if it couldn't be
+            determined
+        """
+        ...
+
+    @abstractmethod
+    def update_repo(self, rev: str | None = None) -> bool:
+        """Update the repository to a specific revision.
+
+        Parameters
+        ----------
+        rev : str | None
+            The revision to update to, or None to update to the latest
+
+        Returns
+        -------
+        bool
+            True if the operation was successful
+        """
+        ...
+
 
 def get_vcs_handler(
     repo: Repository,

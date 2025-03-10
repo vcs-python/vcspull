@@ -57,10 +57,10 @@ class MercurialInterface(VCSInterface):
             cmd = ["hg", "clone", self.repo.url, str(self.path)]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             logger.info(f"Cloned repository: {self.path}")
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to clone repository: {e.stderr}")
             return False
+        return True
 
     def pull(self) -> bool:
         """Pull changes from the remote repository.
@@ -78,10 +78,10 @@ class MercurialInterface(VCSInterface):
             cmd = ["hg", "--cwd", str(self.path), "pull"]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             logger.info(f"Pulled changes for repository: {self.path}")
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to pull repository: {e.stderr}")
             return False
+        return True
 
     def update(self) -> bool:
         """Update the repository.
@@ -103,10 +103,61 @@ class MercurialInterface(VCSInterface):
             cmd = ["hg", "--cwd", str(self.path), "update"]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             logger.info(f"Updated repository: {self.path}")
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to update repository: {e.stderr}")
             return False
+        return True
+
+    def get_revision(self) -> str | None:
+        """Get the current revision of the repository.
+
+        Returns
+        -------
+        str | None
+            The current revision hash, or None if it couldn't be determined
+        """
+        if not self.exists():
+            logger.error(f"Repository does not exist: {self.path}")
+            return None
+
+        try:
+            cmd = ["hg", "--cwd", str(self.path), "id", "-i"]
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to get revision: {e.stderr}")
+            return None
+
+    def update_repo(self, rev: str | None = None) -> bool:
+        """Update the repository to a specific revision.
+
+        Parameters
+        ----------
+        rev : str | None
+            The revision to update to, or None to update to the latest
+
+        Returns
+        -------
+        bool
+            True if the operation was successful
+        """
+        if not self.exists():
+            logger.error(f"Repository does not exist: {self.path}")
+            return False
+
+        try:
+            # First pull to get the latest changes
+            self.pull()
+
+            # If a specific revision is requested, update to it
+            if rev:
+                cmd = ["hg", "--cwd", str(self.path), "update", rev]
+                subprocess.run(cmd, check=True, capture_output=True, text=True)
+                logger.info(f"Updated to revision {rev} in {self.path}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to update repository to revision {rev}: {e.stderr}")
+            return False
+        return True
 
 
 class MercurialRepo:
@@ -197,9 +248,9 @@ class MercurialRepo:
             # Mercurial uses paths in .hg/hgrc
             with (self.repo_path / ".hg" / "hgrc").open("a") as f:
                 f.write(f"\n[paths]\n{name} = {url}\n")
-            return True
         except Exception:
             return False
+        return True
 
     def update_remote(self, name: str) -> bool:
         """Pull from a remote.
@@ -220,9 +271,9 @@ class MercurialRepo:
         try:
             cmd = ["hg", "--cwd", str(self.repo_path), "pull", "-R", name]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
-            return True
         except subprocess.CalledProcessError:
             return False
+        return True
 
     def update_to_rev(self, rev: str) -> bool:
         """Update to a specific revision.
@@ -243,9 +294,9 @@ class MercurialRepo:
         try:
             cmd = ["hg", "--cwd", str(self.repo_path), "update", rev]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
-            return True
         except subprocess.CalledProcessError:
             return False
+        return True
 
     def get_remote_url(self) -> str | None:
         """Get the URL of the default remote.

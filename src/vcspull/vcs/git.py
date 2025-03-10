@@ -57,10 +57,10 @@ class GitInterface(VCSInterface):
             cmd = ["git", "clone", self.repo.url, str(self.path)]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             logger.info(f"Cloned repository: {self.path}")
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to clone repository: {e.stderr}")
             return False
+        return True
 
     def pull(self) -> bool:
         """Pull changes from the remote repository.
@@ -78,10 +78,10 @@ class GitInterface(VCSInterface):
             cmd = ["git", "-C", str(self.path), "pull"]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             logger.info(f"Pulled changes for repository: {self.path}")
-            return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to pull repository: {e.stderr}")
             return False
+        return True
 
     def update(self) -> bool:
         """Update the repository.
@@ -94,6 +94,57 @@ class GitInterface(VCSInterface):
         if not self.exists():
             return self.clone()
         return self.pull()
+
+    def get_revision(self) -> str | None:
+        """Get the current revision of the repository.
+
+        Returns
+        -------
+        str | None
+            The current revision hash, or None if it couldn't be determined
+        """
+        if not self.exists():
+            logger.error(f"Repository does not exist: {self.path}")
+            return None
+
+        try:
+            cmd = ["git", "-C", str(self.path), "rev-parse", "HEAD"]
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to get revision: {e.stderr}")
+            return None
+
+    def update_repo(self, rev: str | None = None) -> bool:
+        """Update the repository to a specific revision.
+
+        Parameters
+        ----------
+        rev : str | None
+            The revision to update to, or None to update to the latest
+
+        Returns
+        -------
+        bool
+            True if the operation was successful
+        """
+        if not self.exists():
+            logger.error(f"Repository does not exist: {self.path}")
+            return False
+
+        try:
+            # First pull to get the latest changes
+            self.pull()
+
+            # If a specific revision is requested, check it out
+            if rev:
+                cmd = ["git", "-C", str(self.path), "checkout", rev]
+                subprocess.run(cmd, check=True, capture_output=True, text=True)
+                logger.info(f"Checked out revision {rev} in {self.path}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to update repository to revision {rev}: {e.stderr}")
+            return False
+        return True
 
 
 class GitRepo:
@@ -194,9 +245,9 @@ class GitRepo:
                 cmd = ["git", "-C", str(self.repo_path), "remote", "add", name, url]
 
             subprocess.run(cmd, check=True, capture_output=True, text=True)
-            return True
         except subprocess.CalledProcessError:
             return False
+        return True
 
     def update_remote(self, name: str) -> bool:
         """Fetch from a remote.
@@ -217,9 +268,9 @@ class GitRepo:
         try:
             cmd = ["git", "-C", str(self.repo_path), "fetch", name]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
-            return True
         except subprocess.CalledProcessError:
             return False
+        return True
 
     def update_to_rev(self, rev: str) -> bool:
         """Update to a specific revision.
@@ -240,9 +291,9 @@ class GitRepo:
         try:
             cmd = ["git", "-C", str(self.repo_path), "checkout", rev]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
-            return True
         except subprocess.CalledProcessError:
             return False
+        return True
 
     def get_remote_url(self) -> str | None:
         """Get the URL of the origin remote.
