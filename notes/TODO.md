@@ -79,10 +79,10 @@
   - [x] Create example-based tests
   - [x] Ensure examples serve as both documentation and tests
 
-- [ ] **Enhanced CLI Testing**
-  - [ ] Implement comprehensive CLI command tests
-  - [ ] Test CLI output formats
-  - [ ] Create mocks for CLI environment
+- [x] **Enhanced CLI Testing**
+  - [x] Implement comprehensive CLI command tests
+  - [x] Test CLI output formats
+  - [x] Create mocks for CLI environment
 
 ## 4. Internal APIs
 
@@ -220,11 +220,11 @@
   - [ ] Create initial API reference generation
   - [ ] Implement doctest integration
 
-- [ ] **CLI Testing Framework**
-  - [ ] Implement CLI testing fixtures
-  - [ ] Create test suite for existing commands
-  - [ ] Add coverage for error cases
-  - [ ] Implement test validation with schema
+- [x] **CLI Testing Framework**
+  - [x] Implement CLI testing fixtures
+  - [x] Create test suite for existing commands
+  - [x] Add coverage for error cases
+  - [x] Implement test validation with schema
 
 - [ ] **Migration Tool**
   - [ ] Design migration strategy
