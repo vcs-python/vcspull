@@ -104,6 +104,7 @@ def find_config_files(search_paths: list[str | Path]) -> list[Path]:
 def resolve_includes(
     config: VCSPullConfig,
     base_path: str | Path,
+    processed_paths: set[Path] | None = None,
 ) -> VCSPullConfig:
     """Resolve included configuration files.
 
@@ -113,6 +114,9 @@ def resolve_includes(
         The base configuration
     base_path : str | Path
         The base path for resolving relative include paths
+    processed_paths : set[Path] | None, optional
+        Set of paths that have already been processed
+        (for circular reference detection), by default None
 
     Returns
     -------
@@ -120,6 +124,10 @@ def resolve_includes(
         Configuration with includes resolved and merged
     """
     base_path = normalize_path(base_path)
+
+    # Initialize processed paths to track circular references
+    if processed_paths is None:
+        processed_paths = set()
 
     if not config.includes:
         return config
@@ -136,14 +144,22 @@ def resolve_includes(
 
         include_path = include_path.expanduser().resolve()
 
-        if not include_path.exists():
+        # Skip processing if the file doesn't exist or has already been processed
+        if not include_path.exists() or include_path in processed_paths:
             continue
+
+        # Add to processed paths to prevent circular references
+        processed_paths.add(include_path)
 
         # Load included config
         included_config = load_config(include_path)
 
         # Recursively resolve nested includes
-        included_config = resolve_includes(included_config, include_path.parent)
+        included_config = resolve_includes(
+            included_config,
+            include_path.parent,
+            processed_paths,
+        )
 
         # Merge configs
         merged_config.repositories.extend(included_config.repositories)
