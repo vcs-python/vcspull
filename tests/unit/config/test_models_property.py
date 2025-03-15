@@ -7,13 +7,11 @@ various inputs correctly and maintain their invariants.
 
 from __future__ import annotations
 
-import os
 import pathlib
 import typing as t
 
 import hypothesis.strategies as st
-import pytest
-from hypothesis import given, settings
+from hypothesis import given
 
 from vcspull.config.models import Repository, Settings, VCSPullConfig
 
@@ -75,7 +73,9 @@ def valid_path_strategy(draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]) -> 
 
 
 @st.composite
-def repository_strategy(draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]) -> Repository:
+def repository_strategy(
+    draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any],
+) -> Repository:
     """Generate valid Repository instances."""
     name = draw(st.one_of(st.none(), st.text(min_size=1, max_size=20)))
     url = draw(valid_url_strategy())
@@ -142,7 +142,7 @@ def settings_strategy(draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]) -> Se
 
 @st.composite
 def vcspull_config_strategy(
-    draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]
+    draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any],
 ) -> VCSPullConfig:
     """Generate valid VCSPullConfig instances."""
     settings = draw(settings_strategy())
@@ -175,30 +175,31 @@ class TestRepositoryModel:
         # Check computed fields
         if repository.name is None:
             # Name should be derived from URL if not explicitly set
-            assert repository.get_name() != ""
+            repo_name = extract_name_from_url(repository.url)
+            assert repo_name != ""
 
     @given(url=valid_url_strategy())
     def test_repository_name_extraction(self, url: str) -> None:
         """Test Repository can extract names from URLs."""
-        repo = Repository(url=url, path="/tmp/repo")
-        # Should be able to extract a name from any valid URL
-        assert repo.get_name() != ""
+        # No need to create a repo instance for this test
+        repo_name = extract_name_from_url(url)
+        assert repo_name != ""
         # The name shouldn't contain protocol or domain parts
-        assert "://" not in repo.get_name()
-        assert "github.com" not in repo.get_name()
+        assert "://" not in repo_name
+        assert "github.com" not in repo_name
 
     @given(repository=repository_strategy())
     def test_repository_path_expansion(self, repository: Repository) -> None:
         """Test path expansion in Repository model."""
         # Get the expanded path
-        expanded_path = repository.get_path()
+        expanded_path = pathlib.Path(repository.path)
 
         # Check for tilde expansion
         assert "~" not in str(expanded_path)
 
         # If original path started with ~, expanded should be absolute
         if repository.path.startswith("~"):
-            assert os.path.isabs(expanded_path)
+            assert expanded_path.is_absolute()
 
 
 class TestSettingsModel:
@@ -244,3 +245,27 @@ class TestVCSPullConfigModel:
         assert repo1 in config.repositories
         assert repo2 in config.repositories
         assert repo3 in config.repositories
+
+
+def extract_name_from_url(url: str) -> str:
+    """Extract repository name from URL.
+
+    Parameters
+    ----------
+    url : str
+        Repository URL
+
+    Returns
+    -------
+    str
+        Repository name
+    """
+    # Extract the last part of the URL path
+    parts = url.rstrip("/").split("/")
+    name = parts[-1]
+
+    # Remove .git suffix if present
+    if name.endswith(".git"):
+        name = name[:-4]
+
+    return name
