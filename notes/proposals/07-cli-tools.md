@@ -44,7 +44,7 @@ The audit identified several limitations in the current CLI tools:
        """Add detect command parser to the subparsers.
        
        Parameters
-       ----------
+       ----
        subparsers : argparse._SubParsersAction
            Subparsers object to add command to
        """
@@ -153,14 +153,14 @@ The audit identified several limitations in the current CLI tools:
        """Detect repositories in a directory.
        
        Parameters
-       ----------
+       ----
        args : argparse.Namespace
            Parsed command arguments
        ctx : CliContext
            CLI context
        
        Returns
-       -------
+       ----
        int
            Exit code
        """
@@ -224,6 +224,7 @@ The audit identified several limitations in the current CLI tools:
                import traceback
                traceback.print_exc()
            return 1
+   ```
 
 4. **Implementation Details**:
    ```python
@@ -243,7 +244,7 @@ The audit identified several limitations in the current CLI tools:
        """Detect repositories in a directory.
        
        Parameters
-       ----------
+       ----
        directory : Path
            Directory to scan for repositories
        recursive : bool
@@ -264,7 +265,7 @@ The audit identified several limitations in the current CLI tools:
            Detect and include remote configurations
            
        Returns
-       -------
+       ----
        list[Repository]
            List of detected Repository objects
        """
@@ -307,7 +308,7 @@ The audit identified several limitations in the current CLI tools:
        """Add lock command parser to the subparsers.
        
        Parameters
-       ----------
+       ----
        subparsers : argparse._SubParsersAction
            Subparsers object to add command to
        """
@@ -355,14 +356,14 @@ The audit identified several limitations in the current CLI tools:
        """Create a lock file with specific repository versions.
        
        Parameters
-       ----------
+       ----
        args : argparse.Namespace
            Parsed command arguments
        ctx : CliContext
            CLI context
        
        Returns
-       -------
+       ----
        int
            Exit code
        """
@@ -406,12 +407,15 @@ The audit identified several limitations in the current CLI tools:
 4. **Lock File Model**:
    ```python
    # src/vcspull/config/models.py
+   import typing as t
+   from pathlib import Path
+   from pydantic import BaseModel, Field, ConfigDict
    
    class LockedRepository(BaseModel):
        """Repository with locked version information.
        
        Parameters
-       ----------
+       ----
        name : str
            Name of the repository
        path : Path
@@ -437,7 +441,7 @@ The audit identified several limitations in the current CLI tools:
        """Lock file for repository versions.
        
        Parameters
-       ----------
+       ----
        repositories : list[LockedRepository]
            List of locked repositories
        """
@@ -451,7 +455,7 @@ The audit identified several limitations in the current CLI tools:
            """Save lock file to disk.
            
            Parameters
-           ----------
+           ----
            path : Path
                Path to save lock file
            """
@@ -472,17 +476,17 @@ The audit identified several limitations in the current CLI tools:
            """Load lock file from disk.
            
            Parameters
-           ----------
+           ----
            path : Path
                Path to lock file
            
            Returns
-           -------
+           ----
            LockFile
                Loaded lock file
            
            Raises
-           ------
+           ----
            FileNotFoundError
                If lock file does not exist
            """
@@ -527,7 +531,7 @@ The audit identified several limitations in the current CLI tools:
        """Add apply-lock command parser to the subparsers.
        
        Parameters
-       ----------
+       ----
        subparsers : argparse._SubParsersAction
            Subparsers object to add command to
        """
@@ -575,14 +579,14 @@ The audit identified several limitations in the current CLI tools:
        """Apply lock file to ensure repositories are at specific versions.
        
        Parameters
-       ----------
+       ----
        args : argparse.Namespace
            Parsed command arguments
        ctx : CliContext
            CLI context
        
        Returns
-       -------
+       ----
        int
            Exit code
        """
@@ -656,12 +660,12 @@ def main(argv: t.Optional[list[str]] = None) -> int:
     """CLI entry point.
     
     Parameters
-    ----------
+    ----
     argv : Optional[list[str]]
         Command line arguments, defaults to sys.argv[1:] if not provided
     
     Returns
-    -------
+    ----
     int
         Exit code
     """
@@ -733,7 +737,7 @@ if __name__ == "__main__":
        """Register shell completion for the parser.
        
        Parameters
-       ----------
+       ----
        parser : argparse.ArgumentParser
            Argument parser to register completion for
        """
