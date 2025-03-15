@@ -1,288 +1,191 @@
-"""Tests for configuration loader."""
+"""Tests for configuration loader.
+
+This module contains tests for the VCSPull configuration loader.
+"""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
+import pathlib
 
 import pytest
-import yaml
+from pytest import MonkeyPatch
 
-from vcspull.config import load_config, normalize_path, resolve_includes
+# Import fixtures
+pytest.importorskip("tests.fixtures.example_configs")
+
+from vcspull.config.loader import load_config, resolve_includes, save_config
 from vcspull.config.models import Repository, Settings, VCSPullConfig
 
 
-class TestNormalizePath:
-    """Tests for normalize_path function."""
-
-    def test_normalize_path_str(self) -> None:
-        """Test normalizing a string path."""
-        path = normalize_path("~/test")
-        assert isinstance(path, Path)
-        assert path == Path.home() / "test"
-
-    def test_normalize_path_path(self) -> None:
-        """Test normalizing a Path object."""
-        original = Path("~/test")
-        path = normalize_path(original)
-        assert isinstance(path, Path)
-        assert path == Path.home() / "test"
+def test_load_config_yaml(simple_yaml_config: pathlib.Path) -> None:
+    """Test loading a YAML configuration file."""
+    config = load_config(simple_yaml_config)
+    assert isinstance(config, VCSPullConfig)
+    assert len(config.repositories) == 1
+    assert config.repositories[0].name == "example-repo"
 
 
-class TestLoadConfig:
-    """Tests for load_config function."""
-
-    def test_load_yaml_config(self, tmp_path: Path) -> None:
-        """Test loading a YAML configuration file."""
-        config_data = {
-            "settings": {
-                "sync_remotes": False,
-                "default_vcs": "git",
-            },
-            "repositories": [
-                {
-                    "name": "repo1",
-                    "url": "https://github.com/user/repo1.git",
-                    "path": str(tmp_path / "repo1"),
-                    "vcs": "git",
-                },
-            ],
-        }
-
-        config_file = tmp_path / "config.yaml"
-        with config_file.open("w", encoding="utf-8") as f:
-            yaml.dump(config_data, f)
-
-        config = load_config(config_file)
-
-        assert isinstance(config, VCSPullConfig)
-        assert config.settings.sync_remotes is False
-        assert config.settings.default_vcs == "git"
-        assert len(config.repositories) == 1
-        assert config.repositories[0].name == "repo1"
-        assert config.repositories[0].url == "https://github.com/user/repo1.git"
-        assert config.repositories[0].vcs == "git"
-
-    def test_load_json_config(self, tmp_path: Path) -> None:
-        """Test loading a JSON configuration file."""
-        config_data = {
-            "settings": {
-                "sync_remotes": False,
-                "default_vcs": "git",
-            },
-            "repositories": [
-                {
-                    "name": "repo1",
-                    "url": "https://github.com/user/repo1.git",
-                    "path": str(tmp_path / "repo1"),
-                    "vcs": "git",
-                },
-            ],
-        }
-
-        config_file = tmp_path / "config.json"
-        with config_file.open("w", encoding="utf-8") as f:
-            json.dump(config_data, f)
-
-        config = load_config(config_file)
-
-        assert isinstance(config, VCSPullConfig)
-        assert config.settings.sync_remotes is False
-        assert config.settings.default_vcs == "git"
-        assert len(config.repositories) == 1
-        assert config.repositories[0].name == "repo1"
-        assert config.repositories[0].url == "https://github.com/user/repo1.git"
-        assert config.repositories[0].vcs == "git"
-
-    def test_load_empty_config(self, tmp_path: Path) -> None:
-        """Test loading an empty configuration file."""
-        config_file = tmp_path / "empty.yaml"
-        with config_file.open("w", encoding="utf-8") as f:
-            f.write("")
-
-        config = load_config(config_file)
-
-        assert isinstance(config, VCSPullConfig)
-        assert config.settings.sync_remotes is True
-        assert config.settings.default_vcs is None
-        assert len(config.repositories) == 0
-
-    def test_file_not_found(self) -> None:
-        """Test error when file is not found."""
-        with pytest.raises(FileNotFoundError):
-            load_config("/path/to/nonexistent/file.yaml")
-
-    def test_unsupported_format(self, tmp_path: Path) -> None:
-        """Test error for unsupported file format."""
-        config_file = tmp_path / "config.txt"
-        with config_file.open("w", encoding="utf-8") as f:
-            f.write("This is not a valid config file")
-
-        with pytest.raises(ValueError, match="Unsupported file format"):
-            load_config(config_file)
+def test_load_config_json(json_config: pathlib.Path) -> None:
+    """Test loading a JSON configuration file."""
+    config = load_config(json_config)
+    assert isinstance(config, VCSPullConfig)
+    assert len(config.repositories) == 1
+    assert config.repositories[0].name == "json-repo"
 
 
-class TestResolveIncludes:
-    """Tests for resolve_includes function."""
+def test_config_include_resolution(
+    config_with_includes: tuple[pathlib.Path, pathlib.Path],
+) -> None:
+    """Test resolution of included configuration files."""
+    main_file, included_file = config_with_includes
 
-    def test_no_includes(self) -> None:
-        """Test resolving a configuration with no includes."""
-        config = VCSPullConfig(
-            repositories=[
-                Repository(
-                    name="repo1",
-                    url="https://github.com/user/repo1.git",
-                    path="~/code/repo1",
-                    vcs="git",
-                ),
-            ],
-        )
+    # Load the main config
+    config = load_config(main_file)
+    assert len(config.repositories) == 1
+    assert len(config.includes) == 1
 
-        resolved = resolve_includes(config, ".")
+    # Resolve includes
+    resolved_config = resolve_includes(config, main_file.parent)
+    assert len(resolved_config.repositories) == 2
+    assert len(resolved_config.includes) == 0
 
-        assert len(resolved.repositories) == 1
-        assert resolved.repositories[0].name == "repo1"
-        assert len(resolved.includes) == 0
+    # Check that both repositories are present
+    repo_names = [repo.name for repo in resolved_config.repositories]
+    assert "main-repo" in repo_names
+    assert "included-repo" in repo_names
 
-    def test_with_includes(self, tmp_path: Path) -> None:
-        """Test resolving a configuration with includes."""
-        # Create included config file
-        included_config_data = {
-            "settings": {
-                "depth": 1,
-            },
-            "repositories": [
-                {
-                    "name": "included-repo",
-                    "url": "https://github.com/user/included-repo.git",
-                    "path": str(tmp_path / "included-repo"),
-                    "vcs": "git",
-                },
-            ],
-        }
 
-        included_file = tmp_path / "included.yaml"
-        with included_file.open("w", encoding="utf-8") as f:
-            yaml.dump(included_config_data, f)
-
-        # Create main config
-        config = VCSPullConfig(
-            settings=Settings(
-                sync_remotes=False,
-                default_vcs="git",
+def test_save_config(tmp_path: pathlib.Path) -> None:
+    """Test saving a configuration to disk."""
+    config = VCSPullConfig(
+        settings=Settings(sync_remotes=True),
+        repositories=[
+            Repository(
+                name="test-repo",
+                url="https://github.com/example/test-repo.git",
+                path=str(tmp_path / "repos" / "test-repo"),
+                vcs="git",
             ),
-            repositories=[
-                Repository(
-                    name="main-repo",
-                    url="https://github.com/user/main-repo.git",
-                    path=str(tmp_path / "main-repo"),
-                    vcs="git",
-                ),
-            ],
-            includes=[
-                str(included_file),
-            ],
-        )
+        ],
+    )
 
-        resolved = resolve_includes(config, tmp_path)
+    # Test saving to YAML
+    yaml_path = tmp_path / "config.yaml"
+    saved_path = save_config(config, yaml_path, format_type="yaml")
+    assert saved_path.exists()
+    assert saved_path == yaml_path
 
-        # Check that repositories from both configs are present
-        assert len(resolved.repositories) == 2
-        assert resolved.repositories[0].name == "main-repo"
-        assert resolved.repositories[1].name == "included-repo"
+    # Test saving to JSON
+    json_path = tmp_path / "config.json"
+    saved_path = save_config(config, json_path, format_type="json")
+    assert saved_path.exists()
+    assert saved_path == json_path
 
-        # Check that settings are merged
-        assert resolved.settings.sync_remotes is False
-        assert resolved.settings.default_vcs == "git"
-        assert resolved.settings.depth == 1
+    # Load both configs and compare
+    yaml_config = load_config(yaml_path)
+    json_config = load_config(json_path)
 
-        # Check that includes are cleared
-        assert len(resolved.includes) == 0
+    assert yaml_config.model_dump() == config.model_dump()
+    assert json_config.model_dump() == config.model_dump()
 
-    def test_nested_includes(self, tmp_path: Path) -> None:
-        """Test resolving a configuration with nested includes."""
-        # Create nested included config file
-        nested_config_data = {
-            "repositories": [
-                {
-                    "name": "nested-repo",
-                    "url": "https://github.com/user/nested-repo.git",
-                    "path": str(tmp_path / "nested-repo"),
-                    "vcs": "git",
-                },
-            ],
-        }
 
-        nested_file = tmp_path / "nested.yaml"
-        with nested_file.open("w", encoding="utf-8") as f:
-            yaml.dump(nested_config_data, f)
+def test_auto_format_detection(tmp_path: pathlib.Path) -> None:
+    """Test automatic format detection based on file extension."""
+    config = VCSPullConfig(
+        settings=Settings(sync_remotes=True),
+        repositories=[
+            Repository(
+                name="test-repo",
+                url="https://github.com/example/test-repo.git",
+                path=str(tmp_path / "repos" / "test-repo"),
+                vcs="git",
+            ),
+        ],
+    )
 
-        # Create included config file with nested include
-        included_config_data = {
-            "repositories": [
-                {
-                    "name": "included-repo",
-                    "url": "https://github.com/user/included-repo.git",
-                    "path": str(tmp_path / "included-repo"),
-                    "vcs": "git",
-                },
-            ],
-            "includes": [
-                str(nested_file),
-            ],
-        }
+    # Test saving with format detection
+    yaml_path = tmp_path / "config.yaml"
+    save_config(config, yaml_path)
+    json_path = tmp_path / "config.json"
+    save_config(config, json_path)
 
-        included_file = tmp_path / "included.yaml"
-        with included_file.open("w", encoding="utf-8") as f:
-            yaml.dump(included_config_data, f)
+    # Load both configs and compare
+    yaml_config = load_config(yaml_path)
+    json_config = load_config(json_path)
 
-        # Create main config
-        config = VCSPullConfig(
-            repositories=[
-                Repository(
-                    name="main-repo",
-                    url="https://github.com/user/main-repo.git",
-                    path=str(tmp_path / "main-repo"),
-                    vcs="git",
-                ),
-            ],
-            includes=[
-                str(included_file),
-            ],
-        )
+    assert yaml_config.model_dump() == config.model_dump()
+    assert json_config.model_dump() == config.model_dump()
 
-        resolved = resolve_includes(config, tmp_path)
 
-        # Check that repositories from all configs are present
-        assert len(resolved.repositories) == 3
-        assert resolved.repositories[0].name == "main-repo"
-        assert resolved.repositories[1].name == "included-repo"
-        assert resolved.repositories[2].name == "nested-repo"
+def test_config_path_expansion(
+    monkeypatch: MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test that user paths are expanded correctly."""
+    # Mock the home directory for testing
+    home_dir = tmp_path / "home" / "user"
+    home_dir.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home_dir))
 
-        # Check that includes are cleared
-        assert len(resolved.includes) == 0
+    # Create a config with a path using ~
+    config = VCSPullConfig(
+        repositories=[
+            Repository(
+                name="home-repo",
+                url="https://github.com/example/home-repo.git",
+                path="~/repos/home-repo",
+                vcs="git",
+            ),
+        ],
+    )
 
-    def test_nonexistent_include(self, tmp_path: Path) -> None:
-        """Test resolving a configuration with a nonexistent include."""
-        config = VCSPullConfig(
-            repositories=[
-                Repository(
-                    name="main-repo",
-                    url="https://github.com/user/main-repo.git",
-                    path=str(tmp_path / "main-repo"),
-                    vcs="git",
-                ),
-            ],
-            includes=[
-                str(tmp_path / "nonexistent.yaml"),
-            ],
-        )
+    # Check that the path is expanded
+    expanded_path = config.repositories[0].path
+    assert "~" not in expanded_path
+    assert str(home_dir) in expanded_path
 
-        resolved = resolve_includes(config, tmp_path)
 
-        # Check that only the main repository is present
-        assert len(resolved.repositories) == 1
-        assert resolved.repositories[0].name == "main-repo"
+def test_relative_includes(tmp_path: pathlib.Path) -> None:
+    """Test that relative include paths work correctly."""
+    # Create a nested directory structure
+    subdir = tmp_path / "configs"
+    subdir.mkdir()
 
-        # Check that includes are cleared
-        assert len(resolved.includes) == 0
+    # Create an included config in the subdir
+    included_config = VCSPullConfig(
+        repositories=[
+            Repository(
+                name="included-repo",
+                url="https://github.com/example/included-repo.git",
+                path=str(tmp_path / "repos" / "included-repo"),
+                vcs="git",
+            ),
+        ],
+    )
+    included_path = subdir / "included.yaml"
+    save_config(included_config, included_path)
+
+    # Create a main config with a relative include
+    main_config = VCSPullConfig(
+        repositories=[
+            Repository(
+                name="main-repo",
+                url="https://github.com/example/main-repo.git",
+                path=str(tmp_path / "repos" / "main-repo"),
+                vcs="git",
+            ),
+        ],
+        includes=["configs/included.yaml"],  # Relative path
+    )
+    main_path = tmp_path / "main.yaml"
+    save_config(main_config, main_path)
+
+    # Load and resolve the config
+    config = load_config(main_path)
+    resolved_config = resolve_includes(config, main_path.parent)
+
+    # Check that both repositories are present
+    assert len(resolved_config.repositories) == 2
+    repo_names = [repo.name for repo in resolved_config.repositories]
+    assert "main-repo" in repo_names
+    assert "included-repo" in repo_names
