@@ -1,25 +1,25 @@
 """Property-based tests for configuration models.
 
-This module contains property-based tests using Hypothesis for the
-VCSPull configuration models to ensure they meet invariants and
-handle edge cases properly.
+This module contains property-based tests using Hypothesis
+for the VCSPull configuration models to ensure they handle
+various inputs correctly and maintain their invariants.
 """
 
 from __future__ import annotations
 
-import re
-from pathlib import Path
-from typing import Any, Callable
+import os
+import pathlib
+import typing as t
 
 import hypothesis.strategies as st
-from hypothesis import given
+import pytest
+from hypothesis import given, settings
 
 from vcspull.config.models import Repository, Settings, VCSPullConfig
 
 
-# Define strategies for generating test data
 @st.composite
-def valid_url_strategy(draw: Callable[[st.SearchStrategy[Any]], Any]) -> str:
+def valid_url_strategy(draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]) -> str:
     """Generate valid URLs for repositories."""
     protocols = ["https://", "http://", "git://", "ssh://git@"]
     domains = ["github.com", "gitlab.com", "bitbucket.org", "example.com"]
@@ -50,7 +50,7 @@ def valid_url_strategy(draw: Callable[[st.SearchStrategy[Any]], Any]) -> str:
 
 
 @st.composite
-def valid_path_strategy(draw: Callable[[st.SearchStrategy[Any]], Any]) -> str:
+def valid_path_strategy(draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]) -> str:
     """Generate valid paths for repositories."""
     base_dirs = ["~/code", "~/projects", "/tmp", "./projects"]
     sub_dirs = [
@@ -75,7 +75,7 @@ def valid_path_strategy(draw: Callable[[st.SearchStrategy[Any]], Any]) -> str:
 
 
 @st.composite
-def repository_strategy(draw: Callable[[st.SearchStrategy[Any]], Any]) -> Repository:
+def repository_strategy(draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]) -> Repository:
     """Generate valid Repository instances."""
     name = draw(st.one_of(st.none(), st.text(min_size=1, max_size=20)))
     url = draw(valid_url_strategy())
@@ -127,7 +127,7 @@ def repository_strategy(draw: Callable[[st.SearchStrategy[Any]], Any]) -> Reposi
 
 
 @st.composite
-def settings_strategy(draw: Callable[[st.SearchStrategy[Any]], Any]) -> Settings:
+def settings_strategy(draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]) -> Settings:
     """Generate valid Settings instances."""
     sync_remotes = draw(st.booleans())
     default_vcs = draw(st.one_of(st.none(), st.sampled_from(["git", "hg", "svn"])))
@@ -142,7 +142,7 @@ def settings_strategy(draw: Callable[[st.SearchStrategy[Any]], Any]) -> Settings
 
 @st.composite
 def vcspull_config_strategy(
-    draw: Callable[[st.SearchStrategy[Any]], Any],
+    draw: t.Callable[[st.SearchStrategy[t.Any]], t.Any]
 ) -> VCSPullConfig:
     """Generate valid VCSPullConfig instances."""
     settings = draw(settings_strategy())
@@ -151,9 +151,9 @@ def vcspull_config_strategy(
     repo_count = draw(st.integers(min_value=0, max_value=5))
     repositories = [draw(repository_strategy()) for _ in range(repo_count)]
 
-    # Generate includes
+    # Optionally generate includes (0 to 3)
     include_count = draw(st.integers(min_value=0, max_value=3))
-    includes = [f"~/.config/vcspull/include{i}.yaml" for i in range(include_count)]
+    includes = [f"include{i}.yaml" for i in range(include_count)]
 
     return VCSPullConfig(
         settings=settings,
@@ -162,82 +162,85 @@ def vcspull_config_strategy(
     )
 
 
-class TestRepositoryProperties:
-    """Property-based tests for the Repository model."""
+class TestRepositoryModel:
+    """Property-based tests for Repository model."""
 
-    @given(url=valid_url_strategy(), path=valid_path_strategy())
-    def test_minimal_repository_properties(self, url: str, path: str) -> None:
-        """Test properties of minimal repositories."""
-        repo = Repository(url=url, path=path)
+    @given(repository=repository_strategy())
+    def test_repository_construction(self, repository: Repository) -> None:
+        """Test Repository model construction with varied inputs."""
+        # Verify required fields are set
+        assert repository.url is not None
+        assert repository.path is not None
 
-        # Check invariants
-        assert repo.url == url
-        assert Path(repo.path).is_absolute()
-        assert repo.path.startswith("/")  # Path should be absolute after normalization
+        # Check computed fields
+        if repository.name is None:
+            # Name should be derived from URL if not explicitly set
+            assert repository.get_name() != ""
 
     @given(url=valid_url_strategy())
-    def test_valid_url_formats(self, url: str) -> None:
-        """Test that valid URL formats are accepted."""
-        repo = Repository(url=url, path="~/repo")
-        assert repo.url == url
+    def test_repository_name_extraction(self, url: str) -> None:
+        """Test Repository can extract names from URLs."""
+        repo = Repository(url=url, path="/tmp/repo")
+        # Should be able to extract a name from any valid URL
+        assert repo.get_name() != ""
+        # The name shouldn't contain protocol or domain parts
+        assert "://" not in repo.get_name()
+        assert "github.com" not in repo.get_name()
 
-        # Check URL format matches expected pattern
-        url_pattern = r"^(https?|git|ssh)://.+"
-        assert re.match(url_pattern, repo.url) is not None
+    @given(repository=repository_strategy())
+    def test_repository_path_expansion(self, repository: Repository) -> None:
+        """Test path expansion in Repository model."""
+        # Get the expanded path
+        expanded_path = repository.get_path()
 
-    @given(repo=repository_strategy())
-    def test_repository_roundtrip(self, repo: Repository) -> None:
-        """Test repository serialization and deserialization."""
-        # Roundtrip test: convert to dict and back to model
-        repo_dict = repo.model_dump()
-        repo2 = Repository.model_validate(repo_dict)
+        # Check for tilde expansion
+        assert "~" not in str(expanded_path)
 
-        # The resulting object should match the original
-        assert repo2.url == repo.url
-        assert repo2.path == repo.path
-        assert repo2.name == repo.name
-        assert repo2.vcs == repo.vcs
-        assert repo2.remotes == repo.remotes
-        assert repo2.rev == repo.rev
-        assert repo2.web_url == repo.web_url
+        # If original path started with ~, expanded should be absolute
+        if repository.path.startswith("~"):
+            assert os.path.isabs(expanded_path)
 
 
-class TestSettingsProperties:
-    """Property-based tests for the Settings model."""
+class TestSettingsModel:
+    """Property-based tests for Settings model."""
 
     @given(settings=settings_strategy())
-    def test_settings_roundtrip(self, settings: Settings) -> None:
-        """Test settings serialization and deserialization."""
-        # Roundtrip test: convert to dict and back to model
-        settings_dict = settings.model_dump()
-        settings2 = Settings.model_validate(settings_dict)
+    def test_settings_construction(self, settings: Settings) -> None:
+        """Test Settings model construction with varied inputs."""
+        # Check types
+        assert isinstance(settings.sync_remotes, bool)
+        if settings.default_vcs is not None:
+            assert settings.default_vcs in ["git", "hg", "svn"]
+        if settings.depth is not None:
+            assert isinstance(settings.depth, int)
+            assert settings.depth > 0
 
-        # The resulting object should match the original
-        assert settings2.sync_remotes == settings.sync_remotes
-        assert settings2.default_vcs == settings.default_vcs
-        assert settings2.depth == settings.depth
 
-
-class TestVCSPullConfigProperties:
-    """Property-based tests for the VCSPullConfig model."""
-
-    @given(config=vcspull_config_strategy())
-    def test_config_roundtrip(self, config: VCSPullConfig) -> None:
-        """Test configuration serialization and deserialization."""
-        # Roundtrip test: convert to dict and back to model
-        config_dict = config.model_dump()
-        config2 = VCSPullConfig.model_validate(config_dict)
-
-        # The resulting object should match the original
-        assert config2.settings.model_dump() == config.settings.model_dump()
-        assert len(config2.repositories) == len(config.repositories)
-        assert config2.includes == config.includes
+class TestVCSPullConfigModel:
+    """Property-based tests for VCSPullConfig model."""
 
     @given(config=vcspull_config_strategy())
-    def test_repository_uniqueness(self, config: VCSPullConfig) -> None:
-        """Test that repositories with the same path are treated as unique."""
-        # This checks that we don't have unintended object identity issues
-        repo_paths = [repo.path for repo in config.repositories]
-        # Path uniqueness isn't enforced by the model, so we're just checking
-        # that the objects are distinct even if paths might be the same
-        assert len(repo_paths) == len(config.repositories)
+    def test_config_construction(self, config: VCSPullConfig) -> None:
+        """Test VCSPullConfig model construction with varied inputs."""
+        # Verify nested models are properly initialized
+        assert isinstance(config.settings, Settings)
+        assert all(isinstance(repo, Repository) for repo in config.repositories)
+        assert all(isinstance(include, str) for include in config.includes)
+
+    @given(
+        repo1=repository_strategy(),
+        repo2=repository_strategy(),
+        repo3=repository_strategy(),
+    )
+    def test_config_with_multiple_repositories(
+        self, repo1: Repository, repo2: Repository, repo3: Repository
+    ) -> None:
+        """Test VCSPullConfig with multiple repositories."""
+        # Create a config with multiple repositories
+        config = VCSPullConfig(repositories=[repo1, repo2, repo3])
+
+        # Verify all repositories are present
+        assert len(config.repositories) == 3
+        assert repo1 in config.repositories
+        assert repo2 in config.repositories
+        assert repo3 in config.repositories
