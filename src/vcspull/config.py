@@ -341,13 +341,13 @@ def in_dir(
     """
     if extensions is None:
         extensions = [".yml", ".yaml", ".json"]
-    if config_dir is not None:
+    if config_dir is None:
         config_dir = get_config_dir()
 
     return [
-        filename
-        for filename in os.listdir(config_dir)
-        if is_config_file(filename, extensions) and not filename.startswith(".")
+        path.name
+        for path in config_dir.iterdir()
+        if is_config_file(path.name, extensions) and not path.name.startswith(".")
     ]
 
 
