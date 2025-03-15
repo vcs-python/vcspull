@@ -155,6 +155,10 @@ files = [
   "src",
   "tests",
 ]
+exclude = [
+  "examples/",
+  "scripts/",
+]
 strict = true
 
 [[tool.mypy.overrides]]
