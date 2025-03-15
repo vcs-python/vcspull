@@ -69,10 +69,10 @@
   - [x] Create isolated fixtures for filesystem operations
   - [x] Implement mocks for external dependencies
 
-- [ ] **Property-Based Testing**
-  - [ ] Integrate Hypothesis for property-based testing
-  - [ ] Create generators for config data
-  - [ ] Test invariants for configuration handling
+- [x] **Property-Based Testing**
+  - [x] Integrate Hypothesis for property-based testing
+  - [x] Create generators for config data
+  - [x] Test invariants for configuration handling
 
 - [x] **Integrated Documentation and Testing**
   - [x] Add doctests for key functions
@@ -219,13 +219,18 @@
 | Validation System | High | 3 weeks | None | ✅ Completed |
 | Configuration Format | High | 2 weeks | Validation System | ✅ Completed |
 | Internal APIs | High | 4 weeks | Validation System | ✅ Completed |
-| Testing System | Medium | 3 weeks | None | ✅ Mostly Complete |
+| Testing System | Medium | 3 weeks | None | ✅ Completed |
 | CLI System | Medium | 3 weeks | Internal APIs | ✅ Mostly Complete |
 | External APIs | Medium | 2 weeks | Internal APIs | ✅ Completed |
 | CLI Tools | Low | 2 weeks | CLI System | ✅ Completed |
 
 ## Recent Progress
 
+- Implemented property-based testing with Hypothesis:
+  - Added test generators for configuration data
+  - Created tests for configuration loading and include resolution
+  - Implemented integration tests for the configuration system
+  - Fixed circular include handling in the configuration loader
 - Added type system improvements:
   - Created `py.typed` marker file to ensure proper type checking
   - Implemented `ConfigDict` TypedDict in a new types module
