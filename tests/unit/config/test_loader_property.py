@@ -230,7 +230,7 @@ class TestConfigLoaderProperties:
     def test_include_resolution(
         self,
         main_config: VCSPullConfig,
-        included_configs: t.List[VCSPullConfig],
+        included_configs: list[VCSPullConfig],
         tmp_path: pathlib.Path,
     ) -> None:
         """Test that include resolution properly merges configurations."""
@@ -275,7 +275,7 @@ class TestConfigLoaderProperties:
     )
     def test_nested_includes_resolution(
         self,
-        configs: t.List[VCSPullConfig],
+        configs: list[VCSPullConfig],
         tmp_path: pathlib.Path,
     ) -> None:
         """Test that nested includes are resolved properly."""
