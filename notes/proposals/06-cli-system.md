@@ -1,6 +1,6 @@
 # CLI System Proposal
 
-> Restructuring the Command Line Interface to improve maintainability, extensibility, and user experience.
+> Restructuring the Command Line Interface to improve maintainability, extensibility, and user experience using argparse with Python 3.9+ strict typing and optional shtab integration.
 
 ## Current Issues
 
@@ -30,37 +30,85 @@ The audit identified several issues with the current CLI system:
    ```python
    # src/vcspull/cli/commands/sync.py
    import typing as t
-   import click
    from pathlib import Path
+   import argparse
    
    from vcspull.cli.context import CliContext
-   from vcspull.cli.options import common_options, config_option
+   from vcspull.cli.registry import register_command
    from vcspull.config import load_and_validate_config
    from vcspull.types import Repository
    
-   @click.command()
-   @common_options
-   @config_option
-   @click.option(
-       "--repo", "-r", multiple=True,
-       help="Repository names or patterns to sync (supports glob patterns)."
-   )
-   @click.pass_obj
-   def sync(
-       ctx: CliContext,
-       config: t.Optional[Path] = None,
-       repo: t.Optional[list[str]] = None
-   ) -> int:
+   @register_command('sync')
+   def add_sync_parser(subparsers: argparse._SubParsersAction) -> None:
+       """Add sync command parser to the subparsers.
+       
+       Parameters
+       ----------
+       subparsers : argparse._SubParsersAction
+           Subparsers object to add command to
+       """
+       parser = subparsers.add_parser(
+           'sync',
+           help="Synchronize repositories from configuration",
+           description="Clone or update repositories based on the configuration file"
+       )
+       
+       # Add arguments
+       parser.add_argument(
+           "--config", "-c",
+           type=Path,
+           help="Path to configuration file"
+       )
+       parser.add_argument(
+           "--repo", "-r",
+           action="append",
+           help="Repository names or patterns to sync (supports glob patterns)",
+           dest="repos"
+       )
+       parser.add_argument(
+           "--no-color",
+           action="store_true",
+           help="Disable colored output"
+       )
+       
+       # Set handler function
+       parser.set_defaults(func=sync_command)
+       
+       # Add shtab completion (optional)
+       try:
+           import shtab
+           parser.add_argument(
+               "--print-completion",
+               action=shtab.SHELL_COMPLETION_ACTION,
+               help="Print shell completion script"
+           )
+       except ImportError:
+           pass
+   
+   def sync_command(args: argparse.Namespace, ctx: CliContext) -> int:
        """Synchronize repositories from configuration.
        
-       This command clones or updates repositories based on the configuration.
+       Parameters
+       ----------
+       args : argparse.Namespace
+           Parsed command arguments
+       ctx : CliContext
+           CLI context
+       
+       Returns
+       -------
+       int
+           Exit code
        """
        try:
+           # Update context from args
+           ctx.color = not args.no_color if hasattr(args, 'no_color') else ctx.color
+           
            # Load configuration
-           config_obj = load_and_validate_config(config)
+           config_obj = load_and_validate_config(args.config)
            
            # Filter repositories if patterns specified
-           repos_to_sync = filter_repositories(config_obj.repositories, repo)
+           repos_to_sync = filter_repositories(config_obj.repositories, args.repos)
            
            if not repos_to_sync:
                ctx.error("No matching repositories found.")
@@ -70,6 +118,7 @@ The audit identified several issues with the current CLI system:
            ctx.info(f"Syncing {len(repos_to_sync)} repositories...")
            
            # Get progress manager
+           from vcspull.cli.progress import ProgressManager
            progress = ProgressManager(quiet=ctx.quiet)
            
            # Show progress during sync
@@ -100,14 +149,14 @@ The audit identified several issues with the current CLI system:
        """Filter repositories by name patterns.
        
        Parameters
-       ----
+       ----------
        repositories : list[Repository]
            List of repositories to filter
        patterns : Optional[list[str]]
            List of patterns to match against repository names
            
        Returns
-       ----
+       -------
        list[Repository]
            Filtered repositories
        """
@@ -128,43 +177,93 @@ The audit identified several issues with the current CLI system:
 
 2. **Command Registry**:
    ```python
-   # src/vcspull/cli/main.py
+   # src/vcspull/cli/registry.py
    import typing as t
-   import click
+   import argparse
+   import importlib
+   import pkgutil
+   from functools import wraps
+   from pathlib import Path
+   import inspect
    
-   from vcspull.cli.context import CliContext
-   from vcspull.cli.commands.sync import sync
-   from vcspull.cli.commands.info import info
-   from vcspull.cli.commands.detect import detect
+   # Type for parser setup function
+   ParserSetupFn = t.Callable[[argparse._SubParsersAction], None]
    
-   @click.group()
-   @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output.")
-   @click.option("--quiet", "-q", is_flag=True, help="Suppress output.")
-   @click.version_option()
-   @click.pass_context
-   def cli(click_ctx, verbose: bool = False, quiet: bool = False):
-       """VCSPull - Version Control System Repository Manager.
+   # Registry to store command parser setup functions
+   _COMMAND_REGISTRY: dict[str, ParserSetupFn] = {}
+   
+   def register_command(name: str) -> t.Callable[[ParserSetupFn], ParserSetupFn]:
+       """Decorator to register a command parser setup function.
        
-       This tool helps manage multiple version control repositories.
+       Parameters
+       ----------
+       name : str
+           Name of the command
+           
+       Returns
+       -------
+       Callable
+           Decorator function
        """
-       # Initialize our custom context
-       ctx = CliContext(verbose=verbose, quiet=quiet)
-       click_ctx.obj = ctx
+       def decorator(func: ParserSetupFn) -> ParserSetupFn:
+           _COMMAND_REGISTRY[name] = func
+           return func
+       return decorator
    
-   # Register commands
-   cli.add_command(sync)
-   cli.add_command(info)
-   cli.add_command(detect)
+   def setup_parsers(parser: argparse.ArgumentParser) -> None:
+       """Set up all command parsers.
+       
+       Parameters
+       ----------
+       parser : argparse.ArgumentParser
+           Main parser to add subparsers to
+       """
+       # Create subparsers
+       subparsers = parser.add_subparsers(
+           title="commands",
+           dest="command",
+           help="Command to execute"
+       )
+       subparsers.required = True
+       
+       # Import all command modules to trigger registration
+       import_commands()
+       
+       # Add all registered commands
+       for _, setup_fn in sorted(_COMMAND_REGISTRY.items()):
+           setup_fn(subparsers)
+       
+       # Add shtab completion (optional)
+       try:
+           import shtab
+           parser.add_argument(
+               "--print-completion",
+               action=shtab.SHELL_COMPLETION_ACTION,
+               help="Print shell completion script"
+           )
+       except ImportError:
+           pass
    
-   if __name__ == "__main__":
-       cli()
+   def import_commands() -> None:
+       """Import all command modules to register commands."""
+       from vcspull.cli import commands
+       
+       # Get the path to the commands package
+       commands_pkg_path = Path(inspect.getfile(commands)).parent
+       
+       # Import all modules in the commands package
+       prefix = f"{commands.__name__}."
+       for _, name, is_pkg in pkgutil.iter_modules([str(commands_pkg_path)], prefix):
+           if not is_pkg and name != f"{prefix}__init__":
+               importlib.import_module(name)
    ```
 
 3. **Benefits**:
-   - Clear organization of commands
+   - Clear organization of commands using Python's type system
    - Commands can be tested in isolation
-   - Easier to add new commands
-   - Improved code readability
+   - Automatic command discovery and registration
+   - Shell tab completion via shtab (optional)
+   - Strict typing for improved IDE support and error checking
 
 ### 2. Context Management
 
@@ -173,16 +272,16 @@ The audit identified several issues with the current CLI system:
    # src/vcspull/cli/context.py
    import typing as t
    import sys
-   from pydantic import BaseModel, ConfigDict
-   import click
+   from dataclasses import dataclass, field
    
-   class CliContext(BaseModel):
+   @dataclass
+   class CliContext:
        """Context for CLI commands.
        
        Manages state and utilities for command execution.
        
        Parameters
-       ----
+       ----------
        verbose : bool
            Whether to show verbose output
        quiet : bool
@@ -194,65 +293,89 @@ The audit identified several issues with the current CLI system:
        quiet: bool = False
        color: bool = True
        
-       model_config = ConfigDict(
-           arbitrary_types_allowed=True,
-           extra="forbid",
-       )
-       
        def info(self, message: str) -> None:
            """Display informational message.
            
            Parameters
-           ----
+           ----------
            message : str
                Message to display
            """
            if not self.quiet:
-               click.secho(message, fg="blue" if self.color else None)
+               self._print_colored(message, "blue")
        
        def success(self, message: str) -> None:
            """Display success message.
            
            Parameters
-           ----
+           ----------
            message : str
                Message to display
            """
            if not self.quiet:
-               click.secho(message, fg="green" if self.color else None)
+               self._print_colored(message, "green")
        
        def warning(self, message: str) -> None:
            """Display warning message.
            
            Parameters
-           ----
+           ----------
            message : str
                Message to display
            """
            if not self.quiet:
-               click.secho(message, fg="yellow" if self.color else None)
+               self._print_colored(message, "yellow")
        
        def error(self, message: str) -> None:
            """Display error message.
            
            Parameters
-           ----
+           ----------
            message : str
                Message to display
            """
            if not self.quiet:
-               click.secho(message, fg="red" if self.color else None, err=True)
+               self._print_colored(message, "red", file=sys.stderr)
        
        def debug(self, message: str) -> None:
            """Display debug message when in verbose mode.
            
            Parameters
-           ----
+           ----------
            message : str
                Message to display
            """
            if self.verbose and not self.quiet:
-               click.secho(f"DEBUG: {message}", fg="cyan" if self.color else None)
+               self._print_colored(f"DEBUG: {message}", "cyan")
+       
+       def _print_colored(self, message: str, color: str, file: t.TextIO = sys.stdout) -> None:
+           """Print colored message.
+           
+           Parameters
+           ----------
+           message : str
+               Message to print
+           color : str
+               Color name
+           file : TextIO
+               File to print to, defaults to stdout
+           """
+           if not self.color:
+               print(message, file=file)
+               return
+           
+           # Simple color codes for common terminals
+           colors = {
+               "red": "\033[31m",
+               "green": "\033[32m",
+               "yellow": "\033[33m",
+               "blue": "\033[34m",
+               "magenta": "\033[35m",
+               "cyan": "\033[36m",
+               "reset": "\033[0m",
+           }
+           
+           print(f"{colors.get(color, '')}{message}{colors['reset']}", file=file)
    ```
 
 2. **Shared Command Options**:
