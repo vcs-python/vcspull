@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+import typing as t
 
 import pytest
 import yaml
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 @pytest.fixture
-def simple_yaml_config(tmp_path: Path) -> Path:
+def simple_yaml_config(tmp_path: t.Any) -> t.Any:
     """Create a simple YAML configuration file.
 
     Parameters
@@ -49,7 +46,7 @@ def simple_yaml_config(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def complex_yaml_config(tmp_path: Path) -> Path:
+def complex_yaml_config(tmp_path: t.Any) -> t.Any:
     """Create a complex YAML configuration file with multiple repositories.
 
     Parameters
@@ -102,7 +99,7 @@ def complex_yaml_config(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def json_config(tmp_path: Path) -> Path:
+def json_config(tmp_path: t.Any) -> t.Any:
     """Create a JSON configuration file.
 
     Parameters
@@ -138,7 +135,7 @@ def json_config(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def config_with_includes(tmp_path: Path) -> tuple[Path, Path]:
+def config_with_includes(tmp_path: t.Any) -> t.Tuple[t.Any, t.Any]:
     """Create a configuration file with includes.
 
     Parameters
