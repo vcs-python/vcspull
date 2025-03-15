@@ -43,7 +43,7 @@ The audit identified several issues with the current CLI system:
        """Add sync command parser to the subparsers.
        
        Parameters
-       ----------
+       ----
        subparsers : argparse._SubParsersAction
            Subparsers object to add command to
        """
@@ -89,14 +89,14 @@ The audit identified several issues with the current CLI system:
        """Synchronize repositories from configuration.
        
        Parameters
-       ----------
+       ----
        args : argparse.Namespace
            Parsed command arguments
        ctx : CliContext
            CLI context
        
        Returns
-       -------
+       ----
        int
            Exit code
        """
@@ -149,14 +149,14 @@ The audit identified several issues with the current CLI system:
        """Filter repositories by name patterns.
        
        Parameters
-       ----------
+       ----
        repositories : list[Repository]
            List of repositories to filter
        patterns : Optional[list[str]]
            List of patterns to match against repository names
            
        Returns
-       -------
+       ----
        list[Repository]
            Filtered repositories
        """
@@ -196,12 +196,12 @@ The audit identified several issues with the current CLI system:
        """Decorator to register a command parser setup function.
        
        Parameters
-       ----------
+       ----
        name : str
            Name of the command
            
        Returns
-       -------
+       ----
        Callable
            Decorator function
        """
@@ -214,7 +214,7 @@ The audit identified several issues with the current CLI system:
        """Set up all command parsers.
        
        Parameters
-       ----------
+       ----
        parser : argparse.ArgumentParser
            Main parser to add subparsers to
        """
@@ -281,7 +281,7 @@ The audit identified several issues with the current CLI system:
        Manages state and utilities for command execution.
        
        Parameters
-       ----------
+       ----
        verbose : bool
            Whether to show verbose output
        quiet : bool
@@ -297,7 +297,7 @@ The audit identified several issues with the current CLI system:
            """Display informational message.
            
            Parameters
-           ----------
+           ----
            message : str
                Message to display
            """
@@ -308,7 +308,7 @@ The audit identified several issues with the current CLI system:
            """Display success message.
            
            Parameters
-           ----------
+           ----
            message : str
                Message to display
            """
@@ -319,7 +319,7 @@ The audit identified several issues with the current CLI system:
            """Display warning message.
            
            Parameters
-           ----------
+           ----
            message : str
                Message to display
            """
@@ -330,7 +330,7 @@ The audit identified several issues with the current CLI system:
            """Display error message.
            
            Parameters
-           ----------
+           ----
            message : str
                Message to display
            """
@@ -341,7 +341,7 @@ The audit identified several issues with the current CLI system:
            """Display debug message when in verbose mode.
            
            Parameters
-           ----------
+           ----
            message : str
                Message to display
            """
@@ -352,7 +352,7 @@ The audit identified several issues with the current CLI system:
            """Print colored message.
            
            Parameters
-           ----------
+           ----
            message : str
                Message to print
            color : str
@@ -382,56 +382,37 @@ The audit identified several issues with the current CLI system:
    ```python
    # src/vcspull/cli/options.py
    import typing as t
-   import click
+   import argparse
    from pathlib import Path
    import functools
    
-   def common_options(f: t.Callable) -> t.Callable:
-       """Common options decorator for all commands.
+   def common_options(parser: argparse.ArgumentParser) -> None:
+       """Add common options to parser.
        
        Parameters
        ----
-       f : Callable
-           Function to decorate
-           
-       Returns
-       ----
-       Callable
-           Decorated function
+       parser : argparse.ArgumentParser
+           Parser to add options to
        """
-       @click.option(
-           "--no-color", is_flag=True, help="Disable colored output."
+       parser.add_argument(
+           "--no-color",
+           action="store_true",
+           help="Disable colored output"
        )
-       @functools.wraps(f)
-       def wrapper(*args: t.Any, no_color: bool = False, **kwargs: t.Any) -> t.Any:
-           ctx = kwargs.get('ctx') or args[0]
-           if hasattr(ctx, 'color'):
-               ctx.color = not no_color
-           return f(*args, **kwargs)
-       return wrapper
    
-   def config_option(f: t.Callable) -> t.Callable:
-       """Configuration file option decorator.
+   def config_option(parser: argparse.ArgumentParser) -> None:
+       """Add configuration file option to parser.
        
        Parameters
        ----
-       f : Callable
-           Function to decorate
-           
-       Returns
-       ----
-       Callable
-           Decorated function
+       parser : argparse.ArgumentParser
+           Parser to add option to
        """
-       @click.option(
+       parser.add_argument(
            "--config", "-c",
-           type=click.Path(exists=True, dir_okay=False, path_type=Path),
-           help="Path to configuration file."
+           type=Path,
+           help="Path to configuration file"
        )
-       @functools.wraps(f)
-       def wrapper(*args: t.Any, **kwargs: t.Any) -> t.Any:
-           return f(*args, **kwargs)
-       return wrapper
    ```
 
 3. **Benefits**:
@@ -447,120 +428,73 @@ The audit identified several issues with the current CLI system:
    # src/vcspull/cli/errors.py
    import typing as t
    import sys
-   import click
+   import traceback
+   
+   from vcspull.cli.context import CliContext
    from vcspull.exceptions import VCSPullError, ConfigError, VCSError
    
-   def handle_exceptions(func):
-       """Handle exceptions in CLI commands.
+   def handle_exception(e: Exception, ctx: CliContext) -> int:
+       """Handle exception and return appropriate exit code.
        
        Parameters
        ----
-       func : Callable
-           Command function to decorate
+       e : Exception
+           Exception to handle
+       ctx : CliContext
+           CLI context
            
        Returns
        ----
-       Callable
-           Decorated function
+       int
+           Exit code
        """
-       from functools import wraps
+       if isinstance(e, ConfigError):
+           ctx.error(f"Configuration error: {e}")
+       elif isinstance(e, VCSError):
+           ctx.error(f"VCS operation error: {e}")
+       elif isinstance(e, VCSPullError):
+           ctx.error(f"Error: {e}")
+       else:
+           ctx.error(f"Unexpected error: {e}")
        
-       @wraps(func)
-       def wrapper(*args, **kwargs):
-           try:
-               return func(*args, **kwargs)
-           except ConfigError as e:
-               ctx = click.get_current_context().obj
-               ctx.error(f"Configuration error: {e}")
-               if ctx.verbose:
-                   import traceback
-                   ctx.debug(traceback.format_exc())
-               return 1
-           except VCSError as e:
-               ctx = click.get_current_context().obj
-               ctx.error(f"VCS operation error: {e}")
-               if ctx.verbose:
-                   import traceback
-                   ctx.debug(traceback.format_exc())
-               return 1
-           except VCSPullError as e:
-               ctx = click.get_current_context().obj
-               ctx.error(f"Error: {e}")
-               if ctx.verbose:
-                   import traceback
-                   ctx.debug(traceback.format_exc())
-               return 1
-           except Exception as e:
-               ctx = click.get_current_context().obj
-               ctx.error(f"Unexpected error: {e}")
-               if ctx.verbose:
-                   import traceback
-                   ctx.debug(traceback.format_exc())
-               return 1
+       if ctx.verbose:
+           ctx.debug(traceback.format_exc())
        
-       return wrapper
+       return 1
    ```
 
-2. **Usage in Commands**:
+2. **Command Wrapper Function**:
    ```python
-   # src/vcspull/cli/commands/info.py
+   # src/vcspull/cli/commands/common.py
    import typing as t
-   import click
-   import json
-   from pathlib import Path
+   import functools
    
    from vcspull.cli.context import CliContext
-   from vcspull.cli.options import common_options, config_option
-   from vcspull.cli.errors import handle_exceptions
-   from vcspull.config import load_and_validate_config
-   from vcspull.cli.output import OutputFormatter
+   from vcspull.cli.errors import handle_exception
    
-   @click.command()
-   @common_options
-   @config_option
-   @click.option(
-       "--format", "-f", type=click.Choice(["text", "json", "yaml", "table"]), default="text",
-       help="Output format."
-   )
-   @click.pass_obj
-   @handle_exceptions
-   def info(
-       ctx: CliContext,
-       config: t.Optional[Path] = None,
-       format: str = "text"
-   ) -> int:
-       """Display information about repositories.
+   CommandFunc = t.Callable[[argparse.Namespace, CliContext], int]
+   
+   def command_wrapper(func: CommandFunc) -> CommandFunc:
+       """Wrap command function with error handling.
        
-       Shows details about configured repositories.
+       Parameters
+       ----
+       func : CommandFunc
+           Command function to wrap
+           
+       Returns
+       ----
+       CommandFunc
+           Wrapped function
        """
-       # Load configuration
-       config_obj = load_and_validate_config(config)
+       @functools.wraps(func)
+       def wrapper(args: argparse.Namespace, ctx: CliContext) -> int:
+           try:
+               return func(args, ctx)
+           except Exception as e:
+               return handle_exception(e, ctx)
        
-       # Get repositories info
-       repos_info = []
-       for repo in config_obj.repositories:
-           repos_info.append({
-               "name": repo.name,
-               "url": repo.url,
-               "path": repo.path,
-               "vcs": repo.vcs or "unknown"
-           })
-       
-       # Format output based on user selection
-       if format == "json":
-           click.echo(OutputFormatter.format_json(repos_info))
-       elif format == "yaml":
-           click.echo(OutputFormatter.format_yaml(repos_info))
-       elif format == "table":
-           click.echo(OutputFormatter.format_table(repos_info, columns=["name", "vcs", "path"]))
-       else:
-           # Text output
-           for repo in repos_info:
-               ctx.info(f"- {repo['name']} ({repo['vcs']})")
-               ctx.info(f"  URL: {repo['url']}")
-               ctx.info(f"  Path: {repo['path']}")
-       
-       return 0
+       return wrapper
    ```
 
 3. **Benefits**:
@@ -575,8 +509,10 @@ The audit identified several issues with the current CLI system:
    ```python
    # src/vcspull/cli/progress.py
    import typing as t
-   from pydantic import BaseModel
-   import click
+   import threading
+   import itertools
+   import sys
+   import time
    
    class ProgressManager:
        """Manager for CLI progress reporting."""
@@ -591,113 +527,181 @@ The audit identified several issues with the current CLI system:
            """
            self.quiet = quiet
        
-       def progress_bar(self, length: int, label: str = "Progress") -> t.Optional[click.progressbar]:
-           """Create a progress bar.
+       def progress_bar(self, total: int, label: str = "Progress"):
+           """Create a progress bar context manager.
            
            Parameters
            ----
-           length : int
-               Total length of the progress bar
-           label : str, optional
-               Label for the progress bar, by default "Progress"
+           total : int
+               Total number of items
+           label : str
+               Label for the progress bar
                
            Returns
            ----
-           Optional[click.progressbar]
-               Progress bar object or None if quiet
+           ProgressBar
+               Progress bar context manager
            """
            if self.quiet:
-               return None
-           
-           return click.progressbar(
-               length=length,
-               label=label,
-               show_eta=True,
-               show_percent=True,
-               fill_char="="
-           )
+               return DummyProgressBar()
+           return ProgressBar(total, label)
        
-       def spinner(self, text: str = "Working...") -> t.Optional["Spinner"]:
+       def spinner(self, text: str = "Working..."):
            """Create a spinner for indeterminate progress.
            
            Parameters
            ----
-           text : str, optional
-               Text to display, by default "Working..."
+           text : str
+               Text to display
                
            Returns
            ----
-           Optional[Spinner]
-               Spinner object or None if quiet
+           Spinner
+               Spinner context manager
            """
            if self.quiet:
-               return None
-           
-           import itertools
-           import time
-           import threading
-           import sys
-           
-           spinner_symbols = itertools.cycle(["-", "/", "|", "\\"])
-           
-           class Spinner:
-               def __init__(self, text):
-                   self.text = text
-                   self.running = False
-                   self.spinner_thread = None
-               
-               def __enter__(self):
-                   self.running = True
-                   self.spinner_thread = threading.Thread(target=self._spin)
-                   self.spinner_thread.start()
-                   return self
-               
-               def __exit__(self, exc_type, exc_val, exc_tb):
-                   self.running = False
-                   if self.spinner_thread:
-                       self.spinner_thread.join()
-                   sys.stdout.write("\r")
-                   sys.stdout.write(" " * (len(self.text) + 4))
-                   sys.stdout.write("\r")
-                   sys.stdout.flush()
-               
-               def _spin(self):
-                   while self.running:
-                       symbol = next(spinner_symbols)
-                       sys.stdout.write(f"\r{symbol} {self.text}")
-                       sys.stdout.flush()
-                       time.sleep(0.1)
-           
+               return DummySpinner()
            return Spinner(text)
-   ```
-
-2. **Usage in Commands**:
-   ```python
-   # src/vcspull/cli/commands/sync.py 
-   # In the sync command function
    
-   # Get progress manager
-   progress = ProgressManager(quiet=ctx.quiet)
    
-   # Show progress during sync
-   repos_to_sync = filter_repositories(config_obj.repositories, repo)
-   
-   with progress.progress_bar(len(repos_to_sync), "Syncing repositories") as bar:
-       for repository in repos_to_sync:
-           ctx.info(f"Syncing {repository.name}...")
-           try:
-               # Sync repository
-               sync_repository(repository)
-               ctx.success(f"✓ {repository.name} synced successfully")
-           except Exception as e:
-               ctx.error(f"✗ Failed to sync {repository.name}: {e}")
+   class ProgressBar:
+       """Progress bar for CLI applications."""
+       
+       def __init__(self, total: int, label: str = "Progress"):
+           """Initialize progress bar.
            
-           # Update progress bar
-           if bar:
-               bar.update(1)
+           Parameters
+           ----
+           total : int
+               Total number of items
+           label : str
+               Label for the progress bar
+           """
+           self.total = total
+           self.label = label
+           self.current = 0
+           self.width = 40
+           self.start_time = 0
+       
+       def __enter__(self):
+           """Enter context manager."""
+           self.start_time = time.time()
+           self._draw()
+           return self
+       
+       def __exit__(self, exc_type, exc_val, exc_tb):
+           """Exit context manager."""
+           self._draw()
+           sys.stdout.write("\n")
+           sys.stdout.flush()
+       
+       def update(self, n: int = 1):
+           """Update progress bar.
+           
+           Parameters
+           ----
+           n : int
+               Number of items to increment
+           """
+           self.current += n
+           self._draw()
+       
+       def _draw(self):
+           """Draw progress bar."""
+           if self.total == 0:
+               percent = 100
+           else:
+               percent = int(self.current * 100 / self.total)
+           
+           filled_width = int(self.width * self.current / self.total)
+           bar = '=' * filled_width + ' ' * (self.width - filled_width)
+           
+           elapsed = time.time() - self.start_time
+           if elapsed == 0:
+               rate = 0
+           else:
+               rate = self.current / elapsed
+           
+           sys.stdout.write(f"\r{self.label}: [{bar}] {percent}% {self.current}/{self.total} ({rate:.1f}/s)")
+           sys.stdout.flush()
+   
+   
+   class Spinner:
+       """Spinner for indeterminate progress."""
+       
+       def __init__(self, text: str = "Working..."):
+           """Initialize spinner.
+           
+           Parameters
+           ----
+           text : str
+               Text to display
+           """
+           self.text = text
+           self.spinner_chars = itertools.cycle(["-", "/", "|", "\\"])
+           self.running = False
+           self.spinner_thread = None
+       
+       def __enter__(self):
+           """Enter context manager."""
+           self.running = True
+           self.spinner_thread = threading.Thread(target=self._spin)
+           self.spinner_thread.daemon = True
+           self.spinner_thread.start()
+           return self
+       
+       def __exit__(self, exc_type, exc_val, exc_tb):
+           """Exit context manager."""
+           self.running = False
+           if self.spinner_thread:
+               self.spinner_thread.join()
+           sys.stdout.write("\r" + " " * (len(self.text) + 4) + "\r")
+           sys.stdout.flush()
+       
+       def _spin(self):
+           """Spin the spinner."""
+           while self.running:
+               char = next(self.spinner_chars)
+               sys.stdout.write(f"\r{char} {self.text}")
+               sys.stdout.flush()
+               time.sleep(0.1)
+   
+   
+   class DummyProgressBar:
+       """Dummy progress bar that does nothing."""
+       
+       def __enter__(self):
+           """Enter context manager."""
+           return self
+       
+       def __exit__(self, exc_type, exc_val, exc_tb):
+           """Exit context manager."""
+           pass
+       
+       def update(self, n: int = 1):
+           """Update progress bar.
+           
+           Parameters
+           ----
+           n : int
+               Number of items to increment
+           """
+           pass
+   
+   
+   class DummySpinner:
+       """Dummy spinner that does nothing."""
+       
+       def __enter__(self):
+           """Enter context manager."""
+           return self
+       
+       def __exit__(self, exc_type, exc_val, exc_tb):
+           """Exit context manager."""
+           pass
    ```
 
-3. **Benefits**:
+2. **Benefits**:
    - Visual feedback for long-running operations
    - Improved user experience
    - Optional (can be disabled with --quiet)
@@ -705,123 +709,89 @@ The audit identified several issues with the current CLI system:
 
 ### 5. Command Discovery and Help
 
-1. **Enhanced Help System**:
+1. **Main CLI Entry Point**:
    ```python
    # src/vcspull/cli/main.py
    import typing as t
-   import click
-
-   # Define custom help formatter
-   class VCSPullHelpFormatter(click.HelpFormatter):
-       """Custom help formatter for VCSPull CLI."""
-       
-       def write_usage(self, prog, args='', prefix='Usage: '):
-           """Write usage line with custom formatting.
-           
-           Parameters
-           ----
-           prog : str
-               Program name
-           args : str, optional
-               Command arguments, by default ''
-           prefix : str, optional
-               Prefix for usage line, by default 'Usage: '
-           """
-           super().write_usage(prog, args, prefix)
-           # Add extra newline for readability
-           self.write("\n")
-       
-       def write_heading(self, heading):
-           """Write section heading with custom formatting.
-           
-           Parameters
-           ----
-           heading : str
-               Section heading
-           """
-           self.write(f"\n{click.style(heading, fg='green', bold=True)}:\n")
-
-   # Use custom formatter for CLI group
-   @click.group(cls=click.Group, context_settings={
-       "help_option_names": ["--help", "-h"],
-       "max_content_width": 100
-   })
-   @click.version_option()
-   @click.pass_context
-   def cli(ctx):
-       """VCSPull - Version Control System Repository Manager.
-       
-       This tool helps you manage multiple version control repositories.
-       
-       Basic Commands:
-         sync      Clone or update repositories
-         info      Show information about repositories
-         detect    Auto-detect repositories in a directory
-       
-       Configuration:
-         VCSPull looks for configuration in:
-         - ./.vcspull.yaml
-         - ~/.vcspull.yaml
-         - ~/.config/vcspull/config.yaml
-       
-       Examples:
-         vcspull sync               # Sync all repositories
-         vcspull sync -r project1   # Sync specific repository
-         vcspull info --format json # Show repository info in JSON format
-       """
-       # Custom formatter for help text
-       ctx.ensure_object(dict)
-       ctx.obj["formatter"] = VCSPullHelpFormatter()
-   ```
-
-2. **Command Documentation**:
-   ```python
-   # src/vcspull/cli/commands/detect.py
-   import typing as t
-   import click
-   from pathlib import Path
+   import argparse
+   import sys
    
    from vcspull.cli.context import CliContext
-   from vcspull.cli.options import common_options
-   from vcspull.cli.errors import handle_exceptions
+   from vcspull.cli.registry import setup_parsers
    
-   @click.command()
-   @common_options
-   @click.argument("directory", type=click.Path(exists=True, file_okay=False, path_type=Path), default=".")
-   @click.option(
-       "--recursive", "-r", is_flag=True,
-       help="Recursively search for repositories."
-   )
-   @click.option(
-       "--max-depth", type=int, default=3,
-       help="Maximum recursion depth (with --recursive)."
-   )
-   @click.pass_obj
-   @handle_exceptions
-   def detect(
-       ctx: CliContext,
-       directory: Path,
-       recursive: bool = False,
-       max_depth: int = 3
-   ) -> int:
-       """Detect version control repositories in a directory.
+   def main(argv: t.Optional[list[str]] = None) -> int:
+       """CLI entry point.
        
-       This command scans the specified DIRECTORY for version control
-       repositories and displays information about them.
+       Parameters
+       ----
+       argv : Optional[list[str]]
+           Command line arguments, defaults to sys.argv[1:] if not provided
        
-       Examples:
-       
-         vcspull detect                   # Scan current directory
-         vcspull detect ~/code            # Scan specific directory
-         vcspull detect ~/code --recursive # Scan recursively
+       Returns
+       ----
+       int
+           Exit code
        """
-       # Implementation
-       ctx.info(f"Scanning {directory}{' recursively' if recursive else ''}...")
-       # ...
-       return 0
+       # Create argument parser
+       parser = argparse.ArgumentParser(
+           description="VCSPull - Version Control System Repository Manager",
+           formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+           epilog="""
+           Examples:
+             vcspull sync               # Sync all repositories
+             vcspull sync -r project1   # Sync specific repository
+             vcspull detect ~/code      # Detect repositories in directory
+           """
+       )
+       
+       # Add global options
+       parser.add_argument(
+           "--verbose", "-v",
+           action="store_true",
+           help="Enable verbose output"
+       )
+       parser.add_argument(
+           "--quiet", "-q",
+           action="store_true",
+           help="Suppress output"
+       )
+       parser.add_argument(
+           "--version",
+           action="store_true",
+           help="Show version information and exit"
+       )
+       
+       # Set up command parsers
+       setup_parsers(parser)
+       
+       # Create context
+       ctx = CliContext(verbose=False, quiet=False, color=True)
+       
+       # Parse arguments
+       if argv is None:
+           argv = sys.argv[1:]
+       
+       args = parser.parse_args(argv)
+       
+       # Show version if requested
+       if args.version:
+           from vcspull.__about__ import __version__
+           print(f"VCSPull v{__version__}")
+           return 0
+       
+       # Update context from args
+       ctx.verbose = args.verbose
+       ctx.quiet = args.quiet
+       
+       # Call command handler
+       if hasattr(args, 'func'):
+           return args.func(args, ctx)
+       else:
+           parser.print_help()
+           return 1
    ```
 
-3. **Benefits**:
+2. **Benefits**:
    - Improved command discoverability
    - Better help text formatting
    - Examples and usage guidance
@@ -829,149 +799,74 @@ The audit identified several issues with the current CLI system:
 
 ### 6. Configuration Integration
 
-1. **Automated Configuration Discovery**:
+1. **Configuration Helper Functions**:
    ```python
-   # src/vcspull/cli/config.py
+   # src/vcspull/cli/config_helpers.py
    import typing as t
    from pathlib import Path
-   import os
-   import click
-
-   from vcspull.config import find_configs, load_and_validate_config
-   from vcspull.schemas import VCSPullConfig
-
-   def get_config(path: t.Optional[Path] = None) -> VCSPullConfig:
-       """Get configuration from file or standard locations.
+   
+   from vcspull.config import load_config, find_configs
+   from vcspull.config.models import VCSPullConfig
+   from vcspull.cli.context import CliContext
+   
+   def get_config(
+       config_path: t.Optional[Path],
+       ctx: CliContext
+   ) -> t.Optional[VCSPullConfig]:
+       """Get configuration from file or default locations.
        
        Parameters
        ----
-       path : Optional[Path], optional
-           Explicit configuration path, by default None
-           
+       config_path : Optional[Path]
+           Path to configuration file, or None to use default
+       ctx : CliContext
+           CLI context
+       
        Returns
        ----
-       VCSPullConfig
-           Loaded and validated configuration
-           
-       Raises
-       ----
-       click.ClickException
-           If no configuration is found or configuration is invalid
+       Optional[VCSPullConfig]
+           Loaded configuration, or None if not found or invalid
        """
        try:
-           if path:
-               # Explicit path provided
-               return load_and_validate_config(path)
+           # Use specified config file if provided
+           if config_path:
+               ctx.debug(f"Loading configuration from {config_path}")
+               return load_config(config_path)
            
-           # Find configuration in standard locations
-           config_paths = find_configs()
+           # Find configuration files
+           config_files = find_configs()
            
-           if not config_paths:
-               # No configuration found
-               raise click.ClickException(
-                   "No configuration file found. Please create one or specify with --config."
-               )
+           if not config_files:
+               ctx.error("No configuration files found.")
+               return None
            
-           # Load first found configuration
-           return load_and_validate_config(config_paths[0])
+           # Use first config file
+           ctx.debug(f"Loading configuration from {config_files[0]}")
+           return load_config(config_files[0])
        except Exception as e:
-           # Wrap exceptions in ClickException for nice error reporting
-           raise click.ClickException(f"Configuration error: {e}")
+           ctx.error(f"Failed to load configuration: {e}")
+           return None
    ```
 
-2. **Configuration Output**:
-   ```python
-   # src/vcspull/cli/commands/config.py
-   import typing as t
-   import click
-   import json
-   import yaml
-   from pathlib import Path
-   
-   from vcspull.cli.context import CliContext
-   from vcspull.cli.options import common_options
-   from vcspull.cli.errors import handle_exceptions
-   from vcspull.config import find_configs, load_and_validate_config
-   from vcspull.schemas import VCSPullConfig
-   
-   @click.group(name="config")
-   def config_group():
-       """Configuration management commands."""
-       pass
-   
-   @config_group.command(name="list")
-   @common_options
-   @click.pass_obj
-   @handle_exceptions
-   def list_configs(ctx: CliContext) -> int:
-       """List available configuration files."""
-       configs = find_configs()
-       
-       if not configs:
-           ctx.warning("No configuration files found.")
-           return 0
-       
-       ctx.info("Found configuration files:")
-       for config_path in configs:
-           ctx.info(f"- {config_path}")
-       
-       return 0
-   
-   @config_group.command(name="validate")
-   @common_options
-   @click.argument("config_file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-   @click.pass_obj
-   @handle_exceptions
-   def validate_config(ctx: CliContext, config_file: Path) -> int:
-       """Validate a configuration file."""
-       try:
-           config = load_and_validate_config(config_file)
-           ctx.success(f"Configuration is valid: {config_file}")
-           ctx.info(f"Found {len(config.repositories)} repositories")
-           return 0
-       except Exception as e:
-           ctx.error(f"Invalid configuration: {e}")
-           return 1
-   
-   @config_group.command(name="show-schema")
-   @common_options
-   @click.option(
-       "--format", "-f", type=click.Choice(["json", "yaml"]), default="json",
-       help="Output format for schema."
-   )
-   @click.pass_obj
-   @handle_exceptions
-   def show_schema(ctx: CliContext, format: str = "json") -> int:
-       """Show JSON schema for configuration."""
-       schema = VCSPullConfig.model_json_schema()
-       
-       if format == "yaml":
-           click.echo(yaml.dump(schema, sort_keys=False))
-       else:
-           click.echo(json.dumps(schema, indent=2))
-       
-       return 0
-   ```
-
-3. **Benefits**:
+2. **Benefits**:
    - Simplified configuration handling in commands
-   - User-friendly configuration management
-   - Schema documentation for users
-   - Configuration validation tools
+   - User-friendly error messages
+   - Consistent configuration loading
+   - Debug output for troubleshooting
 
 ### 7. Rich Output Formatting
 
-1. **Output Format System**:
+1. **Output Formatter**:
    ```python
    # src/vcspull/cli/output.py
    import typing as t
    import json
    import yaml
-   import click
+   
    from pydantic import BaseModel
    
    class OutputFormatter:
-       """Format command output in different formats."""
+       """Format output in different formats."""
        
        @staticmethod
        def format_json(data: t.Any) -> str:
@@ -981,14 +876,18 @@ The audit identified several issues with the current CLI system:
            ----
            data : Any
                Data to format
-               
+           
            Returns
            ----
            str
                Formatted JSON string
            """
+           # Convert pydantic models to dict
            if isinstance(data, BaseModel):
                data = data.model_dump()
+           elif isinstance(data, list) and data and isinstance(data[0], BaseModel):
+               data = [item.model_dump() for item in data]
+           
            return json.dumps(data, indent=2)
        
        @staticmethod
@@ -999,27 +898,31 @@ The audit identified several issues with the current CLI system:
            ----
            data : Any
                Data to format
-               
+           
            Returns
            ----
            str
                Formatted YAML string
            """
+           # Convert pydantic models to dict
            if isinstance(data, BaseModel):
                data = data.model_dump()
-           return yaml.dump(data, sort_keys=False)
+           elif isinstance(data, list) and data and isinstance(data[0], BaseModel):
+               data = [item.model_dump() for item in data]
+           
+           return yaml.safe_dump(data, sort_keys=False, default_flow_style=False)
        
        @staticmethod
-       def format_table(data: t.List[t.Dict[str, t.Any]], columns: t.List[str] = None) -> str:
-           """Format data as an ASCII table.
+       def format_table(data: t.List[t.Dict[str, t.Any]], columns: t.Optional[list[str]] = None) -> str:
+           """Format data as ASCII table.
            
            Parameters
            ----
            data : List[Dict[str, Any]]
-               List of dictionaries to format as a table
-           columns : List[str], optional
-               Column names to include, by default all columns
-               
+               Data to format
+           columns : Optional[list[str]]
+               Columns to include, or None for all
+           
            Returns
            ----
            str
@@ -1028,79 +931,48 @@ The audit identified several issues with the current CLI system:
            if not data:
                return "No data"
            
-           # Convert BaseModel instances to dictionaries
-           formatted_data = []
+           # Convert pydantic models to dict
+           processed_data = []
            for item in data:
                if isinstance(item, BaseModel):
-                   formatted_data.append(item.model_dump())
+                   processed_data.append(item.model_dump())
                else:
-                   formatted_data.append(item)
+                   processed_data.append(item)
            
-           # Get all columns if not specified
-           if not columns:
-               columns = set()
-               for item in formatted_data:
-                   columns.update(item.keys())
-               columns = sorted(columns)
+           # Determine columns if not specified
+           if columns is None:
+               all_keys = set()
+               for item in processed_data:
+                   all_keys.update(item.keys())
+               columns = sorted(all_keys)
            
            # Calculate column widths
            widths = {col: len(col) for col in columns}
-           for item in formatted_data:
+           for item in processed_data:
                for col in columns:
                    if col in item:
-                       widths[col] = max(widths[col], len(str(item[col])))
+                       widths[col] = max(widths[col], len(str(item.get(col, ""))))
            
-           # Create table
-           header = " | ".join(col.ljust(widths[col]) for col in columns)
+           # Build table
+           header_row = " | ".join(col.ljust(widths[col]) for col in columns)
            separator = "-+-".join("-" * widths[col] for col in columns)
            
-           rows = []
-           for item in formatted_data:
+           result = [header_row, separator]
+           
+           for item in processed_data:
                row = " | ".join(
                    str(item.get(col, "")).ljust(widths[col]) for col in columns
                )
-               rows.append(row)
+               result.append(row)
            
-           return "\n".join([header, separator] + rows)
+           return "\n".join(result)
    ```
 
-2. **Usage in Commands**:
-   ```python
-   # src/vcspull/cli/commands/info.py
-   # In the info command function
-   
-   from vcspull.cli.output import OutputFormatter
-   
-   # Get repositories info
-   repos_info = []
-   for repo in config_obj.repositories:
-       repos_info.append({
-           "name": repo.name,
-           "url": repo.url,
-           "path": repo.path,
-           "vcs": repo.vcs or "unknown"
-       })
-   
-   # Format output based on user selection
-   if format == "json":
-       click.echo(OutputFormatter.format_json(repos_info))
-   elif format == "yaml":
-       click.echo(OutputFormatter.format_yaml(repos_info))
-   elif format == "table":
-       click.echo(OutputFormatter.format_table(repos_info, columns=["name", "vcs", "path"]))
-   else:
-       # Text output
-       for repo in repos_info:
-           ctx.info(f"- {repo['name']} ({repo['vcs']})")
-           ctx.info(f"  URL: {repo['url']}")
-           ctx.info(f"  Path: {repo['path']}")
-   ```
-
-3. **Benefits**:
+2. **Benefits**:
    - Consistent output formatting across commands
    - Multiple output formats for different use cases
-   - Machine-readable outputs (JSON/YAML)
-   - Pretty-printed human-readable output
+   - Clean, readable output for users
+   - Machine-readable formats (JSON, YAML) for scripts
 
 ## Implementation Plan
 
@@ -1158,7 +1030,5 @@ The audit identified several issues with the current CLI system:
 ## Conclusion
 
 The proposed CLI system will significantly improve the maintainability, extensibility, and user experience of VCSPull. By restructuring the command system, enhancing error handling, and improving output formatting, we can create a more professional and user-friendly command-line interface.
-
-These changes will make VCSPull easier to use for both new and existing users, while also simplifying future development by providing a clear, modular structure for CLI commands.
 
 These changes will make VCSPull easier to use for both new and existing users, while also simplifying future development by providing a clear, modular structure for CLI commands. 
