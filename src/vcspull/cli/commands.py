@@ -8,11 +8,13 @@ import json
 import sys
 import typing as t
 from pathlib import Path
+from typing import Union
 
 from colorama import init
 
 from vcspull._internal import logger
 from vcspull.config import load_config
+from vcspull.config.migration import migrate_all_configs, migrate_config_file
 from vcspull.config.models import VCSPullConfig
 from vcspull.operations import (
     apply_lock,
@@ -49,6 +51,7 @@ def cli(argv: list[str] | None = None) -> int:
     add_detect_command(subparsers)
     add_lock_command(subparsers)
     add_apply_lock_command(subparsers)
+    add_migrate_command(subparsers)
 
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
@@ -67,6 +70,8 @@ def cli(argv: list[str] | None = None) -> int:
         return lock_command(args)
     if args.command == "apply-lock":
         return apply_lock_command(args)
+    if args.command == "migrate":
+        return migrate_command(args)
 
     return 0
 
@@ -244,6 +249,64 @@ def add_apply_lock_command(subparsers: argparse._SubParsersAction[t.Any]) -> Non
         "--json",
         action="store_true",
         help="Output results in JSON format",
+    )
+
+
+def add_migrate_command(subparsers: argparse._SubParsersAction[t.Any]) -> None:
+    """Add the migrate command to the parser.
+
+    Parameters
+    ----------
+    subparsers : argparse._SubParsersAction
+        Subparsers action to add the command to
+    """
+    parser = subparsers.add_parser(
+        "migrate",
+        help="Migrate configuration files to the latest format",
+        description=(
+            "Migrate VCSPull configuration files from old format to new "
+            "Pydantic-based format"
+        ),
+    )
+    parser.add_argument(
+        "config_paths",
+        nargs="*",
+        help=(
+            "Paths to configuration files to migrate (defaults to standard "
+            "paths if not provided)"
+        ),
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        help=(
+            "Path to save the migrated configuration (if not specified, "
+            "overwrites the original)"
+        ),
+    )
+    parser.add_argument(
+        "-n",
+        "--no-backup",
+        action="store_true",
+        help="Don't create backup files of original configurations",
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Force migration even if files are already in the latest format",
+    )
+    parser.add_argument(
+        "-d",
+        "--dry-run",
+        action="store_true",
+        help="Show what would be migrated without making changes",
+    )
+    parser.add_argument(
+        "-c",
+        "--color",
+        action="store_true",
+        help="Colorize output",
     )
 
 
@@ -628,3 +691,143 @@ def filter_repositories_by_paths(
                 setattr(filtered_config, attr_name, getattr(config, attr_name))
 
     return filtered_config
+
+
+def migrate_command(args: argparse.Namespace) -> int:
+    """Migrate configuration files to the latest format.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command line arguments
+
+    Returns
+    -------
+    int
+        Exit code
+    """
+    from colorama import Fore, Style
+
+    use_color = args.color
+
+    def format_status(success: bool) -> str:
+        """Format success status with color if enabled."""
+        if not use_color:
+            return "Success" if success else "Failed"
+
+        if success:
+            return f"{Fore.GREEN}Success{Style.RESET_ALL}"
+        return f"{Fore.RED}Failed{Style.RESET_ALL}"
+
+    # Determine paths to process
+    if args.config_paths:
+        # Convert to strings to satisfy Union[str, Path] typing requirement
+        paths_to_process: list[str | Path] = list(args.config_paths)
+    else:
+        # Use default paths if none provided
+        default_paths = [
+            Path("~/.config/vcspull").expanduser(),
+            Path("~/.vcspull").expanduser(),
+            Path.cwd(),
+        ]
+        paths_to_process = [str(p) for p in default_paths if p.exists()]
+
+    # Show header
+    if args.dry_run:
+        print("Dry run: No files will be modified")
+        print()
+
+    create_backups = not args.no_backup
+
+    # Process single file if output specified
+    if args.output and len(paths_to_process) == 1:
+        path_obj = Path(paths_to_process[0])
+        if path_obj.is_file():
+            source_path = path_obj
+            output_path = Path(args.output)
+
+            try:
+                if args.dry_run:
+                    from vcspull.config.migration import detect_config_version
+
+                    version = detect_config_version(source_path)
+                    needs_migration = version == "v1" or args.force
+                    print(f"Would migrate: {source_path}")
+                    print(f"  - Format: {version}")
+                    print(f"  - Output: {output_path}")
+                    print(f"  - Needs migration: {'Yes' if needs_migration else 'No'}")
+                else:
+                    success, message = migrate_config_file(
+                        source_path,
+                        output_path,
+                        create_backup=create_backups,
+                        force=args.force,
+                    )
+                    status = format_status(success)
+                    print(f"{status}: {message}")
+
+                return 0
+            except Exception as e:
+                logger.exception(f"Error migrating {source_path}")
+                print(f"Error: {e}")
+                return 1
+
+    # Process multiple files or directories
+    try:
+        if args.dry_run:
+            from vcspull.config.loader import find_config_files
+            from vcspull.config.migration import detect_config_version
+
+            config_files = find_config_files(paths_to_process)
+            if not config_files:
+                print("No configuration files found")
+                return 0
+
+            print(f"Found {len(config_files)} configuration file(s):")
+
+            # Process files outside the loop to avoid try-except inside loop
+            configs_to_process = []
+            for file_path in config_files:
+                try:
+                    version = detect_config_version(file_path)
+                    needs_migration = version == "v1" or args.force
+                    configs_to_process.append((file_path, version, needs_migration))
+                except Exception as e:
+                    if use_color:
+                        print(f"{Fore.RED}Error{Style.RESET_ALL}: {file_path} - {e}")
+                    else:
+                        print(f"Error: {file_path} - {e}")
+
+            # Display results
+            for file_path, version, needs_migration in configs_to_process:
+                status = "Would migrate" if needs_migration else "Already migrated"
+
+                if use_color:
+                    status_color = Fore.YELLOW if needs_migration else Fore.GREEN
+                    print(
+                        f"{status_color}{status}{Style.RESET_ALL}: {file_path} ({version})"
+                    )
+                else:
+                    print(f"{status}: {file_path} ({version})")
+        else:
+            results = migrate_all_configs(
+                paths_to_process,
+                create_backups=create_backups,
+                force=args.force,
+            )
+
+            if not results:
+                print("No configuration files found")
+                return 0
+
+            # Print results
+            print(f"Processed {len(results)} configuration file(s):")
+            for file_path, success, message in results:
+                status = format_status(success)
+                print(f"{status}: {file_path} - {message}")
+
+        return 0
+    except Exception as e:
+        logger.exception(f"Error processing configuration files")
+        print(f"Error: {e}")
+        return 1

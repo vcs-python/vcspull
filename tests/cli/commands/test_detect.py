@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
+from pathlib import Path
+from typing import Callable
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -16,9 +18,12 @@ import yaml
         ["detect", "-h"],
     ],
 )
-def test_detect_help(cli_runner, args):
+def test_detect_help(
+    cli_runner: Callable[[list[str], int | None], tuple[str, str, int]],
+    args: list[str],
+) -> None:
     """Test detect command help output."""
-    stdout, stderr, exit_code = cli_runner(args, expected_exit_code=0)
+    stdout, stderr, exit_code = cli_runner(args, 0)
 
     # Check for help text
     assert "usage:" in stdout
@@ -27,7 +32,11 @@ def test_detect_help(cli_runner, args):
 
 
 @patch("vcspull.operations.detect_repositories")
-def test_detect_command_basic(mock_detect, cli_runner, tmp_path):
+def test_detect_command_basic(
+    mock_detect: MagicMock,
+    cli_runner: Callable[[list[str], int | None], tuple[str, str, int]],
+    tmp_path: Path,
+) -> None:
     """Test detect command with basic options."""
     # Create a dummy directory to scan
     target_dir = tmp_path / "repos"
@@ -44,10 +53,7 @@ def test_detect_command_basic(mock_detect, cli_runner, tmp_path):
     ]
 
     # Run the command
-    stdout, stderr, exit_code = cli_runner(
-        ["detect", str(target_dir)],
-        expected_exit_code=0,
-    )
+    stdout, stderr, exit_code = cli_runner(["detect", str(target_dir)], 0)
 
     # Check mock was called with correct path
     mock_detect.assert_called_once()
@@ -60,7 +66,13 @@ def test_detect_command_basic(mock_detect, cli_runner, tmp_path):
 
 
 @patch("vcspull.operations.detect_repositories")
-def test_detect_command_save_config(mock_detect, cli_runner, tmp_path):
+@patch("vcspull.config.save_config")
+def test_detect_command_save_config(
+    mock_save: MagicMock,
+    mock_detect: MagicMock,
+    cli_runner: Callable[[list[str], int | None], tuple[str, str, int]],
+    tmp_path: Path,
+) -> None:
     """Test detect command with save-config option."""
     # Create a dummy directory to scan
     target_dir = tmp_path / "repos"
@@ -87,7 +99,7 @@ def test_detect_command_save_config(mock_detect, cli_runner, tmp_path):
             "--save-config",
             str(output_file),
         ],
-        expected_exit_code=0,
+        0,
     )
 
     # Verify config file was created
@@ -99,9 +111,17 @@ def test_detect_command_save_config(mock_detect, cli_runner, tmp_path):
     assert len(config["repositories"]) == 1
     assert config["repositories"][0]["name"] == "repo1"
 
+    # Verify mocks were called properly
+    mock_detect.assert_called_once()
+    mock_save.assert_called_once()
+
 
 @patch("vcspull.operations.detect_repositories")
-def test_detect_command_json_output(mock_detect, cli_runner, tmp_path):
+def test_detect_command_json_output(
+    mock_detect: MagicMock,
+    cli_runner: Callable[[list[str], int | None], tuple[str, str, int]],
+    tmp_path: Path,
+) -> None:
     """Test detect command with JSON output."""
     # Create a dummy directory to scan
     target_dir = tmp_path / "repos"
@@ -119,8 +139,7 @@ def test_detect_command_json_output(mock_detect, cli_runner, tmp_path):
 
     # Run the command with JSON output
     stdout, stderr, exit_code = cli_runner(
-        ["detect", str(target_dir), "--output", "json"],
-        expected_exit_code=0,
+        ["detect", str(target_dir), "--output", "json"], 0
     )
 
     # Output should be valid JSON
@@ -132,9 +151,16 @@ def test_detect_command_json_output(mock_detect, cli_runner, tmp_path):
     except json.JSONDecodeError:
         pytest.fail("Output is not valid JSON")
 
+    # Check mock was called properly
+    mock_detect.assert_called_once()
+
 
 @patch("vcspull.operations.detect_repositories")
-def test_detect_command_filter_type(mock_detect, cli_runner, tmp_path):
+def test_detect_command_filter_type(
+    mock_detect: MagicMock,
+    cli_runner: Callable[[list[str], int | None], tuple[str, str, int]],
+    tmp_path: Path,
+) -> None:
     """Test detect command with type filter."""
     # Create a dummy directory to scan
     target_dir = tmp_path / "repos"
@@ -152,8 +178,7 @@ def test_detect_command_filter_type(mock_detect, cli_runner, tmp_path):
 
     # Run the command with type filter
     stdout, stderr, exit_code = cli_runner(
-        ["detect", str(target_dir), "--type", "git"],
-        expected_exit_code=0,
+        ["detect", str(target_dir), "--type", "git"], 0
     )
 
     # Check mock was called with type filter
@@ -162,9 +187,17 @@ def test_detect_command_filter_type(mock_detect, cli_runner, tmp_path):
     assert "vcs_types" in kwargs
     assert "git" in kwargs["vcs_types"]
 
+    # Verify output
+    assert "Detected repositories" in stdout
+    assert "repo1" in stdout
+
 
 @patch("vcspull.operations.detect_repositories")
-def test_detect_command_max_depth(mock_detect, cli_runner, tmp_path):
+def test_detect_command_max_depth(
+    mock_detect: MagicMock,
+    cli_runner: Callable[[list[str], int | None], tuple[str, str, int]],
+    tmp_path: Path,
+) -> None:
     """Test detect command with max-depth option."""
     # Create a dummy directory to scan
     target_dir = tmp_path / "repos"
@@ -175,8 +208,7 @@ def test_detect_command_max_depth(mock_detect, cli_runner, tmp_path):
 
     # Run the command with max-depth option
     stdout, stderr, exit_code = cli_runner(
-        ["detect", str(target_dir), "--max-depth", "3"],
-        expected_exit_code=0,
+        ["detect", str(target_dir), "--max-depth", "3"], 0
     )
 
     # Check mock was called with max_depth parameter
@@ -184,3 +216,7 @@ def test_detect_command_max_depth(mock_detect, cli_runner, tmp_path):
     _, kwargs = mock_detect.call_args
     assert "max_depth" in kwargs
     assert kwargs["max_depth"] == 3
+
+    # Verify output
+    assert "Detected repositories" in stdout
+    assert "repo1" in stdout
