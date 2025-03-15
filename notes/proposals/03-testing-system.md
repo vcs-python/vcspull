@@ -1,6 +1,6 @@
 # Testing System Proposal
 
-> Enhancing the testing infrastructure to improve maintainability, coverage, and developer experience.
+> Enhancing the testing infrastructure to improve maintainability, coverage, and developer experience using argparse with Python 3.9+ typing and shtab support.
 
 ## Current Issues
 
@@ -64,6 +64,7 @@ The audit identified several issues with the current testing system:
 1. **Centralized Fixtures**:
    ```python
    # tests/conftest.py
+   import typing as t
    import pytest
    from pathlib import Path
    import tempfile
@@ -74,7 +75,7 @@ The audit identified several issues with the current testing system:
        """Create a temporary directory for testing.
        
        Returns
-       -------
+       ----
        Path
            Path to temporary directory
        """
@@ -86,12 +87,12 @@ The audit identified several issues with the current testing system:
        """Create a sample configuration file.
        
        Parameters
-       ----------
+       ----
        temp_dir : Path
            Temporary directory fixture
        
        Returns
-       -------
+       ----
        Path
            Path to sample configuration file
        """
@@ -111,6 +112,7 @@ The audit identified several issues with the current testing system:
 2. **Factory Fixtures**:
    ```python
    # tests/conftest.py
+   import typing as t
    import pytest
    from vcspull.config.models import Repository, VCSPullConfig
    from pathlib import Path
@@ -120,7 +122,7 @@ The audit identified several issues with the current testing system:
        """Factory fixture to create Repository instances.
        
        Returns
-       -------
+       ----
        Callable
            Function to create repositories
        """
@@ -137,7 +139,7 @@ The audit identified several issues with the current testing system:
        """Factory fixture to create VCSPullConfig instances.
        
        Returns
-       -------
+       ----
        Callable
            Function to create configurations
        """
@@ -156,6 +158,7 @@ The audit identified several issues with the current testing system:
 1. **Isolated Filesystem Operations**:
    ```python
    # tests/unit/vcspull/config/test_loader.py
+   import typing as t
    import pytest
    from pathlib import Path
    
@@ -165,7 +168,7 @@ The audit identified several issues with the current testing system:
        """Test loading configuration from a file.
        
        Parameters
-       ----------
+       ----
        temp_dir : Path
            Temporary directory fixture
        """
@@ -186,6 +189,7 @@ The audit identified several issues with the current testing system:
 2. **Environment Variable Isolation**:
    ```python
    # tests/unit/vcspull/config/test_loader.py
+   import typing as t
    import pytest
    import os
    
@@ -195,7 +199,7 @@ The audit identified several issues with the current testing system:
        """Test loading configuration from environment variables.
        
        Parameters
-       ----------
+       ----
        monkeypatch : pytest.MonkeyPatch
            Pytest monkeypatch fixture
        temp_dir : Path
@@ -227,6 +231,7 @@ The audit identified several issues with the current testing system:
 1. **Configuration Data Generators**:
    ```python
    # tests/strategies.py
+   import typing as t
    from hypothesis import strategies as st
    from pathlib import Path
    
@@ -261,6 +266,7 @@ The audit identified several issues with the current testing system:
 2. **Testing Invariants**:
    ```python
    # tests/unit/vcspull/config/test_validation.py
+   import typing as t
    import pytest
    from hypothesis import given, strategies as st
    
@@ -272,7 +278,7 @@ The audit identified several issues with the current testing system:
        """Test that config serialization and deserialization preserves data.
        
        Parameters
-       ----------
+       ----
        config_data : dict
            Generated configuration data
        """
@@ -304,22 +310,25 @@ The audit identified several issues with the current testing system:
 1. **Doctests for Key Functions**:
    ```python
    # src/vcspull/config/__init__.py
-   def load_config(config_path: Optional[Path] = None) -> VCSPullConfig:
+   import typing as t
+   from pathlib import Path
+   
+   def load_config(config_path: t.Optional[Path] = None) -> VCSPullConfig:
        """Load configuration from file.
        
        Parameters
-       ----------
+       ----
        config_path : Optional[Path]
            Path to configuration file, defaults to environment variable
            VCSPULL_CONFIG or standard locations
        
        Returns
-       -------
+       ----
        VCSPullConfig
            Loaded configuration
        
        Examples
-       --------
+       ----
        >>> from pathlib import Path
        >>> from tempfile import NamedTemporaryFile
        >>> with NamedTemporaryFile(mode='w', suffix='.yaml') as f:
@@ -342,6 +351,7 @@ The audit identified several issues with the current testing system:
 2. **Example-Based Tests**:
    ```python
    # tests/examples/config/test_basic_usage.py
+   import typing as t
    import pytest
    from pathlib import Path
    
@@ -352,7 +362,7 @@ The audit identified several issues with the current testing system:
        """Test basic configuration usage example.
        
        Parameters
-       ----------
+       ----
        temp_dir : Path
            Temporary directory fixture
        """
@@ -389,6 +399,7 @@ The audit identified several issues with the current testing system:
 1. **CLI Command Tests**:
    ```python
    # tests/functional/test_cli_commands.py
+   import typing as t
    import pytest
    import argparse
    from pathlib import Path
@@ -402,7 +413,7 @@ The audit identified several issues with the current testing system:
        """Test sync command.
        
        Parameters
-       ----------
+       ----
        temp_dir : Path
            Temporary directory fixture
        monkeypatch : pytest.MonkeyPatch
@@ -440,6 +451,7 @@ The audit identified several issues with the current testing system:
 2. **Argparse Testing with Python 3.9+ Typing**:
    ```python
    # tests/unit/vcspull/cli/test_argparse.py
+   import typing as t
    import pytest
    import argparse
    from pathlib import Path
@@ -472,6 +484,7 @@ The audit identified several issues with the current testing system:
 3. **Shell Completion Testing**:
    ```python
    # tests/unit/vcspull/cli/test_completion.py
+   import typing as t
    import pytest
    import argparse
    import sys
@@ -482,7 +495,7 @@ The audit identified several issues with the current testing system:
        """Test shell completion generation.
        
        Parameters
-       ----------
+       ----
        monkeypatch : pytest.MonkeyPatch
            Pytest monkeypatch fixture
        """
@@ -516,6 +529,7 @@ The audit identified several issues with the current testing system:
 4. **Mock CLI Environment**:
    ```python
    # tests/unit/vcspull/cli/test_cli_context.py
+   import typing as t
    import pytest
    import io
    import sys
@@ -526,7 +540,7 @@ The audit identified several issues with the current testing system:
        """Test CliContext output formatting.
        
        Parameters
-       ----------
+       ----
        monkeypatch : pytest.MonkeyPatch
            Pytest monkeypatch fixture
        """
@@ -558,6 +572,7 @@ The audit identified several issues with the current testing system:
 5. **CLI Output Format Tests**:
    ```python
    # tests/functional/test_cli_output.py
+   import typing as t
    import pytest
    import json
    import yaml
@@ -570,7 +585,7 @@ The audit identified several issues with the current testing system:
        """Test detect command JSON output.
        
        Parameters
-       ----------
+       ----
        temp_dir : Path
            Temporary directory fixture
        monkeypatch : pytest.MonkeyPatch
@@ -612,6 +627,7 @@ The audit identified several issues with the current testing system:
 1. **VCS Command Mocking**:
    ```python
    # tests/unit/vcspull/vcs/test_git.py
+   import typing as t
    import pytest
    import subprocess
    from unittest.mock import patch, Mock
@@ -623,7 +639,7 @@ The audit identified several issues with the current testing system:
        """Test Git clone operation with mocked subprocess.
        
        Parameters
-       ----------
+       ----
        monkeypatch : pytest.MonkeyPatch
            Pytest monkeypatch fixture
        """
@@ -655,6 +671,7 @@ The audit identified several issues with the current testing system:
 2. **Network Service Mocks**:
    ```python
    # tests/integration/test_sync_operations.py
+   import typing as t
    import pytest
    import responses
    from pathlib import Path
@@ -669,12 +686,12 @@ The audit identified several issues with the current testing system:
        """Mock Git commands.
        
        Parameters
-       ----------
+       ----
        monkeypatch : pytest.MonkeyPatch
            Pytest monkeypatch fixture
        
        Returns
-       -------
+       ----
        Mock
            Mock for subprocess.run
        """
@@ -690,7 +707,7 @@ The audit identified several issues with the current testing system:
        """Test sync operations with mocked network and Git commands.
        
        Parameters
-       ----------
+       ----
        temp_dir : Path
            Temporary directory fixture
        mock_git_commands : Mock
@@ -740,13 +757,14 @@ The audit identified several issues with the current testing system:
 2. **Custom Markers**:
    ```python
    # tests/conftest.py
+   import typing as t
    import pytest
    
    def pytest_configure(config):
        """Configure pytest.
        
        Parameters
-       ----------
+       ----
        config : pytest.Config
            Pytest configuration object
        """
@@ -764,7 +782,7 @@ The audit identified several issues with the current testing system:
        """Set up test run.
        
        Parameters
-       ----------
+       ----
        item : pytest.Item
            Test item
        """
@@ -779,6 +797,7 @@ The audit identified several issues with the current testing system:
 3. **Integration with Development Loop**:
    ```python
    # scripts/test.py
+   import typing as t
    import argparse
    import subprocess
    import sys
