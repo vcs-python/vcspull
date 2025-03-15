@@ -135,7 +135,7 @@ def json_config(tmp_path: t.Any) -> t.Any:
 
 
 @pytest.fixture
-def config_with_includes(tmp_path: t.Any) -> t.Tuple[t.Any, t.Any]:
+def config_with_includes(tmp_path: t.Any) -> tuple[t.Any, t.Any]:
     """Create a configuration file with includes.
 
     Parameters
