@@ -1,8 +1,11 @@
-"""Tests for configuration models."""
+"""Tests for configuration models.
+
+This module contains tests for the VCSPull configuration models.
+"""
 
 from __future__ import annotations
 
-from pathlib import Path
+import pathlib
 
 import pytest
 from pydantic import ValidationError
@@ -11,23 +14,26 @@ from vcspull.config.models import Repository, Settings, VCSPullConfig
 
 
 class TestRepository:
-    """Tests for the Repository model."""
+    """Tests for Repository model."""
 
     def test_minimal_repository(self) -> None:
         """Test creating a repository with minimal fields."""
-        repo = Repository(url="https://github.com/user/repo.git", path="~/code/repo")
+        repo = Repository(
+            url="https://github.com/user/repo.git",
+            path="~/code/repo",
+        )
         assert repo.url == "https://github.com/user/repo.git"
-        assert str(Path("~/code/repo").expanduser().resolve()) in repo.path
+        assert repo.path.startswith("/")  # Path should be normalized
         assert repo.vcs is None
         assert repo.name is None
-        assert repo.remotes == {}
+        assert len(repo.remotes) == 0
         assert repo.rev is None
         assert repo.web_url is None
 
     def test_full_repository(self) -> None:
         """Test creating a repository with all fields."""
         repo = Repository(
-            name="test-repo",
+            name="test",
             url="https://github.com/user/repo.git",
             path="~/code/repo",
             vcs="git",
@@ -35,18 +41,34 @@ class TestRepository:
             rev="main",
             web_url="https://github.com/user/repo",
         )
-        assert repo.name == "test-repo"
+        assert repo.name == "test"
         assert repo.url == "https://github.com/user/repo.git"
-        assert str(Path("~/code/repo").expanduser().resolve()) in repo.path
+        assert repo.path.startswith("/")  # Path should be normalized
         assert repo.vcs == "git"
         assert repo.remotes == {"upstream": "https://github.com/upstream/repo.git"}
         assert repo.rev == "main"
         assert repo.web_url == "https://github.com/user/repo"
 
+    def test_path_normalization(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that paths are normalized."""
+        # Mock the home directory for testing
+        test_home = "/mock/home"
+        monkeypatch.setenv("HOME", test_home)
+
+        repo = Repository(
+            url="https://github.com/user/repo.git",
+            path="~/code/repo",
+        )
+
+        assert repo.path.startswith("/")
+        assert "~" not in repo.path
+        assert repo.path == str(pathlib.Path(test_home) / "code/repo")
+
     def test_path_validation(self) -> None:
         """Test path validation."""
         repo = Repository(url="https://github.com/user/repo.git", path="~/code/repo")
-        assert str(Path("~/code/repo").expanduser().resolve()) in repo.path
+        assert repo.path.startswith("/")
+        assert "~" not in repo.path
 
     def test_missing_required_fields(self) -> None:
         """Test validation error when required fields are missing."""
@@ -66,17 +88,17 @@ class TestRepository:
 
 
 class TestSettings:
-    """Tests for the Settings model."""
+    """Tests for Settings model."""
 
     def test_default_settings(self) -> None:
-        """Test default settings."""
+        """Test default settings values."""
         settings = Settings()
         assert settings.sync_remotes is True
         assert settings.default_vcs is None
         assert settings.depth is None
 
     def test_custom_settings(self) -> None:
-        """Test custom settings."""
+        """Test custom settings values."""
         settings = Settings(
             sync_remotes=False,
             default_vcs="git",
@@ -88,49 +110,53 @@ class TestSettings:
 
 
 class TestVCSPullConfig:
-    """Tests for the VCSPullConfig model."""
+    """Tests for VCSPullConfig model."""
 
     def test_empty_config(self) -> None:
-        """Test empty configuration."""
+        """Test creating an empty configuration."""
         config = VCSPullConfig()
         assert isinstance(config.settings, Settings)
-        assert config.repositories == []
-        assert config.includes == []
+        assert len(config.repositories) == 0
+        assert len(config.includes) == 0
 
-    def test_full_config(self) -> None:
-        """Test full configuration."""
+    def test_config_with_repositories(self) -> None:
+        """Test creating a configuration with repositories."""
+        config = VCSPullConfig(
+            repositories=[
+                Repository(
+                    name="repo1",
+                    url="https://github.com/user/repo1.git",
+                    path="~/code/repo1",
+                ),
+                Repository(
+                    name="repo2",
+                    url="https://github.com/user/repo2.git",
+                    path="~/code/repo2",
+                ),
+            ],
+        )
+        assert len(config.repositories) == 2
+        assert config.repositories[0].name == "repo1"
+        assert config.repositories[1].name == "repo2"
+
+    def test_config_with_includes(self) -> None:
+        """Test creating a configuration with includes."""
+        config = VCSPullConfig(
+            includes=["file1.yaml", "file2.yaml"],
+        )
+        assert len(config.includes) == 2
+        assert config.includes[0] == "file1.yaml"
+        assert config.includes[1] == "file2.yaml"
+
+    def test_config_with_settings(self) -> None:
+        """Test creating a configuration with settings."""
         config = VCSPullConfig(
             settings=Settings(
                 sync_remotes=False,
                 default_vcs="git",
                 depth=1,
             ),
-            repositories=[
-                Repository(
-                    name="repo1",
-                    url="https://github.com/user/repo1.git",
-                    path="~/code/repo1",
-                    vcs="git",
-                ),
-                Repository(
-                    name="repo2",
-                    url="https://github.com/user/repo2.git",
-                    path="~/code/repo2",
-                    vcs="git",
-                ),
-            ],
-            includes=[
-                "~/other-config.yaml",
-            ],
         )
-
         assert config.settings.sync_remotes is False
         assert config.settings.default_vcs == "git"
         assert config.settings.depth == 1
-
-        assert len(config.repositories) == 2
-        assert config.repositories[0].name == "repo1"
-        assert config.repositories[1].name == "repo2"
-
-        assert len(config.includes) == 1
-        assert config.includes[0] == "~/other-config.yaml"
