@@ -212,6 +212,47 @@
   - [x] Add progress reporting
   - [x] Implement parallel synchronization
 
+## 8. Implementation Planning & Documentation
+
+- [ ] **Documentation Infrastructure**
+  - [ ] Set up Sphinx with autodoc and autodoc_pydantic
+  - [ ] Define documentation structure
+  - [ ] Create initial API reference generation
+  - [ ] Implement doctest integration
+
+- [ ] **CLI Testing Framework**
+  - [ ] Implement CLI testing fixtures
+  - [ ] Create test suite for existing commands
+  - [ ] Add coverage for error cases
+  - [ ] Implement test validation with schema
+
+- [ ] **Migration Tool**
+  - [ ] Design migration strategy
+  - [ ] Implement configuration format detection
+  - [ ] Create conversion tools
+  - [ ] Add validation and reporting
+  - [ ] Write migration guide
+
+- [ ] **Event System**
+  - [ ] Design event architecture
+  - [ ] Implement event bus
+  - [ ] Define standard events
+  - [ ] Update operations to use events
+  - [ ] Document extension points
+
+- [ ] **Dependency Injection**
+  - [ ] Design service interfaces
+  - [ ] Implement service registry
+  - [ ] Update code to use dependency injection
+  - [ ] Add testing helpers for service mocking
+
+- [ ] **Final Documentation**
+  - [ ] Complete API reference
+  - [ ] Write comprehensive user guide
+  - [ ] Create developer documentation
+  - [ ] Add examples and tutorials
+  - [ ] Finalize migration guide
+
 ## Implementation Timeline
 
 | Proposal | Priority | Estimated Effort | Dependencies | Status |
@@ -223,6 +264,7 @@
 | CLI System | Medium | 3 weeks | Internal APIs | ✅ Mostly Complete |
 | External APIs | Medium | 2 weeks | Internal APIs | ✅ Completed |
 | CLI Tools | Low | 2 weeks | CLI System | ✅ Completed |
+| Implementation & Documentation | Medium | 14 weeks | All other proposals | 🔄 In Progress |
 
 ## Recent Progress
 
