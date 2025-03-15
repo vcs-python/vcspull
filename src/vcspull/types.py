@@ -26,6 +26,6 @@ class Config(t.TypedDict):
     Used for untyped access to config data before parsing.
     """
 
-    settings: t.Optional[t.Dict[str, t.Any]]
-    repositories: t.Optional[t.List[t.Dict[str, t.Any]]]
-    includes: t.Optional[t.List[str]]
+    settings: dict[str, t.Any] | None
+    repositories: list[dict[str, t.Any]] | None
+    includes: list[str] | None
