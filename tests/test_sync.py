@@ -138,7 +138,7 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
         config_tpl="""
         {tmp_path}/study/myrepo:
             {CLONE_NAME}:
-                repo: git+file://{dir}
+                repo: git+file://{path}
                 remotes:
                   git_scheme_repo: user@myhostname.de:org/repo.git
         """,
