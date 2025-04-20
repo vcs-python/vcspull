@@ -11,6 +11,9 @@ from __future__ import annotations
 import logging
 from logging import NullHandler
 
-from . import cli
+from . import (
+    cli,
+    url,  # Import custom URL handling
+)
 
 logging.getLogger(__name__).addHandler(NullHandler())
