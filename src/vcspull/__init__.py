@@ -11,9 +11,7 @@ from __future__ import annotations
 import logging
 from logging import NullHandler
 
-from . import (
-    cli,
-    url,  # Import custom URL handling
-)
+from . import cli
+from .url import enable_ssh_style_url_detection  # Import custom URL handling
 
 logging.getLogger(__name__).addHandler(NullHandler())
