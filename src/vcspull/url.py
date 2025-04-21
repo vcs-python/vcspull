@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from libvcs.url.git import DEFAULT_RULES
+
+_orig_rule_meta: dict[str, tuple[bool, int]] = {}
 
 
 def enable_ssh_style_url_detection() -> None:
@@ -23,12 +27,14 @@ def enable_ssh_style_url_detection() -> None:
         >>> GitURL.is_valid('user@hostname:path/to/repo.git', is_explicit=True)
         True
     """
+    # Patch the core-git-scp rule, storing its original state if not already stored
     for rule in DEFAULT_RULES:
         if rule.label == "core-git-scp":
-            # Make the rule explicit so it can be detected with is_explicit=True
+            if rule.label not in _orig_rule_meta:
+                _orig_rule_meta[rule.label] = (rule.is_explicit, rule.weight)
             rule.is_explicit = True
-            # Increase the weight to ensure it takes precedence
             rule.weight = 100
+            break
 
 
 def disable_ssh_style_url_detection() -> None:
@@ -39,7 +45,8 @@ def disable_ssh_style_url_detection() -> None:
 
     Examples
     --------
-        >>> from vcspull.url import enable_ssh_style_url_detection, disable_ssh_style_url_detection
+        >>> from vcspull.url import enable_ssh_style_url_detection
+        >>> from vcspull.url import disable_ssh_style_url_detection
         >>> from libvcs.url.git import GitURL
         >>> # Enable the patch
         >>> enable_ssh_style_url_detection()
@@ -50,11 +57,18 @@ def disable_ssh_style_url_detection() -> None:
         >>> GitURL.is_valid('user@hostname:path/to/repo.git', is_explicit=True)
         False
     """
+    # Restore the core-git-scp rule to its original state, if known
     for rule in DEFAULT_RULES:
         if rule.label == "core-git-scp":
-            # Revert to original state
-            rule.is_explicit = False
-            rule.weight = 0
+            orig = _orig_rule_meta.get(rule.label)
+            if orig:
+                rule.is_explicit, rule.weight = orig
+                _orig_rule_meta.pop(rule.label, None)
+            else:
+                # Fallback to safe defaults
+                rule.is_explicit = False
+                rule.weight = 0
+            break
 
 
 def is_ssh_style_url_detection_enabled() -> bool:
@@ -70,5 +84,30 @@ def is_ssh_style_url_detection_enabled() -> bool:
     return False
 
 
-# Enable SSH-style URL detection by default
-enable_ssh_style_url_detection()
+"""
+Context manager and utility for SSH-style URL detection.
+"""
+
+
+class ssh_style_url_detection:
+    """Context manager to enable/disable SSH-style URL detection."""
+
+    def __init__(self, enabled: bool = True) -> None:
+        self.enabled = enabled
+
+    def __enter__(self) -> None:
+        """Enable or disable SSH-style URL detection on context enter."""
+        if self.enabled:
+            enable_ssh_style_url_detection()
+        else:
+            disable_ssh_style_url_detection()
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        """Restore original SSH-style URL detection state on context exit."""
+        # Always restore to disabled after context
+        disable_ssh_style_url_detection()

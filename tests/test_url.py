@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import pytest
-from libvcs.url.git import GitURL
+from libvcs.url.git import DEFAULT_RULES, GitURL
 
-from vcspull.url import disable_ssh_style_url_detection, enable_ssh_style_url_detection
+from vcspull.url import (
+    disable_ssh_style_url_detection,
+    enable_ssh_style_url_detection,
+    ssh_style_url_detection,
+)
 
 
 def test_ssh_style_url_detection_toggle() -> None:
@@ -99,3 +103,39 @@ def test_ssh_style_url_parsing(
     assert git_url.hostname == expected_hostname
     assert git_url.path == expected_path
     assert git_url.suffix == ".git"
+
+
+def test_enable_disable_restores_original_state() -> None:
+    """Original rule metadata is preserved and restored after enable/disable."""
+    # Ensure any prior patch is cleared
+    disable_ssh_style_url_detection()
+    # Find the core-git-scp rule and capture its original state
+    rule = next(r for r in DEFAULT_RULES if r.label == "core-git-scp")
+    orig_state = (rule.is_explicit, rule.weight)
+
+    # Disabling without prior enable should leave original state
+    disable_ssh_style_url_detection()
+    assert (rule.is_explicit, rule.weight) == orig_state
+
+    # Enable should patch
+    enable_ssh_style_url_detection()
+    assert rule.is_explicit is True
+    assert rule.weight == 100
+
+    # Disable should restore to original
+    disable_ssh_style_url_detection()
+    assert (rule.is_explicit, rule.weight) == orig_state
+
+
+def test_context_manager_restores_original_state() -> None:
+    """Context manager enables then restores original rule state."""
+    rule = next(r for r in DEFAULT_RULES if r.label == "core-git-scp")
+    orig_state = (rule.is_explicit, rule.weight)
+
+    # Use context manager
+    with ssh_style_url_detection():
+        assert rule.is_explicit is True
+        assert rule.weight == 100
+
+    # After context, state should be back to original
+    assert (rule.is_explicit, rule.weight) == orig_state
