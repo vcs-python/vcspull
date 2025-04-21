@@ -1,4 +1,4 @@
-# libtmux Python Project Rules
+# Python Project Rules
 
 <project_stack>
 - uv - Python package management and virtual environments
