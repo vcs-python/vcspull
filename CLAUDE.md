@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL REQUIREMENTS
+
+### Test Success
+- ALL tests MUST pass for code to be considered complete and working
+- Never describe code as "working as expected" if there are ANY failing tests
+- Even if specific feature tests pass, failing tests elsewhere indicate broken functionality
+- Changes that break existing tests must be fixed before considering implementation complete
+- A successful implementation must pass linting, type checking, AND all existing tests
+
 ## Project Overview
 
 vcspull is a Python tool for managing and synchronizing multiple git, svn, and mercurial repositories via YAML or JSON configuration files. It allows users to pull/update multiple repositories in a single command, optionally filtering by repository name, path, or VCS URL.
