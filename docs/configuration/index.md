@@ -93,6 +93,7 @@ YAML:
 :hidden:
 
 generation
+schema
 ```
 
 ## Caveats

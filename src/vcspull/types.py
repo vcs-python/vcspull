@@ -1,42 +1,31 @@
-"""Typings for vcspull."""
+"""Type definitions for VCSPull."""
 
 from __future__ import annotations
 
 import typing as t
 
-from typing_extensions import NotRequired, TypedDict
 
-if t.TYPE_CHECKING:
-    import pathlib
+class ConfigDict(t.TypedDict, total=False):
+    """TypedDict for repository configuration dictionary.
 
-    from libvcs._internal.types import StrPath, VCSLiteral
-    from libvcs.sync.git import GitSyncRemoteDict
+    This is used primarily in test fixtures and legacy code paths.
+    """
 
-
-class RawConfigDict(t.TypedDict):
-    """Configuration dictionary without any type marshalling or variable resolution."""
-
-    vcs: VCSLiteral
+    vcs: str
     name: str
-    path: StrPath
+    path: t.Any  # Can be str or Path
     url: str
-    remotes: GitSyncRemoteDict
+    remotes: dict[str, t.Any]  # Can contain various remote types
+    rev: str
+    shell_command_after: str | list[str]
 
 
-RawConfigDir = dict[str, RawConfigDict]
-RawConfig = dict[str, RawConfigDir]
+class Config(t.TypedDict):
+    """TypedDict for config dictionary.
 
+    Used for untyped access to config data before parsing.
+    """
 
-class ConfigDict(TypedDict):
-    """Configuration map for vcspull after shorthands and variables resolved."""
-
-    vcs: VCSLiteral | None
-    name: str
-    path: pathlib.Path
-    url: str
-    remotes: NotRequired[GitSyncRemoteDict | None]
-    shell_command_after: NotRequired[list[str] | None]
-
-
-ConfigDir = dict[str, ConfigDict]
-Config = dict[str, ConfigDir]
+    settings: dict[str, t.Any] | None
+    repositories: list[dict[str, t.Any]] | None
+    includes: list[str] | None

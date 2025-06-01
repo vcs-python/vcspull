@@ -6,6 +6,13 @@
 For granular control see {ref}`libvcs <libvcs:index>`'s {ref}`Commands <libvcs:cmd>` and {ref}`Projects <libvcs:projects>`.
 :::
 
+## Configuration
+
+```{toctree}
+config
+config_models
+```
+
 ## Internals
 
 :::{warning}
@@ -15,12 +22,7 @@ If you need an internal API stabilized please [file an issue](https://github.com
 :::
 
 ```{toctree}
-config
 cli/index
-exc
-log
-internals/index
-validator
-util
 types
+logger
 ```

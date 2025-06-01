@@ -33,6 +33,7 @@ include = [
   { path = "docs", format = "sdist" },
   { path = "examples", format = "sdist" },
   { path = "conftest.py", format = "sdist" },
+  { path = "src/vcspull/py.typed" },
 ]
 readme = 'README.md'
 keywords = [
@@ -55,7 +56,8 @@ homepage = "https://vcspull.git-pull.com"
 dependencies = [
   "libvcs~=0.35.0",
   "colorama>=0.3.9",
-  "PyYAML>=6.0"
+  "PyYAML>=6.0",
+  "pydantic>=2.10.6",
 ]
 
 [project-urls]
@@ -80,6 +82,7 @@ dev-dependencies = [
   "sphinx-copybutton",
   "sphinxext-rediraffe",
   "sphinx-argparse",
+  "autodoc_pydantic",
   "myst-parser",
   "linkify-it-py",
   # Testing
@@ -88,6 +91,7 @@ dev-dependencies = [
   "pytest-rerunfailures",
   "pytest-mock",
   "pytest-watcher",
+  "hypothesis",
   # Coverage
   "codecov",
   "coverage",
@@ -113,6 +117,7 @@ docs = [
   "sphinx-copybutton",
   "sphinxext-rediraffe",
   "sphinx-argparse",
+  "autodoc_pydantic",
   "myst-parser",
   "linkify-it-py",
 ]
@@ -122,6 +127,7 @@ testing = [
   "pytest-rerunfailures",
   "pytest-mock",
   "pytest-watcher",
+  "hypothesis",
 ]
 coverage =[
   "codecov",
@@ -148,6 +154,10 @@ warn_unused_configs = true
 files = [
   "src",
   "tests",
+]
+exclude = [
+  "examples/",
+  "scripts/",
 ]
 strict = true
 
