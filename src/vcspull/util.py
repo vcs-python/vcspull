@@ -33,7 +33,6 @@ def get_config_dir() -> pathlib.Path:
         paths.append(pathlib.Path("~/.config/vcspull/"))
     paths.append(LEGACY_CONFIG_DIR)
 
-    path = None
     for path in paths:
         path = path.expanduser()
         if path.is_dir():
