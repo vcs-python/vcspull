@@ -397,14 +397,14 @@ wheels = [
 
 [[package]]
 name = "libvcs"
-version = "0.35.1"
+version = "0.36.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version == '3.10.*'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/67/cd/e26f580b0ad6304433444f2e98f8817832218e2fd34f93d52ccf8da1dace/libvcs-0.35.1.tar.gz", hash = "sha256:272ab65ada9219541b8eb4b986e6fbb1b7aa3c49be9e0bc2eb1957d0eeee1852", size = 534695, upload-time = "2025-06-21T18:30:35.95Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/18/9e981e7abc86665fbcd5437f5e2322d20594f3485fe856e6515fe2069cea/libvcs-0.36.0.tar.gz", hash = "sha256:eff412e9120a4c00ebeb8ad32b753456dd98c94e9d3d8037357381da54bbd96d", size = 535028, upload-time = "2025-06-22T13:57:05.882Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/97/76/8c84f3672dde904fdcb05d711660a667cc7300d33cbec47af27d6d04baef/libvcs-0.35.1-py3-none-any.whl", hash = "sha256:7d22d4ae0ca57bfed0507a89c4d5967162c73032b1da4b5f148dc4624ca886af", size = 77011, upload-time = "2025-06-21T18:30:34.47Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/86/cd65771fb760510d69b9d90918ff7cbbf2b243f8b060f314a407a4a0376b/libvcs-0.36.0-py3-none-any.whl", hash = "sha256:6f17daecae5b4e2c8fa08136e97b93c10d16e6305d0d5e2e85dd23ebbc42aa44", size = 77081, upload-time = "2025-06-22T13:57:04.119Z" },
 ]
 
 [[package]]
@@ -1313,7 +1313,7 @@ typings = [
 [package.metadata]
 requires-dist = [
     { name = "colorama", specifier = ">=0.3.9" },
-    { name = "libvcs", specifier = "~=0.35.1" },
+    { name = "libvcs", specifier = "~=0.36.0" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 
