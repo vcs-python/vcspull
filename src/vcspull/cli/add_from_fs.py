@@ -6,6 +6,7 @@ import logging
 import os
 import pathlib
 import subprocess
+import traceback
 import typing as t
 
 import yaml
@@ -114,9 +115,13 @@ def add_from_filesystem(
         if not home_configs:
             config_file_path = pathlib.Path.cwd() / ".vcspull.yaml"
             log.info(
-                f"{Fore.CYAN}i{Style.RESET_ALL} No config specified and no default "
-                f"home config, will use/create "
-                f"{Fore.BLUE}{config_file_path}{Style.RESET_ALL}",
+                "%si%s No config specified and no default "
+                "home config, will use/create %s%s%s",
+                Fore.CYAN,
+                Style.RESET_ALL,
+                Fore.BLUE,
+                config_file_path,
+                Style.RESET_ALL,
             )
         elif len(home_configs) > 1:
             log.error(
@@ -140,15 +145,16 @@ def add_from_filesystem(
         except Exception:
             log.exception("Error loading YAML from %s. Aborting.", config_file_path)
             if log.isEnabledFor(logging.DEBUG):
-                import traceback
-
                 traceback.print_exc()
             return
     else:
         log.info(
-            f"{Fore.CYAN}i{Style.RESET_ALL} Config file "
-            f"{Fore.BLUE}{config_file_path}{Style.RESET_ALL} "
-            f"not found. A new one will be created.",
+            "%si%s Config file %s%s%s not found. A new one will be created.",
+            Fore.CYAN,
+            Style.RESET_ALL,
+            Fore.BLUE,
+            config_file_path,
+            Style.RESET_ALL,
         )
 
     found_repos: list[
@@ -164,7 +170,8 @@ def add_from_filesystem(
 
                 if not repo_url:
                     log.warning(
-                        "Could not determine remote URL for git repository at %s. Skipping.",
+                        "Could not determine remote URL for git repository "
+                        "at %s. Skipping.",
                         repo_path,
                     )
                     continue
@@ -197,7 +204,8 @@ def add_from_filesystem(
 
                 if not repo_url:
                     log.warning(
-                        "Could not determine remote URL for git repository at %s. Skipping.",
+                        "Could not determine remote URL for git repository "
+                        "at %s. Skipping.",
                         item,
                     )
                     continue
@@ -223,8 +231,12 @@ def add_from_filesystem(
 
     if not found_repos:
         log.info(
-            f"{Fore.YELLOW}!{Style.RESET_ALL} No git repositories found in "
-            f"{Fore.BLUE}{scan_dir}{Style.RESET_ALL}. Nothing to add.",
+            "%s!%s No git repositories found in %s%s%s. Nothing to add.",
+            Fore.YELLOW,
+            Style.RESET_ALL,
+            Fore.BLUE,
+            scan_dir,
+            Style.RESET_ALL,
         )
         return
 
@@ -242,44 +254,74 @@ def add_from_filesystem(
         # Show summary only when there are many existing repos
         if len(existing_repos) > 5:
             log.info(
-                f"{Fore.YELLOW}!{Style.RESET_ALL} Found "
-                f"{Fore.CYAN}{len(existing_repos)}{Style.RESET_ALL} "
-                f"existing repositories already in configuration.",
+                "%s!%s Found %s%d%s existing repositories already in configuration.",
+                Fore.YELLOW,
+                Style.RESET_ALL,
+                Fore.CYAN,
+                len(existing_repos),
+                Style.RESET_ALL,
             )
         else:
             # Show details only for small numbers
             log.info(
-                f"{Fore.YELLOW}!{Style.RESET_ALL} Found "
-                f"{Fore.CYAN}{len(existing_repos)}{Style.RESET_ALL} "
-                f"existing repositories in configuration:",
+                "%s!%s Found %s%d%s existing repositories in configuration:",
+                Fore.YELLOW,
+                Style.RESET_ALL,
+                Fore.CYAN,
+                len(existing_repos),
+                Style.RESET_ALL,
             )
             for name, url, key in existing_repos:
                 log.info(
-                    f"  {Fore.BLUE}•{Style.RESET_ALL} "
-                    f"{Fore.CYAN}{name}{Style.RESET_ALL} "
-                    f"({Fore.YELLOW}{url}{Style.RESET_ALL}) at "
-                    f"{Fore.MAGENTA}{key}{name}{Style.RESET_ALL} "
-                    f"in {Fore.BLUE}{config_file_path}{Style.RESET_ALL}",
+                    "  %s•%s %s%s%s (%s%s%s) at %s%s%s%s in %s%s%s",
+                    Fore.BLUE,
+                    Style.RESET_ALL,
+                    Fore.CYAN,
+                    name,
+                    Style.RESET_ALL,
+                    Fore.YELLOW,
+                    url,
+                    Style.RESET_ALL,
+                    Fore.MAGENTA,
+                    key,
+                    name,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    config_file_path,
+                    Style.RESET_ALL,
                 )
 
     if not repos_to_add:
         if existing_repos:
             log.info(
-                f"{Fore.GREEN}✓{Style.RESET_ALL} All found repositories already exist "
-                f"in the configuration. {Fore.GREEN}Nothing to do.{Style.RESET_ALL}",
+                "%s✓%s All found repositories already exist in the configuration. "
+                "%sNothing to do.%s",
+                Fore.GREEN,
+                Style.RESET_ALL,
+                Fore.GREEN,
+                Style.RESET_ALL,
             )
         return
 
     # Show what will be added
     log.info(
-        f"\n{Fore.GREEN}Found {len(repos_to_add)} new "
-        f"{'repository' if len(repos_to_add) == 1 else 'repositories'} "
-        f"to add:{Style.RESET_ALL}",
+        "\n%sFound %d new %s to add:%s",
+        Fore.GREEN,
+        len(repos_to_add),
+        "repository" if len(repos_to_add) == 1 else "repositories",
+        Style.RESET_ALL,
     )
     for repo_name, repo_url, _determined_base_key in repos_to_add:
         log.info(
-            f"  {Fore.GREEN}+{Style.RESET_ALL} {Fore.CYAN}{repo_name}{Style.RESET_ALL} "
-            f"({Fore.YELLOW}{repo_url}{Style.RESET_ALL})",
+            "  %s+%s %s%s%s (%s%s%s)",
+            Fore.GREEN,
+            Style.RESET_ALL,
+            Fore.CYAN,
+            repo_name,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            repo_url,
+            Style.RESET_ALL,
         )
 
     if not yes:
@@ -287,7 +329,7 @@ def add_from_filesystem(
             f"\n{Fore.CYAN}Add these repositories? [y/N]: {Style.RESET_ALL}",
         ).lower()
         if confirm not in {"y", "yes"}:
-            log.info(f"{Fore.RED}✗{Style.RESET_ALL} Aborted by user.")
+            log.info("%s✗%s Aborted by user.", Fore.RED, Style.RESET_ALL)
             return
 
     changes_made = False
@@ -305,10 +347,18 @@ def add_from_filesystem(
         if repo_name not in raw_config[determined_base_key]:
             raw_config[determined_base_key][repo_name] = {"repo": repo_url}
             log.info(
-                f"{Fore.GREEN}+{Style.RESET_ALL} Adding "
-                f"{Fore.CYAN}'{repo_name}'{Style.RESET_ALL} "
-                f"({Fore.YELLOW}{repo_url}{Style.RESET_ALL}) under "
-                f"'{Fore.MAGENTA}{determined_base_key}{Style.RESET_ALL}'.",
+                "%s+%s Adding %s'%s'%s (%s%s%s) under '%s%s%s'.",
+                Fore.GREEN,
+                Style.RESET_ALL,
+                Fore.CYAN,
+                repo_name,
+                Style.RESET_ALL,
+                Fore.YELLOW,
+                repo_url,
+                Style.RESET_ALL,
+                Fore.MAGENTA,
+                determined_base_key,
+                Style.RESET_ALL,
             )
             changes_made = True
 
@@ -316,17 +366,21 @@ def add_from_filesystem(
         try:
             save_config_yaml(config_file_path, raw_config)
             log.info(
-                f"{Fore.GREEN}✓{Style.RESET_ALL} Successfully updated "
-                f"{Fore.BLUE}{config_file_path}{Style.RESET_ALL}.",
+                "%s✓%s Successfully updated %s%s%s.",
+                Fore.GREEN,
+                Style.RESET_ALL,
+                Fore.BLUE,
+                config_file_path,
+                Style.RESET_ALL,
             )
         except Exception:
             log.exception("Error saving config to %s", config_file_path)
             if log.isEnabledFor(logging.DEBUG):
-                import traceback
-
                 traceback.print_exc()
             return
     else:
         log.info(
-            f"{Fore.GREEN}✓{Style.RESET_ALL} No changes made to the configuration.",
+            "%s✓%s No changes made to the configuration.",
+            Fore.GREEN,
+            Style.RESET_ALL,
         )
