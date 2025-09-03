@@ -13,6 +13,7 @@ from libvcs.__about__ import __version__ as libvcs_version
 from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
+from .add import add_repo, create_add_subparser
 from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
@@ -73,14 +74,23 @@ def create_parser(
     )
     create_sync_subparser(sync_parser)
 
+    add_parser = subparsers.add_parser(
+        "add",
+        help="add a repository to the configuration",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Add a repository to the vcspull configuration file.",
+    )
+    create_add_subparser(add_parser)
+
     if return_subparsers:
-        return parser, sync_parser
+        return parser, (sync_parser, add_parser)
     return parser
 
 
 def cli(_args: list[str] | None = None) -> None:
     """CLI entry point for vcspull."""
-    parser, sync_parser = create_parser(return_subparsers=True)
+    parser, subparsers = create_parser(return_subparsers=True)
+    sync_parser, _add_parser = subparsers
     args = parser.parse_args(_args)
 
     setup_logger(log=log, level=args.log_level.upper())
@@ -95,3 +105,12 @@ def cli(_args: list[str] | None = None) -> None:
             exit_on_error=args.exit_on_error,
             parser=sync_parser,
         )
+    elif args.subparser_name == "add":
+        add_repo_kwargs = {
+            "name": args.name,
+            "url": args.url,
+            "config_file_path_str": args.config if hasattr(args, "config") else None,
+            "path": args.path if hasattr(args, "path") else None,
+            "base_dir": args.base_dir if hasattr(args, "base_dir") else None,
+        }
+        add_repo(**add_repo_kwargs)
