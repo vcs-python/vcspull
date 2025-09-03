@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import pathlib
+import traceback
 import typing as t
 
 import yaml
@@ -105,8 +106,6 @@ def add_repo(
         except Exception:
             log.exception("Error loading YAML from %s. Aborting.", config_file_path)
             if log.isEnabledFor(logging.DEBUG):
-                import traceback
-
                 traceback.print_exc()
             return
     else:
@@ -157,7 +156,8 @@ def add_repo(
             current_url = str(existing_config)
 
         log.warning(
-            "Repository '%s' already exists under '%s'. Current URL: %s. To update, remove and re-add, or edit the YAML file manually.",
+            "Repository '%s' already exists under '%s'. Current URL: %s. "
+            "To update, remove and re-add, or edit the YAML file manually.",
             name,
             base_dir_key,
             current_url,
@@ -171,16 +171,24 @@ def add_repo(
     try:
         save_config_yaml(config_file_path, raw_config)
         log.info(
-            f"{Fore.GREEN}✓{Style.RESET_ALL} Successfully added "
-            f"{Fore.CYAN}'{name}'{Style.RESET_ALL} "
-            f"({Fore.YELLOW}{url}{Style.RESET_ALL}) to "
-            f"{Fore.BLUE}{config_file_path}{Style.RESET_ALL} under "
-            f"'{Fore.MAGENTA}{base_dir_key}{Style.RESET_ALL}'.",
+            "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
+            Fore.GREEN,
+            Style.RESET_ALL,
+            Fore.CYAN,
+            name,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            url,
+            Style.RESET_ALL,
+            Fore.BLUE,
+            config_file_path,
+            Style.RESET_ALL,
+            Fore.MAGENTA,
+            base_dir_key,
+            Style.RESET_ALL,
         )
     except Exception:
         log.exception("Error saving config to %s", config_file_path)
         if log.isEnabledFor(logging.DEBUG):
-            import traceback
-
             traceback.print_exc()
         return
