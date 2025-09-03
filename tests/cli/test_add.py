@@ -21,18 +21,19 @@ if t.TYPE_CHECKING:
 
 
 @pytest.fixture(autouse=True)
-def reset_logging() -> t.Generator[None, None, None]:
-    """Reset logging configuration between tests."""
-    # Store original handlers
-    logger = logging.getLogger("vcspull.cli.add")
-    original_handlers = logger.handlers[:]
-    original_level = logger.level
-
+def clear_logging_handlers() -> t.Generator[None, None, None]:
+    """Clear logging handlers after each test to prevent stream closure issues."""
     yield
-
-    # Reset after test
-    logger.handlers = original_handlers
-    logger.setLevel(original_level)
+    # Clear handlers from all CLI loggers after test
+    cli_loggers = [
+        "vcspull",
+        "vcspull.cli.add",
+        "vcspull.cli.add_from_fs",
+        "vcspull.cli.sync",
+    ]
+    for logger_name in cli_loggers:
+        logger = logging.getLogger(logger_name)
+        logger.handlers.clear()
 
 
 class AddRepoFixture(t.NamedTuple):
@@ -250,7 +251,6 @@ class TestAddRepoUnit:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test direct add_repo function call."""
-        caplog.set_level("INFO")
         config_file = tmp_path / ".vcspull.yaml"
 
         # Call add_repo directly
