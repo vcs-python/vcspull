@@ -155,8 +155,7 @@ def cli(_args: list[str] | None = None) -> None:
         }
         add_from_filesystem(**add_from_fs_kwargs)
     elif args.subparser_name == "fmt":
-        fmt_kwargs = {
-            "config_file_path_str": args.config if hasattr(args, "config") else None,
-            "write": args.write if hasattr(args, "write") else False,
-        }
-        format_config_file(**fmt_kwargs)
+        format_config_file(
+            args.config if hasattr(args, "config") else None,
+            args.write if hasattr(args, "write") else False,
+        )
