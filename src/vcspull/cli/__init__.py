@@ -16,6 +16,7 @@ from vcspull.log import setup_logger
 
 from .add import add_repo, create_add_subparser
 from .add_from_fs import add_from_filesystem, create_add_from_fs_subparser
+from .fmt import create_fmt_subparser, format_config_file
 from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
@@ -93,16 +94,26 @@ def create_parser(
     )
     create_add_from_fs_subparser(add_from_fs_parser)
 
+    fmt_parser = subparsers.add_parser(
+        "fmt",
+        help="format vcspull configuration files",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Format vcspull configuration files for consistency. "
+        "Normalizes compact format to verbose format, standardizes on 'repo' key, "
+        "and sorts directories and repositories alphabetically.",
+    )
+    create_fmt_subparser(fmt_parser)
+
     if return_subparsers:
         # Return all parsers needed by cli() function
-        return parser, (sync_parser, add_parser, add_from_fs_parser)
+        return parser, (sync_parser, add_parser, add_from_fs_parser, fmt_parser)
     return parser
 
 
 def cli(_args: list[str] | None = None) -> None:
     """CLI entry point for vcspull."""
     parser, subparsers = create_parser(return_subparsers=True)
-    sync_parser, _add_parser, _add_from_fs_parser = subparsers
+    sync_parser, _add_parser, _add_from_fs_parser, _fmt_parser = subparsers
     args = parser.parse_args(_args)
 
     setup_logger(log=log, level=args.log_level.upper())
@@ -143,3 +154,9 @@ def cli(_args: list[str] | None = None) -> None:
             "yes": args.yes if hasattr(args, "yes") else False,
         }
         add_from_filesystem(**add_from_fs_kwargs)
+    elif args.subparser_name == "fmt":
+        fmt_kwargs = {
+            "config_file_path_str": args.config if hasattr(args, "config") else None,
+            "write": args.write if hasattr(args, "write") else False,
+        }
+        format_config_file(**fmt_kwargs)
