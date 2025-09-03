@@ -211,7 +211,7 @@ class TestFormatConfigFile:
             yaml.dump(original_config, f)
 
         with caplog.at_level(logging.INFO):
-            format_config_file(str(config_file), write=False)
+            format_config_file(str(config_file), write=False, format_all=False)
 
         # Check that file was not modified
         with config_file.open(encoding="utf-8") as f:
@@ -243,7 +243,7 @@ class TestFormatConfigFile:
             yaml.dump(original_config, f)
 
         with caplog.at_level(logging.INFO):
-            format_config_file(str(config_file), write=True)
+            format_config_file(str(config_file), write=True, format_all=False)
 
         # Check that file was modified
         with config_file.open(encoding="utf-8") as f:
@@ -279,7 +279,7 @@ class TestFormatConfigFile:
             yaml.dump(config, f)
 
         with caplog.at_level(logging.INFO):
-            format_config_file(str(config_file), write=False)
+            format_config_file(str(config_file), write=False, format_all=False)
 
         assert "already formatted correctly" in caplog.text
 
@@ -320,7 +320,7 @@ class TestFormatConfigFile:
         monkeypatch.chdir(tmp_path)
 
         with caplog.at_level(logging.ERROR):
-            format_config_file(None, write=False)
+            format_config_file(None, write=False, format_all=False)
 
         assert "No configuration file found" in caplog.text
 
@@ -345,9 +345,81 @@ class TestFormatConfigFile:
         config_file.write_text(yaml_content, encoding="utf-8")
 
         with caplog.at_level(logging.INFO):
-            format_config_file(str(config_file), write=False)
+            format_config_file(str(config_file), write=False, format_all=False)
 
         # Check detailed change reporting
         assert "3 repositories from compact to verbose format" in caplog.text
         assert "2 repositories from 'url' to 'repo' key" in caplog.text
         assert "Directories will be sorted alphabetically" in caplog.text
+
+    def test_format_all_configs(
+        self,
+        tmp_path: pathlib.Path,
+        caplog: LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test formatting all discovered config files."""
+        # Create test config directory structure
+        config_dir = tmp_path / ".config" / "vcspull"
+        config_dir.mkdir(parents=True)
+        
+        # Create home config (already formatted correctly)
+        home_config = tmp_path / ".vcspull.yaml"
+        home_config.write_text(
+            yaml.dump({"~/projects/": {"repo1": {"repo": "url1"}}}),
+            encoding="utf-8",
+        )
+        
+        # Create config in config directory (needs sorting)
+        config1 = config_dir / "work.yaml"
+        config1_content = """~/work/:
+  repo2: url2
+  repo1: url1
+"""
+        config1.write_text(config1_content, encoding="utf-8")
+        
+        # Create local config
+        local_config = tmp_path / "project" / ".vcspull.yaml"
+        local_config.parent.mkdir()
+        local_config.write_text(
+            yaml.dump({"./": {"repo3": {"url": "url3"}}}),
+            encoding="utf-8",
+        )
+        
+        # Mock find functions to return our test configs
+        def mock_find_config_files(include_home: bool = False) -> list[pathlib.Path]:
+            files = [config1]
+            if include_home:
+                files.insert(0, home_config)
+            return files
+        
+        def mock_find_home_config_files(filetype: list[str] | None = None) -> list[pathlib.Path]:
+            return [home_config]
+        
+        # Change to project directory
+        monkeypatch.chdir(local_config.parent)
+        monkeypatch.setattr(
+            "vcspull.cli.fmt.find_config_files",
+            mock_find_config_files,
+        )
+        monkeypatch.setattr(
+            "vcspull.cli.fmt.find_home_config_files",
+            mock_find_home_config_files,
+        )
+        
+        with caplog.at_level(logging.INFO):
+            format_config_file(None, write=False, format_all=True)
+        
+        # Check that all configs were found
+        assert "Found 3 configuration files to format" in caplog.text
+        assert str(home_config) in caplog.text
+        assert str(config1) in caplog.text
+        assert str(local_config) in caplog.text
+        
+        # Check processing messages
+        assert "already formatted correctly" in caplog.text  # home_config
+        assert "3 formatting issues" in caplog.text  # config1 has 2 compact + needs sorting
+        assert "2 repositories from compact to verbose format" in caplog.text  # config1
+        assert "Repositories in ~/work/ will be sorted" in caplog.text  # config1
+        assert "1 repository from 'url' to 'repo' key" in caplog.text  # local_config
+        assert "All 3 configuration files processed successfully" in caplog.text

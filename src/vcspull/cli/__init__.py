@@ -145,4 +145,4 @@ def cli(_args: list[str] | None = None) -> None:
             yes=args.yes,
         )
     elif args.subparser_name == "fmt":
-        format_config_file(args.config, args.write)
+        format_config_file(args.config, args.write, args.all)
