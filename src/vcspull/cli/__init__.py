@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import pathlib
 import textwrap
 import typing as t
 from typing import overload
@@ -14,6 +15,7 @@ from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
 from .add import add_repo, create_add_subparser
+from .add_from_fs import add_from_filesystem, create_add_from_fs_subparser
 from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
@@ -82,15 +84,25 @@ def create_parser(
     )
     create_add_subparser(add_parser)
 
+    add_from_fs_parser = subparsers.add_parser(
+        "add-from-fs",
+        help="scan filesystem for git repositories and add them to the configuration",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Scan a directory for git repositories and add them to the "
+        "vcspull configuration file.",
+    )
+    create_add_from_fs_subparser(add_from_fs_parser)
+
     if return_subparsers:
-        return parser, (sync_parser, add_parser)
+        # Return all parsers needed by cli() function
+        return parser, (sync_parser, add_parser, add_from_fs_parser)
     return parser
 
 
 def cli(_args: list[str] | None = None) -> None:
     """CLI entry point for vcspull."""
     parser, subparsers = create_parser(return_subparsers=True)
-    sync_parser, _add_parser = subparsers
+    sync_parser, _add_parser, _add_from_fs_parser = subparsers
     args = parser.parse_args(_args)
 
     setup_logger(log=log, level=args.log_level.upper())
@@ -100,9 +112,15 @@ def cli(_args: list[str] | None = None) -> None:
         return
     if args.subparser_name == "sync":
         sync(
-            repo_patterns=args.repo_patterns,
-            config=args.config,
-            exit_on_error=args.exit_on_error,
+            repo_patterns=args.repo_patterns if hasattr(args, "repo_patterns") else [],
+            config=(
+                pathlib.Path(args.config)
+                if hasattr(args, "config") and args.config
+                else None
+            ),
+            exit_on_error=args.exit_on_error
+            if hasattr(args, "exit_on_error")
+            else False,
             parser=sync_parser,
         )
     elif args.subparser_name == "add":
@@ -114,3 +132,14 @@ def cli(_args: list[str] | None = None) -> None:
             "base_dir": args.base_dir if hasattr(args, "base_dir") else None,
         }
         add_repo(**add_repo_kwargs)
+    elif args.subparser_name == "add-from-fs":
+        add_from_fs_kwargs = {
+            "scan_dir_str": args.scan_dir,
+            "config_file_path_str": args.config if hasattr(args, "config") else None,
+            "recursive": args.recursive if hasattr(args, "recursive") else False,
+            "base_dir_key_arg": args.base_dir_key
+            if hasattr(args, "base_dir_key")
+            else None,
+            "yes": args.yes if hasattr(args, "yes") else False,
+        }
+        add_from_filesystem(**add_from_fs_kwargs)
