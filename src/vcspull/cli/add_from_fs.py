@@ -325,7 +325,7 @@ def add_from_filesystem(
                 import traceback
 
                 traceback.print_exc()
-            raise
+            return
     else:
         log.info(
             f"{Fore.GREEN}✓{Style.RESET_ALL} No changes made to the configuration.",
