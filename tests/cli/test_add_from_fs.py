@@ -43,7 +43,7 @@ def setup_git_repo(
     remote_url: str | None,
     git_envvars: dict[str, str],
 ) -> None:
-    """Helper to set up a git repository."""
+    """Set up a git repository."""
     path.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         ["git", "init"],
@@ -68,7 +68,7 @@ def clone_repo(
     local_path: pathlib.Path,
     git_envvars: dict[str, str],
 ) -> None:
-    """Helper to clone a git repository."""
+    """Clone a git repository."""
     subprocess.run(
         ["git", "clone", remote_url, str(local_path)],
         check=True,
