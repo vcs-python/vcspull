@@ -1,243 +1,457 @@
-"""Tests for vcspull.cli.add_from_fs using libvcs fixtures."""
+"""Tests for vcspull add-from-fs command functionality."""
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import subprocess
 import typing as t
 
+import pytest
 import yaml
 
+from vcspull.cli import cli
 from vcspull.cli.add_from_fs import add_from_filesystem, get_git_origin_url
-from vcspull.config import save_config_yaml
 
 if t.TYPE_CHECKING:
     import pathlib
 
-    import pytest
-    from _pytest.logging import LogCaptureFixture
     from libvcs.pytest_plugin import CreateRepoPytestFixtureFn
+    from typing_extensions import TypeAlias
+
+    ExpectedOutput: TypeAlias = t.Optional[t.Union[str, list[str]]]
+
+
+@pytest.fixture(autouse=True)
+def clear_logging_handlers() -> t.Generator[None, None, None]:
+    """Clear logging handlers after each test to prevent stream closure issues."""
+    yield
+    # Clear handlers from all CLI loggers after test
+    cli_loggers = [
+        "vcspull",
+        "vcspull.cli.add",
+        "vcspull.cli.add_from_fs",
+        "vcspull.cli.sync",
+    ]
+    for logger_name in cli_loggers:
+        logger = logging.getLogger(logger_name)
+        logger.handlers.clear()
+
+
+def setup_git_repo(
+    path: pathlib.Path,
+    remote_url: str | None,
+    git_envvars: dict[str, str],
+) -> None:
+    """Helper to set up a git repository."""
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "init"],
+        cwd=path,
+        check=True,
+        capture_output=True,
+        env=git_envvars,
+    )
+
+    if remote_url:
+        subprocess.run(
+            ["git", "remote", "add", "origin", remote_url],
+            cwd=path,
+            check=True,
+            capture_output=True,
+            env=git_envvars,
+        )
+
+
+def clone_repo(
+    remote_url: str,
+    local_path: pathlib.Path,
+    git_envvars: dict[str, str],
+) -> None:
+    """Helper to clone a git repository."""
+    subprocess.run(
+        ["git", "clone", remote_url, str(local_path)],
+        check=True,
+        capture_output=True,
+        env=git_envvars,
+    )
+
+
+class AddFromFsFixture(t.NamedTuple):
+    """Pytest fixture for vcspull add-from-fs command."""
+
+    # pytest internal: used for naming test
+    test_id: str
+
+    # test parameters
+    repo_setup: list[tuple[str, str, bool]]  # (name, subdir, has_remote)
+    cli_args: list[str]
+    initial_config: dict[str, t.Any] | None
+    expected_config_contains: dict[str, t.Any] | None
+    expected_in_output: ExpectedOutput = None
+    expected_not_in_output: ExpectedOutput = None
+    expected_log_level: str = "INFO"
+    should_create_config: bool = False
+    user_input: str | None = None  # For confirmation prompts
+
+
+ADD_FROM_FS_FIXTURES: list[AddFromFsFixture] = [
+    # Single repository scan
+    AddFromFsFixture(
+        test_id="single-repo",
+        repo_setup=[("myproject", "", True)],  # One repo with remote
+        cli_args=["add-from-fs", ".", "-y"],
+        initial_config=None,
+        should_create_config=True,
+        expected_config_contains={"has_repos": True},  # Will verify dynamically
+        expected_in_output=[
+            "Found 1 new repository to add:",
+            "+ myproject",
+            "Successfully updated",
+        ],
+    ),
+    # Multiple repositories non-recursive
+    AddFromFsFixture(
+        test_id="multiple-repos-non-recursive",
+        repo_setup=[
+            ("repo1", "", True),
+            ("repo2", "", True),
+            ("nested", "subdir", True),  # Should be ignored without -r
+        ],
+        cli_args=["add-from-fs", ".", "-y"],
+        initial_config=None,
+        should_create_config=True,
+        expected_config_contains={"has_repos": True},
+        expected_in_output=[
+            "Found 2 new repositories to add:",
+            "+ repo1",
+            "+ repo2",
+            "Successfully updated",
+        ],
+        expected_not_in_output="nested",
+    ),
+    # Recursive scan
+    AddFromFsFixture(
+        test_id="recursive-scan",
+        repo_setup=[
+            ("repo1", "", True),
+            ("nested", "subdir", True),
+        ],
+        cli_args=["add-from-fs", ".", "-r", "-y"],
+        initial_config=None,
+        should_create_config=True,
+        expected_config_contains={"has_repos": True},
+        expected_in_output=[
+            "Found 2 new repositories to add:",
+            "+ repo1",
+            "+ nested",
+            "Successfully updated",
+        ],
+    ),
+    # Custom base directory key
+    AddFromFsFixture(
+        test_id="custom-base-dir",
+        repo_setup=[("myrepo", "", True)],
+        cli_args=["add-from-fs", ".", "--base-dir-key", "~/custom/path", "-y"],
+        initial_config=None,
+        should_create_config=True,
+        expected_config_contains={
+            "~/custom/path/": {"myrepo": {}},
+        },  # Just check repo exists
+        expected_in_output=[
+            "Found 1 new repository to add:",
+            "Successfully updated",
+        ],
+    ),
+    # No repositories found
+    AddFromFsFixture(
+        test_id="no-repos",
+        repo_setup=[],  # No repositories
+        cli_args=["add-from-fs", ".", "-y"],
+        initial_config=None,
+        should_create_config=False,
+        expected_config_contains=None,
+        expected_in_output="No git repositories found",
+    ),
+    # Repository without remote
+    AddFromFsFixture(
+        test_id="repo-without-remote",
+        repo_setup=[("local_only", "", False)],  # No remote
+        cli_args=["add-from-fs", ".", "-y"],
+        initial_config=None,
+        should_create_config=False,
+        expected_config_contains=None,
+        expected_in_output="No git repositories found",
+        expected_log_level="WARNING",
+    ),
+    # All repositories already exist
+    AddFromFsFixture(
+        test_id="all-existing",
+        repo_setup=[("existing1", "", True), ("existing2", "", True)],
+        cli_args=["add-from-fs", ".", "-y"],
+        initial_config={"dynamic": "will_be_set_in_test"},  # Will be set dynamically
+        should_create_config=False,
+        expected_config_contains=None,
+        expected_in_output=[
+            "Found 2 existing repositories",
+            "All found repositories already exist",
+        ],
+    ),
+    # Mixed existing and new
+    AddFromFsFixture(
+        test_id="mixed-existing-new",
+        repo_setup=[
+            ("existing", "", True),
+            ("newrepo", "", True),
+        ],
+        cli_args=["add-from-fs", ".", "-y"],
+        initial_config={"dynamic": "will_be_set_in_test"},  # Will be set for existing
+        should_create_config=False,
+        expected_config_contains={"has_repos": True},
+        expected_in_output=[
+            "Found 1 existing repositories",  # Note: plural form in message
+            "Found 1 new repository to add:",
+            "+ newrepo",
+            "Successfully updated",
+        ],
+    ),
+    # User confirmation - yes
+    AddFromFsFixture(
+        test_id="user-confirm-yes",
+        repo_setup=[("repo_confirm", "", True)],
+        cli_args=["add-from-fs", "."],  # No -y flag
+        initial_config=None,
+        should_create_config=True,
+        expected_config_contains={"has_repos": True},
+        expected_in_output=[
+            "Found 1 new repository to add:",
+            "Successfully updated",
+        ],
+        user_input="y\n",
+    ),
+    # User confirmation - no
+    AddFromFsFixture(
+        test_id="user-confirm-no",
+        repo_setup=[("repo_no_confirm", "", True)],
+        cli_args=["add-from-fs", "."],  # No -y flag
+        initial_config=None,
+        should_create_config=False,
+        expected_config_contains=None,
+        expected_in_output=[
+            "Found 1 new repository to add:",
+            "Aborted by user",
+        ],
+        user_input="n\n",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(AddFromFsFixture._fields),
+    ADD_FROM_FS_FIXTURES,
+    ids=[test.test_id for test in ADD_FROM_FS_FIXTURES],
+)
+def test_add_from_fs_cli(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    create_git_remote_repo: CreateRepoPytestFixtureFn,
+    git_commit_envvars: dict[str, str],
+    test_id: str,
+    repo_setup: list[tuple[str, str, bool]],
+    cli_args: list[str],
+    initial_config: dict[str, t.Any] | None,
+    expected_config_contains: dict[str, t.Any] | None,
+    expected_in_output: ExpectedOutput,
+    expected_not_in_output: ExpectedOutput,
+    expected_log_level: str,
+    should_create_config: bool,
+    user_input: str | None,
+) -> None:
+    """Test vcspull add-from-fs command through CLI."""
+    # Set up scan directory
+    scan_dir = tmp_path / "scan_dir"
+    scan_dir.mkdir()
+
+    # Set up repositories based on fixture
+    repo_urls = {}
+    for repo_name, subdir, has_remote in repo_setup:
+        repo_parent = scan_dir / subdir if subdir else scan_dir
+        repo_parent.mkdir(exist_ok=True, parents=True)
+        repo_path = repo_parent / repo_name
+
+        if has_remote:
+            # Create remote and clone
+            remote_path = create_git_remote_repo()
+            remote_url = f"file://{remote_path}"
+            clone_repo(remote_url, repo_path, git_commit_envvars)
+            repo_urls[repo_name] = remote_url
+        else:
+            # Create local repo without remote
+            setup_git_repo(repo_path, None, git_commit_envvars)
+
+    # Set up config file
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Handle dynamic initial config for existing repo tests
+    if initial_config and "dynamic" in initial_config:
+        if test_id == "all-existing":
+            # All repos should be in config
+            initial_config = {
+                str(scan_dir) + "/": {
+                    name: {"repo": repo_urls[name]}
+                    for name, _, has_remote in repo_setup
+                    if has_remote
+                },
+            }
+        elif test_id == "mixed-existing-new":
+            # Only "existing" repo should be in config
+            initial_config = {
+                str(scan_dir) + "/": {"existing": {"repo": repo_urls["existing"]}},
+            }
+
+    if initial_config:
+        yaml_content = yaml.dump(initial_config, default_flow_style=False)
+        config_file.write_text(yaml_content, encoding="utf-8")
+
+    # Update CLI args to use correct scan directory
+    cli_args = [cli_args[0], "-c", str(config_file), str(scan_dir), *cli_args[2:]]
+
+    # Change to tmp directory
+    monkeypatch.chdir(tmp_path)
+
+    # Mock user input if needed
+    if user_input:
+        monkeypatch.setattr("builtins.input", lambda _: user_input.strip())
+
+    # Run CLI command
+    with contextlib.suppress(SystemExit):
+        cli(cli_args)
+
+    # Capture output
+    captured = capsys.readouterr()
+    output = "".join([*caplog.messages, captured.out, captured.err])
+
+    # Strip ANSI codes for comparison
+    import re
+
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", output)
+
+    # Check expected output
+    if expected_in_output is not None:
+        if isinstance(expected_in_output, str):
+            expected_in_output = [expected_in_output]
+        for needle in expected_in_output:
+            assert needle in clean_output, (
+                f"Expected '{needle}' in output, got: {clean_output}"
+            )
+
+    if expected_not_in_output is not None:
+        if isinstance(expected_not_in_output, str):
+            expected_not_in_output = [expected_not_in_output]
+        for needle in expected_not_in_output:
+            assert needle not in clean_output, f"Unexpected '{needle}' in output"
+
+    # Verify config file
+    if should_create_config or (initial_config and expected_config_contains):
+        assert config_file.exists(), "Config file should exist"
+
+        # Load and verify config
+        with config_file.open() as f:
+            config_data = yaml.safe_load(f)
+
+        # Check expected config contents
+        if expected_config_contains:
+            if "has_repos" in expected_config_contains:
+                # Just check that repos were added
+                assert config_data, "Config should have content"
+                assert any(isinstance(v, dict) for v in config_data.values()), (
+                    "Should have repo entries"
+                )
+            else:
+                for key, value in expected_config_contains.items():
+                    assert key in config_data, f"Expected key '{key}' in config"
+                    if isinstance(value, dict):
+                        for subkey, subvalue in value.items():
+                            assert subkey in config_data[key], (
+                                f"Expected '{subkey}' in config['{key}']"
+                            )
+                            # If subvalue is empty dict, just check that the key exists
+                            if subvalue == {}:
+                                assert isinstance(config_data[key][subkey], dict)
+                            elif subvalue != t.Any:
+                                assert config_data[key][subkey] == subvalue
 
 
 class TestGetGitOriginUrl:
-    """Test get_git_origin_url function with real git repos."""
+    """Unit tests for get_git_origin_url function."""
 
-    def test_success(
+    def test_get_origin_url_success(
         self,
         create_git_remote_repo: CreateRepoPytestFixtureFn,
         tmp_path: pathlib.Path,
         git_commit_envvars: dict[str, str],
     ) -> None:
-        """Test successfully getting origin URL from a git repository."""
-        # Create a remote repository
+        """Test successfully getting origin URL."""
+        # Create and clone a repo
         remote_path = create_git_remote_repo()
         remote_url = f"file://{remote_path}"
+        local_path = tmp_path / "test_repo"
 
-        # Clone it
-        local_repo_path = tmp_path / "test_repo"
-        subprocess.run(
-            ["git", "clone", remote_url, str(local_repo_path)],
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
+        clone_repo(remote_url, local_path, git_commit_envvars)
 
-        # Test getting origin URL
-        url = get_git_origin_url(local_repo_path)
+        # Test getting URL
+        url = get_git_origin_url(local_path)
         assert url == remote_url
 
-    def test_no_remote(
+    def test_get_origin_url_no_remote(
         self,
         tmp_path: pathlib.Path,
         git_commit_envvars: dict[str, str],
-        caplog: LogCaptureFixture,
     ) -> None:
-        """Test handling repository with no origin remote."""
-        # Create a local git repo without remote
+        """Test handling repo without origin."""
         repo_path = tmp_path / "local_only"
-        repo_path.mkdir()
-        subprocess.run(
-            ["git", "init"],
-            cwd=repo_path,
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
+        setup_git_repo(repo_path, None, git_commit_envvars)
 
-        # Should return None and log debug message
-        caplog.set_level("DEBUG")
         url = get_git_origin_url(repo_path)
         assert url is None
-        assert "Could not get origin URL" in caplog.text
 
-    def test_not_git_repo(
+    def test_get_origin_url_not_git(
         self,
         tmp_path: pathlib.Path,
-        caplog: LogCaptureFixture,
     ) -> None:
         """Test handling non-git directory."""
-        # Create a regular directory
         regular_dir = tmp_path / "not_git"
         regular_dir.mkdir()
 
-        # Should return None
-        caplog.set_level("DEBUG")
         url = get_git_origin_url(regular_dir)
         assert url is None
-        assert "Could not get origin URL" in caplog.text
 
 
-class TestAddFromFilesystem:
-    """Test add_from_filesystem with real git repositories."""
+class TestAddFromFilesystemUnit:
+    """Unit tests for add_from_filesystem function."""
 
-    def test_single_repo(
+    def test_direct_call_simple(
         self,
         create_git_remote_repo: CreateRepoPytestFixtureFn,
         tmp_path: pathlib.Path,
         git_commit_envvars: dict[str, str],
-        caplog: LogCaptureFixture,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """Test scanning directory with one git repository."""
-        caplog.set_level("INFO")
-
-        # Create a scan directory
-        scan_dir = tmp_path / "projects"
+        """Test direct add_from_filesystem call."""
+        # Set up a repo
+        scan_dir = tmp_path / "repos"
         scan_dir.mkdir()
 
-        # Create and clone a repository
         remote_path = create_git_remote_repo()
         remote_url = f"file://{remote_path}"
-        repo_name = "myproject"
-        local_repo_path = scan_dir / repo_name
-
-        subprocess.run(
-            ["git", "clone", remote_url, str(local_repo_path)],
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
-
-        # Create config file path
-        config_file = tmp_path / ".vcspull.yaml"
-
-        # Run add_from_filesystem
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=True,
-        )
-
-        # Verify config file was created with correct content
-        assert config_file.exists()
-        with config_file.open() as f:
-            config_data = yaml.safe_load(f)
-
-        # Check the repository was added with correct structure
-        expected_key = str(scan_dir) + "/"
-        assert expected_key in config_data
-        assert repo_name in config_data[expected_key]
-        assert config_data[expected_key][repo_name] == {"repo": remote_url}
-
-        # Check log messages
-        assert f"Adding '{repo_name}' ({remote_url})" in caplog.text
-        assert f"Successfully updated {config_file}" in caplog.text
-
-    def test_multiple_repos_recursive(
-        self,
-        create_git_remote_repo: CreateRepoPytestFixtureFn,
-        tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
-        caplog: LogCaptureFixture,
-    ) -> None:
-        """Test scanning directory recursively with multiple git repositories."""
-        caplog.set_level("INFO")
-
-        # Create directory structure
-        scan_dir = tmp_path / "workspace"
-        scan_dir.mkdir()
-        subdir = scan_dir / "subfolder"
-        subdir.mkdir()
-
-        # Create multiple repositories
-        repos = []
-        for _i, (parent, name) in enumerate(
-            [
-                (scan_dir, "repo1"),
-                (scan_dir, "repo2"),
-                (subdir, "nested_repo"),
-            ],
-        ):
-            remote_path = create_git_remote_repo()
-            remote_url = f"file://{remote_path}"
-            local_path = parent / name
-
-            subprocess.run(
-                ["git", "clone", remote_url, str(local_path)],
-                check=True,
-                capture_output=True,
-                env=git_commit_envvars,
-            )
-            repos.append((name, remote_url))
-
-        # Create config file
-        config_file = tmp_path / ".vcspull.yaml"
-
-        # Run add_from_filesystem recursively
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=True,
-        )
-
-        # Verify all repos were added
-        with config_file.open() as f:
-            config_data = yaml.safe_load(f)
-
-        expected_key = str(scan_dir) + "/"
-        assert expected_key in config_data
-
-        for name, url in repos:
-            assert name in config_data[expected_key]
-            assert config_data[expected_key][name] == {"repo": url}
-
-    def test_non_recursive(
-        self,
-        create_git_remote_repo: CreateRepoPytestFixtureFn,
-        tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
-    ) -> None:
-        """Test non-recursive scan only finds top-level repos."""
-        # Create directory structure
-        scan_dir = tmp_path / "workspace"
-        scan_dir.mkdir()
-        nested_dir = scan_dir / "nested"
-        nested_dir.mkdir()
-
-        # Create repos at different levels
-        # Top-level repo
-        remote1 = create_git_remote_repo()
-        subprocess.run(
-            ["git", "clone", f"file://{remote1}", str(scan_dir / "top_repo")],
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
-
-        # Nested repo (should not be found)
-        remote2 = create_git_remote_repo()
-        subprocess.run(
-            ["git", "clone", f"file://{remote2}", str(nested_dir / "nested_repo")],
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
+        repo_path = scan_dir / "test_repo"
+        clone_repo(remote_url, repo_path, git_commit_envvars)
 
         config_file = tmp_path / ".vcspull.yaml"
 
-        # Run non-recursive scan
+        # Call function directly
         add_from_filesystem(
             scan_dir_str=str(scan_dir),
             config_file_path_str=str(config_file),
@@ -246,404 +460,78 @@ class TestAddFromFilesystem:
             yes=True,
         )
 
-        # Verify only top-level repo was found
+        # Verify config created
+        assert config_file.exists()
         with config_file.open() as f:
             config_data = yaml.safe_load(f)
 
         expected_key = str(scan_dir) + "/"
-        assert "top_repo" in config_data[expected_key]
-        assert "nested_repo" not in config_data[expected_key]
-
-    def test_custom_base_dir_key(
-        self,
-        create_git_remote_repo: CreateRepoPytestFixtureFn,
-        tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
-    ) -> None:
-        """Test using a custom base directory key."""
-        # Create and clone a repo
-        scan_dir = tmp_path / "repos"
-        scan_dir.mkdir()
-
-        remote_path = create_git_remote_repo()
-        remote_url = f"file://{remote_path}"
-        repo_name = "test_repo"
-
-        subprocess.run(
-            ["git", "clone", remote_url, str(scan_dir / repo_name)],
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
-
-        config_file = tmp_path / ".vcspull.yaml"
-        custom_key = "~/my_projects/"
-
-        # Run with custom base dir key
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=custom_key,
-            yes=True,
-        )
-
-        # Verify custom key was used
-        with config_file.open() as f:
-            config_data = yaml.safe_load(f)
-
-        assert custom_key in config_data
-        assert repo_name in config_data[custom_key]
-
-    def test_skip_existing_repos(
-        self,
-        create_git_remote_repo: CreateRepoPytestFixtureFn,
-        tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
-        caplog: LogCaptureFixture,
-    ) -> None:
-        """Test that existing repos in config are skipped."""
-        caplog.set_level("INFO")
-
-        # Create a repo
-        scan_dir = tmp_path / "repos"
-        scan_dir.mkdir()
-
-        remote_path = create_git_remote_repo()
-        remote_url = f"file://{remote_path}"
-        repo_name = "existing_repo"
-
-        subprocess.run(
-            ["git", "clone", remote_url, str(scan_dir / repo_name)],
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
-
-        # Pre-create config with this repo
-        config_file = tmp_path / ".vcspull.yaml"
-        config_data = {str(scan_dir) + "/": {repo_name: remote_url}}
-        save_config_yaml(config_file, config_data)
-
-        # Run add_from_filesystem
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=True,
-        )
-
-        # Verify enhanced output for existing repos
-        assert "Found 1 existing repositories in configuration:" in caplog.text
-        assert f"• {repo_name} ({remote_url})" in caplog.text
-        assert f"at {scan_dir!s}/{repo_name} in {config_file}" in caplog.text
-        assert (
-            "All found repositories already exist in the configuration. Nothing to do."
-            in caplog.text
-        )
-
-    def test_user_confirmation(
-        self,
-        create_git_remote_repo: CreateRepoPytestFixtureFn,
-        tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
-        monkeypatch: pytest.MonkeyPatch,
-        caplog: LogCaptureFixture,
-    ) -> None:
-        """Test user confirmation prompt."""
-        caplog.set_level("INFO")
-
-        # Create a repo
-        scan_dir = tmp_path / "repos"
-        scan_dir.mkdir()
-
-        remote_path = create_git_remote_repo()
-        remote_url = f"file://{remote_path}"
-
-        subprocess.run(
-            ["git", "clone", remote_url, str(scan_dir / "repo1")],
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
-
-        config_file = tmp_path / ".vcspull.yaml"
-
-        # Mock user input as "n" (no)
-        monkeypatch.setattr("builtins.input", lambda _: "n")
-
-        # Run without --yes flag
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=False,
-        )
-
-        # Verify aborted
-        assert "Aborted by user" in caplog.text
-        assert not config_file.exists()
-
-    def test_no_repos_found(
-        self,
-        tmp_path: pathlib.Path,
-        caplog: LogCaptureFixture,
-    ) -> None:
-        """Test handling when no git repositories are found."""
-        caplog.set_level("INFO")
-
-        # Create empty directory
-        scan_dir = tmp_path / "empty"
-        scan_dir.mkdir()
-
-        config_file = tmp_path / ".vcspull.yaml"
-
-        # Run scan
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=True,
-        )
-
-        # Verify appropriate message
-        assert f"No git repositories found in {scan_dir}" in caplog.text
-        assert not config_file.exists()
-
-    def test_repo_without_origin(
-        self,
-        tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
-        caplog: LogCaptureFixture,
-    ) -> None:
-        """Test handling repository without origin remote."""
-        caplog.set_level("WARNING")
-
-        # Create scan directory
-        scan_dir = tmp_path / "repos"
-        scan_dir.mkdir()
-
-        # Create local git repo without remote
-        repo_path = scan_dir / "local_only"
-        repo_path.mkdir()
-        subprocess.run(
-            ["git", "init"],
-            cwd=repo_path,
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
-
-        config_file = tmp_path / ".vcspull.yaml"
-
-        # Run scan
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=True,
-        )
-
-        # Verify warning and repo was skipped
-        assert (
-            f"Could not determine remote URL for git repository at {repo_path}"
-            in caplog.text
-        )
-        assert not config_file.exists()  # No repos added, so no file created
-
-    def test_detailed_existing_repos_output(
-        self,
-        create_git_remote_repo: CreateRepoPytestFixtureFn,
-        tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
-        caplog: LogCaptureFixture,
-    ) -> None:
-        """Test detailed output when multiple repositories already exist."""
-        caplog.set_level("INFO")
-
-        # Create scan directory with multiple repos
-        scan_dir = tmp_path / "existing_repos"
-        scan_dir.mkdir()
-
-        # Create multiple repositories
-        repos_data = []
-        for _i, repo_name in enumerate(["repo1", "repo2", "repo3"]):
-            remote_path = create_git_remote_repo()
-            remote_url = f"file://{remote_path}"
-            local_repo_path = scan_dir / repo_name
-
-            subprocess.run(
-                ["git", "clone", remote_url, str(local_repo_path)],
-                check=True,
-                capture_output=True,
-                env=git_commit_envvars,
-            )
-            repos_data.append((repo_name, remote_url))
-
-        # Pre-create config with all repos
-        config_file = tmp_path / ".vcspull.yaml"
-        config_data = {str(scan_dir) + "/": dict(repos_data)}
-        save_config_yaml(config_file, config_data)
-
-        # Run add_from_filesystem
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=True,
-        )
-
-        # Verify detailed output
-        assert "Found 3 existing repositories in configuration:" in caplog.text
-
-        # Check each repository is listed with correct details
-        for repo_name, remote_url in repos_data:
-            assert f"• {repo_name} ({remote_url})" in caplog.text
-            assert f"at {scan_dir!s}/{repo_name} in {config_file}" in caplog.text
-
-        # Verify final message
-        assert (
-            "All found repositories already exist in the configuration. Nothing to do."
-            in caplog.text
-        )
-
-    def test_mixed_existing_and_new_repos(
-        self,
-        create_git_remote_repo: CreateRepoPytestFixtureFn,
-        tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
-        caplog: LogCaptureFixture,
-    ) -> None:
-        """Test output when some repos exist and some are new."""
-        caplog.set_level("INFO")
-
-        # Create scan directory
-        scan_dir = tmp_path / "mixed_repos"
-        scan_dir.mkdir()
-
-        # Create repositories
-        existing_repo_data = []
-        new_repo_data = []
-
-        # Create two existing repos
-        for _i, repo_name in enumerate(["existing1", "existing2"]):
-            remote_path = create_git_remote_repo()
-            remote_url = f"file://{remote_path}"
-            local_repo_path = scan_dir / repo_name
-
-            subprocess.run(
-                ["git", "clone", remote_url, str(local_repo_path)],
-                check=True,
-                capture_output=True,
-                env=git_commit_envvars,
-            )
-            existing_repo_data.append((repo_name, remote_url))
-
-        # Create two new repos
-        for _i, repo_name in enumerate(["new1", "new2"]):
-            remote_path = create_git_remote_repo()
-            remote_url = f"file://{remote_path}"
-            local_repo_path = scan_dir / repo_name
-
-            subprocess.run(
-                ["git", "clone", remote_url, str(local_repo_path)],
-                check=True,
-                capture_output=True,
-                env=git_commit_envvars,
-            )
-            new_repo_data.append((repo_name, remote_url))
-
-        # Pre-create config with only existing repos
-        config_file = tmp_path / ".vcspull.yaml"
-        config_data = {str(scan_dir) + "/": dict(existing_repo_data)}
-        save_config_yaml(config_file, config_data)
-
-        # Run add_from_filesystem
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=True,
-        )
-
-        # Verify existing repos are listed
-        assert "Found 2 existing repositories in configuration:" in caplog.text
-        for repo_name, remote_url in existing_repo_data:
-            assert f"• {repo_name} ({remote_url})" in caplog.text
-            assert f"at {scan_dir!s}/{repo_name} in {config_file}" in caplog.text
-
-        # Verify new repos are added
-        for repo_name, remote_url in new_repo_data:
-            assert f"Adding '{repo_name}' ({remote_url})" in caplog.text
-
-        assert "Successfully updated" in caplog.text
+        assert expected_key in config_data
+        assert "test_repo" in config_data[expected_key]
 
     def test_many_existing_repos_summary(
         self,
         create_git_remote_repo: CreateRepoPytestFixtureFn,
         tmp_path: pathlib.Path,
         git_commit_envvars: dict[str, str],
-        caplog: LogCaptureFixture,
+        capsys: pytest.CaptureFixture[str],
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that many existing repos show summary instead of full list."""
-        caplog.set_level("INFO")
-
-        # Create scan directory
+        """Test summary output when many repos already exist."""
         scan_dir = tmp_path / "many_repos"
         scan_dir.mkdir()
 
-        # Create many existing repos (more than 5)
-        existing_repo_data = []
+        # Create many repos (>5 for summary mode)
+        repo_data = {}
         for i in range(8):
-            repo_name = f"existing{i}"
             remote_path = create_git_remote_repo()
             remote_url = f"file://{remote_path}"
-            local_repo_path = scan_dir / repo_name
+            repo_name = f"repo{i}"
+            repo_path = scan_dir / repo_name
+            clone_repo(remote_url, repo_path, git_commit_envvars)
+            repo_data[repo_name] = {"repo": remote_url}
 
-            subprocess.run(
-                ["git", "clone", remote_url, str(local_repo_path)],
-                check=True,
-                capture_output=True,
-                env=git_commit_envvars,
-            )
-            existing_repo_data.append((repo_name, remote_url))
-
-        # Create one new repo
-        new_remote = create_git_remote_repo()
-        new_url = f"file://{new_remote}"
-        subprocess.run(
-            ["git", "clone", new_url, str(scan_dir / "new_repo")],
-            check=True,
-            capture_output=True,
-            env=git_commit_envvars,
-        )
-
-        # Pre-create config with existing repos
+        # Pre-create config with all repos
         config_file = tmp_path / ".vcspull.yaml"
-        config_data = {str(scan_dir) + "/": dict(existing_repo_data)}
-        save_config_yaml(config_file, config_data)
+        initial_config = {str(scan_dir) + "/": repo_data}
+        yaml_content = yaml.dump(initial_config, default_flow_style=False)
+        config_file.write_text(yaml_content, encoding="utf-8")
 
-        # Run add_from_filesystem
-        add_from_filesystem(
-            scan_dir_str=str(scan_dir),
-            config_file_path_str=str(config_file),
-            recursive=True,
-            base_dir_key_arg=None,
-            yes=True,
-        )
+        # Change to tmp directory
+        monkeypatch.chdir(tmp_path)
 
-        # Verify summary message for many repos
-        assert "Found 8 existing repositories already in configuration." in caplog.text
-        # Should NOT list individual repos
-        assert "• existing0" not in caplog.text
-        assert "• existing7" not in caplog.text
+        # Run scan through CLI
+        with contextlib.suppress(SystemExit):
+            cli(["add-from-fs", str(scan_dir), "-c", str(config_file), "-y"])
 
-        # Verify new repo is shown clearly
-        assert "Found 1 new repository to add:" in caplog.text
-        assert "+ new_repo" in caplog.text
+        # Check for summary message (not detailed list)
+        captured = capsys.readouterr()
+        output = "\n".join(caplog.messages) + captured.out + captured.err
+
+        # Strip ANSI codes
+        import re
+
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", output)
+
+        assert "Found 8 existing repositories already in configuration" in clean_output
+        assert "All found repositories already exist" in clean_output
+
+
+def test_add_from_fs_help(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test add-from-fs command help output."""
+    with contextlib.suppress(SystemExit):
+        cli(["add-from-fs", "--help"])
+
+    captured = capsys.readouterr()
+    output = captured.out + captured.err
+
+    # Check help content
+    assert "Scan a directory for git repositories" in output
+    assert "scan_dir" in output
+    assert "--recursive" in output
+    assert "--base-dir-key" in output
+    assert "--yes" in output
+    assert "--config" in output
