@@ -16,8 +16,8 @@ if t.TYPE_CHECKING:
 
 
 @pytest.fixture
-def clear_logging_handlers() -> t.Generator[None, None, None]:
-    """Clear logging handlers to prevent duplicate log messages in tests."""
+def reset_logging() -> t.Generator[None, None, None]:
+    """Reset logging handlers to prevent duplicate log messages in tests."""
     # Store original handlers
     original_handlers = logging.root.handlers[:]
     # Clear all handlers
@@ -181,7 +181,7 @@ class TestFormatConfigFile:
         self,
         tmp_path: pathlib.Path,
         caplog: LogCaptureFixture,
-        clear_logging_handlers: None,
+        reset_logging: None,
     ) -> None:
         """Test formatting without writing changes."""
         config_file = tmp_path / ".vcspull.yaml"
@@ -214,7 +214,7 @@ class TestFormatConfigFile:
         self,
         tmp_path: pathlib.Path,
         caplog: LogCaptureFixture,
-        clear_logging_handlers: None,
+        reset_logging: None,
     ) -> None:
         """Test formatting with writing changes."""
         config_file = tmp_path / ".vcspull.yaml"
@@ -252,7 +252,7 @@ class TestFormatConfigFile:
         self,
         tmp_path: pathlib.Path,
         caplog: LogCaptureFixture,
-        clear_logging_handlers: None,
+        reset_logging: None,
     ) -> None:
         """Test when file is already correctly formatted."""
         config_file = tmp_path / ".vcspull.yaml"
@@ -277,7 +277,7 @@ class TestFormatConfigFile:
         self,
         tmp_path: pathlib.Path,
         caplog: LogCaptureFixture,
-        clear_logging_handlers: None,
+        reset_logging: None,
     ) -> None:
         """Test handling of nonexistent config file."""
         config_file = tmp_path / "nonexistent.yaml"
@@ -291,7 +291,7 @@ class TestFormatConfigFile:
         self,
         tmp_path: pathlib.Path,
         caplog: LogCaptureFixture,
-        clear_logging_handlers: None,
+        reset_logging: None,
     ) -> None:
         """Test handling of invalid YAML."""
         config_file = tmp_path / ".vcspull.yaml"
@@ -307,7 +307,7 @@ class TestFormatConfigFile:
         tmp_path: pathlib.Path,
         caplog: LogCaptureFixture,
         monkeypatch: pytest.MonkeyPatch,
-        clear_logging_handlers: None,
+        reset_logging: None,
     ) -> None:
         """Test when no config file is found."""
         monkeypatch.chdir(tmp_path)
@@ -321,7 +321,7 @@ class TestFormatConfigFile:
         self,
         tmp_path: pathlib.Path,
         caplog: LogCaptureFixture,
-        clear_logging_handlers: None,
+        reset_logging: None,
     ) -> None:
         """Test detailed reporting of changes."""
         config_file = tmp_path / ".vcspull.yaml"
