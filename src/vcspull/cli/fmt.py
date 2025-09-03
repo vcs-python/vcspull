@@ -7,7 +7,6 @@ import pathlib
 import traceback
 import typing as t
 
-import yaml
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import ConfigReader
@@ -86,7 +85,7 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
 
     for directory in sorted_dirs:
         repos = config_data[directory]
-        
+
         if not isinstance(repos, dict):
             # Not a repository section, keep as-is
             formatted[directory] = repos
@@ -99,11 +98,11 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
         for repo_name in sorted_repos:
             repo_data = repos[repo_name]
             normalized = normalize_repo_config(repo_data)
-            
+
             # Check if normalization changed anything
             if normalized != repo_data:
                 changes += 1
-                
+
             formatted_dir[repo_name] = normalized
 
         # Check if sorting changed the order
@@ -216,7 +215,7 @@ def format_config_file(
     # Analyze and report specific changes
     compact_to_verbose = 0
     url_to_repo = 0
-    
+
     for directory, repos in raw_config.items():
         if isinstance(repos, dict):
             for repo_name, repo_data in repos.items():
@@ -234,7 +233,7 @@ def format_config_file(
             compact_to_verbose,
             "repository" if compact_to_verbose == 1 else "repositories",
         )
-    
+
     if url_to_repo > 0:
         log.info(
             "  %s•%s %d %s from 'url' to 'repo' key",
