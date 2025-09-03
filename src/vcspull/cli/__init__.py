@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import pathlib
 import textwrap
 import typing as t
 from typing import overload
@@ -13,6 +14,12 @@ from libvcs.__about__ import __version__ as libvcs_version
 from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
+from ._import import (
+    create_import_subparser,
+    import_from_filesystem,
+    import_repo,
+)
+from .fmt import create_fmt_subparser, format_config_file
 from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
@@ -73,14 +80,36 @@ def create_parser(
     )
     create_sync_subparser(sync_parser)
 
+    import_parser = subparsers.add_parser(
+        "import",
+        help="import repository or scan filesystem for repositories",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Import a repository to the vcspull configuration file. "
+        "Can import a single repository by name and URL, or scan a directory "
+        "to discover and import multiple repositories.",
+    )
+    create_import_subparser(import_parser)
+
+    fmt_parser = subparsers.add_parser(
+        "fmt",
+        help="format vcspull configuration files",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Format vcspull configuration files for consistency. "
+        "Normalizes compact format to verbose format, standardizes on 'repo' key, "
+        "and sorts directories and repositories alphabetically.",
+    )
+    create_fmt_subparser(fmt_parser)
+
     if return_subparsers:
-        return parser, sync_parser
+        # Return all parsers needed by cli() function
+        return parser, (sync_parser, import_parser, fmt_parser)
     return parser
 
 
 def cli(_args: list[str] | None = None) -> None:
     """CLI entry point for vcspull."""
-    parser, sync_parser = create_parser(return_subparsers=True)
+    parser, subparsers = create_parser(return_subparsers=True)
+    sync_parser, _import_parser, _fmt_parser = subparsers
     args = parser.parse_args(_args)
 
     setup_logger(log=log, level=args.log_level.upper())
@@ -91,7 +120,33 @@ def cli(_args: list[str] | None = None) -> None:
     if args.subparser_name == "sync":
         sync(
             repo_patterns=args.repo_patterns,
-            config=args.config,
+            config=pathlib.Path(args.config) if args.config else None,
             exit_on_error=args.exit_on_error,
             parser=sync_parser,
         )
+    elif args.subparser_name == "import":
+        # Unified import command
+        if args.scan_dir:
+            # Filesystem scan mode
+            import_from_filesystem(
+                scan_dir_str=args.scan_dir,
+                config_file_path_str=args.config,
+                recursive=args.recursive,
+                base_dir_key_arg=args.base_dir_key,
+                yes=args.yes,
+            )
+        elif args.name and args.url:
+            # Manual import mode
+            import_repo(
+                name=args.name,
+                url=args.url,
+                config_file_path_str=args.config,
+                path=args.path,
+                base_dir=args.base_dir,
+            )
+        else:
+            # Error: need either name+url or --scan
+            log.error("Either provide NAME and URL, or use --scan DIR")
+            parser.exit(status=2)
+    elif args.subparser_name == "fmt":
+        format_config_file(args.config, args.write, args.all)

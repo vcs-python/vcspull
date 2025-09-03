@@ -424,3 +424,21 @@ def is_config_file(
         extensions = [".yml", ".yaml", ".json"]
     extensions = [extensions] if isinstance(extensions, str) else extensions
     return any(filename.endswith(e) for e in extensions)
+
+
+def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
+    """Save configuration data to a YAML file.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Path to the configuration file to write
+    data : dict
+        Configuration data to save
+    """
+    yaml_content = ConfigReader._dump(
+        fmt="yaml",
+        content=data,
+        indent=2,
+    )
+    config_file_path.write_text(yaml_content, encoding="utf-8")
