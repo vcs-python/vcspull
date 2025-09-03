@@ -103,7 +103,8 @@ def test_sync_cli_filter_non_existent(
     with contextlib.suppress(SystemExit):
         cli(["sync", *sync_args])
 
-    output = "".join(list(caplog.messages) + list(capsys.readouterr().out))
+    captured = capsys.readouterr()
+    output = "".join([*caplog.messages, captured.out, captured.err])
 
     if expected_in_out is not None:
         if isinstance(expected_in_out, str):
