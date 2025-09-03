@@ -10,7 +10,7 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import ConfigReader
-from vcspull.config import find_home_config_files, save_config_yaml
+from vcspull.config import find_config_files, find_home_config_files, save_config_yaml
 
 if t.TYPE_CHECKING:
     import argparse
@@ -32,6 +32,11 @@ def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
         "-w",
         action="store_true",
         help="Write formatted configuration back to file",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Format all discovered config files (home, config dir, and current dir)",
     )
 
 
@@ -118,45 +123,24 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
     return formatted, changes
 
 
-def format_config_file(
-    config_file_path_str: str | None,
+def format_single_config(
+    config_file_path: pathlib.Path,
     write: bool,
-) -> None:
-    """Format a vcspull configuration file.
+) -> bool:
+    """Format a single vcspull configuration file.
 
     Parameters
     ----------
-    config_file_path_str : str | None
-        Path to config file, or None to use default
+    config_file_path : pathlib.Path
+        Path to config file
     write : bool
         Whether to write changes back to file
-    """
-    # Determine config file
-    config_file_path: pathlib.Path
-    if config_file_path_str:
-        config_file_path = pathlib.Path(config_file_path_str).expanduser().resolve()
-    else:
-        home_configs = find_home_config_files(filetype=["yaml"])
-        if not home_configs:
-            # Try local .vcspull.yaml
-            local_config = pathlib.Path.cwd() / ".vcspull.yaml"
-            if local_config.exists():
-                config_file_path = local_config
-            else:
-                log.error(
-                    "%s✗%s No configuration file found. Create .vcspull.yaml first.",
-                    Fore.RED,
-                    Style.RESET_ALL,
-                )
-                return
-        elif len(home_configs) > 1:
-            log.error(
-                "Multiple home config files found, please specify one with -c/--config",
-            )
-            return
-        else:
-            config_file_path = home_configs[0]
 
+    Returns
+    -------
+    bool
+        True if formatting was successful, False otherwise
+    """
     # Check if file exists
     if not config_file_path.exists():
         log.error(
@@ -167,7 +151,7 @@ def format_config_file(
             config_file_path,
             Style.RESET_ALL,
         )
-        return
+        return False
 
     # Load existing config
     try:
@@ -177,12 +161,12 @@ def format_config_file(
                 "Config file %s is not a valid YAML dictionary.",
                 config_file_path,
             )
-            return
+            return False
     except Exception:
         log.exception("Error loading config from %s", config_file_path)
         if log.isEnabledFor(logging.DEBUG):
             traceback.print_exc()
-        return
+        return False
 
     # Format the configuration
     formatted_config, change_count = format_config(raw_config)
@@ -196,7 +180,7 @@ def format_config_file(
             config_file_path,
             Style.RESET_ALL,
         )
-        return
+        return True
 
     # Show what would be changed
     log.info(
@@ -280,6 +264,7 @@ def format_config_file(
             log.exception("Error saving formatted config to %s", config_file_path)
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
+            return False
     else:
         log.info(
             "\n%s→%s Run with %s--write%s to apply these formatting changes.",
@@ -288,3 +273,117 @@ def format_config_file(
             Fore.CYAN,
             Style.RESET_ALL,
         )
+    
+    return True
+
+
+def format_config_file(
+    config_file_path_str: str | None,
+    write: bool,
+    format_all: bool = False,
+) -> None:
+    """Format vcspull configuration file(s).
+
+    Parameters
+    ----------
+    config_file_path_str : str | None
+        Path to config file, or None to use default
+    write : bool
+        Whether to write changes back to file
+    format_all : bool
+        If True, format all discovered config files
+    """
+    if format_all:
+        # Format all discovered config files
+        config_files = find_config_files(include_home=True)
+        
+        # Also check for local .vcspull.yaml
+        local_yaml = pathlib.Path.cwd() / ".vcspull.yaml"
+        if local_yaml.exists() and local_yaml not in config_files:
+            config_files.append(local_yaml)
+        
+        # Also check for local .vcspull.json
+        local_json = pathlib.Path.cwd() / ".vcspull.json"
+        if local_json.exists() and local_json not in config_files:
+            config_files.append(local_json)
+        
+        if not config_files:
+            log.error(
+                "%s✗%s No configuration files found.",
+                Fore.RED,
+                Style.RESET_ALL,
+            )
+            return
+        
+        log.info(
+            "%si%s Found %s%d%s configuration %s to format:",
+            Fore.CYAN,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            len(config_files),
+            Style.RESET_ALL,
+            "file" if len(config_files) == 1 else "files",
+        )
+        
+        for config_file in config_files:
+            log.info(
+                "  %s•%s %s%s%s",
+                Fore.BLUE,
+                Style.RESET_ALL,
+                Fore.CYAN,
+                config_file,
+                Style.RESET_ALL,
+            )
+        
+        log.info("")  # Empty line for readability
+        
+        success_count = 0
+        for config_file in config_files:
+            if format_single_config(config_file, write):
+                success_count += 1
+        
+        # Summary
+        if success_count == len(config_files):
+            log.info(
+                "\n%s✓%s All %d configuration files processed successfully.",
+                Fore.GREEN,
+                Style.RESET_ALL,
+                len(config_files),
+            )
+        else:
+            log.info(
+                "\n%si%s Processed %d/%d configuration files successfully.",
+                Fore.CYAN,
+                Style.RESET_ALL,
+                success_count,
+                len(config_files),
+            )
+    else:
+        # Format single config file
+        if config_file_path_str:
+            config_file_path = pathlib.Path(config_file_path_str).expanduser().resolve()
+        else:
+            home_configs = find_home_config_files(filetype=["yaml"])
+            if not home_configs:
+                # Try local .vcspull.yaml
+                local_config = pathlib.Path.cwd() / ".vcspull.yaml"
+                if local_config.exists():
+                    config_file_path = local_config
+                else:
+                    log.error(
+                        "%s✗%s No configuration file found. "
+                        "Create .vcspull.yaml first.",
+                        Fore.RED,
+                        Style.RESET_ALL,
+                    )
+                    return
+            elif len(home_configs) > 1:
+                log.error(
+                    "Multiple home config files found, "
+                    "please specify one with -c/--config",
+                )
+                return
+            else:
+                config_file_path = home_configs[0]
+        
+        format_single_config(config_file_path, write)
