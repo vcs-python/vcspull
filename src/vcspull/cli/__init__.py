@@ -123,39 +123,26 @@ def cli(_args: list[str] | None = None) -> None:
         return
     if args.subparser_name == "sync":
         sync(
-            repo_patterns=args.repo_patterns if hasattr(args, "repo_patterns") else [],
-            config=(
-                pathlib.Path(args.config)
-                if hasattr(args, "config") and args.config
-                else None
-            ),
-            exit_on_error=args.exit_on_error
-            if hasattr(args, "exit_on_error")
-            else False,
+            repo_patterns=args.repo_patterns,
+            config=pathlib.Path(args.config) if args.config else None,
+            exit_on_error=args.exit_on_error,
             parser=sync_parser,
         )
     elif args.subparser_name == "add":
-        add_repo_kwargs = {
-            "name": args.name,
-            "url": args.url,
-            "config_file_path_str": args.config if hasattr(args, "config") else None,
-            "path": args.path if hasattr(args, "path") else None,
-            "base_dir": args.base_dir if hasattr(args, "base_dir") else None,
-        }
-        add_repo(**add_repo_kwargs)
-    elif args.subparser_name == "add-from-fs":
-        add_from_fs_kwargs = {
-            "scan_dir_str": args.scan_dir,
-            "config_file_path_str": args.config if hasattr(args, "config") else None,
-            "recursive": args.recursive if hasattr(args, "recursive") else False,
-            "base_dir_key_arg": args.base_dir_key
-            if hasattr(args, "base_dir_key")
-            else None,
-            "yes": args.yes if hasattr(args, "yes") else False,
-        }
-        add_from_filesystem(**add_from_fs_kwargs)
-    elif args.subparser_name == "fmt":
-        format_config_file(
-            args.config if hasattr(args, "config") else None,
-            args.write if hasattr(args, "write") else False,
+        add_repo(
+            name=args.name,
+            url=args.url,
+            config_file_path_str=args.config,
+            path=args.path,
+            base_dir=args.base_dir,
         )
+    elif args.subparser_name == "add-from-fs":
+        add_from_filesystem(
+            scan_dir_str=args.scan_dir,
+            config_file_path_str=args.config,
+            recursive=args.recursive,
+            base_dir_key_arg=args.base_dir_key,
+            yes=args.yes,
+        )
+    elif args.subparser_name == "fmt":
+        format_config_file(args.config, args.write)
