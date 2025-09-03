@@ -126,10 +126,10 @@ def guess_vcs(url: str) -> VCSLiteral | None:
     vcs_matches = url_tools.registry.match(url=url, is_explicit=True)
 
     if len(vcs_matches) == 0:
-        log.warning(f"No vcs found for {url}")
+        log.warning("No vcs found for %s", url)
         return None
     if len(vcs_matches) > 1:
-        log.warning(f"No exact matches for {url}")
+        log.warning("No exact matches for %s", url)
         return None
 
     return t.cast("VCSLiteral", vcs_matches[0].vcs)
