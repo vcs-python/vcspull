@@ -183,4 +183,4 @@ def add_repo(
             import traceback
 
             traceback.print_exc()
-        raise
+        return
