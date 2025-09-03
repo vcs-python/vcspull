@@ -56,7 +56,7 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
     if isinstance(repo_data, str):
         # Convert compact format to verbose format
         return {"repo": repo_data}
-    elif isinstance(repo_data, dict):
+    if isinstance(repo_data, dict):
         # If it has 'url' key but not 'repo', convert to use 'repo'
         if "url" in repo_data and "repo" not in repo_data:
             normalized = repo_data.copy()
@@ -64,9 +64,8 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
             return normalized
         # Already in correct format or has other fields
         return repo_data
-    else:
-        # Return as-is for other types
-        return t.cast(dict[str, t.Any], repo_data)
+    # Return as-is for other types
+    return t.cast("dict[str, t.Any]", repo_data)
 
 
 def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]:
@@ -202,7 +201,7 @@ def format_single_config(
 
     for directory, repos in raw_config.items():
         if isinstance(repos, dict):
-            for repo_name, repo_data in repos.items():
+            for repo_data in repos.values():
                 if isinstance(repo_data, str):
                     compact_to_verbose += 1
                 elif isinstance(repo_data, dict):
@@ -273,7 +272,7 @@ def format_single_config(
             Fore.CYAN,
             Style.RESET_ALL,
         )
-    
+
     return True
 
 
@@ -296,17 +295,17 @@ def format_config_file(
     if format_all:
         # Format all discovered config files
         config_files = find_config_files(include_home=True)
-        
+
         # Also check for local .vcspull.yaml
         local_yaml = pathlib.Path.cwd() / ".vcspull.yaml"
         if local_yaml.exists() and local_yaml not in config_files:
             config_files.append(local_yaml)
-        
+
         # Also check for local .vcspull.json
         local_json = pathlib.Path.cwd() / ".vcspull.json"
         if local_json.exists() and local_json not in config_files:
             config_files.append(local_json)
-        
+
         if not config_files:
             log.error(
                 "%s✗%s No configuration files found.",
@@ -314,7 +313,7 @@ def format_config_file(
                 Style.RESET_ALL,
             )
             return
-        
+
         log.info(
             "%si%s Found %s%d%s configuration %s to format:",
             Fore.CYAN,
@@ -324,7 +323,7 @@ def format_config_file(
             Style.RESET_ALL,
             "file" if len(config_files) == 1 else "files",
         )
-        
+
         for config_file in config_files:
             log.info(
                 "  %s•%s %s%s%s",
@@ -334,14 +333,14 @@ def format_config_file(
                 config_file,
                 Style.RESET_ALL,
             )
-        
+
         log.info("")  # Empty line for readability
-        
+
         success_count = 0
         for config_file in config_files:
             if format_single_config(config_file, write):
                 success_count += 1
-        
+
         # Summary
         if success_count == len(config_files):
             log.info(
@@ -385,5 +384,5 @@ def format_config_file(
                 return
             else:
                 config_file_path = home_configs[0]
-        
+
         format_single_config(config_file_path, write)
