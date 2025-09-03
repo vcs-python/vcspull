@@ -53,6 +53,7 @@ def setup_logger(
             "vcspull.cli.add",
             "vcspull.cli.add_from_fs",
             "vcspull.cli.sync",
+            "vcspull.cli.fmt",
         ]
 
         for logger_name in cli_loggers:
