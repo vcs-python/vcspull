@@ -160,6 +160,89 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
+def check_branch_state(repo_dict: dict[str, t.Any]) -> bool:
+    """Check if repository is in a problematic branch state.
+
+    Returns True if there are potential branch issues that should be addressed
+    before attempting to sync.
+
+    Parameters
+    ----------
+    repo_dict : dict
+        Repository configuration dictionary
+
+    Returns
+    -------
+    bool
+        True if branch issues detected, False otherwise
+    """
+    repo_path = repo_dict.get("path")
+    if not repo_path:
+        return False
+
+    try:
+        # Check if we're in a git repository
+        git_dir = subprocess.run(
+            ["git", "-C", str(repo_path), "rev-parse", "--git-dir"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if git_dir.returncode != 0:
+            return False  # Not a git repo or git not available
+
+        # Get current branch
+        current_branch = subprocess.run(
+            ["git", "-C", str(repo_path), "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if current_branch.returncode != 0:
+            return False  # Can't determine current branch
+
+        branch_name = current_branch.stdout.strip()
+        if not branch_name:
+            return False  # Detached HEAD or other edge case
+
+        # Check if current branch has upstream tracking
+        upstream_ref = f"{branch_name}@{{upstream}}"
+        upstream = subprocess.run(
+            ["git", "-C", str(repo_path), "rev-parse", "--abbrev-ref", upstream_ref],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+
+        if upstream.returncode != 0:
+            # No upstream tracking - this is potentially problematic
+            # Even if the remote branch exists, the lack of upstream tracking
+            # can cause libvcs to construct invalid remote references
+            # Check if there's a remote branch with the same name
+            remote_ref = f"origin/{branch_name}"
+            remote_branch = subprocess.run(
+                ["git", "-C", str(repo_path), "rev-parse", "--verify", remote_ref],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if remote_branch.returncode != 0:
+                # Current branch doesn't exist on remote - this will cause issues
+                return True
+            # Branch exists on remote but no upstream tracking
+            # This can still cause issues with libvcs's remote name detection
+            return True
+        else:
+            return False  # Branch state looks good
+
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False  # Git command failed or not available
+
+
 def handle_branch_error(repo_dict: dict[str, t.Any]) -> None:
     """Handle branch-related errors by showing helpful instructions.
 
@@ -222,11 +305,16 @@ def update_repo(
 
     r = create_project(**repo_dict)  # Creates the repo object
 
+    # Check for branch issues before attempting to sync
+    if check_branch_state(repo_dict):
+        handle_branch_error(repo_dict)
+        # Still attempt the sync but user has been warned
+
     try:
         r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
     except libvcs_exc.CommandError as e:
         error_msg = str(e).lower()
-        # Check for branch-related errors
+        # Check for branch-related errors (fallback in case pre-check missed something)
         if "invalid upstream" in error_msg or "ambiguous argument" in error_msg:
             handle_branch_error(repo_dict)
             raise

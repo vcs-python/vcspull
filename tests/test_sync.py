@@ -13,7 +13,7 @@ from libvcs._internal.shortcuts import create_project
 from libvcs.sync.git import GitRemote, GitSync
 
 from vcspull._internal.config_reader import ConfigReader
-from vcspull.cli.sync import handle_branch_error, update_repo
+from vcspull.cli.sync import check_branch_state, handle_branch_error, update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
 from vcspull.validator import is_valid_config
 
@@ -319,6 +319,95 @@ def test_updating_remote(
                 )
 
 
+def test_check_branch_state(tmp_path: pathlib.Path) -> None:
+    """Test that check_branch_state detects problematic branches."""
+    repo_dict = {
+        "name": "test-repo",
+        "url": "git@github.com:user/repo.git",
+        "path": tmp_path / "test-repo",
+    }
+
+    # Create a mock git directory for testing
+    (tmp_path / "test-repo" / ".git").mkdir(parents=True, exist_ok=True)
+
+    # Mock successful git commands that indicate problematic state
+    with patch("subprocess.run") as mock_run:
+
+        def git_side_effect(cmd: list[str], **kwargs: t.Any) -> t.Any:
+            from unittest.mock import MagicMock
+
+            mock_result = MagicMock()
+
+            if "--git-dir" in cmd:
+                # Git directory check - success
+                mock_result.returncode = 0
+                return mock_result
+            elif "--show-current" in cmd:
+                # Current branch - return 'docs'
+                mock_result.returncode = 0
+                mock_result.stdout = "docs\n"
+                return mock_result
+            elif "@{upstream}" in " ".join(cmd):
+                # No upstream tracking
+                mock_result.returncode = 1  # No upstream
+                return mock_result
+            elif "origin/docs" in cmd:
+                # No origin/docs branch
+                mock_result.returncode = 1  # Branch doesn't exist on remote
+                return mock_result
+            else:
+                mock_result.returncode = 0
+                return mock_result
+
+        mock_run.side_effect = git_side_effect
+
+        # Should detect branch issue
+        assert check_branch_state(repo_dict) is True
+
+
+def test_check_branch_state_good_branch(tmp_path: pathlib.Path) -> None:
+    """Test that check_branch_state doesn't flag good branches."""
+    repo_dict = {
+        "name": "test-repo",
+        "url": "git@github.com:user/repo.git",
+        "path": tmp_path / "test-repo",
+    }
+
+    # Create a mock git directory for testing
+    (tmp_path / "test-repo" / ".git").mkdir(parents=True, exist_ok=True)
+
+    # Mock git commands that indicate good state
+    with patch("subprocess.run") as mock_run:
+
+        def git_side_effect(cmd: list[str], **kwargs: t.Any) -> t.Any:
+            from unittest.mock import MagicMock
+
+            mock_result = MagicMock()
+
+            if "--git-dir" in cmd:
+                # Git directory check - success
+                mock_result.returncode = 0
+                return mock_result
+            elif "--show-current" in cmd:
+                # Current branch - return 'main'
+                mock_result.returncode = 0
+                mock_result.stdout = "main\n"
+                return mock_result
+            elif "@{upstream}" in " ".join(cmd):
+                # Has upstream tracking
+                mock_result.returncode = 0  # Has upstream
+                mock_result.stdout = "origin/main\n"
+                return mock_result
+            else:
+                mock_result.returncode = 0
+                return mock_result
+
+        mock_run.side_effect = git_side_effect
+
+        # Should NOT detect branch issue
+        assert check_branch_state(repo_dict) is False
+
+
 def test_handle_branch_error(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -380,12 +469,12 @@ def test_handle_branch_error_no_git(
     assert "Available remote branches" not in captured.err
 
 
-def test_update_repo_branch_error(
+def test_update_repo_branch_error_precheck(
     tmp_path: pathlib.Path,
     git_remote_repo: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Test that update_repo handles branch errors correctly."""
+    """Test that update_repo detects branch errors with pre-validation."""
     repo_config = {
         "name": "test-repo",
         "url": f"git+file://{git_remote_repo}",
@@ -402,20 +491,52 @@ def test_update_repo_branch_error(
         ["git", "-C", str(repo_path), "checkout", "-b", "local-only"], check=True
     )
 
-    # Mock update_repo to raise a CommandError with branch issue
-    with patch.object(GitSync, "update_repo") as mock_update:
+    # Mock check_branch_state to return True (problematic branch detected)
+    with patch("vcspull.cli.sync.check_branch_state", return_value=True):
+        # This should trigger the pre-validation warning
+        update_repo(repo_config)
+
+    captured = capsys.readouterr()
+
+    # Verify error handler was called during pre-validation
+    assert "Error syncing 'test-repo': Branch issue detected" in captured.err
+    assert "add a 'rev' field to your vcspull configuration" in captured.err
+
+
+def test_update_repo_branch_error_fallback(
+    tmp_path: pathlib.Path,
+    git_remote_repo: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test that update_repo still catches CommandError as fallback."""
+    repo_config = {
+        "name": "test-repo",
+        "url": f"git+file://{git_remote_repo}",
+        "path": str(tmp_path / "test-repo"),
+        "vcs": "git",
+    }
+
+    # First, create the repository normally
+    update_repo(repo_config)
+
+    # Mock check_branch_state to return False (no issue detected in pre-check)
+    # But mock update_repo to raise CommandError (fallback case)
+    with (
+        patch("vcspull.cli.sync.check_branch_state", return_value=False),
+        patch.object(GitSync, "update_repo") as mock_update,
+    ):
         mock_update.side_effect = libvcs_exc.CommandError(
             output="fatal: invalid upstream 'origin/local-only'",
             returncode=1,
             cmd="git rebase origin/local-only",
         )
 
-        # Try to update again, should trigger branch error handling
+        # Try to update, should trigger fallback error handling
         with pytest.raises(libvcs_exc.CommandError):
             update_repo(repo_config)
 
     captured = capsys.readouterr()
 
-    # Verify error handler was called
+    # Verify error handler was called as fallback
     assert "Error syncing 'test-repo': Branch issue detected" in captured.err
     assert "add a 'rev' field to your vcspull configuration" in captured.err
