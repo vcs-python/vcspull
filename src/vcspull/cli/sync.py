@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 import sys
 import typing as t
 from copy import deepcopy
 
+from libvcs import exc as libvcs_exc
 from libvcs._internal.shortcuts import create_project
 from libvcs.url import registry as url_tools
 
@@ -22,6 +24,22 @@ if t.TYPE_CHECKING:
     from libvcs.sync.git import GitSync
 
 log = logging.getLogger(__name__)
+
+BRANCH_ERROR_MSG = """
+⚠️  Error syncing '{repo_name}': Branch issue detected
+
+The repository appears to be on a local branch with no remote tracking.
+
+To fix this, add a 'rev' field to your vcspull configuration:
+
+  {repo_name}:
+    repo: {repo_url}
+    rev: main  # or specify your desired branch
+
+Alternatively, switch to a branch that exists remotely:
+  cd {repo_path}
+  git checkout main  # or another remote branch{available_branches}
+"""
 
 
 def clamp(n: int, _min: int, _max: int) -> int:
@@ -142,6 +160,47 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
+def handle_branch_error(repo_dict: dict[str, t.Any]) -> None:
+    """Handle branch-related errors by showing helpful instructions.
+
+    Parameters
+    ----------
+    repo_dict : dict
+        Repository configuration dictionary
+    """
+    repo_name = repo_dict.get("name", "repository")
+    repo_url = repo_dict.get("url", "YOUR_REPO_URL")
+    repo_path = repo_dict.get("path", "REPO_PATH")
+
+    # Try to get available remote branches
+    available_branches = ""
+    try:
+        cmd = ["git", "-C", str(repo_path), "branch", "-r"]
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=5, check=False
+        )
+        if result.returncode == 0 and result.stdout:
+            branches = [
+                line.strip().replace("origin/", "")
+                for line in result.stdout.splitlines()
+                if "origin/" in line and "->" not in line
+            ][:5]  # Show first 5 branches
+            if branches:
+                branch_list = ", ".join(branches)
+                available_branches = f"\n\nAvailable remote branches: {branch_list}"
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass  # Git command failed or not available
+
+    error_msg = BRANCH_ERROR_MSG.format(
+        repo_name=repo_name,
+        repo_url=repo_url,
+        repo_path=repo_path,
+        available_branches=available_branches,
+    )
+
+    print(error_msg, file=sys.stderr)
+
+
 def update_repo(
     repo_dict: t.Any,
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
@@ -162,7 +221,16 @@ def update_repo(
         repo_dict["vcs"] = vcs
 
     r = create_project(**repo_dict)  # Creates the repo object
-    r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
+
+    try:
+        r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
+    except libvcs_exc.CommandError as e:
+        error_msg = str(e).lower()
+        # Check for branch-related errors
+        if "invalid upstream" in error_msg or "ambiguous argument" in error_msg:
+            handle_branch_error(repo_dict)
+            raise
+        raise
 
     # TODO: Fix this
     return r  # type:ignore
