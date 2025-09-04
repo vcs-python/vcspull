@@ -199,14 +199,17 @@ def format_single_config(
     compact_to_verbose = 0
     url_to_repo = 0
 
-    for directory, repos in raw_config.items():
+    for repos in raw_config.values():
         if isinstance(repos, dict):
             for repo_data in repos.values():
                 if isinstance(repo_data, str):
                     compact_to_verbose += 1
-                elif isinstance(repo_data, dict):
-                    if "url" in repo_data and "repo" not in repo_data:
-                        url_to_repo += 1
+                elif (
+                    isinstance(repo_data, dict)
+                    and "url" in repo_data
+                    and "repo" not in repo_data
+                ):
+                    url_to_repo += 1
 
     if compact_to_verbose > 0:
         log.info(
@@ -235,17 +238,16 @@ def format_single_config(
 
     # Check if any repos need sorting
     for directory, repos in raw_config.items():
-        if isinstance(repos, dict):
-            if list(repos.keys()) != sorted(repos.keys()):
-                log.info(
-                    "  %s•%s Repositories in %s%s%s will be sorted alphabetically",
-                    Fore.BLUE,
-                    Style.RESET_ALL,
-                    Fore.MAGENTA,
-                    directory,
-                    Style.RESET_ALL,
-                )
-                break
+        if isinstance(repos, dict) and list(repos.keys()) != sorted(repos.keys()):
+            log.info(
+                "  %s•%s Repositories in %s%s%s will be sorted alphabetically",
+                Fore.BLUE,
+                Style.RESET_ALL,
+                Fore.MAGENTA,
+                directory,
+                Style.RESET_ALL,
+            )
+            break
 
     if write:
         # Save formatted config
