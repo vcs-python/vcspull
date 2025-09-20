@@ -67,8 +67,8 @@ Changes = "https://github.com/vcs-python/vcspull/blob/master/CHANGES"
 [project.scripts]
 vcspull = "vcspull:cli.cli"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
   # Docs
   "sphinx",
   "furo",
@@ -101,7 +101,6 @@ dev-dependencies = [
   "types-colorama"
 ]
 
-[dependency-groups]
 docs = [
   "sphinx",
   "furo",
