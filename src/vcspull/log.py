@@ -38,19 +38,42 @@ def setup_logger(
     if not log:
         log = logging.getLogger()
     if not log.handlers:
-        channel = logging.StreamHandler()
-        channel.setFormatter(DebugLogFormatter())
+        # Setup root vcspull logger with debug formatter
+        vcspull_logger = logging.getLogger("vcspull")
+        if not vcspull_logger.handlers:
+            channel = logging.StreamHandler()
+            channel.setFormatter(DebugLogFormatter())
+            vcspull_logger.setLevel(level)
+            vcspull_logger.addHandler(channel)
+            vcspull_logger.propagate = False
 
-        log.setLevel(level)
-        log.addHandler(channel)
+        # Setup simple formatter specifically for CLI modules
+        # These modules provide user-facing output that should be clean
+        cli_loggers = [
+            "vcspull.cli.add",
+            "vcspull.cli.add_from_fs",
+            "vcspull.cli.sync",
+            "vcspull.cli.fmt",
+        ]
+
+        for logger_name in cli_loggers:
+            cli_logger = logging.getLogger(logger_name)
+            if not cli_logger.handlers:
+                cli_channel = logging.StreamHandler()
+                cli_channel.setFormatter(SimpleLogFormatter())
+                cli_logger.setLevel(level)
+                cli_logger.addHandler(cli_channel)
+                cli_logger.propagate = False
 
         # setup styling for repo loggers
         repo_logger = logging.getLogger("libvcs")
-        channel = logging.StreamHandler()
-        channel.setFormatter(RepoLogFormatter())
-        channel.addFilter(RepoFilter())
-        repo_logger.setLevel(level)
-        repo_logger.addHandler(channel)
+        if not repo_logger.handlers:
+            repo_channel = logging.StreamHandler()
+            repo_channel.setFormatter(RepoLogFormatter())
+            repo_channel.addFilter(RepoFilter())
+            repo_logger.setLevel(level)
+            repo_logger.addHandler(repo_channel)
+            repo_logger.propagate = False
 
 
 class LogFormatter(logging.Formatter):
@@ -178,6 +201,14 @@ class RepoLogFormatter(LogFormatter):
             f"{Fore.MAGENTA}{Style.BRIGHT}{record.message}{Fore.RESET}{Style.RESET_ALL}"
         )
         return f"{Fore.GREEN + Style.DIM}|{record.bin_name}| {Fore.YELLOW}({record.keyword}) {Fore.RESET}"  # type:ignore # noqa: E501
+
+
+class SimpleLogFormatter(logging.Formatter):
+    """Simple formatter that outputs only the message, like print()."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format log record to just return the message."""
+        return record.getMessage()
 
 
 class RepoFilter(logging.Filter):
