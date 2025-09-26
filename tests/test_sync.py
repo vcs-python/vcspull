@@ -133,6 +133,35 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
         """,
         remote_list=["git_scheme_repo"],
     ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style_with_unprefixed_remote_3",
+        config_tpl="""
+        {tmp_path}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+file://{path}
+                remotes:
+                  git_scheme_repo: user@myhostname.de:org/repo.git
+        """,
+        remote_list=["git_scheme_repo"],
+    ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style_with_unprefixed_repo",
+        config_tpl="""
+        {tmp_path}/study/myrepo:
+            {CLONE_NAME}:
+                repo: user@myhostname.de:org/repo.git
+        """,
+        remote_list=["git_scheme_repo"],
+    ),
+    ConfigVariationTest(
+        test_id="expanded_repo_style_with_prefixed_repo_3_with_prefix",
+        config_tpl="""
+        {tmp_path}/study/myrepo:
+            {CLONE_NAME}:
+                repo: git+ssh://user@myhostname.de:org/repo.git
+        """,
+        remote_list=["git_scheme_repo"],
+    ),
 ]
 
 
