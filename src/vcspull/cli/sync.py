@@ -12,6 +12,7 @@ from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull.url import enable_ssh_style_url_detection
 
 if t.TYPE_CHECKING:
     import argparse
@@ -147,6 +148,8 @@ def update_repo(
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
 ) -> GitSync:
     """Synchronize a single repository."""
+    # Ensure SSH-style URLs are recognized as explicit Git URLs
+    enable_ssh_style_url_detection()
     repo_dict = deepcopy(repo_dict)
     if "pip_url" not in repo_dict:
         repo_dict["pip_url"] = repo_dict.pop("url")
