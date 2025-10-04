@@ -9,9 +9,12 @@ provided.
 
 from __future__ import annotations
 
+import importlib
 import logging
+import pkgutil
 import time
 import typing as t
+from functools import lru_cache
 
 from colorama import Fore, Style
 
@@ -22,6 +25,24 @@ LEVEL_COLORS = {
     "ERROR": Fore.RED,
     "CRITICAL": Fore.RED,
 }
+
+
+@lru_cache(maxsize=1)
+def get_cli_logger_names(include_self: bool = True) -> list[str]:
+    """Return logger names under ``vcspull.cli``."""
+    names: set[str] = set()
+    cli_module = importlib.import_module("vcspull.cli")
+    if include_self:
+        names.add(cli_module.__name__)
+
+    if hasattr(cli_module, "__path__"):
+        for module_info in pkgutil.walk_packages(
+            cli_module.__path__,
+            prefix="vcspull.cli.",
+        ):
+            names.add(module_info.name)
+
+    return sorted(names)
 
 
 def setup_logger(
@@ -56,13 +77,7 @@ def setup_logger(
     # Ensure CLI modules bubble up to the main vcspull logger instead of
     # attaching their own handlers, which keeps output centralized and
     # prevents duplicate streams in tests.
-    for logger_name in [
-        "vcspull.cli",
-        "vcspull.cli.add",
-        "vcspull.cli.add_from_fs",
-        "vcspull.cli.sync",
-        "vcspull.cli.fmt",
-    ]:
+    for logger_name in get_cli_logger_names(include_self=True):
         cli_logger = logging.getLogger(logger_name)
         for handler in list(cli_logger.handlers):
             if isinstance(handler, logging.StreamHandler) and isinstance(

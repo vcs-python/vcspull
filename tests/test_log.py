@@ -15,6 +15,7 @@ from vcspull.log import (
     RepoFilter,
     RepoLogFormatter,
     SimpleLogFormatter,
+    get_cli_logger_names,
     setup_logger,
 )
 
@@ -28,11 +29,7 @@ def cleanup_loggers() -> t.Iterator[None]:
     managed_loggers = [
         "",
         "vcspull",
-        "vcspull.cli",
-        "vcspull.cli.add",
-        "vcspull.cli.add_from_fs",
-        "vcspull.cli.sync",
-        "vcspull.cli.fmt",
+        *get_cli_logger_names(include_self=True),
         "libvcs",
         "test_logger",
     ]
@@ -442,6 +439,24 @@ class TestRepoFilter:
 
 class TestSetupLogger:
     """Test setup_logger function."""
+
+    def test_get_cli_logger_names(self) -> None:
+        """Helper returns expected CLI modules including base package."""
+        names = get_cli_logger_names(include_self=True)
+        expected = [
+            "vcspull.cli",
+            "vcspull.cli.add",
+            "vcspull.cli.add_from_fs",
+            "vcspull.cli.fmt",
+            "vcspull.cli.sync",
+        ]
+        assert names == expected
+
+    def test_get_cli_logger_names_without_base(self) -> None:
+        """Helper omits base package when include_self is False."""
+        names = get_cli_logger_names(include_self=False)
+        assert "vcspull.cli" not in names
+        assert all(name.startswith("vcspull.cli.") for name in names)
 
     def test_setup_logger_default_behavior(self, caplog: LogCaptureFixture) -> None:
         """Test setup_logger with default parameters."""
