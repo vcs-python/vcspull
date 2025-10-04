@@ -28,52 +28,69 @@ def setup_logger(
     log: logging.Logger | None = None,
     level: t.Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO",
 ) -> None:
-    """Configure vcspull logger for CLI use.
+    """Configure the vcspull logging hierarchy once and reuse it everywhere."""
+    resolved_level = getattr(logging, level.upper(), logging.INFO)
 
-    Parameters
-    ----------
-    log : :py:class:`logging.Logger`
-        instance of logger
-    """
-    if not log:
-        log = logging.getLogger()
-    if not log.handlers:
-        # Setup root vcspull logger with debug formatter
-        vcspull_logger = logging.getLogger("vcspull")
-        if not vcspull_logger.handlers:
-            channel = logging.StreamHandler()
-            channel.setFormatter(DebugLogFormatter())
-            vcspull_logger.setLevel(level)
-            vcspull_logger.addHandler(channel)
-            vcspull_logger.propagate = False
+    vcspull_logger = logging.getLogger("vcspull")
+    if not vcspull_logger.handlers:
+        stream_handler = logging.StreamHandler()
+        if resolved_level <= logging.DEBUG:
+            stream_handler.setFormatter(DebugLogFormatter())
+        else:
+            stream_handler.setFormatter(SimpleLogFormatter())
+        vcspull_logger.addHandler(stream_handler)
+    else:
+        # Update formatter to match requested verbosity
+        formatter: logging.Formatter
+        formatter = (
+            DebugLogFormatter()
+            if resolved_level <= logging.DEBUG
+            else SimpleLogFormatter()
+        )
+        for handler in vcspull_logger.handlers:
+            handler.setFormatter(formatter)
 
-        # Setup simple formatter specifically for CLI modules
-        # These modules provide user-facing output that should be clean
-        cli_loggers = [
-            "vcspull.cli.add",
-            "vcspull.cli.add_from_fs",
-            "vcspull.cli.sync",
-            "vcspull.cli.fmt",
-        ]
+    vcspull_logger.setLevel(resolved_level)
+    vcspull_logger.propagate = True
 
-        for logger_name in cli_loggers:
-            cli_logger = logging.getLogger(logger_name)
-            if not cli_logger.handlers:
-                cli_channel = logging.StreamHandler()
-                cli_channel.setFormatter(SimpleLogFormatter())
-                cli_logger.setLevel(level)
-                cli_logger.addHandler(cli_channel)
-                cli_logger.propagate = False
+    # Ensure CLI modules bubble up to the main vcspull logger instead of
+    # attaching their own handlers, which keeps output centralized and
+    # prevents duplicate streams in tests.
+    for logger_name in [
+        "vcspull.cli",
+        "vcspull.cli.add",
+        "vcspull.cli.add_from_fs",
+        "vcspull.cli.sync",
+        "vcspull.cli.fmt",
+    ]:
+        cli_logger = logging.getLogger(logger_name)
+        for handler in list(cli_logger.handlers):
+            if isinstance(handler, logging.StreamHandler) and isinstance(
+                handler.formatter,
+                (SimpleLogFormatter, DebugLogFormatter),
+            ):
+                cli_logger.removeHandler(handler)
+        cli_logger.setLevel(resolved_level)
+        cli_logger.propagate = True
 
-        # setup styling for repo loggers
-        repo_logger = logging.getLogger("libvcs")
-        if not repo_logger.handlers:
-            repo_channel = logging.StreamHandler()
-            repo_channel.setFormatter(RepoLogFormatter())
-            repo_channel.addFilter(RepoFilter())
-            repo_logger.setLevel(level)
-            repo_logger.addHandler(repo_channel)
-            repo_logger.propagate = False
+    # Configure libvcs logger with repo formatting but keep propagation for caplog
+    repo_logger = logging.getLogger("libvcs")
+    if not repo_logger.handlers:
+        repo_channel = logging.StreamHandler()
+        repo_channel.setFormatter(RepoLogFormatter())
+        repo_channel.addFilter(RepoFilter())
+        repo_logger.addHandler(repo_channel)
+    repo_logger.setLevel(resolved_level)
+    repo_logger.propagate = True
+
+    target_logger = log or vcspull_logger
+    target_logger.setLevel(resolved_level)
+    target_logger.propagate = True
+
+    # Keep root logger at least aware of the desired level for debugging tools
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        root_logger.setLevel(resolved_level)
 
 
 class LogFormatter(logging.Formatter):

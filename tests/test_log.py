@@ -25,19 +25,30 @@ if t.TYPE_CHECKING:
 @pytest.fixture(autouse=True)
 def cleanup_loggers() -> t.Iterator[None]:
     """Clean up logger configuration after each test."""
-    yield
-    # Reset logging configuration to avoid test interference
-    for logger_name in [
+    managed_loggers = [
+        "",
         "vcspull",
+        "vcspull.cli",
         "vcspull.cli.add",
         "vcspull.cli.add_from_fs",
         "vcspull.cli.sync",
+        "vcspull.cli.fmt",
         "libvcs",
         "test_logger",
-        "",  # Root logger
-    ]:
+    ]
+
+    for logger_name in managed_loggers:
         logger = logging.getLogger(logger_name)
         logger.handlers.clear()
+        logger.setLevel(logging.NOTSET)
+        logger.propagate = True
+
+    yield
+
+    for logger_name in managed_loggers:
+        logger = logging.getLogger(logger_name)
+        logger.handlers.clear()
+        logger.setLevel(logging.NOTSET)
         logger.propagate = True
 
 
@@ -440,167 +451,80 @@ class TestSetupLogger:
 
         setup_logger(test_logger, level="INFO")
 
-        # setup_logger doesn't add handlers to individual loggers anymore
-        # it sets up the vcspull logger hierarchy
         vcspull_logger = logging.getLogger("vcspull")
         assert len(vcspull_logger.handlers) > 0
+        assert vcspull_logger.propagate is True
+        # vcspull logger should use SimpleLogFormatter at INFO level
+        handler = vcspull_logger.handlers[0]
+        assert isinstance(handler.formatter, SimpleLogFormatter)
 
     def test_setup_logger_custom_level(self, caplog: LogCaptureFixture) -> None:
         """Test setup_logger with custom log level."""
-        # Clear handlers first to avoid interference
-        root_logger = logging.getLogger()
-        for logger_name in [
-            "vcspull",
-            "vcspull.cli.add",
-            "vcspull.cli.add_from_fs",
-            "vcspull.cli.sync",
-            "libvcs",
-        ]:
-            logger = logging.getLogger(logger_name)
-            logger.handlers.clear()
-        root_logger.handlers.clear()
-
         setup_logger(level="DEBUG")
 
         # Check that loggers were set to DEBUG level
         vcspull_logger = logging.getLogger("vcspull")
         assert vcspull_logger.level == logging.DEBUG
+        handler = vcspull_logger.handlers[0]
+        assert isinstance(handler.formatter, DebugLogFormatter)
 
     def test_setup_logger_creates_vcspull_logger(
         self,
         caplog: LogCaptureFixture,
     ) -> None:
         """Test that setup_logger creates vcspull logger with debug formatter."""
-        # Clear handlers first to avoid interference
-        root_logger = logging.getLogger()
-        for logger_name in [
-            "vcspull",
-            "vcspull.cli.add",
-            "vcspull.cli.add_from_fs",
-            "vcspull.cli.sync",
-            "libvcs",
-        ]:
-            logger = logging.getLogger(logger_name)
-            logger.handlers.clear()
-        root_logger.handlers.clear()
-
         setup_logger(level="INFO")
 
         vcspull_logger = logging.getLogger("vcspull")
         assert len(vcspull_logger.handlers) > 0
-        assert vcspull_logger.propagate is False
+        assert vcspull_logger.propagate is True
 
-        # Test that it uses DebugLogFormatter by checking handler type
         handler = vcspull_logger.handlers[0]
-        assert isinstance(handler.formatter, DebugLogFormatter)
+        assert isinstance(handler.formatter, SimpleLogFormatter)
 
     def test_setup_logger_creates_cli_add_logger(
         self,
         caplog: LogCaptureFixture,
     ) -> None:
         """Test that setup_logger creates CLI add logger with simple formatter."""
-        # Clear handlers first to avoid interference
-        root_logger = logging.getLogger()
-        for logger_name in [
-            "vcspull",
-            "vcspull.cli.add",
-            "vcspull.cli.add_from_fs",
-            "vcspull.cli.sync",
-            "libvcs",
-        ]:
-            logger = logging.getLogger(logger_name)
-            logger.handlers.clear()
-        root_logger.handlers.clear()
-
         setup_logger(level="INFO")
 
         add_logger = logging.getLogger("vcspull.cli.add")
-        assert len(add_logger.handlers) > 0
-        assert add_logger.propagate is False
-
-        # Test that it uses SimpleLogFormatter
-        handler = add_logger.handlers[0]
-        assert isinstance(handler.formatter, SimpleLogFormatter)
+        assert len(add_logger.handlers) == 0
+        assert add_logger.propagate is True
 
     def test_setup_logger_creates_cli_add_fs_logger(
         self,
         caplog: LogCaptureFixture,
     ) -> None:
         """Test that setup_logger creates CLI add-from-fs logger."""
-        # Clear handlers first to avoid interference
-        root_logger = logging.getLogger()
-        for logger_name in [
-            "vcspull",
-            "vcspull.cli.add",
-            "vcspull.cli.add_from_fs",
-            "vcspull.cli.sync",
-            "libvcs",
-        ]:
-            logger = logging.getLogger(logger_name)
-            logger.handlers.clear()
-        root_logger.handlers.clear()
-
         setup_logger(level="INFO")
 
         add_fs_logger = logging.getLogger("vcspull.cli.add_from_fs")
-        assert len(add_fs_logger.handlers) > 0
-        assert add_fs_logger.propagate is False
-
-        # Test that it uses SimpleLogFormatter
-        handler = add_fs_logger.handlers[0]
-        assert isinstance(handler.formatter, SimpleLogFormatter)
+        assert len(add_fs_logger.handlers) == 0
+        assert add_fs_logger.propagate is True
 
     def test_setup_logger_creates_cli_sync_logger(
         self,
         caplog: LogCaptureFixture,
     ) -> None:
         """Test that setup_logger creates CLI sync logger."""
-        # Clear handlers first to avoid interference
-        root_logger = logging.getLogger()
-        for logger_name in [
-            "vcspull",
-            "vcspull.cli.add",
-            "vcspull.cli.add_from_fs",
-            "vcspull.cli.sync",
-            "libvcs",
-        ]:
-            logger = logging.getLogger(logger_name)
-            logger.handlers.clear()
-        root_logger.handlers.clear()
-
         setup_logger(level="INFO")
 
         sync_logger = logging.getLogger("vcspull.cli.sync")
-        assert len(sync_logger.handlers) > 0
-        assert sync_logger.propagate is False
-
-        # Test that it uses SimpleLogFormatter
-        handler = sync_logger.handlers[0]
-        assert isinstance(handler.formatter, SimpleLogFormatter)
+        assert len(sync_logger.handlers) == 0
+        assert sync_logger.propagate is True
 
     def test_setup_logger_creates_libvcs_logger(
         self,
         caplog: LogCaptureFixture,
     ) -> None:
         """Test that setup_logger creates libvcs logger with repo formatter."""
-        # Clear handlers first to avoid interference
-        root_logger = logging.getLogger()
-        for logger_name in [
-            "vcspull",
-            "vcspull.cli.add",
-            "vcspull.cli.add_from_fs",
-            "vcspull.cli.sync",
-            "libvcs",
-        ]:
-            logger = logging.getLogger(logger_name)
-            logger.handlers.clear()
-        root_logger.handlers.clear()
-
         setup_logger(level="INFO")
 
         libvcs_logger = logging.getLogger("libvcs")
         assert len(libvcs_logger.handlers) > 0
-        assert libvcs_logger.propagate is False
+        assert libvcs_logger.propagate is True
 
         # Test that it uses RepoLogFormatter
         handler = libvcs_logger.handlers[0]
@@ -614,34 +538,17 @@ class TestSetupLogger:
         test_logger = logging.getLogger("test_logger")
         test_logger.handlers.clear()
 
-        # Call setup_logger twice
         setup_logger(test_logger, level="INFO")
-        initial_handler_count = len(test_logger.handlers)
+        assert len(test_logger.handlers) == 0
 
         setup_logger(test_logger, level="INFO")
-        final_handler_count = len(test_logger.handlers)
-
-        # Should not have added more handlers
-        assert initial_handler_count == final_handler_count
+        assert len(test_logger.handlers) == 0
 
     def test_setup_logger_with_none_creates_root_logger(
         self,
         caplog: LogCaptureFixture,
     ) -> None:
         """Test that setup_logger with None creates root logger configuration."""
-        # Clear handlers first to avoid interference
-        root_logger = logging.getLogger()
-        for logger_name in [
-            "vcspull",
-            "vcspull.cli.add",
-            "vcspull.cli.add_from_fs",
-            "vcspull.cli.sync",
-            "libvcs",
-        ]:
-            logger = logging.getLogger(logger_name)
-            logger.handlers.clear()
-        root_logger.handlers.clear()
-
         # This tests the default behavior when no logger is passed
         setup_logger(log=None, level="WARNING")
 

@@ -20,23 +20,6 @@ if t.TYPE_CHECKING:
     ExpectedOutput: TypeAlias = t.Optional[t.Union[str, list[str]]]
 
 
-@pytest.fixture(autouse=True)
-def clear_logging_handlers() -> t.Generator[None, None, None]:
-    """Clear logging handlers after each test to prevent stream closure issues."""
-    yield
-    # Clear handlers from all CLI loggers after test
-    cli_loggers = [
-        "vcspull",
-        "vcspull.cli.add",
-        "vcspull.cli.add_from_fs",
-        "vcspull.cli.sync",
-        "vcspull.cli.fmt",
-    ]
-    for logger_name in cli_loggers:
-        logger = logging.getLogger(logger_name)
-        logger.handlers.clear()
-
-
 class AddRepoFixture(t.NamedTuple):
     """Pytest fixture for vcspull add command."""
 
@@ -277,7 +260,7 @@ class TestAddRepoUnit:
     def test_add_repo_invalid_config(
         self,
         tmp_path: pathlib.Path,
-        capsys: pytest.CaptureFixture[str],
+        caplog: pytest.LogCaptureFixture,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test handling of invalid config file."""
@@ -289,18 +272,17 @@ class TestAddRepoUnit:
         # Change to tmp directory
         monkeypatch.chdir(tmp_path)
 
-        # Try to add repo
-        add_repo(
-            name="test",
-            url="git@github.com:user/test.git",
-            config_file_path_str=str(config_file),
-            path=None,
-            base_dir=None,
-        )
+        # Try to add repo and capture log output
+        with caplog.at_level(logging.ERROR):
+            add_repo(
+                name="test",
+                url="git@github.com:user/test.git",
+                config_file_path_str=str(config_file),
+                path=None,
+                base_dir=None,
+            )
 
-        # Should log error to stderr
-        captured = capsys.readouterr()
-        assert "Error loading YAML" in captured.err
+        assert "Error loading YAML" in caplog.text
 
 
 def test_add_command_help(

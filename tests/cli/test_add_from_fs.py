@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import logging
 import subprocess
 import typing as t
 
@@ -20,23 +19,6 @@ if t.TYPE_CHECKING:
     from typing_extensions import TypeAlias
 
     ExpectedOutput: TypeAlias = t.Optional[t.Union[str, list[str]]]
-
-
-@pytest.fixture(autouse=True)
-def clear_logging_handlers() -> t.Generator[None, None, None]:
-    """Clear logging handlers after each test to prevent stream closure issues."""
-    yield
-    # Clear handlers from all CLI loggers after test
-    cli_loggers = [
-        "vcspull",
-        "vcspull.cli.add",
-        "vcspull.cli.add_from_fs",
-        "vcspull.cli.sync",
-        "vcspull.cli.fmt",
-    ]
-    for logger_name in cli_loggers:
-        logger = logging.getLogger(logger_name)
-        logger.handlers.clear()
 
 
 def setup_git_repo(

@@ -16,31 +16,6 @@ if t.TYPE_CHECKING:
     from _pytest.logging import LogCaptureFixture
 
 
-@pytest.fixture(autouse=True)
-def reset_logging() -> t.Generator[None, None, None]:
-    """Reset logging handlers to prevent duplicate log messages in tests."""
-    # Clear handlers from all CLI loggers before AND after test
-    cli_loggers = [
-        "vcspull",
-        "vcspull.cli.add",
-        "vcspull.cli.add_from_fs",
-        "vcspull.cli.sync",
-        "vcspull.cli.fmt",
-        "libvcs",
-    ]
-    for logger_name in cli_loggers:
-        logger = logging.getLogger(logger_name)
-        logger.handlers.clear()
-        logger.propagate = True  # Re-enable propagation so pytest can capture logs
-
-    yield
-
-    # Clear again after test
-    for logger_name in cli_loggers:
-        logger = logging.getLogger(logger_name)
-        logger.handlers.clear()
-
-
 class TestNormalizeRepoConfig:
     """Test normalization of repository configurations."""
 
