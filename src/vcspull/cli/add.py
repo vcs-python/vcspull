@@ -7,9 +7,9 @@ import pathlib
 import traceback
 import typing as t
 
-import yaml
 from colorama import Fore, Style
 
+from vcspull._internal.config_reader import ConfigReader
 from vcspull.config import find_home_config_files, save_config_yaml
 
 if t.TYPE_CHECKING:
@@ -95,18 +95,22 @@ def add_repo(
     raw_config: dict[str, t.Any] = {}
     if config_file_path.exists() and config_file_path.is_file():
         try:
-            with config_file_path.open(encoding="utf-8") as f:
-                raw_config = yaml.safe_load(f) or {}
-            if not isinstance(raw_config, dict):
-                log.error(
-                    "Config file %s is not a valid YAML dictionary. ",
-                    config_file_path,
-                )
-                return
+            loaded_config = ConfigReader._from_file(config_file_path)
         except Exception:
             log.exception("Error loading YAML from %s. Aborting.", config_file_path)
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
+            return
+
+        if loaded_config is None:
+            raw_config = {}
+        elif isinstance(loaded_config, dict):
+            raw_config = loaded_config
+        else:
+            log.error(
+                "Config file %s is not a valid YAML dictionary.",
+                config_file_path,
+            )
             return
     else:
         log.info(
