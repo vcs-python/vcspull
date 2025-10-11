@@ -17,9 +17,25 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ## vcspull v1.36.x (unreleased)
 
-- _Notes on upcoming releases will be added here_
-
 <!-- Maintainers, insert changes / features for the next release here -->
+
+### New features
+
+#### New command: `vcspull add` (#465)
+
+- Register a single repository in the active configuration, with optional `--dir`/`--path` helpers for base-directory detection.
+
+#### New command: `vcspull add-from-fs` (#465)
+
+- Scan a directory of git repositories (recursively with `--recursive`) and append new remotes to your config, with an interactive confirmation prompt or `--yes` for unattended runs.
+
+#### New command: `vcspull fmt` (#465)
+
+- Normalize configuration files by expanding compact entries to `{repo: ...}`, sorting directories/repos, and standardizing keys; pair with `--write` to persist the formatted output.
+
+### Bug fixes
+
+- Restore CLI logging output after the logging refactor by replacing the `NullHandler` placeholder with a stdout stream handler and adding regression coverage for the new commands (#465).
 
 ## vcspull v1.35.0 (2025-09-04)
 
