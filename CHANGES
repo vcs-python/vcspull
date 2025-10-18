@@ -33,6 +33,16 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 _Notes on upcoming releases will be added here_
 
+### Improvements
+
+- Align CLI help output with CPython’s argparse theming by adding a dedicated
+  formatter that colorizes example sections for top-level and subcommand help
+  screens (#471).
+- Expand `vcspull --help` to include additional example commands for the `sync`,
+  `import`, and `fmt` subcommands, giving users clearer quick-start guidance (#471).
+- Keep CLI logger discovery stable while refactoring the formatter into its own
+  module, preventing additional loggers from surfacing in downstream tools (#471).
+
 ## vcspull v1.37.0 (2025-10-18)
 
 ### Breaking changes
