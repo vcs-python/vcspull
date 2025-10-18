@@ -14,6 +14,7 @@ from libvcs.__about__ import __version__ as libvcs_version
 from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
+from ._formatter import VcspullHelpFormatter
 from ._import import (
     create_import_subparser,
     import_from_filesystem,
@@ -24,18 +25,133 @@ from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
 
-SYNC_DESCRIPTION = textwrap.dedent(
+
+def build_description(
+    intro: str,
+    example_blocks: t.Sequence[tuple[str | None, t.Sequence[str]]],
+) -> str:
+    """Assemble help text with optional example sections."""
+    sections: list[str] = []
+    intro_text = textwrap.dedent(intro).strip()
+    if intro_text:
+        sections.append(intro_text)
+
+    for heading, commands in example_blocks:
+        if not commands:
+            continue
+        title = "examples:" if heading is None else f"{heading} examples:"
+        lines = [title]
+        lines.extend(f"  {command}" for command in commands)
+        sections.append("\n".join(lines))
+
+    return "\n\n".join(sections)
+
+
+CLI_DESCRIPTION = build_description(
+    """
+    Manage multiple VCS repositories from a single configuration file.
+    """,
+    (
+        (
+            "sync",
+            [
+                'vcspull sync "*"',
+                'vcspull sync "django-*"',
+                'vcspull sync "django-*" flask',
+                'vcspull sync -c ./myrepos.yaml "*"',
+                "vcspull sync -c ./myrepos.yaml myproject",
+            ],
+        ),
+        (
+            "import",
+            [
+                "vcspull import mylib https://github.com/example/mylib.git",
+                (
+                    "vcspull import -c ./myrepos.yaml mylib "
+                    "git@github.com:example/mylib.git"
+                ),
+                "vcspull import --scan ~/code",
+                (
+                    "vcspull import --scan ~/code --recursive "
+                    "--workspace-root ~/code --yes"
+                ),
+            ],
+        ),
+        (
+            "fmt",
+            [
+                "vcspull fmt",
+                "vcspull fmt -c ./myrepos.yaml",
+                "vcspull fmt --write",
+                "vcspull fmt --all",
+            ],
+        ),
+    ),
+)
+
+SYNC_DESCRIPTION = build_description(
     """
     sync vcs repos
+    """,
+    (
+        (
+            None,
+            [
+                'vcspull sync "*"',
+                'vcspull sync "django-*"',
+                'vcspull sync "django-*" flask',
+                'vcspull sync -c ./myrepos.yaml "*"',
+                "vcspull sync -c ./myrepos.yaml myproject",
+            ],
+        ),
+    ),
+)
 
-    examples:
-      vcspull sync "*"
-      vcspull sync "django-*"
-      vcspull sync "django-*" flask
-      vcspull sync -c ./myrepos.yaml "*"
-      vcspull sync -c ./myrepos.yaml myproject
-""",
-).strip()
+IMPORT_DESCRIPTION = build_description(
+    """
+    Import a repository to the vcspull configuration file.
+
+    Provide NAME and URL to add a single repository, or use --scan to
+    discover existing git repositories within a directory.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull import mylib https://github.com/example/mylib.git",
+                (
+                    "vcspull import -c ./myrepos.yaml mylib "
+                    "git@github.com:example/mylib.git"
+                ),
+                "vcspull import --scan ~/code",
+                (
+                    "vcspull import --scan ~/code --recursive "
+                    "--workspace-root ~/code --yes"
+                ),
+            ],
+        ),
+    ),
+)
+
+FMT_DESCRIPTION = build_description(
+    """
+    Format vcspull configuration files for consistency.
+
+    Normalizes repository entries, sorts sections, and can write changes
+    back to disk or format all discovered configuration files.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull fmt",
+                "vcspull fmt -c ./myrepos.yaml",
+                "vcspull fmt --write",
+                "vcspull fmt --all",
+            ],
+        ),
+    ),
+)
 
 
 @overload
@@ -54,8 +170,8 @@ def create_parser(
     """Create CLI argument parser for vcspull."""
     parser = argparse.ArgumentParser(
         prog="vcspull",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=SYNC_DESCRIPTION,
+        formatter_class=VcspullHelpFormatter,
+        description=CLI_DESCRIPTION,
     )
     parser.add_argument(
         "--version",
@@ -75,7 +191,7 @@ def create_parser(
     sync_parser = subparsers.add_parser(
         "sync",
         help="synchronize repos",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=VcspullHelpFormatter,
         description=SYNC_DESCRIPTION,
     )
     create_sync_subparser(sync_parser)
@@ -83,20 +199,16 @@ def create_parser(
     import_parser = subparsers.add_parser(
         "import",
         help="import repository or scan filesystem for repositories",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Import a repository to the vcspull configuration file. "
-        "Can import a single repository by name and URL, or scan a directory "
-        "to discover and import multiple repositories.",
+        formatter_class=VcspullHelpFormatter,
+        description=IMPORT_DESCRIPTION,
     )
     create_import_subparser(import_parser)
 
     fmt_parser = subparsers.add_parser(
         "fmt",
         help="format vcspull configuration files",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Format vcspull configuration files for consistency. "
-        "Normalizes compact format to verbose format, standardizes on 'repo' key, "
-        "and sorts directories and repositories alphabetically.",
+        formatter_class=VcspullHelpFormatter,
+        description=FMT_DESCRIPTION,
     )
     create_fmt_subparser(fmt_parser)
 
