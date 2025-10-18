@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import logging
 import os
 import pathlib
@@ -74,13 +75,17 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
         "--path",
         dest="path",
         help="Local directory path where repo will be cloned "
-        "(determines base directory key if not specified with --dir)",
+        "(determines workspace root if not specified with --workspace-root)",
     )
     parser.add_argument(
-        "--dir",
-        dest="base_dir",
-        help="Base directory key in config (e.g., '~/projects/'). "
-        "If not specified, will be inferred from --path or use current directory.",
+        "--workspace-root",
+        dest="workspace_root_path",
+        metavar="DIR",
+        help=(
+            "Workspace root directory in config (e.g., '~/projects/'). "
+            "If not specified, will be inferred from --path or use current directory. "
+            "When used with --scan, applies the workspace root to all discovered repos."
+        ),
     )
 
     # Filesystem scan mode
@@ -97,10 +102,6 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
         help="Scan directories recursively (use with --scan)",
     )
     parser.add_argument(
-        "--base-dir-key",
-        help="Base directory key for scanned repos (use with --scan)",
-    )
-    parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
@@ -113,7 +114,7 @@ def import_repo(
     url: str,
     config_file_path_str: str | None,
     path: str | None,
-    base_dir: str | None,
+    workspace_root_path: str | None,
 ) -> None:
     """Import a repository to the vcspull configuration.
 
@@ -127,8 +128,8 @@ def import_repo(
         Path to config file, or None to use default
     path : str | None
         Local path where repo will be cloned
-    base_dir : str | None
-        Base directory key to use in config
+    workspace_root_path : str | None
+        Workspace root to use in config
     """
     # Determine config file
     config_file_path: pathlib.Path
@@ -177,36 +178,41 @@ def import_repo(
             config_file_path,
         )
 
-    # Determine base directory key
-    if base_dir:
-        # Use explicit base directory
-        base_dir_key = base_dir if base_dir.endswith("/") else base_dir + "/"
+    # Determine workspace root key
+    if workspace_root_path:
+        workspace_root_key = (
+            workspace_root_path
+            if workspace_root_path.endswith("/")
+            else workspace_root_path + "/"
+        )
     elif path:
         # Infer from provided path
         repo_path = pathlib.Path(path).expanduser().resolve()
         try:
             # Try to make it relative to home
-            base_dir_key = "~/" + str(repo_path.relative_to(pathlib.Path.home())) + "/"
+            workspace_root_key = (
+                "~/" + str(repo_path.relative_to(pathlib.Path.home())) + "/"
+            )
         except ValueError:
             # Use absolute path
-            base_dir_key = str(repo_path) + "/"
+            workspace_root_key = str(repo_path) + "/"
     else:
         # Default to current directory
-        base_dir_key = "./"
+        workspace_root_key = "./"
 
-    # Ensure base directory key exists in config
-    if base_dir_key not in raw_config:
-        raw_config[base_dir_key] = {}
-    elif not isinstance(raw_config[base_dir_key], dict):
+    # Ensure workspace root key exists in config
+    if workspace_root_key not in raw_config:
+        raw_config[workspace_root_key] = {}
+    elif not isinstance(raw_config[workspace_root_key], dict):
         log.error(
-            "Configuration section '%s' is not a dictionary. Aborting.",
-            base_dir_key,
+            "Workspace root '%s' in configuration is not a dictionary. Aborting.",
+            workspace_root_key,
         )
         return
 
     # Check if repo already exists
-    if name in raw_config[base_dir_key]:
-        existing_config = raw_config[base_dir_key][name]
+    if name in raw_config[workspace_root_key]:
+        existing_config = raw_config[workspace_root_key][name]
         # Handle both string and dict formats
         current_url: str
         if isinstance(existing_config, str):
@@ -222,13 +228,13 @@ def import_repo(
             "Repository '%s' already exists under '%s'. Current URL: %s. "
             "To update, remove and re-add, or edit the YAML file manually.",
             name,
-            base_dir_key,
+            workspace_root_key,
             current_url,
         )
         return
 
     # Add the repository in verbose format
-    raw_config[base_dir_key][name] = {"repo": url}
+    raw_config[workspace_root_key][name] = {"repo": url}
 
     # Save config
     try:
@@ -247,7 +253,7 @@ def import_repo(
             config_file_path,
             Style.RESET_ALL,
             Fore.MAGENTA,
-            base_dir_key,
+            workspace_root_key,
             Style.RESET_ALL,
         )
     except Exception:
@@ -261,7 +267,7 @@ def import_from_filesystem(
     scan_dir_str: str,
     config_file_path_str: str | None,
     recursive: bool,
-    base_dir_key_arg: str | None,
+    workspace_root_override: str | None,
     yes: bool,
 ) -> None:
     """Scan filesystem for git repositories and import to vcspull config.
@@ -274,8 +280,8 @@ def import_from_filesystem(
         Path to config file, or None to use default
     recursive : bool
         Whether to scan subdirectories recursively
-    base_dir_key_arg : str | None
-        Base directory key to use in config (overrides automatic detection)
+    workspace_root_override : str | None
+        Workspace root to use in config (overrides automatic detection)
     yes : bool
         Whether to skip confirmation prompt
     """
@@ -335,9 +341,8 @@ def import_from_filesystem(
             Style.RESET_ALL,
         )
 
-    found_repos: list[
-        tuple[str, str, str]
-    ] = []  # (repo_name, repo_url, determined_base_key)
+    # Each entry stores (repo_name, repo_url, workspace_root_key)
+    found_repos: list[tuple[str, str, str]] = []
 
     if recursive:
         for root, dirs, _ in os.walk(scan_dir):
@@ -354,25 +359,25 @@ def import_from_filesystem(
                     )
                     continue
 
-                determined_base_key: str
-                if base_dir_key_arg:
-                    determined_base_key = (
-                        base_dir_key_arg
-                        if base_dir_key_arg.endswith("/")
-                        else base_dir_key_arg + "/"
+                workspace_root_key: str
+                if workspace_root_override:
+                    workspace_root_key = (
+                        workspace_root_override
+                        if workspace_root_override.endswith("/")
+                        else workspace_root_override + "/"
                     )
                 else:
                     try:
-                        determined_base_key = (
+                        workspace_root_key = (
                             "~/" + str(scan_dir.relative_to(pathlib.Path.home())) + "/"
                         )
                     except ValueError:
-                        determined_base_key = str(scan_dir.resolve()) + "/"
+                        workspace_root_key = str(scan_dir.resolve()) + "/"
 
-                if not determined_base_key.endswith("/"):
-                    determined_base_key += "/"
+                if not workspace_root_key.endswith("/"):
+                    workspace_root_key += "/"
 
-                found_repos.append((repo_name, repo_url, determined_base_key))
+                found_repos.append((repo_name, repo_url, workspace_root_key))
     else:
         # Non-recursive: only check immediate subdirectories
         for item in scan_dir.iterdir():
@@ -388,24 +393,24 @@ def import_from_filesystem(
                     )
                     continue
 
-                if base_dir_key_arg:
-                    determined_base_key = (
-                        base_dir_key_arg
-                        if base_dir_key_arg.endswith("/")
-                        else base_dir_key_arg + "/"
+                if workspace_root_override:
+                    workspace_root_key = (
+                        workspace_root_override
+                        if workspace_root_override.endswith("/")
+                        else workspace_root_override + "/"
                     )
                 else:
                     try:
-                        determined_base_key = (
+                        workspace_root_key = (
                             "~/" + str(scan_dir.relative_to(pathlib.Path.home())) + "/"
                         )
                     except ValueError:
-                        determined_base_key = str(scan_dir.resolve()) + "/"
+                        workspace_root_key = str(scan_dir.resolve()) + "/"
 
-                if not determined_base_key.endswith("/"):
-                    determined_base_key += "/"
+                if not workspace_root_key.endswith("/"):
+                    workspace_root_key += "/"
 
-                found_repos.append((repo_name, repo_url, determined_base_key))
+                found_repos.append((repo_name, repo_url, workspace_root_key))
 
     if not found_repos:
         log.info(
@@ -419,14 +424,14 @@ def import_from_filesystem(
         return
 
     repos_to_add: list[tuple[str, str, str]] = []
-    existing_repos: list[tuple[str, str, str]] = []  # (name, url, key)
+    existing_repos: list[tuple[str, str, str]] = []  # (name, url, workspace_root_key)
 
-    for name, url, key in found_repos:
-        target_section = raw_config.get(key, {})
+    for name, url, workspace_root_key in found_repos:
+        target_section = raw_config.get(workspace_root_key, {})
         if isinstance(target_section, dict) and name in target_section:
-            existing_repos.append((name, url, key))
+            existing_repos.append((name, url, workspace_root_key))
         else:
-            repos_to_add.append((name, url, key))
+            repos_to_add.append((name, url, workspace_root_key))
 
     if existing_repos:
         # Show summary only when there are many existing repos
@@ -449,7 +454,7 @@ def import_from_filesystem(
                 len(existing_repos),
                 Style.RESET_ALL,
             )
-            for name, url, key in existing_repos:
+            for name, url, workspace_root_key in existing_repos:
                 log.info(
                     "  %s•%s %s%s%s (%s%s%s) at %s%s%s%s in %s%s%s",
                     Fore.BLUE,
@@ -461,7 +466,7 @@ def import_from_filesystem(
                     url,
                     Style.RESET_ALL,
                     Fore.MAGENTA,
-                    key,
+                    workspace_root_key,
                     name,
                     Style.RESET_ALL,
                     Fore.BLUE,
@@ -511,19 +516,19 @@ def import_from_filesystem(
             return
 
     changes_made = False
-    for repo_name, repo_url, determined_base_key in repos_to_add:
-        if determined_base_key not in raw_config:
-            raw_config[determined_base_key] = {}
-        elif not isinstance(raw_config[determined_base_key], dict):
+    for repo_name, repo_url, workspace_root_key in repos_to_add:
+        if workspace_root_key not in raw_config:
+            raw_config[workspace_root_key] = {}
+        elif not isinstance(raw_config[workspace_root_key], dict):
             log.warning(
-                "Section '%s' in config is not a dictionary. Skipping repo %s.",
-                determined_base_key,
+                "Workspace root '%s' in config is not a dictionary. Skipping repo %s.",
+                workspace_root_key,
                 repo_name,
             )
             continue
 
-        if repo_name not in raw_config[determined_base_key]:
-            raw_config[determined_base_key][repo_name] = {"repo": repo_url}
+        if repo_name not in raw_config[workspace_root_key]:
+            raw_config[workspace_root_key][repo_name] = {"repo": repo_url}
             log.info(
                 "%s+%s Importing %s'%s'%s (%s%s%s) under '%s%s%s'.",
                 Fore.GREEN,
@@ -535,7 +540,7 @@ def import_from_filesystem(
                 repo_url,
                 Style.RESET_ALL,
                 Fore.MAGENTA,
-                determined_base_key,
+                workspace_root_key,
                 Style.RESET_ALL,
             )
             changes_made = True

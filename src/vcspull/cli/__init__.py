@@ -132,7 +132,7 @@ def cli(_args: list[str] | None = None) -> None:
                 scan_dir_str=args.scan_dir,
                 config_file_path_str=args.config,
                 recursive=args.recursive,
-                base_dir_key_arg=args.base_dir_key,
+                workspace_root_override=args.workspace_root_path,
                 yes=args.yes,
             )
         elif args.name and args.url:
@@ -142,7 +142,7 @@ def cli(_args: list[str] | None = None) -> None:
                 url=args.url,
                 config_file_path_str=args.config,
                 path=args.path,
-                base_dir=args.base_dir,
+                workspace_root_path=args.workspace_root_path,
             )
         else:
             # Error: need either name+url or --scan
