@@ -15,9 +15,13 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 // Usage: vcspull@next sync [config]
 ```
 
-## vcspull v1.37.x (unreleased)
+## vcspull v1.38.x (unreleased)
 
 <!-- Maintainers, insert changes / features for the next release here -->
+
+_Notes on upcoming releases will be added here_
+
+## vcspull v1.37.0 (2025-10-18)
 
 ### Breaking changes
 
@@ -37,8 +41,6 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 - Expand CLI tests to cover mixed workspace-root scenarios and the formatter’s
   normalization behavior (#470).
-
-_Notes on upcoming releases will be added here_
 
 ## vcspull v1.36.0 (2025-10-18)
 
