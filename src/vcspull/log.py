@@ -33,6 +33,7 @@ LEVEL_COLORS = {
 def get_cli_logger_names(include_self: bool = True) -> list[str]:
     """Return logger names under ``vcspull.cli``."""
     names: set[str] = set()
+    exclude = {"vcspull.cli._formatter"}
     cli_module = importlib.import_module("vcspull.cli")
     if include_self:
         names.add(cli_module.__name__)
@@ -42,6 +43,8 @@ def get_cli_logger_names(include_self: bool = True) -> list[str]:
             cli_module.__path__,
             prefix="vcspull.cli.",
         ):
+            if module_info.name in exclude:
+                continue
             names.add(module_info.name)
 
     return sorted(names)
