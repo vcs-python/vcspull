@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import fnmatch
 import logging
 import os
@@ -442,3 +443,103 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         indent=2,
     )
     config_file_path.write_text(yaml_content, encoding="utf-8")
+
+
+def canonicalize_workspace_path(
+    label: str,
+    *,
+    cwd: pathlib.Path | None = None,
+) -> pathlib.Path:
+    """Convert a workspace root label to an absolute canonical path."""
+    cwd = cwd or pathlib.Path.cwd()
+    label_path = pathlib.Path(label)
+    return expand_dir(label_path, cwd=cwd)
+
+
+def workspace_root_label(
+    workspace_path: pathlib.Path,
+    *,
+    cwd: pathlib.Path | None = None,
+    home: pathlib.Path | None = None,
+) -> str:
+    """Create a normalized label for a workspace root path."""
+    cwd = cwd or pathlib.Path.cwd()
+    home = home or pathlib.Path.home()
+
+    if workspace_path == cwd:
+        return "./"
+
+    try:
+        relative_to_home = workspace_path.relative_to(home)
+        label = f"~/{relative_to_home.as_posix()}"
+    except ValueError:
+        label = workspace_path.as_posix()
+
+    if label != "./" and not label.endswith("/"):
+        label += "/"
+
+    return label
+
+
+def normalize_workspace_roots(
+    config_data: dict[str, t.Any],
+    *,
+    cwd: pathlib.Path | None = None,
+    home: pathlib.Path | None = None,
+) -> tuple[dict[str, t.Any], dict[pathlib.Path, str], list[str], int]:
+    """Normalize workspace root labels and merge duplicate sections."""
+    cwd = cwd or pathlib.Path.cwd()
+    home = home or pathlib.Path.home()
+
+    normalized: dict[str, t.Any] = {}
+    path_to_label: dict[pathlib.Path, str] = {}
+    conflicts: list[str] = []
+    change_count = 0
+
+    for label, value in config_data.items():
+        canonical_path = canonicalize_workspace_path(label, cwd=cwd)
+        normalized_label = path_to_label.get(canonical_path)
+
+        if normalized_label is None:
+            normalized_label = workspace_root_label(
+                canonical_path,
+                cwd=cwd,
+                home=home,
+            )
+            path_to_label[canonical_path] = normalized_label
+
+            if isinstance(value, dict):
+                normalized[normalized_label] = copy.deepcopy(value)
+            else:
+                normalized[normalized_label] = value
+
+            if normalized_label != label:
+                change_count += 1
+        else:
+            change_count += 1
+            existing_value = normalized.get(normalized_label)
+
+            if isinstance(existing_value, dict) and isinstance(value, dict):
+                for repo_name, repo_config in value.items():
+                    if repo_name not in existing_value:
+                        existing_value[repo_name] = copy.deepcopy(repo_config)
+                        change_count += 1
+                    elif existing_value[repo_name] != repo_config:
+                        conflict_message = (
+                            "Workspace root '{label}' contains conflicting definitions "
+                            "for repository '{repo}'. Keeping the existing entry."
+                        )
+                        conflicts.append(
+                            conflict_message.format(
+                                label=normalized_label,
+                                repo=repo_name,
+                            )
+                        )
+            elif existing_value != value:
+                conflict_message = (
+                    "Workspace root '{label}' contains conflicting non-dictionary "
+                    "values. Keeping the existing entry."
+                )
+                conflicts.append(conflict_message.format(label=normalized_label))
+
+    return normalized, path_to_label, conflicts, change_count

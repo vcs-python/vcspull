@@ -19,6 +19,25 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Breaking changes
+
+- Rename the import CLI flag `--base-dir-key`/`--dir` and the related internal
+  argument names to `--workspace-root`, aligning both user-facing options and
+  implementation terminology with the workspace-root concept (#470).
+
+### Bug fixes
+
+- Normalize workspace roots during imports so equivalent labels (for example
+  `~/foo`, `~/foo/`, `/home/user/foo`) collapse into a single canonical entry;
+  avoids duplicate "already added" prompts (#470).
+- Have `vcspull fmt` apply the same normalization before formatting and writing
+  configs, so duplicate workspace-root sections are removed automatically (#470).
+
+### Development
+
+- Expand CLI tests to cover mixed workspace-root scenarios and the formatter’s
+  normalization behavior (#470).
+
 _Notes on upcoming releases will be added here_
 
 ## vcspull v1.36.0 (2025-10-18)
