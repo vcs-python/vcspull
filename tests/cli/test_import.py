@@ -186,6 +186,48 @@ IMPORT_REPO_FIXTURES: list[ImportRepoFixture] = [
 ]
 
 
+class ScanExistingFixture(t.NamedTuple):
+    """Fixture for scan behaviour when configuration already includes a repo."""
+
+    test_id: str
+    config_key_style: str
+    scan_arg_style: str
+
+
+SCAN_EXISTING_FIXTURES: list[ScanExistingFixture] = [
+    ScanExistingFixture(
+        test_id="tilde-no-slash_scan-tilde",
+        config_key_style="tilde_no_slash",
+        scan_arg_style="tilde",
+    ),
+    ScanExistingFixture(
+        test_id="tilde-no-slash_scan-abs",
+        config_key_style="tilde_no_slash",
+        scan_arg_style="absolute",
+    ),
+    ScanExistingFixture(
+        test_id="tilde-with-slash_scan-tilde",
+        config_key_style="tilde_with_slash",
+        scan_arg_style="tilde",
+    ),
+    ScanExistingFixture(
+        test_id="tilde-with-slash_scan-abs",
+        config_key_style="tilde_with_slash",
+        scan_arg_style="absolute",
+    ),
+    ScanExistingFixture(
+        test_id="absolute-no-slash_scan-abs",
+        config_key_style="absolute_no_slash",
+        scan_arg_style="absolute",
+    ),
+    ScanExistingFixture(
+        test_id="absolute-with-slash_scan-abs",
+        config_key_style="absolute_with_slash",
+        scan_arg_style="absolute",
+    ),
+]
+
+
 @pytest.mark.parametrize(
     list(ImportRepoFixture._fields),
     IMPORT_REPO_FIXTURES,
@@ -795,47 +837,78 @@ class TestImportFromFilesystemUnit:
         assert "Found 8 existing repositories already in configuration" in clean_output
         assert "All found repositories already exist" in clean_output
 
-    @pytest.mark.xfail(
-        reason="Existing repos are rediscovered when config keys omit trailing '/'",
-        strict=True,
+    @pytest.mark.parametrize(
+        list(ScanExistingFixture._fields),
+        [
+            pytest.param(
+                *fixture,
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "Existing repos are re-added when config key format does not "
+                        "match the scanner's trailing-slash expectations."
+                    ),
+                    strict=True,
+                ),
+            )
+            if fixture.config_key_style.endswith("no_slash")
+            or fixture.config_key_style.startswith("absolute_")
+            else fixture
+            for fixture in SCAN_EXISTING_FIXTURES
+        ],
+        ids=[fixture.test_id for fixture in SCAN_EXISTING_FIXTURES],
     )
-    def test_scan_home_config_without_trailing_slash_duplicates_repo(
+    def test_scan_respects_existing_config_sections(
         self,
-        create_git_remote_repo: CreateRepoPytestFixtureFn,
         tmp_path: pathlib.Path,
-        git_commit_envvars: dict[str, str],
         monkeypatch: pytest.MonkeyPatch,
+        test_id: str,
+        config_key_style: str,
+        scan_arg_style: str,
     ) -> None:
-        """Reproduce bug where scan re-adds repo despite config entry without slash."""
+        """Ensure filesystem scan does not duplicate repositories in config."""
         home_dir = tmp_path / "home"
         scan_dir = home_dir / "study" / "c"
-        repo_path = scan_dir / "cpython"
-        scan_dir.mkdir(parents=True, exist_ok=True)
+        repo_dir = scan_dir / "cpython"
+        repo_git_dir = repo_dir / ".git"
+        repo_git_dir.mkdir(parents=True, exist_ok=True)
 
-        remote_path = create_git_remote_repo()
-        remote_url = f"file://{remote_path}"
-        clone_repo(remote_url, repo_path, git_commit_envvars)
-
+        expected_repo_url = "git+https://github.com/python/cpython.git"
         config_file = home_dir / ".vcspull.yaml"
+
+        if config_key_style == "tilde_no_slash":
+            config_key = "~/study/c"
+        elif config_key_style == "tilde_with_slash":
+            config_key = "~/study/c/"
+        elif config_key_style == "absolute_no_slash":
+            config_key = str(scan_dir)
+        elif config_key_style == "absolute_with_slash":
+            config_key = str(scan_dir) + "/"
+        else:
+            error_msg = f"Unhandled config_key_style: {config_key_style}"
+            raise AssertionError(error_msg)
+
         config_file.write_text(
-            (
-                "~/study/c:\n"
-                "  cpython:\n"
-                "    repo: git+https://github.com/python/cpython.git\n"
-            ),
+            (f"{config_key}:\n  cpython:\n    repo: {expected_repo_url}\n"),
             encoding="utf-8",
         )
 
         monkeypatch.setenv("HOME", str(home_dir))
         monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
-
         monkeypatch.setattr(
             "vcspull.cli._import.get_git_origin_url",
-            lambda _path: "git+https://github.com/python/cpython.git",
+            lambda _path: expected_repo_url,
         )
 
+        if scan_arg_style == "tilde":
+            scan_arg = "~/study/c"
+        elif scan_arg_style == "absolute":
+            scan_arg = str(scan_dir)
+        else:
+            error_msg = f"Unhandled scan_arg_style: {scan_arg_style}"
+            raise AssertionError(error_msg)
+
         import_from_filesystem(
-            scan_dir_str="~/study/c",
+            scan_dir_str=scan_arg,
             config_file_path_str=None,
             recursive=False,
             base_dir_key_arg=None,
@@ -845,15 +918,15 @@ class TestImportFromFilesystemUnit:
         with config_file.open(encoding="utf-8") as f:
             config_data = yaml.safe_load(f)
 
-        assert "~/study/c" in config_data
-        assert "cpython" in config_data["~/study/c"]
-        assert (
-            config_data["~/study/c"]["cpython"]["repo"]
-            == "git+https://github.com/python/cpython.git"
-        )
+        assert config_key in config_data
+        assert "cpython" in config_data[config_key]
+        assert config_data[config_key]["cpython"]["repo"] == expected_repo_url
+        assert len(config_data) == 1
 
-        # Bug: scan adds a duplicated section with a trailing slash suffix.
-        assert "~/study/c/" not in config_data
+        alternate_key = (
+            config_key[:-1] if config_key.endswith("/") else f"{config_key}/"
+        )
+        assert alternate_key not in config_data
 
 
 # =============================================================================
