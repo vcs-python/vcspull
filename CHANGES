@@ -21,6 +21,10 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Development
+
+- Add Python 3.14 to test matrix, trove classifiers (#469)
+
 ## vcspull v1.35.0 (2025-09-04)
 
 ### Development
