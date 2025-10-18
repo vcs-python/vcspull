@@ -7,6 +7,8 @@
 :maxdepth: 1
 
 sync
+import
+fmt
 ```
 
 ```{toctree}
@@ -31,5 +33,5 @@ completion
     :nodescription:
 
     subparser_name : @replace
-        See :ref:`cli-sync`
+        See :ref:`cli-sync`, :ref:`cli-import`, :ref:`cli-fmt`
 ```

@@ -111,6 +111,13 @@ YAML? Create a `~/.vcspull.yaml` file:
   "flask": "git+https://github.com/mitsuhiko/flask.git"
 ```
 
+Already have repositories cloned locally? Use
+`vcspull import --scan ~/code --recursive` to detect existing Git checkouts and
+append them to your configuration. See {ref}`cli-import` for more details and
+options such as `--base-dir-key` and `--yes` for unattended runs. After editing
+or importing, run `vcspull fmt --write` (documented in {ref}`cli-fmt`) to
+normalize keys and keep your configuration tidy.
+
 The `git+` in front of the repository URL. Mercurial repositories use
 `hg+` and Subversion will use `svn+`. Repo type and address is
 specified in [pip vcs url][pip vcs url] format.
