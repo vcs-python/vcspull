@@ -10,10 +10,28 @@ For latest official version:
 $ pip install --user vcspull
 ```
 
+Or using uv:
+
+```console
+$ uv tool install vcspull
+```
+
+For one-time use without installation:
+
+```console
+$ uvx vcspull
+```
+
 Upgrading:
 
 ```console
 $ pip install --user --upgrade vcspull
+```
+
+Or with uv:
+
+```console
+$ uv tool upgrade vcspull
 ```
 
 (developmental-releases)=
@@ -38,6 +56,12 @@ In their versions you will see notification like `a1`, `b1`, and `rc1`, respecti
 
   Then use `vcspull@next sync [config]...`.
 
+- [uv]\:
+
+  ```console
+  $ uv tool install --prerelease=allow vcspull
+  ```
+
 via trunk (can break easily):
 
 - [pip]\:
@@ -52,8 +76,15 @@ via trunk (can break easily):
   $ pipx install --suffix=@master 'vcspull @ git+https://github.com/vcs-python/vcspull.git@master' --force
   ```
 
+- [uv]\:
+
+  ```console
+  $ uv tool install vcspull --from git+https://github.com/vcs-python/vcspull.git
+  ```
+
 [pip]: https://pip.pypa.io/en/stable/
 [pipx]: https://pypa.github.io/pipx/docs/
+[uv]: https://docs.astral.sh/uv/
 
 ## Configuration
 

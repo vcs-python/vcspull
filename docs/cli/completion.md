@@ -18,6 +18,18 @@ Provisional support for completions in vcspull 1.15+ are powered by [shtab](http
 $ pip install shtab --user
 ```
 
+Or using uv:
+
+```console
+$ uv tool install shtab
+```
+
+For one-time use without installation:
+
+```console
+$ uvx shtab
+```
+
 :::{tab} bash
 
 ```bash

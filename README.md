@@ -29,6 +29,18 @@ See the [documentation](https://vcspull.git-pull.com/), [configuration](https://
 $ pip install --user vcspull
 ```
 
+Or using uv:
+
+```console
+$ uv tool install vcspull
+```
+
+For one-time use without installation:
+
+```console
+$ uvx vcspull
+```
+
 ### Developmental releases
 
 You can test the unpublished version of vcspull before its released.
@@ -46,6 +58,12 @@ You can test the unpublished version of vcspull before its released.
   ```
 
   Then use `vcspull@next sync [config]...`.
+
+- [uv](https://docs.astral.sh/uv/):
+
+  ```console
+  $ uv tool install --prerelease=allow vcspull
+  ```
 
 ## Configuration
 

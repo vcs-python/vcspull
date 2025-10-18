@@ -22,6 +22,9 @@ vcspull is a Python tool for managing and synchronizing multiple git, svn, and m
 ```bash
 # Install development dependencies with uv
 uv pip install -e .
+
+# Alternative: Use uv sync to install from pyproject.toml
+uv sync
 ```
 
 ### Common Commands
