@@ -12,6 +12,7 @@ import yaml
 
 from vcspull.cli import cli
 from vcspull.cli._import import get_git_origin_url, import_from_filesystem, import_repo
+from vcspull.config import canonicalize_workspace_path, workspace_root_label
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -847,19 +848,11 @@ class TestImportFromFilesystemUnit:
     @pytest.mark.parametrize(
         list(ScanExistingFixture._fields),
         [
-            pytest.param(
-                *fixture,
-                marks=pytest.mark.xfail(
-                    reason=(
-                        "Existing repos are re-added when workspace root formatting "
-                        "does not match the scanner's trailing-slash expectations."
-                    ),
-                    strict=True,
-                ),
+            (
+                fixture.test_id,
+                fixture.workspace_root_key_style,
+                fixture.scan_arg_style,
             )
-            if fixture.workspace_root_key_style.endswith("no_slash")
-            or fixture.workspace_root_key_style.startswith("absolute_")
-            else fixture
             for fixture in SCAN_EXISTING_FIXTURES
         ],
         ids=[fixture.test_id for fixture in SCAN_EXISTING_FIXTURES],
@@ -927,17 +920,20 @@ class TestImportFromFilesystemUnit:
         with config_file.open(encoding="utf-8") as f:
             config_data = yaml.safe_load(f)
 
-        assert workspace_root_key in config_data
-        assert "cpython" in config_data[workspace_root_key]
-        assert config_data[workspace_root_key]["cpython"]["repo"] == expected_repo_url
-        assert len(config_data) == 1
-
-        alternate_key = (
-            workspace_root_key[:-1]
-            if workspace_root_key.endswith("/")
-            else f"{workspace_root_key}/"
+        expected_path = canonicalize_workspace_path(
+            workspace_root_key,
+            cwd=home_dir,
         )
-        assert alternate_key not in config_data
+        expected_label = workspace_root_label(
+            expected_path,
+            cwd=home_dir,
+            home=home_dir,
+        )
+        assert expected_label in config_data
+        assert "cpython" in config_data[expected_label]
+        assert config_data[expected_label]["cpython"]["repo"] == expected_repo_url
+        assert len(config_data) == 1
+        assert "~/study/c" not in config_data
 
 
 # =============================================================================

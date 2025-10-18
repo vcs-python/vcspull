@@ -10,6 +10,11 @@ import pytest
 import yaml
 
 from vcspull.cli.fmt import format_config, format_config_file, normalize_repo_config
+from vcspull.config import (
+    canonicalize_workspace_path,
+    normalize_workspace_roots,
+    workspace_root_label,
+)
 
 if t.TYPE_CHECKING:
     from _pytest.logging import LogCaptureFixture
@@ -19,14 +24,13 @@ class WorkspaceRootFixture(t.NamedTuple):
     """Fixture for workspace root normalization cases."""
 
     test_id: str
-    config: dict[str, t.Any]
-    expected_roots: list[str]
+    config_factory: t.Callable[[pathlib.Path], dict[str, t.Any]]
 
 
 WORKSPACE_ROOT_FIXTURES: list[WorkspaceRootFixture] = [
     WorkspaceRootFixture(
         test_id="tilde-mixed-trailing-slash",
-        config={
+        config_factory=lambda _base: {
             "~/study/c": {
                 "cpython": {"repo": "git+https://github.com/python/cpython.git"},
             },
@@ -34,23 +38,21 @@ WORKSPACE_ROOT_FIXTURES: list[WorkspaceRootFixture] = [
                 "tmux": {"repo": "git+https://github.com/tmux/tmux.git"},
             },
         },
-        expected_roots=["~/study/c/"],
     ),
     WorkspaceRootFixture(
         test_id="home-vs-absolute",
-        config={
-            str(pathlib.Path.home() / "study" / "c"): {
+        config_factory=lambda base: {
+            str(base / "study" / "c"): {
                 "cpython": {"repo": "git+https://github.com/python/cpython.git"},
             },
             "~/study/c/": {
                 "tmux": {"repo": "git+https://github.com/tmux/tmux.git"},
             },
         },
-        expected_roots=["~/study/c/"],
     ),
     WorkspaceRootFixture(
         test_id="relative-vs-tilde",
-        config={
+        config_factory=lambda _base: {
             "./study/c": {
                 "cpython": {"repo": "git+https://github.com/python/cpython.git"},
             },
@@ -58,7 +60,6 @@ WORKSPACE_ROOT_FIXTURES: list[WorkspaceRootFixture] = [
                 "tmux": {"repo": "git+https://github.com/tmux/tmux.git"},
             },
         },
-        expected_roots=["~/study/c/"],
     ),
 ]
 
@@ -66,12 +67,9 @@ WORKSPACE_ROOT_FIXTURES: list[WorkspaceRootFixture] = [
 @pytest.mark.parametrize(
     list(WorkspaceRootFixture._fields),
     [
-        pytest.param(
-            *fixture,
-            marks=pytest.mark.xfail(
-                reason="Workspace root normalization not yet implemented in formatter.",
-                strict=True,
-            ),
+        (
+            fixture.test_id,
+            fixture.config_factory,
         )
         for fixture in WORKSPACE_ROOT_FIXTURES
     ],
@@ -79,12 +77,30 @@ WORKSPACE_ROOT_FIXTURES: list[WorkspaceRootFixture] = [
 )
 def test_workspace_root_normalization(
     test_id: str,
-    config: dict[str, t.Any],
-    expected_roots: list[str],
+    config_factory: t.Callable[[pathlib.Path], dict[str, t.Any]],
 ) -> None:
     """Ensure format_config merges duplicate workspace roots."""
-    formatted, _changes = format_config(config)
-    assert list(formatted.keys()) == expected_roots
+    home_dir = pathlib.Path.home()
+    config = config_factory(home_dir)
+
+    canonical_paths = {
+        canonicalize_workspace_path(label, cwd=home_dir) for label in config
+    }
+    expected_labels = [
+        workspace_root_label(path, cwd=home_dir, home=home_dir)
+        for path in sorted(canonical_paths, key=lambda p: p.as_posix())
+    ]
+
+    normalized_config, _map, conflicts, merge_changes = normalize_workspace_roots(
+        config,
+        cwd=home_dir,
+        home=home_dir,
+    )
+    assert conflicts == []
+    assert sorted(normalized_config.keys()) == expected_labels
+    formatted, _changes = format_config(normalized_config)
+    assert sorted(formatted.keys()) == expected_labels
+    assert merge_changes >= len(config) - len(canonical_paths)
 
 
 def test_normalize_repo_config_compact_to_verbose() -> None:
