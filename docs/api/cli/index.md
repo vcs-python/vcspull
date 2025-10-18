@@ -9,6 +9,8 @@
 :maxdepth: 1
 
 sync
+import
+fmt
 ```
 
 ## vcspull CLI - `vcspull.cli`
