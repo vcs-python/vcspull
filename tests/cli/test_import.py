@@ -795,6 +795,66 @@ class TestImportFromFilesystemUnit:
         assert "Found 8 existing repositories already in configuration" in clean_output
         assert "All found repositories already exist" in clean_output
 
+    @pytest.mark.xfail(
+        reason="Existing repos are rediscovered when config keys omit trailing '/'",
+        strict=True,
+    )
+    def test_scan_home_config_without_trailing_slash_duplicates_repo(
+        self,
+        create_git_remote_repo: CreateRepoPytestFixtureFn,
+        tmp_path: pathlib.Path,
+        git_commit_envvars: dict[str, str],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Reproduce bug where scan re-adds repo despite config entry without slash."""
+        home_dir = tmp_path / "home"
+        scan_dir = home_dir / "study" / "c"
+        repo_path = scan_dir / "cpython"
+        scan_dir.mkdir(parents=True, exist_ok=True)
+
+        remote_path = create_git_remote_repo()
+        remote_url = f"file://{remote_path}"
+        clone_repo(remote_url, repo_path, git_commit_envvars)
+
+        config_file = home_dir / ".vcspull.yaml"
+        config_file.write_text(
+            (
+                "~/study/c:\n"
+                "  cpython:\n"
+                "    repo: git+https://github.com/python/cpython.git\n"
+            ),
+            encoding="utf-8",
+        )
+
+        monkeypatch.setenv("HOME", str(home_dir))
+        monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+
+        monkeypatch.setattr(
+            "vcspull.cli._import.get_git_origin_url",
+            lambda _path: "git+https://github.com/python/cpython.git",
+        )
+
+        import_from_filesystem(
+            scan_dir_str="~/study/c",
+            config_file_path_str=None,
+            recursive=False,
+            base_dir_key_arg=None,
+            yes=True,
+        )
+
+        with config_file.open(encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+
+        assert "~/study/c" in config_data
+        assert "cpython" in config_data["~/study/c"]
+        assert (
+            config_data["~/study/c"]["cpython"]["repo"]
+            == "git+https://github.com/python/cpython.git"
+        )
+
+        # Bug: scan adds a duplicated section with a trailing slash suffix.
+        assert "~/study/c/" not in config_data
+
 
 # =============================================================================
 # Help and output tests
