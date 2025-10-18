@@ -24,6 +24,31 @@ from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
 
+CLI_DESCRIPTION = textwrap.dedent(
+    """
+    Manage multiple VCS repositories from a single configuration file.
+
+    sync examples:
+      vcspull sync "*"
+      vcspull sync "django-*"
+      vcspull sync "django-*" flask
+      vcspull sync -c ./myrepos.yaml "*"
+      vcspull sync -c ./myrepos.yaml myproject
+
+    import examples:
+      vcspull import mylib https://github.com/example/mylib.git
+      vcspull import -c ./myrepos.yaml mylib git@github.com:example/mylib.git
+      vcspull import --scan ~/code
+      vcspull import --scan ~/code --recursive --workspace-root ~/code --yes
+
+    fmt examples:
+      vcspull fmt
+      vcspull fmt -c ./myrepos.yaml
+      vcspull fmt --write
+      vcspull fmt --all
+""",
+).strip()
+
 SYNC_DESCRIPTION = textwrap.dedent(
     """
     sync vcs repos
@@ -34,6 +59,36 @@ SYNC_DESCRIPTION = textwrap.dedent(
       vcspull sync "django-*" flask
       vcspull sync -c ./myrepos.yaml "*"
       vcspull sync -c ./myrepos.yaml myproject
+""",
+).strip()
+
+IMPORT_DESCRIPTION = textwrap.dedent(
+    """
+    Import repositories into a vcspull configuration file.
+
+    Provide NAME and URL to add a single repository, or use --scan to
+    discover existing git repositories within a directory.
+
+    examples:
+      vcspull import mylib https://github.com/example/mylib.git
+      vcspull import -c ./myrepos.yaml mylib git@github.com:example/mylib.git
+      vcspull import --scan ~/code
+      vcspull import --scan ~/code --recursive --workspace-root ~/code --yes
+""",
+).strip()
+
+FMT_DESCRIPTION = textwrap.dedent(
+    """
+    Format vcspull configuration files for consistency.
+
+    Normalizes repository entries, sorts sections, and can write changes
+    back to disk or format all discovered configuration files.
+
+    examples:
+      vcspull fmt
+      vcspull fmt -c ./myrepos.yaml
+      vcspull fmt --write
+      vcspull fmt --all
 """,
 ).strip()
 
@@ -55,7 +110,7 @@ def create_parser(
     parser = argparse.ArgumentParser(
         prog="vcspull",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=SYNC_DESCRIPTION,
+        description=CLI_DESCRIPTION,
     )
     parser.add_argument(
         "--version",
@@ -84,9 +139,7 @@ def create_parser(
         "import",
         help="import repository or scan filesystem for repositories",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Import a repository to the vcspull configuration file. "
-        "Can import a single repository by name and URL, or scan a directory "
-        "to discover and import multiple repositories.",
+        description=IMPORT_DESCRIPTION,
     )
     create_import_subparser(import_parser)
 
@@ -94,9 +147,7 @@ def create_parser(
         "fmt",
         help="format vcspull configuration files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Format vcspull configuration files for consistency. "
-        "Normalizes compact format to verbose format, standardizes on 'repo' key, "
-        "and sorts directories and repositories alphabetically.",
+        description=FMT_DESCRIPTION,
     )
     create_fmt_subparser(fmt_parser)
 
