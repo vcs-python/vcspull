@@ -8,6 +8,18 @@ To install the unreleased vcspull version, see [developmental releases](https://
 $ pip install --user --upgrade --pre vcspull
 ```
 
+[uv](https://docs.astral.sh/uv/getting-started/features/#python-versions):
+
+```console
+$ uv add 'vcspull>=1.19.0a0'
+```
+
+[uvx](https://docs.astral.sh/uv/guides/tools/):
+
+```console
+$ uvx --from 'vcspull>=1.19.0a0' vcspull
+```
+
 [pipx](https://pypa.github.io/pipx/docs/):
 
 ```console
