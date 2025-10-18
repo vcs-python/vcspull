@@ -83,9 +83,9 @@ class ImportRepoFixture(t.NamedTuple):
 
 
 IMPORT_REPO_FIXTURES: list[ImportRepoFixture] = [
-    # Simple repo import with default base dir
+    # Simple repo import with default workspace root
     ImportRepoFixture(
-        test_id="simple-repo-default-dir",
+        test_id="simple-repo-default-root",
         cli_args=["import", "myproject", "git@github.com:user/myproject.git"],
         initial_config=None,
         should_create_config=True,
@@ -96,14 +96,14 @@ IMPORT_REPO_FIXTURES: list[ImportRepoFixture] = [
         },
         expected_in_output="Successfully imported 'myproject'",
     ),
-    # Import with custom base directory
+    # Import with custom workspace root
     ImportRepoFixture(
-        test_id="custom-base-dir",
+        test_id="custom-workspace-root",
         cli_args=[
             "import",
             "mylib",
             "https://github.com/org/mylib",
-            "--dir",
+            "--workspace-root",
             "~/projects/libs",
         ],
         initial_config=None,
@@ -115,14 +115,14 @@ IMPORT_REPO_FIXTURES: list[ImportRepoFixture] = [
         },
         expected_in_output="Successfully imported 'mylib'",
     ),
-    # Import to existing config
+    # Import to existing config under specific workspace root
     ImportRepoFixture(
         test_id="import-to-existing",
         cli_args=[
             "import",
             "project2",
             "git@github.com:user/project2.git",
-            "--dir",
+            "--workspace-root",
             "~/work",
         ],
         initial_config={
@@ -145,7 +145,7 @@ IMPORT_REPO_FIXTURES: list[ImportRepoFixture] = [
             "import",
             "existing",
             "git@github.com:other/existing.git",
-            "--dir",
+            "--workspace-root",
             "~/code",
         ],
         initial_config={
@@ -182,6 +182,48 @@ IMPORT_REPO_FIXTURES: list[ImportRepoFixture] = [
             },
         },
         expected_in_output="Successfully imported 'inferred'",
+    ),
+]
+
+
+class ScanExistingFixture(t.NamedTuple):
+    """Fixture for scan behaviour when configuration already includes a repo."""
+
+    test_id: str
+    workspace_root_key_style: str
+    scan_arg_style: str
+
+
+SCAN_EXISTING_FIXTURES: list[ScanExistingFixture] = [
+    ScanExistingFixture(
+        test_id="tilde-no-slash_scan-tilde",
+        workspace_root_key_style="tilde_no_slash",
+        scan_arg_style="tilde",
+    ),
+    ScanExistingFixture(
+        test_id="tilde-no-slash_scan-abs",
+        workspace_root_key_style="tilde_no_slash",
+        scan_arg_style="absolute",
+    ),
+    ScanExistingFixture(
+        test_id="tilde-with-slash_scan-tilde",
+        workspace_root_key_style="tilde_with_slash",
+        scan_arg_style="tilde",
+    ),
+    ScanExistingFixture(
+        test_id="tilde-with-slash_scan-abs",
+        workspace_root_key_style="tilde_with_slash",
+        scan_arg_style="absolute",
+    ),
+    ScanExistingFixture(
+        test_id="absolute-no-slash_scan-abs",
+        workspace_root_key_style="absolute_no_slash",
+        scan_arg_style="absolute",
+    ),
+    ScanExistingFixture(
+        test_id="absolute-with-slash_scan-abs",
+        workspace_root_key_style="absolute_with_slash",
+        scan_arg_style="absolute",
     ),
 ]
 
@@ -348,11 +390,18 @@ IMPORT_SCAN_FIXTURES: list[ImportScanFixture] = [
             "Successfully updated",
         ],
     ),
-    # Custom base directory key
+    # Custom workspace root override
     ImportScanFixture(
-        test_id="custom-base-dir-scan",
+        test_id="custom-workspace-root-scan",
         repo_setup=[("myrepo", "", True)],
-        cli_args=["import", "--scan", ".", "--base-dir-key", "~/custom/path", "-y"],
+        cli_args=[
+            "import",
+            "--scan",
+            ".",
+            "--workspace-root",
+            "~/custom/path",
+            "-y",
+        ],
         initial_config=None,
         should_create_config=True,
         expected_config_contains={
@@ -620,7 +669,7 @@ class TestImportRepoUnit:
             url="git@github.com:user/direct.git",
             config_file_path_str=str(config_file),
             path=None,
-            base_dir=None,
+            workspace_root_path=None,
         )
 
         # Verify
@@ -656,7 +705,7 @@ class TestImportRepoUnit:
                 url="git@github.com:user/test.git",
                 config_file_path_str=str(config_file),
                 path=None,
-                base_dir=None,
+                workspace_root_path=None,
             )
 
         assert "Error loading YAML" in caplog.text
@@ -734,7 +783,7 @@ class TestImportFromFilesystemUnit:
             scan_dir_str=str(scan_dir),
             config_file_path_str=str(config_file),
             recursive=False,
-            base_dir_key_arg=None,
+            workspace_root_override=None,
             yes=True,
         )
 
@@ -795,6 +844,101 @@ class TestImportFromFilesystemUnit:
         assert "Found 8 existing repositories already in configuration" in clean_output
         assert "All found repositories already exist" in clean_output
 
+    @pytest.mark.parametrize(
+        list(ScanExistingFixture._fields),
+        [
+            pytest.param(
+                *fixture,
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "Existing repos are re-added when workspace root formatting "
+                        "does not match the scanner's trailing-slash expectations."
+                    ),
+                    strict=True,
+                ),
+            )
+            if fixture.workspace_root_key_style.endswith("no_slash")
+            or fixture.workspace_root_key_style.startswith("absolute_")
+            else fixture
+            for fixture in SCAN_EXISTING_FIXTURES
+        ],
+        ids=[fixture.test_id for fixture in SCAN_EXISTING_FIXTURES],
+    )
+    def test_scan_respects_existing_config_sections(
+        self,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        test_id: str,
+        workspace_root_key_style: str,
+        scan_arg_style: str,
+    ) -> None:
+        """Ensure filesystem scan does not duplicate repositories in config."""
+        home_dir = tmp_path / "home"
+        scan_dir = home_dir / "study" / "c"
+        repo_dir = scan_dir / "cpython"
+        repo_git_dir = repo_dir / ".git"
+        repo_git_dir.mkdir(parents=True, exist_ok=True)
+
+        expected_repo_url = "git+https://github.com/python/cpython.git"
+        config_file = home_dir / ".vcspull.yaml"
+
+        if workspace_root_key_style == "tilde_no_slash":
+            workspace_root_key = "~/study/c"
+        elif workspace_root_key_style == "tilde_with_slash":
+            workspace_root_key = "~/study/c/"
+        elif workspace_root_key_style == "absolute_no_slash":
+            workspace_root_key = str(scan_dir)
+        elif workspace_root_key_style == "absolute_with_slash":
+            workspace_root_key = str(scan_dir) + "/"
+        else:
+            error_msg = (
+                f"Unhandled workspace_root_key_style: {workspace_root_key_style}"
+            )
+            raise AssertionError(error_msg)
+
+        config_file.write_text(
+            (f"{workspace_root_key}:\n  cpython:\n    repo: {expected_repo_url}\n"),
+            encoding="utf-8",
+        )
+
+        monkeypatch.setenv("HOME", str(home_dir))
+        monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+        monkeypatch.setattr(
+            "vcspull.cli._import.get_git_origin_url",
+            lambda _path: expected_repo_url,
+        )
+
+        if scan_arg_style == "tilde":
+            scan_arg = "~/study/c"
+        elif scan_arg_style == "absolute":
+            scan_arg = str(scan_dir)
+        else:
+            error_msg = f"Unhandled scan_arg_style: {scan_arg_style}"
+            raise AssertionError(error_msg)
+
+        import_from_filesystem(
+            scan_dir_str=scan_arg,
+            config_file_path_str=None,
+            recursive=False,
+            workspace_root_override=None,
+            yes=True,
+        )
+
+        with config_file.open(encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+
+        assert workspace_root_key in config_data
+        assert "cpython" in config_data[workspace_root_key]
+        assert config_data[workspace_root_key]["cpython"]["repo"] == expected_repo_url
+        assert len(config_data) == 1
+
+        alternate_key = (
+            workspace_root_key[:-1]
+            if workspace_root_key.endswith("/")
+            else f"{workspace_root_key}/"
+        )
+        assert alternate_key not in config_data
+
 
 # =============================================================================
 # Help and output tests
@@ -816,7 +960,7 @@ def test_import_command_help(
     assert "name" in output
     assert "url" in output
     assert "--path" in output
-    assert "--dir" in output
+    assert "--workspace-root" in output
     assert "--scan" in output
     assert "--config" in output
 

@@ -100,8 +100,8 @@ $ vcspull import my-lib https://github.com/example/my-lib.git --path ~/code/my-l
 ```
 
 - Omit `--path` to default the entry under `./`.
-- Use `--dir` when you want to force a specific base-directory key, e.g.
-  `--dir ~/projects/libs`.
+- Use `--workspace-root` when you want to force a specific workspace root, e.g.
+  `--workspace-root ~/projects/libs`.
 - Pass `-c/--config` to import into an alternate YAML file.
 - Follow with `vcspull sync my-lib` to clone or update the working tree after registration.
 
@@ -115,7 +115,7 @@ $ vcspull import --scan ~/code --recursive
 ```
 
 The scan shows each repository before import unless you opt into `--yes`. Add
-`--base-dir-key ~/code/` to pin the resulting section name or `--config` to
+`--workspace-root ~/code/` to pin the resulting workspace root or `--config` to
 write somewhere other than the default `~/.vcspull.yaml`.
 
 ### Normalize configuration files

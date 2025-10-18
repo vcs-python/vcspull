@@ -21,11 +21,13 @@ directories for Git repositories that already live on disk.
 
 Provide a repository name and remote URL to append an entry to your
 configuration. Use `--path` when you already have a working tree on disk so the
-configured base directory matches its location. Override the inferred base
-directory with `--dir` when you need a specific configuration key.
+inferred workspace root matches its location. Override the detected workspace
+root with `--workspace-root` when you need to target a specific directory.
 
 ```console
 $ vcspull import my-lib https://github.com/example/my-lib.git --path ~/code/my-lib
+$ vcspull import another-lib https://github.com/example/another-lib.git \
+    --workspace-root ~/code
 ```
 
 With no `-c/--config` flag vcspull looks for the first YAML configuration file
@@ -36,18 +38,18 @@ new `.vcspull.yaml` is created next to where you run the command.
 
 `vcspull import --scan` discovers Git repositories that already exist on disk
 and writes them to your configuration. The command prompts before adding each
-repository, showing the inferred name, directory key, and origin URL (when
+repository, showing the inferred name, workspace root, and origin URL (when
 available).
 
 ```console
 $ vcspull import --scan ~/code --recursive
-? Add ~/code/vcspull (dir: ~/code/)? [y/N]: y
-? Add ~/code/libvcs (dir: ~/code/)? [y/N]: y
+? Add ~/code/vcspull (workspace root: ~/code/)? [y/N]: y
+? Add ~/code/libvcs (workspace root: ~/code/)? [y/N]: y
 ```
 
 - `--recursive`/`-r` searches nested directories.
-- `--base-dir-key` forces all discovered repositories to use the same base
-  directory key, overriding the automatically expanded directory.
+- `--workspace-root` forces all discovered repositories to use the same
+  workspace root, overriding the directory inferred from their location.
 - `--yes`/`-y` accepts every suggestion, which is useful for unattended
   migrations.
 

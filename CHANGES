@@ -28,11 +28,11 @@ _Notes on upcoming releases will be added here_
 #### New command: `vcspull import` (#465)
 
 - **Manual import**: Register a single repository with `vcspull import <name> <url>`
-  - Optional `--dir`/`--path` helpers for base-directory detection
+  - Optional `--workspace-root`/`--path` helpers for workspace-root detection
 - **Filesystem scan**: Discover and import existing repositories with `vcspull import --scan <dir>`
   - Recursively scan with `--recursive`/`-r`
   - Interactive confirmation prompt or `--yes` for unattended runs
-  - Custom base directory with `--base-dir-key`
+  - Custom workspace root with `--workspace-root`
 
 #### New command: `vcspull fmt` (#465)
 

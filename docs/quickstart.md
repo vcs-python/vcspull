@@ -114,8 +114,8 @@ YAML? Create a `~/.vcspull.yaml` file:
 Already have repositories cloned locally? Use
 `vcspull import --scan ~/code --recursive` to detect existing Git checkouts and
 append them to your configuration. See {ref}`cli-import` for more details and
-options such as `--base-dir-key` and `--yes` for unattended runs. After editing
-or importing, run `vcspull fmt --write` (documented in {ref}`cli-fmt`) to
+options such as `--workspace-root` and `--yes` for unattended runs. After editing or
+importing, run `vcspull fmt --write` (documented in {ref}`cli-fmt`) to
 normalize keys and keep your configuration tidy.
 
 The `git+` in front of the repository URL. Mercurial repositories use
