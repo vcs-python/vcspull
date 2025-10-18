@@ -13,7 +13,14 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import ConfigReader
-from vcspull.config import expand_dir, find_home_config_files, save_config_yaml
+from vcspull.config import (
+    canonicalize_workspace_path,
+    expand_dir,
+    find_home_config_files,
+    normalize_workspace_roots,
+    save_config_yaml,
+    workspace_root_label,
+)
 
 if t.TYPE_CHECKING:
     import argparse
@@ -109,6 +116,19 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _resolve_workspace_path(
+    workspace_root: str | None,
+    repo_path_str: str | None,
+    *,
+    cwd: pathlib.Path,
+) -> pathlib.Path:
+    if workspace_root:
+        return canonicalize_workspace_path(workspace_root, cwd=cwd)
+    if repo_path_str:
+        return expand_dir(pathlib.Path(repo_path_str), cwd)
+    return cwd
+
+
 def import_repo(
     name: str,
     url: str,
@@ -178,41 +198,47 @@ def import_repo(
             config_file_path,
         )
 
-    # Determine workspace root key
-    if workspace_root_path:
-        workspace_root_key = (
-            workspace_root_path
-            if workspace_root_path.endswith("/")
-            else workspace_root_path + "/"
-        )
-    elif path:
-        # Infer from provided path
-        repo_path = pathlib.Path(path).expanduser().resolve()
-        try:
-            # Try to make it relative to home
-            workspace_root_key = (
-                "~/" + str(repo_path.relative_to(pathlib.Path.home())) + "/"
-            )
-        except ValueError:
-            # Use absolute path
-            workspace_root_key = str(repo_path) + "/"
-    else:
-        # Default to current directory
-        workspace_root_key = "./"
+    cwd = pathlib.Path.cwd()
+    home = pathlib.Path.home()
 
-    # Ensure workspace root key exists in config
-    if workspace_root_key not in raw_config:
-        raw_config[workspace_root_key] = {}
-    elif not isinstance(raw_config[workspace_root_key], dict):
+    normalization_result = normalize_workspace_roots(
+        raw_config,
+        cwd=cwd,
+        home=home,
+    )
+    raw_config, workspace_map, merge_conflicts, _merge_changes = normalization_result
+    config_was_normalized = _merge_changes > 0
+
+    for message in merge_conflicts:
+        log.warning(message)
+
+    workspace_path = _resolve_workspace_path(
+        workspace_root_path,
+        path,
+        cwd=cwd,
+    )
+    workspace_label = workspace_map.get(workspace_path)
+    if workspace_label is None:
+        workspace_label = workspace_root_label(
+            workspace_path,
+            cwd=cwd,
+            home=home,
+        )
+        workspace_map[workspace_path] = workspace_label
+        raw_config.setdefault(workspace_label, {})
+
+    if workspace_label not in raw_config:
+        raw_config[workspace_label] = {}
+    elif not isinstance(raw_config[workspace_label], dict):
         log.error(
             "Workspace root '%s' in configuration is not a dictionary. Aborting.",
-            workspace_root_key,
+            workspace_label,
         )
         return
 
     # Check if repo already exists
-    if name in raw_config[workspace_root_key]:
-        existing_config = raw_config[workspace_root_key][name]
+    if name in raw_config[workspace_label]:
+        existing_config = raw_config[workspace_label][name]
         # Handle both string and dict formats
         current_url: str
         if isinstance(existing_config, str):
@@ -228,13 +254,28 @@ def import_repo(
             "Repository '%s' already exists under '%s'. Current URL: %s. "
             "To update, remove and re-add, or edit the YAML file manually.",
             name,
-            workspace_root_key,
+            workspace_label,
             current_url,
         )
+        if config_was_normalized:
+            try:
+                save_config_yaml(config_file_path, raw_config)
+                log.info(
+                    "%s✓%s Normalized workspace roots saved to %s%s%s.",
+                    Fore.GREEN,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    config_file_path,
+                    Style.RESET_ALL,
+                )
+            except Exception:
+                log.exception("Error saving config to %s", config_file_path)
+                if log.isEnabledFor(logging.DEBUG):
+                    traceback.print_exc()
         return
 
     # Add the repository in verbose format
-    raw_config[workspace_root_key][name] = {"repo": url}
+    raw_config[workspace_label][name] = {"repo": url}
 
     # Save config
     try:
@@ -253,7 +294,7 @@ def import_repo(
             config_file_path,
             Style.RESET_ALL,
             Fore.MAGENTA,
-            workspace_root_key,
+            workspace_label,
             Style.RESET_ALL,
         )
     except Exception:
@@ -341,8 +382,28 @@ def import_from_filesystem(
             Style.RESET_ALL,
         )
 
-    # Each entry stores (repo_name, repo_url, workspace_root_key)
-    found_repos: list[tuple[str, str, str]] = []
+    cwd = pathlib.Path.cwd()
+    home = pathlib.Path.home()
+
+    normalization_result = normalize_workspace_roots(
+        raw_config,
+        cwd=cwd,
+        home=home,
+    )
+    raw_config, workspace_map, merge_conflicts, _merge_changes = normalization_result
+
+    for message in merge_conflicts:
+        log.warning(message)
+
+    found_repos: list[tuple[str, str, pathlib.Path]] = []
+
+    override_workspace_path: pathlib.Path | None = None
+    if workspace_root_override:
+        override_workspace_path = _resolve_workspace_path(
+            workspace_root_override,
+            None,
+            cwd=cwd,
+        )
 
     if recursive:
         for root, dirs, _ in os.walk(scan_dir):
@@ -359,27 +420,9 @@ def import_from_filesystem(
                     )
                     continue
 
-                workspace_root_key: str
-                if workspace_root_override:
-                    workspace_root_key = (
-                        workspace_root_override
-                        if workspace_root_override.endswith("/")
-                        else workspace_root_override + "/"
-                    )
-                else:
-                    try:
-                        workspace_root_key = (
-                            "~/" + str(scan_dir.relative_to(pathlib.Path.home())) + "/"
-                        )
-                    except ValueError:
-                        workspace_root_key = str(scan_dir.resolve()) + "/"
-
-                if not workspace_root_key.endswith("/"):
-                    workspace_root_key += "/"
-
-                found_repos.append((repo_name, repo_url, workspace_root_key))
+                workspace_path = override_workspace_path or scan_dir
+                found_repos.append((repo_name, repo_url, workspace_path))
     else:
-        # Non-recursive: only check immediate subdirectories
         for item in scan_dir.iterdir():
             if item.is_dir() and (item / ".git").is_dir():
                 repo_name = item.name
@@ -393,24 +436,8 @@ def import_from_filesystem(
                     )
                     continue
 
-                if workspace_root_override:
-                    workspace_root_key = (
-                        workspace_root_override
-                        if workspace_root_override.endswith("/")
-                        else workspace_root_override + "/"
-                    )
-                else:
-                    try:
-                        workspace_root_key = (
-                            "~/" + str(scan_dir.relative_to(pathlib.Path.home())) + "/"
-                        )
-                    except ValueError:
-                        workspace_root_key = str(scan_dir.resolve()) + "/"
-
-                if not workspace_root_key.endswith("/"):
-                    workspace_root_key += "/"
-
-                found_repos.append((repo_name, repo_url, workspace_root_key))
+                workspace_path = override_workspace_path or scan_dir
+                found_repos.append((repo_name, repo_url, workspace_path))
 
     if not found_repos:
         log.info(
@@ -423,15 +450,21 @@ def import_from_filesystem(
         )
         return
 
-    repos_to_add: list[tuple[str, str, str]] = []
-    existing_repos: list[tuple[str, str, str]] = []  # (name, url, workspace_root_key)
+    repos_to_add: list[tuple[str, str, pathlib.Path]] = []
+    existing_repos: list[tuple[str, str, pathlib.Path]] = []
 
-    for name, url, workspace_root_key in found_repos:
-        target_section = raw_config.get(workspace_root_key, {})
+    for name, url, workspace_path in found_repos:
+        workspace_label = workspace_map.get(workspace_path)
+        if workspace_label is None:
+            workspace_label = workspace_root_label(workspace_path, cwd=cwd, home=home)
+            workspace_map[workspace_path] = workspace_label
+            raw_config.setdefault(workspace_label, {})
+
+        target_section = raw_config.get(workspace_label, {})
         if isinstance(target_section, dict) and name in target_section:
-            existing_repos.append((name, url, workspace_root_key))
+            existing_repos.append((name, url, workspace_path))
         else:
-            repos_to_add.append((name, url, workspace_root_key))
+            repos_to_add.append((name, url, workspace_path))
 
     if existing_repos:
         # Show summary only when there are many existing repos
@@ -454,7 +487,16 @@ def import_from_filesystem(
                 len(existing_repos),
                 Style.RESET_ALL,
             )
-            for name, url, workspace_root_key in existing_repos:
+            for name, url, workspace_path in existing_repos:
+                workspace_label = workspace_map.get(workspace_path)
+                if workspace_label is None:
+                    workspace_label = workspace_root_label(
+                        workspace_path,
+                        cwd=cwd,
+                        home=home,
+                    )
+                    workspace_map[workspace_path] = workspace_label
+                    raw_config.setdefault(workspace_label, {})
                 log.info(
                     "  %s•%s %s%s%s (%s%s%s) at %s%s%s%s in %s%s%s",
                     Fore.BLUE,
@@ -466,13 +508,15 @@ def import_from_filesystem(
                     url,
                     Style.RESET_ALL,
                     Fore.MAGENTA,
-                    workspace_root_key,
+                    workspace_label,
                     name,
                     Style.RESET_ALL,
                     Fore.BLUE,
                     config_file_path,
                     Style.RESET_ALL,
                 )
+
+    changes_made = _merge_changes > 0
 
     if not repos_to_add:
         if existing_repos:
@@ -484,6 +528,22 @@ def import_from_filesystem(
                 Fore.GREEN,
                 Style.RESET_ALL,
             )
+        if changes_made:
+            try:
+                save_config_yaml(config_file_path, raw_config)
+                log.info(
+                    "%s✓%s Successfully updated %s%s%s.",
+                    Fore.GREEN,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    config_file_path,
+                    Style.RESET_ALL,
+                )
+            except Exception:
+                log.exception("Error saving config to %s", config_file_path)
+                if log.isEnabledFor(logging.DEBUG):
+                    traceback.print_exc()
+            return
         return
 
     # Show what will be added
@@ -515,20 +575,24 @@ def import_from_filesystem(
             log.info("%s✗%s Aborted by user.", Fore.RED, Style.RESET_ALL)
             return
 
-    changes_made = False
-    for repo_name, repo_url, workspace_root_key in repos_to_add:
-        if workspace_root_key not in raw_config:
-            raw_config[workspace_root_key] = {}
-        elif not isinstance(raw_config[workspace_root_key], dict):
+    for repo_name, repo_url, workspace_path in repos_to_add:
+        workspace_label = workspace_map.get(workspace_path)
+        if workspace_label is None:
+            workspace_label = workspace_root_label(workspace_path, cwd=cwd, home=home)
+            workspace_map[workspace_path] = workspace_label
+
+        if workspace_label not in raw_config:
+            raw_config[workspace_label] = {}
+        elif not isinstance(raw_config[workspace_label], dict):
             log.warning(
                 "Workspace root '%s' in config is not a dictionary. Skipping repo %s.",
-                workspace_root_key,
+                workspace_label,
                 repo_name,
             )
             continue
 
-        if repo_name not in raw_config[workspace_root_key]:
-            raw_config[workspace_root_key][repo_name] = {"repo": repo_url}
+        if repo_name not in raw_config[workspace_label]:
+            raw_config[workspace_label][repo_name] = {"repo": repo_url}
             log.info(
                 "%s+%s Importing %s'%s'%s (%s%s%s) under '%s%s%s'.",
                 Fore.GREEN,
@@ -540,7 +604,7 @@ def import_from_filesystem(
                 repo_url,
                 Style.RESET_ALL,
                 Fore.MAGENTA,
-                workspace_root_key,
+                workspace_label,
                 Style.RESET_ALL,
             )
             changes_made = True

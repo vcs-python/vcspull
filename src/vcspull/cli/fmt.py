@@ -10,7 +10,12 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import ConfigReader
-from vcspull.config import find_config_files, find_home_config_files, save_config_yaml
+from vcspull.config import (
+    find_config_files,
+    find_home_config_files,
+    normalize_workspace_roots,
+    save_config_yaml,
+)
 
 if t.TYPE_CHECKING:
     import argparse
@@ -168,7 +173,21 @@ def format_single_config(
         return False
 
     # Format the configuration
+    cwd = pathlib.Path.cwd()
+    home = pathlib.Path.home()
+
+    normalization_result = normalize_workspace_roots(
+        raw_config,
+        cwd=cwd,
+        home=home,
+    )
+    raw_config, _workspace_map, merge_conflicts, merge_changes = normalization_result
+
+    for message in merge_conflicts:
+        log.warning(message)
+
     formatted_config, change_count = format_config(raw_config)
+    change_count += merge_changes
 
     if change_count == 0:
         log.info(
@@ -196,6 +215,13 @@ def format_single_config(
     )
 
     # Analyze and report specific changes
+    if merge_changes > 0:
+        log.info(
+            "  %s•%s Normalized workspace root labels",
+            Fore.BLUE,
+            Style.RESET_ALL,
+        )
+
     compact_to_verbose = 0
     url_to_repo = 0
 
