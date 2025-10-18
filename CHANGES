@@ -27,13 +27,17 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 // Usage: vcspull@next sync [config]
 ```
 
-## vcspull v1.38.x (unreleased)
+## vcspull v1.39.x (unreleased)
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
 _Notes on upcoming releases will be added here_
 
+## vcspull v1.38.0 (2025-10-18)
+
 ### Improvements
+
+#### Improved help output for `--help`
 
 - Align CLI help output with CPython’s argparse theming by adding a dedicated
   formatter that colorizes example sections for top-level and subcommand help
