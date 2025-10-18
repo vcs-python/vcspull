@@ -67,10 +67,8 @@ You can test the unpublished version of vcspull before its released.
 
 ## Configuration
 
-Add your repos to `~/.vcspull.yaml`.
-
-_vcspull does not currently scan for repos on your system, but it may in
-the future_
+Add your repos to `~/.vcspull.yaml`. You can edit the file by hand or let
+`vcspull import` create entries for you.
 
 ```yaml
 ~/code/:
@@ -90,8 +88,47 @@ the future_
 more [configuration](https://vcspull.git-pull.com/configuration.html))
 
 `$HOME/.vcspull.yaml` and `$XDG_CONFIG_HOME/vcspull/` (`~/.config/vcspull`) can
-be used as a declarative manifest to clone you repos consistently across
-machines. Subsequent syncs of nitialized repos will fetch the latest commits.
+be used as a declarative manifest to clone your repos consistently across
+machines. Subsequent syncs of initialized repos will fetch the latest commits.
+
+### Import repositories from the CLI
+
+Register an existing remote without touching YAML manually:
+
+```console
+$ vcspull import my-lib https://github.com/example/my-lib.git --path ~/code/my-lib
+```
+
+- Omit `--path` to default the entry under `./`.
+- Use `--dir` when you want to force a specific base-directory key, e.g.
+  `--dir ~/projects/libs`.
+- Pass `-c/--config` to import into an alternate YAML file.
+- Follow with `vcspull sync my-lib` to clone or update the working tree after registration.
+
+### Scan local checkouts and import en masse
+
+Have a directory tree full of cloned Git repositories? Scan and append them to
+your configuration:
+
+```console
+$ vcspull import --scan ~/code --recursive
+```
+
+The scan shows each repository before import unless you opt into `--yes`. Add
+`--base-dir-key ~/code/` to pin the resulting section name or `--config` to
+write somewhere other than the default `~/.vcspull.yaml`.
+
+### Normalize configuration files
+
+After importing or editing by hand, run the formatter to tidy up keys and keep
+entries sorted:
+
+```console
+$ vcspull fmt --config ~/.vcspull.yaml --write
+```
+
+Use `vcspull fmt --all --write` to format every YAML file that vcspull can
+discover under the standard config locations.
 
 ## Sync your repos
 
