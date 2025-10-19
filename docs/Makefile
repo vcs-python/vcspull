@@ -6,9 +6,14 @@ WATCH_FILES= find .. -type f -not -path '*/\.*' | grep -i '.*[.]\(rst\|md\)\$\|.
 
 # You can set these variables from the command line.
 SPHINXOPTS    =
-SPHINXBUILD   = sphinx-build
+# Keep ANSI color codes out of generated docs (Sphinx + argparse) by forcing
+# Python's colour support off for every build command.
+SPHINX_ENV    = PYTHON_COLORS=0 NO_COLOR=1
+SPHINXBUILD   = $(SPHINX_ENV) sphinx-build
 PAPER         =
 BUILDDIR      = _build
+# Apply the same environment when running the live-reload server.
+SPHINX_AUTOBUILD = $(SPHINX_ENV) uv run sphinx-autobuild
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
@@ -182,8 +187,8 @@ dev:
 	$(MAKE) -j watch serve
 
 start:
-	uv run sphinx-autobuild "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) --port ${HTTP_PORT} $(O)
+	$(SPHINX_AUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) --port ${HTTP_PORT} $(O)
 
 design:
 	# This adds additional watch directories (for _static file changes) and disable incremental builds
-	uv run sphinx-autobuild "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) --port ${HTTP_PORT} --watch "." -a $(O)
+	$(SPHINX_AUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) --port ${HTTP_PORT} --watch "." -a $(O)

@@ -60,6 +60,7 @@ class ConfigDict(TypedDict):
     name: str
     path: pathlib.Path
     url: str
+    workspace_root: str
     remotes: NotRequired[GitSyncRemoteDict | None]
     shell_command_after: NotRequired[list[str] | None]
 

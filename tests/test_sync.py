@@ -268,6 +268,7 @@ def test_updating_remote(
         "name": "myclone",
         "path": tmp_path / "study/myrepo/myclone",
         "url": f"git+file://{dummy_repo}",
+        "workspace_root": str(tmp_path / "study/myrepo/"),
         "remotes": {
             mirror_name: GitRemote(
                 name=mirror_name,

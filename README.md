@@ -68,7 +68,7 @@ You can test the unpublished version of vcspull before its released.
 ## Configuration
 
 Add your repos to `~/.vcspull.yaml`. You can edit the file by hand or let
-`vcspull import` create entries for you.
+`vcspull add` or `vcspull discover` create entries for you.
 
 ```yaml
 ~/code/:
@@ -91,32 +91,60 @@ more [configuration](https://vcspull.git-pull.com/configuration.html))
 be used as a declarative manifest to clone your repos consistently across
 machines. Subsequent syncs of initialized repos will fetch the latest commits.
 
-### Import repositories from the CLI
+### Add repositories from the CLI
 
-Register an existing remote without touching YAML manually:
+Register a single repository without touching YAML manually:
 
 ```console
-$ vcspull import my-lib https://github.com/example/my-lib.git --path ~/code/my-lib
+$ vcspull add my-lib https://github.com/example/my-lib.git --path ~/code/my-lib
 ```
 
 - Omit `--path` to default the entry under `./`.
-- Use `--workspace-root` when you want to force a specific workspace root, e.g.
-  `--workspace-root ~/projects/libs`.
-- Pass `-c/--config` to import into an alternate YAML file.
+- Use `-w/--workspace` when you want to force a specific workspace root, e.g.
+  `-w ~/projects/libs`.
+- Pass `-f/--file` to add to an alternate YAML file.
+- Use `--dry-run` to preview changes before writing.
 - Follow with `vcspull sync my-lib` to clone or update the working tree after registration.
 
-### Scan local checkouts and import en masse
+### Discover local checkouts and add en masse
 
 Have a directory tree full of cloned Git repositories? Scan and append them to
 your configuration:
 
 ```console
-$ vcspull import --scan ~/code --recursive
+$ vcspull discover ~/code --recursive
 ```
 
 The scan shows each repository before import unless you opt into `--yes`. Add
-`--workspace-root ~/code/` to pin the resulting workspace root or `--config` to
+`-w ~/code/` to pin the resulting workspace root or `-f` to
 write somewhere other than the default `~/.vcspull.yaml`.
+
+### Inspect configured repositories
+
+List what vcspull already knows about without mutating anything:
+
+```console
+$ vcspull list
+$ vcspull list --tree
+$ vcspull list --json | jq '.[].name'
+```
+
+`--json` emits a single JSON array, while `--ndjson` streams newline-delimited
+objects that are easy to consume from shell pipelines.
+
+### Check repository status
+
+Get a quick health check for all configured workspaces:
+
+```console
+$ vcspull status
+$ vcspull status --detailed
+$ vcspull status --ndjson | jq --slurp 'map(select(.reason == "summary"))'
+```
+
+The status command respects `--workspace/-w` filters and the global
+`--color {auto,always,never}` flag. JSON and NDJSON output mirrors the list
+command for automation workflows.
 
 ### Normalize configuration files
 
@@ -124,7 +152,7 @@ After importing or editing by hand, run the formatter to tidy up keys and keep
 entries sorted:
 
 ```console
-$ vcspull fmt --config ~/.vcspull.yaml --write
+$ vcspull fmt -f ~/.vcspull.yaml --write
 ```
 
 Use `vcspull fmt --all --write` to format every YAML file that vcspull can
@@ -135,6 +163,21 @@ discover under the standard config locations.
 ```console
 $ vcspull sync
 ```
+
+Preview planned work with Terraform-style plan output or emit structured data
+for CI/CD:
+
+```console
+$ vcspull sync --dry-run "*"
+$ vcspull sync --dry-run --show-unchanged "workspace-*"
+$ vcspull sync --dry-run --json "*" | jq '.summary'
+$ vcspull sync --dry-run --ndjson "*" | jq --slurp 'map(select(.type == "summary"))'
+```
+
+Dry runs stream a progress line when stdout is a TTY, then print a concise plan
+summary (`+/~/✓/⚠/✗`) grouped by workspace. Use `--summary-only`,
+`--relative-paths`, `--long`, or `-v/-vv` for alternate views, and
+`--fetch`/`--offline` to control how remote metadata is refreshed.
 
 Keep nested VCS repositories updated too, lets say you have a mercurial
 or svn project with a git dependency:
@@ -149,7 +192,7 @@ or svn project with a git dependency:
 Clone / update repos via config file:
 
 ```console
-$ vcspull sync -c external_deps.yaml '*'
+$ vcspull sync -f external_deps.yaml '*'
 ```
 
 See the [Quickstart](https://vcspull.git-pull.com/quickstart.html) for

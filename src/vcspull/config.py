@@ -108,6 +108,9 @@ def extract_repos(
             if "name" not in conf:
                 conf["name"] = repo
 
+            if "workspace_root" not in conf:
+                conf["workspace_root"] = directory
+
             if "path" not in conf:
                 conf["path"] = expand_dir(
                     pathlib.Path(expand_dir(pathlib.Path(directory), cwd=cwd))

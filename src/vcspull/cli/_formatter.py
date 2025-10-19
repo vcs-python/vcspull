@@ -7,24 +7,31 @@ import re
 import typing as t
 
 OPTIONS_EXPECTING_VALUE = {
-    "-c",
-    "--config",
+    "-f",
+    "--file",
+    "-w",
+    "--workspace",
+    "--workspace-root",
     "--log-level",
     "--path",
-    "--workspace-root",
-    "--scan",
+    "--color",
 }
 
 OPTIONS_FLAG_ONLY = {
     "-h",
     "--help",
-    "-w",
     "--write",
     "--all",
     "--recursive",
     "-r",
     "--yes",
     "-y",
+    "--dry-run",
+    "-n",
+    "--json",
+    "--ndjson",
+    "--tree",
+    "--detailed",
 }
 
 

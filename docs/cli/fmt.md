@@ -51,8 +51,15 @@ Run the formatter in dry-run mode first to preview the adjustments, then add
 `--write` (or `-w`) to persist them back to disk:
 
 ```console
-$ vcspull fmt --config ~/.vcspull.yaml
-$ vcspull fmt --config ~/.vcspull.yaml --write
+$ vcspull fmt --file ~/.vcspull.yaml
+$ vcspull fmt --file ~/.vcspull.yaml --write
+```
+
+Short form:
+
+```console
+$ vcspull fmt -f ~/.vcspull.yaml
+$ vcspull fmt -f ~/.vcspull.yaml -w
 ```
 
 Use `--all` to iterate over the default search locations: the current working
@@ -63,5 +70,5 @@ file is reported individually.
 $ vcspull fmt --all --write
 ```
 
-Pair the formatter with [`vcspull import`](cli-import) after scanning the file
+Pair the formatter with [`vcspull discover`](cli-discover) after scanning the file
 system to keep newly added repositories ordered and normalized.

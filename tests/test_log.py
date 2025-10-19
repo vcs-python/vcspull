@@ -426,8 +426,14 @@ def test_get_cli_logger_names_includes_base() -> None:
     names = get_cli_logger_names(include_self=True)
     expected = [
         "vcspull.cli",
-        "vcspull.cli._import",
+        "vcspull.cli._colors",
+        "vcspull.cli._output",
+        "vcspull.cli._workspaces",
+        "vcspull.cli.add",
+        "vcspull.cli.discover",
         "vcspull.cli.fmt",
+        "vcspull.cli.list",
+        "vcspull.cli.status",
         "vcspull.cli.sync",
     ]
     assert names == expected

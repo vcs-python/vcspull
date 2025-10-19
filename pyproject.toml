@@ -86,6 +86,7 @@ dev = [
   # Testing
   "gp-libs",
   "pytest",
+  "pytest-asyncio",
   "pytest-rerunfailures",
   "pytest-mock",
   "pytest-watcher",
@@ -119,6 +120,7 @@ docs = [
 testing = [
   "gp-libs",
   "pytest",
+  "pytest-asyncio",
   "pytest-rerunfailures",
   "pytest-mock",
   "pytest-watcher",

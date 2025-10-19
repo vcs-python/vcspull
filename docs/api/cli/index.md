@@ -9,7 +9,10 @@
 :maxdepth: 1
 
 sync
-import
+add
+discover
+list
+status
 fmt
 ```
 

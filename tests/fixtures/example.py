@@ -46,30 +46,35 @@ config_dict_expanded: list[ConfigDict] = [
         "name": "linux",
         "path": pathlib.Path("/home/me/myproject/study/linux"),
         "url": "git+git://git.kernel.org/linux/torvalds/linux.git",
+        "workspace_root": "/home/me/myproject/study/",
     },
     {
         "vcs": "git",
         "name": "freebsd",
         "path": pathlib.Path("/home/me/myproject/study/freebsd"),
         "url": "git+https://github.com/freebsd/freebsd.git",
+        "workspace_root": "/home/me/myproject/study/",
     },
     {
         "vcs": "git",
         "name": "sphinx",
         "path": pathlib.Path("/home/me/myproject/study/sphinx"),
         "url": "hg+https://bitbucket.org/birkenfeld/sphinx",
+        "workspace_root": "/home/me/myproject/study/",
     },
     {
         "vcs": "git",
         "name": "docutils",
         "path": pathlib.Path("/home/me/myproject/study/docutils"),
         "url": "svn+http://svn.code.sf.net/p/docutils/code/trunk",
+        "workspace_root": "/home/me/myproject/study/",
     },
     {
         "vcs": "git",
         "name": "kaptan",
         "url": "git+git@github.com:tony/kaptan.git",
         "path": pathlib.Path("/home/me/myproject/github_projects/kaptan"),
+        "workspace_root": "/home/me/myproject/github_projects/",
         "remotes": {
             "upstream": GitRemote(
                 name="upstream",
@@ -88,6 +93,7 @@ config_dict_expanded: list[ConfigDict] = [
         "name": ".vim",
         "path": pathlib.Path("/home/me/myproject/.vim"),
         "url": "git+git@github.com:tony/vim-config.git",
+        "workspace_root": "/home/me/myproject",
         "shell_command_after": ["ln -sf /home/me/.vim/.vimrc /home/me/.vimrc"],
     },
     {
@@ -95,6 +101,7 @@ config_dict_expanded: list[ConfigDict] = [
         "name": ".tmux",
         "path": pathlib.Path("/home/me/myproject/.tmux"),
         "url": "git+git@github.com:tony/tmux-config.git",
+        "workspace_root": "/home/me/myproject",
         "shell_command_after": ["ln -sf /home/me/.tmux/.tmux.conf /home/me/.tmux.conf"],
     },
 ]

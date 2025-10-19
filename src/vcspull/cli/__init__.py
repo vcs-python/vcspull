@@ -15,12 +15,11 @@ from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
 from ._formatter import VcspullHelpFormatter
-from ._import import (
-    create_import_subparser,
-    import_from_filesystem,
-    import_repo,
-)
+from .add import add_repo, create_add_subparser
+from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
+from .list import create_list_subparser, list_repos
+from .status import create_status_subparser, status_repos
 from .sync import create_sync_subparser, sync
 
 log = logging.getLogger(__name__)
@@ -57,31 +56,41 @@ CLI_DESCRIPTION = build_description(
             [
                 'vcspull sync "*"',
                 'vcspull sync "django-*"',
-                'vcspull sync "django-*" flask',
-                'vcspull sync -c ./myrepos.yaml "*"',
-                "vcspull sync -c ./myrepos.yaml myproject",
+                'vcspull sync --dry-run "*"',
+                'vcspull sync -f ./myrepos.yaml "*"',
+                "vcspull sync -w ~/code myproject",
             ],
         ),
         (
-            "import",
+            "list",
             [
-                "vcspull import mylib https://github.com/example/mylib.git",
-                (
-                    "vcspull import -c ./myrepos.yaml mylib "
-                    "git@github.com:example/mylib.git"
-                ),
-                "vcspull import --scan ~/code",
-                (
-                    "vcspull import --scan ~/code --recursive "
-                    "--workspace-root ~/code --yes"
-                ),
+                "vcspull list",
+                'vcspull list "django-*"',
+                "vcspull list --tree",
+                "vcspull list --json",
+            ],
+        ),
+        (
+            "add",
+            [
+                "vcspull add mylib https://github.com/example/mylib.git",
+                "vcspull add mylib URL -w ~/code",
+                "vcspull add mylib URL --dry-run",
+            ],
+        ),
+        (
+            "discover",
+            [
+                "vcspull discover ~/code",
+                "vcspull discover ~/code --recursive --yes",
+                "vcspull discover ~/code -w ~/projects --dry-run",
             ],
         ),
         (
             "fmt",
             [
                 "vcspull fmt",
-                "vcspull fmt -c ./myrepos.yaml",
+                "vcspull fmt -f ./myrepos.yaml",
                 "vcspull fmt --write",
                 "vcspull fmt --all",
             ],
@@ -91,7 +100,7 @@ CLI_DESCRIPTION = build_description(
 
 SYNC_DESCRIPTION = build_description(
     """
-    sync vcs repos
+    Synchronize VCS repositories.
     """,
     (
         (
@@ -99,35 +108,77 @@ SYNC_DESCRIPTION = build_description(
             [
                 'vcspull sync "*"',
                 'vcspull sync "django-*"',
-                'vcspull sync "django-*" flask',
-                'vcspull sync -c ./myrepos.yaml "*"',
-                "vcspull sync -c ./myrepos.yaml myproject",
+                'vcspull sync --dry-run "*"',
+                'vcspull sync -f ./myrepos.yaml "*"',
+                "vcspull sync -w ~/code myproject",
             ],
         ),
     ),
 )
 
-IMPORT_DESCRIPTION = build_description(
+LIST_DESCRIPTION = build_description(
     """
-    Import a repository to the vcspull configuration file.
-
-    Provide NAME and URL to add a single repository, or use --scan to
-    discover existing git repositories within a directory.
+    List configured repositories.
     """,
     (
         (
             None,
             [
-                "vcspull import mylib https://github.com/example/mylib.git",
-                (
-                    "vcspull import -c ./myrepos.yaml mylib "
-                    "git@github.com:example/mylib.git"
-                ),
-                "vcspull import --scan ~/code",
-                (
-                    "vcspull import --scan ~/code --recursive "
-                    "--workspace-root ~/code --yes"
-                ),
+                "vcspull list",
+                'vcspull list "django-*"',
+                "vcspull list --tree",
+                "vcspull list --json",
+            ],
+        ),
+    ),
+)
+
+STATUS_DESCRIPTION = build_description(
+    """
+    Check status of repositories.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull status",
+                'vcspull status "django-*"',
+                "vcspull status --detailed",
+                "vcspull status --json",
+            ],
+        ),
+    ),
+)
+
+ADD_DESCRIPTION = build_description(
+    """
+    Add a single repository to the configuration.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull add mylib https://github.com/example/mylib.git",
+                "vcspull add mylib URL -w ~/code",
+                "vcspull add mylib URL --dry-run",
+            ],
+        ),
+    ),
+)
+
+DISCOVER_DESCRIPTION = build_description(
+    """
+    Discover and add repositories from filesystem.
+
+    Scans a directory for git repositories and adds them to the configuration.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull discover ~/code",
+                "vcspull discover ~/code --recursive --yes",
+                "vcspull discover ~/code -w ~/projects --dry-run",
             ],
         ),
     ),
@@ -145,7 +196,7 @@ FMT_DESCRIPTION = build_description(
             None,
             [
                 "vcspull fmt",
-                "vcspull fmt -c ./myrepos.yaml",
+                "vcspull fmt -f ./myrepos.yaml",
                 "vcspull fmt --write",
                 "vcspull fmt --all",
             ],
@@ -188,25 +239,56 @@ def create_parser(
     )
 
     subparsers = parser.add_subparsers(dest="subparser_name")
+
+    # Sync command
     sync_parser = subparsers.add_parser(
         "sync",
-        help="synchronize repos",
+        help="synchronize repositories",
         formatter_class=VcspullHelpFormatter,
         description=SYNC_DESCRIPTION,
     )
     create_sync_subparser(sync_parser)
 
-    import_parser = subparsers.add_parser(
-        "import",
-        help="import repository or scan filesystem for repositories",
+    # List command
+    list_parser = subparsers.add_parser(
+        "list",
+        help="list configured repositories",
         formatter_class=VcspullHelpFormatter,
-        description=IMPORT_DESCRIPTION,
+        description=LIST_DESCRIPTION,
     )
-    create_import_subparser(import_parser)
+    create_list_subparser(list_parser)
 
+    # Status command
+    status_parser = subparsers.add_parser(
+        "status",
+        help="check repository status",
+        formatter_class=VcspullHelpFormatter,
+        description=STATUS_DESCRIPTION,
+    )
+    create_status_subparser(status_parser)
+
+    # Add command
+    add_parser = subparsers.add_parser(
+        "add",
+        help="add a single repository",
+        formatter_class=VcspullHelpFormatter,
+        description=ADD_DESCRIPTION,
+    )
+    create_add_subparser(add_parser)
+
+    # Discover command
+    discover_parser = subparsers.add_parser(
+        "discover",
+        help="discover repositories from filesystem",
+        formatter_class=VcspullHelpFormatter,
+        description=DISCOVER_DESCRIPTION,
+    )
+    create_discover_subparser(discover_parser)
+
+    # Fmt command
     fmt_parser = subparsers.add_parser(
         "fmt",
-        help="format vcspull configuration files",
+        help="format configuration files",
         formatter_class=VcspullHelpFormatter,
         description=FMT_DESCRIPTION,
     )
@@ -214,14 +296,28 @@ def create_parser(
 
     if return_subparsers:
         # Return all parsers needed by cli() function
-        return parser, (sync_parser, import_parser, fmt_parser)
+        return parser, (
+            sync_parser,
+            list_parser,
+            status_parser,
+            add_parser,
+            discover_parser,
+            fmt_parser,
+        )
     return parser
 
 
 def cli(_args: list[str] | None = None) -> None:
     """CLI entry point for vcspull."""
     parser, subparsers = create_parser(return_subparsers=True)
-    sync_parser, _import_parser, _fmt_parser = subparsers
+    (
+        sync_parser,
+        _list_parser,
+        _status_parser,
+        _add_parser,
+        _discover_parser,
+        _fmt_parser,
+    ) = subparsers
     args = parser.parse_args(_args)
 
     setup_logger(log=log, level=args.log_level.upper())
@@ -229,36 +325,63 @@ def cli(_args: list[str] | None = None) -> None:
     if args.subparser_name is None:
         parser.print_help()
         return
+
     if args.subparser_name == "sync":
         sync(
             repo_patterns=args.repo_patterns,
             config=pathlib.Path(args.config) if args.config else None,
+            workspace_root=getattr(args, "workspace_root", None),
+            dry_run=getattr(args, "dry_run", False),
+            output_json=getattr(args, "output_json", False),
+            output_ndjson=getattr(args, "output_ndjson", False),
+            color=getattr(args, "color", "auto"),
             exit_on_error=args.exit_on_error,
+            show_unchanged=getattr(args, "show_unchanged", False),
+            summary_only=getattr(args, "summary_only", False),
+            long_view=getattr(args, "long_view", False),
+            relative_paths=getattr(args, "relative_paths", False),
+            fetch=getattr(args, "fetch", False),
+            offline=getattr(args, "offline", False),
+            verbosity=getattr(args, "verbosity", 0),
             parser=sync_parser,
         )
-    elif args.subparser_name == "import":
-        # Unified import command
-        if args.scan_dir:
-            # Filesystem scan mode
-            import_from_filesystem(
-                scan_dir_str=args.scan_dir,
-                config_file_path_str=args.config,
-                recursive=args.recursive,
-                workspace_root_override=args.workspace_root_path,
-                yes=args.yes,
-            )
-        elif args.name and args.url:
-            # Manual import mode
-            import_repo(
-                name=args.name,
-                url=args.url,
-                config_file_path_str=args.config,
-                path=args.path,
-                workspace_root_path=args.workspace_root_path,
-            )
-        else:
-            # Error: need either name+url or --scan
-            log.error("Either provide NAME and URL, or use --scan DIR")
-            parser.exit(status=2)
+    elif args.subparser_name == "list":
+        list_repos(
+            repo_patterns=args.repo_patterns,
+            config_path=pathlib.Path(args.config) if args.config else None,
+            workspace_root=getattr(args, "workspace_root", None),
+            tree=args.tree,
+            output_json=args.output_json,
+            output_ndjson=args.output_ndjson,
+            color=args.color,
+        )
+    elif args.subparser_name == "status":
+        status_repos(
+            repo_patterns=args.repo_patterns,
+            config_path=pathlib.Path(args.config) if args.config else None,
+            workspace_root=getattr(args, "workspace_root", None),
+            detailed=args.detailed,
+            output_json=args.output_json,
+            output_ndjson=args.output_ndjson,
+            color=args.color,
+        )
+    elif args.subparser_name == "add":
+        add_repo(
+            name=args.name,
+            url=args.url,
+            config_file_path_str=args.config,
+            path=args.path,
+            workspace_root_path=args.workspace_root_path,
+            dry_run=args.dry_run,
+        )
+    elif args.subparser_name == "discover":
+        discover_repos(
+            scan_dir_str=args.scan_dir,
+            config_file_path_str=args.config,
+            recursive=args.recursive,
+            workspace_root_override=args.workspace_root_path,
+            yes=args.yes,
+            dry_run=args.dry_run,
+        )
     elif args.subparser_name == "fmt":
         format_config_file(args.config, args.write, args.all)

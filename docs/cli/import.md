@@ -2,20 +2,21 @@
 
 # vcspull import
 
-The `vcspull import` command registers existing repositories with your vcspull
-configuration. You can either provide a single repository name and URL or scan
-directories for Git repositories that already live on disk.
+```{warning}
+**This command has been removed** as of vcspull 1.38.0.
 
-## Command
+The `import` command has been split into two focused commands:
+- Use {ref}`cli-add` to add single repositories manually
+- Use {ref}`cli-discover` to scan directories for existing repositories
 
-```{eval-rst}
-.. argparse::
-    :module: vcspull.cli
-    :func: create_parser
-    :prog: vcspull
-    :path: import
-    :nodescription:
+See the {ref}`migration guide <migration>` for detailed upgrade instructions.
 ```
+
+## Historical Documentation
+
+The `vcspull import` command previously registered existing repositories with your vcspull
+configuration. You could either provide a single repository name and URL or scan
+directories for Git repositories that already lived on disk.
 
 ## Manual import
 
@@ -67,3 +68,32 @@ $ vcspull import --scan ~/company --recursive --config ~/company/.vcspull.yaml
 
 Use `--all` with the [`vcspull fmt`](cli-fmt) command after a large scan to keep
 configuration entries sorted and normalized.
+
+## Migration Guide
+
+### Manual import → add
+
+```diff
+- $ vcspull import myproject https://github.com/user/myproject.git -c ~/.vcspull.yaml
++ $ vcspull add myproject https://github.com/user/myproject.git -f ~/.vcspull.yaml
+```
+
+Changes:
+- Command name: `import` → `add`
+- Config flag: `-c/--config` → `-f/--file`
+
+See {ref}`cli-add` for full documentation.
+
+### Filesystem scanning → discover
+
+```diff
+- $ vcspull import --scan ~/code --recursive -c ~/.vcspull.yaml --yes
++ $ vcspull discover ~/code --recursive -f ~/.vcspull.yaml --yes
+```
+
+Changes:
+- Command: `import --scan` → `discover`
+- Config flag: `-c/--config` → `-f/--file`
+- `--scan` flag removed (discover always scans)
+
+See {ref}`cli-discover` for full documentation.

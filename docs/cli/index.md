@@ -7,7 +7,10 @@
 :maxdepth: 1
 
 sync
-import
+add
+discover
+list
+status
 fmt
 ```
 
@@ -33,5 +36,5 @@ completion
     :nodescription:
 
     subparser_name : @replace
-        See :ref:`cli-sync`, :ref:`cli-import`, :ref:`cli-fmt`
+        See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-status`, :ref:`cli-fmt`
 ```
