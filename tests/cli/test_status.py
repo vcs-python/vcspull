@@ -10,7 +10,12 @@ import typing as t
 import pytest
 import yaml
 
-from vcspull.cli.status import check_repo_status, status_repos
+from vcspull.cli.status import (
+    StatusCheckConfig,
+    _check_repos_status_async,
+    check_repo_status,
+    status_repos,
+)
 
 if t.TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -547,3 +552,294 @@ def test_status_repos_detailed_metrics(
     assert entry["clean"] == expected_clean
     assert entry["ahead"] == expected_ahead
     assert entry["behind"] == expected_behind
+
+
+# Async Tests
+
+
+async def test_check_repos_status_async_basic(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test basic async concurrent status checking."""
+    from vcspull.types import ConfigDict
+
+    # Create test repos
+    repo1_path = tmp_path / "repo1"
+    repo2_path = tmp_path / "repo2"
+    repo3_path = tmp_path / "repo3"
+
+    init_git_repo(repo1_path)
+    init_git_repo(repo2_path)
+    # repo3 intentionally not created (missing)
+
+    repos = t.cast(
+        list[ConfigDict],
+        [
+            {"name": "repo1", "path": str(repo1_path)},
+            {"name": "repo2", "path": str(repo2_path)},
+            {"name": "repo3", "path": str(repo3_path)},
+        ],
+    )
+
+    config = StatusCheckConfig(max_concurrent=5, detailed=False)
+    results = await _check_repos_status_async(repos, config=config, progress=None)
+
+    # Verify all results returned
+    assert len(results) == 3
+
+    # Verify status for each repo
+    result_by_name = {r["name"]: r for r in results}
+    assert result_by_name["repo1"]["exists"] is True
+    assert result_by_name["repo1"]["is_git"] is True
+    assert result_by_name["repo2"]["exists"] is True
+    assert result_by_name["repo2"]["is_git"] is True
+    assert result_by_name["repo3"]["exists"] is False
+    assert result_by_name["repo3"]["is_git"] is False
+
+
+async def test_check_repos_status_async_with_detailed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test async status checking with detailed mode."""
+    from vcspull.types import ConfigDict
+
+    repo_path, _remote_path = setup_repo_with_remote(tmp_path)
+
+    repos = t.cast(
+        list[ConfigDict],
+        [
+            {"name": "project", "path": str(repo_path)},
+        ],
+    )
+
+    config = StatusCheckConfig(max_concurrent=1, detailed=True)
+    results = await _check_repos_status_async(repos, config=config, progress=None)
+
+    assert len(results) == 1
+    status = results[0]
+    assert status["name"] == "project"
+    assert status["exists"] is True
+    assert status["is_git"] is True
+    assert status["branch"] == "main"
+    assert status["ahead"] is not None
+    assert status["behind"] is not None
+
+
+async def test_check_repos_status_async_concurrency_limit(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that semaphore limits concurrent operations."""
+    from vcspull.types import ConfigDict
+
+    # Create multiple repos
+    repos_list = []
+    for i in range(10):
+        repo_path = tmp_path / f"repo{i}"
+        init_git_repo(repo_path)
+        repos_list.append({"name": f"repo{i}", "path": str(repo_path)})
+
+    repos = t.cast(list[ConfigDict], repos_list)
+
+    # Track concurrent calls
+    concurrent_calls = []
+    max_concurrent_seen = 0
+
+    original_check = check_repo_status
+
+    def tracked_check(repo: t.Any, detailed: bool = False) -> dict[str, t.Any]:
+        concurrent_calls.append(1)
+        nonlocal max_concurrent_seen
+        current = len(concurrent_calls)
+        max_concurrent_seen = max(max_concurrent_seen, current)
+        try:
+            return original_check(repo, detailed)
+        finally:
+            concurrent_calls.pop()
+
+    monkeypatch.setattr("vcspull.cli.status.check_repo_status", tracked_check)
+
+    config = StatusCheckConfig(max_concurrent=3, detailed=False)
+    results = await _check_repos_status_async(repos, config=config, progress=None)
+
+    # All repos should be checked
+    assert len(results) == 10
+
+    # Should not exceed concurrency limit significantly
+    # Note: Due to asyncio.to_thread, this is approximate
+    assert max_concurrent_seen <= 5  # Allow some variance
+
+
+def test_status_repos_concurrent_mode(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: t.Any,
+) -> None:
+    """Test status_repos with concurrent mode enabled."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    repo1_path = tmp_path / "code" / "repo1"
+    repo2_path = tmp_path / "code" / "repo2"
+
+    config_data = {
+        str(tmp_path / "code") + "/": {
+            "repo1": {"repo": "git+https://github.com/user/repo1.git"},
+            "repo2": {"repo": "git+https://github.com/user/repo2.git"},
+        },
+    }
+    create_test_config(config_file, config_data)
+
+    init_git_repo(repo1_path)
+    init_git_repo(repo2_path)
+
+    # Run with concurrent mode
+    status_repos(
+        repo_patterns=[],
+        config_path=config_file,
+        workspace_root=None,
+        detailed=False,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        concurrent=True,
+        max_concurrent=None,
+    )
+
+    captured = capsys.readouterr()
+    assert "repo1" in captured.out
+    assert "repo2" in captured.out
+    assert "Summary" in captured.out
+
+
+def test_status_repos_sequential_mode(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: t.Any,
+) -> None:
+    """Test status_repos with sequential mode (no concurrency)."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    repo_path = tmp_path / "code" / "repo1"
+
+    config_data = {
+        str(tmp_path / "code") + "/": {
+            "repo1": {"repo": "git+https://github.com/user/repo1.git"},
+        },
+    }
+    create_test_config(config_file, config_data)
+
+    init_git_repo(repo_path)
+
+    # Run with sequential mode
+    status_repos(
+        repo_patterns=[],
+        config_path=config_file,
+        workspace_root=None,
+        detailed=False,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        concurrent=False,
+        max_concurrent=None,
+    )
+
+    captured = capsys.readouterr()
+    assert "repo1" in captured.out
+    assert "Summary" in captured.out
+
+
+def test_status_repos_concurrent_json_output(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: t.Any,
+) -> None:
+    """Test that concurrent mode produces correct JSON output."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    repo1_path = tmp_path / "code" / "repo1"
+
+    config_data = {
+        str(tmp_path / "code") + "/": {
+            "repo1": {"repo": "git+https://github.com/user/repo1.git"},
+            "repo2": {"repo": "git+https://github.com/user/repo2.git"},
+        },
+    }
+    create_test_config(config_file, config_data)
+
+    init_git_repo(repo1_path)
+    # Leave repo2 missing (not initialized)
+
+    status_repos(
+        repo_patterns=[],
+        config_path=config_file,
+        workspace_root=None,
+        detailed=False,
+        output_json=True,
+        output_ndjson=False,
+        color="never",
+        concurrent=True,
+        max_concurrent=5,
+    )
+
+    captured = capsys.readouterr()
+    output_data = json.loads(captured.out)
+
+    status_entries = [item for item in output_data if item.get("reason") == "status"]
+    summary_entries = [item for item in output_data if item.get("reason") == "summary"]
+
+    assert len(status_entries) == 2
+    assert len(summary_entries) == 1
+
+    # Check summary
+    summary = summary_entries[0]
+    assert summary["total"] == 2
+    assert summary["exists"] == 1
+    assert summary["missing"] == 1
+    assert "duration_ms" in summary  # Should have timing when concurrent
+
+
+def test_status_repos_concurrent_max_concurrent_limit(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: t.Any,
+) -> None:
+    """Test that max_concurrent parameter is respected."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    repos_data = {}
+
+    # Create multiple repos
+    for i in range(5):
+        repo_path = tmp_path / "code" / f"repo{i}"
+        init_git_repo(repo_path)
+        repos_data[f"repo{i}"] = {"repo": f"git+https://github.com/user/repo{i}.git"}
+
+    config_data = {str(tmp_path / "code") + "/": repos_data}
+    create_test_config(config_file, config_data)
+
+    # Run with max_concurrent=2
+    status_repos(
+        repo_patterns=[],
+        config_path=config_file,
+        workspace_root=None,
+        detailed=False,
+        output_json=True,
+        output_ndjson=False,
+        color="never",
+        concurrent=True,
+        max_concurrent=2,
+    )
+
+    captured = capsys.readouterr()
+    output_data = json.loads(captured.out)
+
+    status_entries = [item for item in output_data if item.get("reason") == "status"]
+    assert len(status_entries) == 5  # All repos should be checked

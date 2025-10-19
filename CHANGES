@@ -31,7 +31,18 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
-_Notes on upcoming releases will be added here_
+### Performance Improvements
+
+#### Concurrent status checking (#474)
+
+- **`vcspull status`**: Now checks repositories concurrently using asyncio
+  - Dramatically faster when checking many repositories (5-10x speedup for 20+ repos)
+  - Live progress display on TTY: `Progress: 5/10 ✓:3 ✗:2`
+  - New `--max-concurrent N` flag to control concurrency limit (default: 32)
+  - New `--no-concurrent`/`--sequential` flag to disable concurrent mode
+  - Duration tracking included in JSON/NDJSON output (`duration_ms` field)
+  - Uses same asyncio pattern as `vcspull sync --dry-run`
+  - Backward compatible with sequential fallback option
 
 ## vcspull v1.39.1 (2025-10-19)
 

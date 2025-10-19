@@ -239,6 +239,8 @@ required-imports = [
 
 [tool.pytest.ini_options]
 addopts = "--tb=short --no-header --showlocals"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = [
   "src/vcspull",
   "tests",
