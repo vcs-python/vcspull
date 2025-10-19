@@ -240,6 +240,34 @@ SYNC_NEW_BEHAVIOUR_FIXTURES: list[SyncNewBehaviourFixture] = [
 ]
 
 
+class CLINegativeFixture(t.NamedTuple):
+    """Fixture for CLI negative flow validation."""
+
+    test_id: str
+    cli_args: list[str]
+    scenario: t.Literal["discover-non-dict-config", "status-missing-git"]
+    expected_log_fragment: str | None
+    expected_stdout_fragment: str | None
+
+
+CLI_NEGATIVE_FIXTURES: list[CLINegativeFixture] = [
+    CLINegativeFixture(
+        test_id="discover-invalid-config",
+        cli_args=["discover"],
+        scenario="discover-non-dict-config",
+        expected_log_fragment="not a valid YAML dictionary",
+        expected_stdout_fragment=None,
+    ),
+    CLINegativeFixture(
+        test_id="status-missing-git",
+        cli_args=["status", "--detailed"],
+        scenario="status-missing-git",
+        expected_log_fragment=None,
+        expected_stdout_fragment="Summary:",
+    ),
+]
+
+
 @pytest.mark.parametrize(
     list(SyncFixture._fields),
     SYNC_REPO_FIXTURES,
@@ -517,3 +545,81 @@ def test_sync_new_behaviours(
         assert summary["previewed"] == expected_summary["previewed"]
         assert summary["synced"] == expected_summary["synced"]
         assert summary["failed"] == expected_summary["failed"]
+
+
+@pytest.mark.parametrize(
+    list(CLINegativeFixture._fields),
+    CLI_NEGATIVE_FIXTURES,
+    ids=[fixture.test_id for fixture in CLI_NEGATIVE_FIXTURES],
+)
+def test_cli_negative_flows(
+    test_id: str,
+    cli_args: list[str],
+    scenario: t.Literal["discover-non-dict-config", "status-missing-git"],
+    expected_log_fragment: str | None,
+    expected_stdout_fragment: str | None,
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exercise common CLI error flows without raising."""
+    import logging
+    import subprocess
+
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    if scenario == "discover-non-dict-config":
+        scan_dir = tmp_path / "scan"
+        scan_dir.mkdir(parents=True, exist_ok=True)
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("[]\n", encoding="utf-8")
+
+        with contextlib.suppress(SystemExit):
+            cli([*cli_args, str(scan_dir), "--file", str(config_file)])
+    else:
+        workspace_dir = tmp_path / "workspace"
+        repo_dir = workspace_dir / "project"
+        repo_dir.mkdir(parents=True, exist_ok=True)
+        (repo_dir / ".git").mkdir()
+
+        config_file = tmp_path / "status.yaml"
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "~/workspace/": {
+                        "project": {
+                            "url": "git+https://example.com/project.git",
+                            "path": str(repo_dir),
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        def _missing_git(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            if cmd and cmd[0] == "git":
+                error_message = "git not installed"
+                raise FileNotFoundError(error_message)
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        monkeypatch.setattr("vcspull.cli.status.subprocess.run", _missing_git)
+
+        with contextlib.suppress(SystemExit):
+            cli([*cli_args, "--file", str(config_file)])
+
+    captured = capsys.readouterr()
+
+    if expected_log_fragment is not None:
+        assert expected_log_fragment in caplog.text
+
+    if expected_stdout_fragment is not None:
+        assert expected_stdout_fragment in captured.out

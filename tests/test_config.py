@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pathlib
 import typing as t
 
 import pytest
@@ -9,9 +10,7 @@ import pytest
 from vcspull import config
 
 if t.TYPE_CHECKING:
-    import pathlib
-
-    from vcspull.types import ConfigDict
+    from vcspull.types import ConfigDict, RawConfigDict
 
 
 class LoadYAMLFn(t.Protocol):
@@ -82,3 +81,64 @@ def test_relative_dir(load_yaml: LoadYAMLFn) -> None:
 
     assert path / "relativedir" == repo["path"].parent
     assert path / "relativedir" / "docutils" == repo["path"]
+
+
+class ExtractWorkspaceFixture(t.NamedTuple):
+    """Fixture capturing workspace root injection scenarios."""
+
+    test_id: str
+    raw_config: dict[str, dict[str, str | dict[str, str]]]
+    expected_roots: dict[str, str]
+
+
+EXTRACT_WORKSPACE_FIXTURES: list[ExtractWorkspaceFixture] = [
+    ExtractWorkspaceFixture(
+        test_id="tilde-workspace",
+        raw_config={
+            "~/code/": {
+                "alpha": {"repo": "git+https://example.com/alpha.git"},
+            },
+        },
+        expected_roots={"alpha": "~/code/"},
+    ),
+    ExtractWorkspaceFixture(
+        test_id="relative-workspace",
+        raw_config={
+            "./projects": {
+                "beta": "git+https://example.com/beta.git",
+            },
+        },
+        expected_roots={"beta": "./projects"},
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ExtractWorkspaceFixture._fields),
+    EXTRACT_WORKSPACE_FIXTURES,
+    ids=[fixture.test_id for fixture in EXTRACT_WORKSPACE_FIXTURES],
+)
+def test_extract_repos_injects_workspace_root(
+    test_id: str,
+    raw_config: dict[str, dict[str, str | dict[str, str]]],
+    expected_roots: dict[str, str],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ensure extract_repos assigns workspace_root consistently."""
+    import pathlib as pl
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    typed_raw_config = t.cast("RawConfigDict", raw_config)
+    repos = config.extract_repos(typed_raw_config, cwd=tmp_path)
+
+    assert len(repos) == len(expected_roots)
+
+    for repo in repos:
+        name = repo["name"]
+        expected_root = expected_roots[name]
+        assert repo["workspace_root"] == expected_root
+        expected_path = config.expand_dir(pl.Path(expected_root), cwd=tmp_path) / name
+        assert repo["path"] == expected_path
