@@ -6,11 +6,6 @@ The `vcspull discover` command scans directories for existing Git repositories
 and adds them to your vcspull configuration. This is ideal for importing existing
 workspaces or migrating from other tools.
 
-```{note}
-This command replaces the filesystem scanning functionality from `vcspull import --scan`.
-For adding single repositories manually, see {ref}`cli-add`.
-```
-
 ## Command
 
 ```{eval-rst}
