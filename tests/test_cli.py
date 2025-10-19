@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import importlib
 import json
 import pathlib
 import shutil
@@ -14,7 +15,10 @@ import yaml
 
 from vcspull.__about__ import __version__
 from vcspull.cli import cli
+from vcspull.cli._output import PlanAction, PlanEntry, PlanResult, PlanSummary
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
+
+sync_module = importlib.import_module("vcspull.cli.sync")
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -531,6 +535,9 @@ class DryRunPlanFixture(t.NamedTuple):
     expected_not_contains: list[str] | None = None
     repository_names: tuple[str, ...] = ("my_git_repo",)
     force_tty: bool = False
+    plan_entries: list[PlanEntry] | None = None
+    plan_summary: PlanSummary | None = None
+    set_no_color: bool = True
 
 
 DRY_RUN_PLAN_FIXTURES: list[DryRunPlanFixture] = [
@@ -555,6 +562,65 @@ DRY_RUN_PLAN_FIXTURES: list[DryRunPlanFixture] = [
         pre_sync=True,
         expected_contains=["Plan: 0 to clone (+)", "✓ my_git_repo"],
     ),
+    DryRunPlanFixture(
+        test_id="long-format",
+        cli_args=["sync", "--dry-run", "--long", "repo-long"],
+        expected_contains=[
+            "Plan: 1 to clone (+)",
+            "+ repo-long",
+            "url: git+https://example.com/repo-long.git",
+        ],
+        repository_names=("repo-long",),
+        plan_entries=[
+            PlanEntry(
+                name="repo-long",
+                path="~/github_projects/repo-long",
+                workspace_root="~/github_projects/",
+                action=PlanAction.CLONE,
+                detail="missing",
+                url="git+https://example.com/repo-long.git",
+            ),
+        ],
+    ),
+    DryRunPlanFixture(
+        test_id="relative-paths",
+        cli_args=["sync", "--dry-run", "--relative-paths", "repo-rel"],
+        expected_contains=[
+            "Plan: 0 to clone (+), 1 to update (~)",
+            "~ repo-rel",
+            "repo-rel  remote state unknown; use --fetch",
+        ],
+        expected_not_contains=["~/github_projects/repo-rel"],
+        repository_names=("repo-rel",),
+        plan_entries=[
+            PlanEntry(
+                name="repo-rel",
+                path="~/github_projects/repo-rel",
+                workspace_root="~/github_projects/",
+                action=PlanAction.UPDATE,
+                detail="remote state unknown; use --fetch",
+            ),
+        ],
+    ),
+    DryRunPlanFixture(
+        test_id="offline-detail",
+        cli_args=["sync", "--dry-run", "--offline", "repo-offline"],
+        expected_contains=[
+            "Plan: 0 to clone (+), 1 to update (~)",
+            "~ repo-offline",
+            "remote state unknown (offline)",
+        ],
+        repository_names=("repo-offline",),
+        plan_entries=[
+            PlanEntry(
+                name="repo-offline",
+                path="~/github_projects/repo-offline",
+                workspace_root="~/github_projects/",
+                action=PlanAction.UPDATE,
+                detail="remote state unknown (offline)",
+            ),
+        ],
+    ),
 ]
 
 
@@ -569,8 +635,11 @@ def test_sync_dry_run_plan_human(
     pre_sync: bool,
     expected_contains: list[str] | None,
     expected_not_contains: list[str] | None,
-    repository_names: list[str],
+    repository_names: tuple[str, ...],
     force_tty: bool,
+    plan_entries: list[PlanEntry] | None,
+    plan_summary: PlanSummary | None,
+    set_no_color: bool,
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
@@ -579,6 +648,9 @@ def test_sync_dry_run_plan_human(
     git_repo: GitSync,
 ) -> None:
     """Validate human-readable plan output variants."""
+    if set_no_color:
+        monkeypatch.setenv("NO_COLOR", "1")
+
     config: dict[str, dict[str, dict[str, t.Any]]] = {"~/github_projects/": {}}
     for name in repository_names:
         config["~/github_projects/"][name] = {
@@ -607,6 +679,28 @@ def test_sync_dry_run_plan_human(
         with contextlib.suppress(SystemExit):
             cli(["sync", repository_names[0]])
 
+    if plan_entries is not None:
+        for entry in plan_entries:
+            entry.path = str(workspace_root / entry.name)
+        computed_summary = plan_summary
+        if computed_summary is None:
+            computed_summary = PlanSummary(
+                clone=sum(entry.action is PlanAction.CLONE for entry in plan_entries),
+                update=sum(entry.action is PlanAction.UPDATE for entry in plan_entries),
+                unchanged=sum(
+                    entry.action is PlanAction.UNCHANGED for entry in plan_entries
+                ),
+                blocked=sum(
+                    entry.action is PlanAction.BLOCKED for entry in plan_entries
+                ),
+                errors=sum(entry.action is PlanAction.ERROR for entry in plan_entries),
+            )
+
+        async def _fake_plan(*args: t.Any, **kwargs: t.Any) -> PlanResult:
+            return PlanResult(entries=plan_entries, summary=computed_summary)
+
+        monkeypatch.setattr(sync_module, "_build_plan_result_async", _fake_plan)
+
     with contextlib.suppress(SystemExit):
         cli(cli_args)
 
@@ -631,6 +725,9 @@ class DryRunPlanMachineFixture(t.NamedTuple):
     expected_summary: dict[str, int]
     repository_names: tuple[str, ...] = ("my_git_repo",)
     pre_sync: bool = True
+    plan_entries: list[PlanEntry] | None = None
+    plan_summary: PlanSummary | None = None
+    expected_operation_subset: dict[str, t.Any] | None = None
 
 
 DRY_RUN_PLAN_MACHINE_FIXTURES: list[DryRunPlanMachineFixture] = [
@@ -658,6 +755,68 @@ DRY_RUN_PLAN_MACHINE_FIXTURES: list[DryRunPlanMachineFixture] = [
             "errors": 0,
         },
     ),
+    DryRunPlanMachineFixture(
+        test_id="json-operation-fields",
+        cli_args=["sync", "--dry-run", "--json", "repo-json"],
+        mode="json",
+        expected_summary={
+            "clone": 0,
+            "update": 1,
+            "unchanged": 0,
+            "blocked": 0,
+            "errors": 0,
+        },
+        repository_names=("repo-json",),
+        pre_sync=False,
+        plan_entries=[
+            PlanEntry(
+                name="repo-json",
+                path="~/github_projects/repo-json",
+                workspace_root="~/github_projects/",
+                action=PlanAction.UPDATE,
+                detail="behind 2",
+                ahead=0,
+                behind=2,
+                branch="main",
+                remote_branch="origin/main",
+            )
+        ],
+        expected_operation_subset={
+            "name": "repo-json",
+            "detail": "behind 2",
+            "behind": 2,
+            "branch": "main",
+        },
+    ),
+    DryRunPlanMachineFixture(
+        test_id="ndjson-operation-fields",
+        cli_args=["sync", "--dry-run", "--ndjson", "repo-ndjson"],
+        mode="ndjson",
+        expected_summary={
+            "clone": 1,
+            "update": 0,
+            "unchanged": 0,
+            "blocked": 0,
+            "errors": 0,
+        },
+        repository_names=("repo-ndjson",),
+        pre_sync=False,
+        plan_entries=[
+            PlanEntry(
+                name="repo-ndjson",
+                path="~/github_projects/repo-ndjson",
+                workspace_root="~/github_projects/",
+                action=PlanAction.CLONE,
+                detail="missing",
+                url="git+https://example.com/repo-ndjson.git",
+            )
+        ],
+        expected_operation_subset={
+            "name": "repo-ndjson",
+            "action": "clone",
+            "url": "git+https://example.com/repo-ndjson.git",
+        },
+    ),
 ]
 
 
@@ -671,8 +830,11 @@ def test_sync_dry_run_plan_machine(
     cli_args: list[str],
     mode: t.Literal["json", "ndjson"],
     expected_summary: dict[str, int],
-    repository_names: list[str],
+    repository_names: tuple[str, ...],
     pre_sync: bool,
+    plan_entries: list[PlanEntry] | None,
+    plan_summary: PlanSummary | None,
+    expected_operation_subset: dict[str, t.Any] | None,
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
@@ -681,6 +843,8 @@ def test_sync_dry_run_plan_machine(
     git_repo: GitSync,
 ) -> None:
     """Validate machine-readable plan parity."""
+    monkeypatch.setenv("NO_COLOR", "1")
+
     config: dict[str, dict[str, dict[str, t.Any]]] = {"~/github_projects/": {}}
     for name in repository_names:
         config["~/github_projects/"][name] = {
@@ -707,6 +871,28 @@ def test_sync_dry_run_plan_machine(
             cli(["sync", repository_names[0]])
         capsys.readouterr()
 
+    if plan_entries is not None:
+        for entry in plan_entries:
+            entry.path = str(workspace_root / entry.name)
+        computed_summary = plan_summary
+        if computed_summary is None:
+            computed_summary = PlanSummary(
+                clone=sum(entry.action is PlanAction.CLONE for entry in plan_entries),
+                update=sum(entry.action is PlanAction.UPDATE for entry in plan_entries),
+                unchanged=sum(
+                    entry.action is PlanAction.UNCHANGED for entry in plan_entries
+                ),
+                blocked=sum(
+                    entry.action is PlanAction.BLOCKED for entry in plan_entries
+                ),
+                errors=sum(entry.action is PlanAction.ERROR for entry in plan_entries),
+            )
+
+        async def _fake_plan(*args: t.Any, **kwargs: t.Any) -> PlanResult:
+            return PlanResult(entries=plan_entries, summary=computed_summary)
+
+        monkeypatch.setattr(sync_module, "_build_plan_result_async", _fake_plan)
+
     with contextlib.suppress(SystemExit):
         cli(cli_args)
 
@@ -721,12 +907,28 @@ def test_sync_dry_run_plan_machine(
         ]
         assert events, "Expected NDJSON payload"
         summary = events[-1]
+        if expected_operation_subset:
+            operation_payload = next(
+                (event for event in events if event.get("type") == "operation"),
+                None,
+            )
+            assert operation_payload is not None
+            for key, value in expected_operation_subset.items():
+                assert operation_payload[key] == value
 
     assert summary["clone"] == expected_summary["clone"]
     assert summary["update"] == expected_summary["update"]
     assert summary["unchanged"] == expected_summary["unchanged"]
     assert summary["blocked"] == expected_summary["blocked"]
     assert summary["errors"] == expected_summary["errors"]
+
+    if mode == "json" and expected_operation_subset:
+        operations: list[dict[str, t.Any]] = []
+        for workspace in payload["workspaces"]:
+            operations.extend(workspace["operations"])
+        assert operations, "Expected at least one operation payload"
+        for key, value in expected_operation_subset.items():
+            assert operations[0][key] == value
 
 
 def test_sync_dry_run_plan_progress(
