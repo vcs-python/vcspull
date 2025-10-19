@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
+import os
 import pathlib
+import re
 import subprocess
+import sys
 import typing as t
+from dataclasses import dataclass
+from time import perf_counter
 
 from vcspull.config import filter_repos, find_config_files, load_configs
 from vcspull.util import contract_user_home
@@ -19,6 +25,79 @@ if t.TYPE_CHECKING:
     from vcspull.types import ConfigDict
 
 log = logging.getLogger(__name__)
+
+DEFAULT_STATUS_CONCURRENCY = max(1, min(32, (os.cpu_count() or 4) * 2))
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+@dataclass
+class StatusCheckConfig:
+    """Configuration options for status checking."""
+
+    max_concurrent: int
+    detailed: bool
+
+
+def _visible_length(text: str) -> int:
+    """Return the printable length of string stripped of ANSI codes."""
+    return len(ANSI_ESCAPE_RE.sub("", text))
+
+
+class StatusProgressPrinter:
+    """Render incremental status check progress for TTY output."""
+
+    def __init__(self, total: int, colors: Colors, enabled: bool) -> None:
+        """Initialize the progress printer.
+
+        Parameters
+        ----------
+        total : int
+            Total number of repositories to check
+        colors : Colors
+            Color formatter instance
+        enabled : bool
+            Whether progress output is enabled
+        """
+        self.total = total
+        self._colors = colors
+        self._enabled = enabled and total > 0
+        self._stream = sys.stdout
+        self._last_render_len = 0
+
+    def update(self, processed: int, exists: int, missing: int) -> None:
+        """Update the progress line with the latest counts.
+
+        Parameters
+        ----------
+        processed : int
+            Number of repositories processed so far
+        exists : int
+            Number of repositories that exist
+        missing : int
+            Number of repositories that are missing
+        """
+        if not self._enabled:
+            return
+
+        line = " ".join(
+            (
+                f"Progress: {processed}/{self.total}",
+                self._colors.success(f"✓:{exists}"),
+                self._colors.error(f"✗:{missing}"),
+            )
+        )
+        clean_len = _visible_length(line)
+        padding = max(self._last_render_len - clean_len, 0)
+        self._stream.write("\r" + line + " " * padding)
+        self._stream.flush()
+        self._last_render_len = clean_len
+
+    def finish(self) -> None:
+        """Ensure the progress line is terminated with a newline."""
+        if not self._enabled:
+            return
+        self._stream.write("\n")
+        self._stream.flush()
 
 
 def create_status_subparser(parser: argparse.ArgumentParser) -> None:
@@ -74,6 +153,76 @@ def create_status_subparser(parser: argparse.ArgumentParser) -> None:
         default="auto",
         help="when to use colors (default: auto)",
     )
+    parser.add_argument(
+        "--no-concurrent",
+        "--sequential",
+        action="store_true",
+        dest="no_concurrent",
+        help="check repositories sequentially instead of concurrently",
+    )
+    parser.add_argument(
+        "--max-concurrent",
+        type=int,
+        metavar="N",
+        dest="max_concurrent",
+        help=(
+            f"maximum concurrent status checks (default: {DEFAULT_STATUS_CONCURRENCY})"
+        ),
+    )
+
+
+async def _check_repos_status_async(
+    repos: list[ConfigDict],
+    *,
+    config: StatusCheckConfig,
+    progress: StatusProgressPrinter | None,
+) -> list[dict[str, t.Any]]:
+    """Check repository status concurrently using asyncio.
+
+    Parameters
+    ----------
+    repos : list[ConfigDict]
+        List of repository configurations to check
+    config : StatusCheckConfig
+        Configuration for status checking
+    progress : StatusProgressPrinter | None
+        Optional progress printer for live updates
+
+    Returns
+    -------
+    list[dict[str, t.Any]]
+        List of status dictionaries in completion order
+    """
+    if not repos:
+        return []
+
+    semaphore = asyncio.Semaphore(min(config.max_concurrent, len(repos)))
+    results: list[dict[str, t.Any]] = []
+    exists_count = 0
+    missing_count = 0
+
+    async def check_with_limit(repo: ConfigDict) -> dict[str, t.Any]:
+        async with semaphore:
+            return await asyncio.to_thread(
+                check_repo_status, repo, detailed=config.detailed
+            )
+
+    tasks = [asyncio.create_task(check_with_limit(repo)) for repo in repos]
+
+    for index, task in enumerate(asyncio.as_completed(tasks), start=1):
+        status = await task
+        results.append(status)
+
+        # Update counts for progress
+        if status.get("exists"):
+            exists_count += 1
+        else:
+            missing_count += 1
+
+        if progress is not None:
+            progress.update(index, exists_count, missing_count)
+
+    return results
 
 
 def _run_git_command(
@@ -190,6 +339,8 @@ def status_repos(
     output_json: bool,
     output_ndjson: bool,
     color: str,
+    concurrent: bool = True,
+    max_concurrent: int | None = None,
 ) -> None:
     """Check status of configured repositories.
 
@@ -209,6 +360,10 @@ def status_repos(
         Output as NDJSON
     color : str
         Color mode (auto, always, never)
+    concurrent : bool
+        Whether to check repositories concurrently (default: True)
+    max_concurrent : int | None
+        Maximum concurrent status checks (default: based on CPU count)
     """
     # Load configs
     if config_path:
@@ -239,11 +394,49 @@ def status_repos(
         formatter.finalize()
         return
 
-    # Check status of each repository
+    # Check status of repositories (concurrent or sequential)
+    if concurrent:
+        # Concurrent mode using asyncio
+        actual_max_concurrent = (
+            max_concurrent if max_concurrent is not None else DEFAULT_STATUS_CONCURRENCY
+        )
+        check_config = StatusCheckConfig(
+            max_concurrent=actual_max_concurrent,
+            detailed=detailed,
+        )
+
+        # Enable progress for TTY human output
+        from ._output import OutputMode
+
+        progress_enabled = formatter.mode == OutputMode.HUMAN and sys.stdout.isatty()
+        progress_printer = StatusProgressPrinter(
+            len(found_repos), colors, progress_enabled
+        )
+
+        start_time = perf_counter()
+        status_results = asyncio.run(
+            _check_repos_status_async(
+                found_repos,
+                config=check_config,
+                progress=progress_printer if progress_enabled else None,
+            )
+        )
+        duration_ms = int((perf_counter() - start_time) * 1000)
+
+        if progress_enabled:
+            progress_printer.finish()
+    else:
+        # Sequential mode (original behavior)
+        status_results = []
+        for repo in found_repos:
+            status = check_repo_status(repo, detailed=detailed)
+            status_results.append(status)
+        duration_ms = None
+
+    # Process results
     summary = {"total": 0, "exists": 0, "missing": 0, "clean": 0, "dirty": 0}
 
-    for repo in found_repos:
-        status = check_repo_status(repo, detailed=detailed)
+    for status in status_results:
         summary["total"] += 1
 
         if status["exists"]:
@@ -267,12 +460,14 @@ def status_repos(
         _format_status_line(status, formatter, colors, detailed)
 
     # Emit summary
-    formatter.emit(
-        {
-            "reason": "summary",
-            **summary,
-        }
-    )
+    summary_data: dict[str, t.Any] = {
+        "reason": "summary",
+        **summary,
+    }
+    if duration_ms is not None:
+        summary_data["duration_ms"] = duration_ms
+
+    formatter.emit(summary_data)
 
     # Human summary
     formatter.emit_text(

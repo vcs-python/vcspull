@@ -364,6 +364,8 @@ def cli(_args: list[str] | None = None) -> None:
             output_json=args.output_json,
             output_ndjson=args.output_ndjson,
             color=args.color,
+            concurrent=not getattr(args, "no_concurrent", False),
+            max_concurrent=getattr(args, "max_concurrent", None),
         )
     elif args.subparser_name == "add":
         add_repo(
