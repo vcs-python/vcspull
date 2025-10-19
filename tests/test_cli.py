@@ -663,3 +663,39 @@ def test_sync_ndjson_machine_output(
         event.get("status") for event in events if event["reason"] == "sync"
     }
     assert preview_statuses == {"preview"}
+
+
+def test_sync_json_machine_output(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+) -> None:
+    """JSON mode should emit a single array without progress chatter."""
+    config = {
+        "~/github_projects/": {
+            "my_git_repo": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"origin": f"git+file://{git_repo.path}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "--json", "--dry-run", "my_git_repo"])
+
+    captured = capsys.readouterr()
+    payload = captured.out.strip()
+    assert payload.startswith("[") and payload.endswith("]"), payload
+    events = json.loads(payload)
+    assert isinstance(events, list)
+    reasons = {event["reason"] for event in events}
+    assert reasons >= {"sync", "summary"}

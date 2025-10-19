@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 import typing as t
 from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
+from io import StringIO
 
 from libvcs._internal.shortcuts import create_project
 from libvcs.url import registry as url_tools
@@ -173,7 +175,7 @@ def sync(
         progress_callback = progress_cb
     else:
 
-        def silent_progress(_output: str, _timestamp: datetime) -> None:
+        def silent_progress(output: str, timestamp: datetime) -> None:
             """Suppress progress for machine-readable output."""
             return None
 
@@ -205,12 +207,29 @@ def sync(
             )
             continue
 
+        buffer: StringIO | None = None
+        captured_output: str | None = None
         try:
-            update_repo(repo, progress_callback=progress_callback)
+            if is_human:
+                update_repo(repo, progress_callback=progress_callback)
+            else:
+                buffer = StringIO()
+                with (
+                    contextlib.redirect_stdout(buffer),
+                    contextlib.redirect_stderr(
+                        buffer,
+                    ),
+                ):
+                    update_repo(repo, progress_callback=progress_callback)
+                captured_output = buffer.getvalue()
         except Exception as e:
             summary["failed"] += 1
             event["status"] = "error"
             event["error"] = str(e)
+            if not is_human and buffer is not None and not captured_output:
+                captured_output = buffer.getvalue()
+            if captured_output:
+                event["details"] = captured_output.strip()
             formatter.emit(event)
             if is_human:
                 log.info(
