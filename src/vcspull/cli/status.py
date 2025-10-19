@@ -90,10 +90,12 @@ def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.A
     """
     repo_path = pathlib.Path(str(repo.get("path", "")))
     repo_name = repo.get("name", "unknown")
+    workspace_root = repo.get("workspace_root", "")
 
     status: dict[str, t.Any] = {
         "name": repo_name,
         "path": str(repo_path),
+        "workspace_root": workspace_root,
         "exists": False,
         "is_git": False,
         "clean": None,
