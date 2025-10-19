@@ -31,7 +31,57 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
-_Notes on upcoming releases will be added here_
+### Breaking Changes
+
+This release modernizes the vcspull CLI to align with DevOps tool conventions (Terraform, Cargo, Ruff, Biome). **This is a breaking change release**.
+
+#### Command Changes (#472)
+
+- **REMOVED**: `vcspull import` command
+  - Replaced by `vcspull add <name> <url>` to add a single repository
+  - Replaced by `vcspull discover <path>` to scan and add multiple repositories
+- **NEW**: `vcspull list` - List configured repositories with optional `--tree`, `--json`, `--ndjson` output
+- **NEW**: `vcspull status` - Check repository health (clean/dirty status, ahead/behind tracking with `--detailed`)
+
+#### Flag Changes (#472)
+
+- **RENAMED**: `-c/--config` → `-f/--file` (all commands)
+- **NEW**: `-w/--workspace/--workspace-root` - All three aliases supported for workspace root
+- **NEW**: `--dry-run/-n` - Preview changes without making modifications (sync, add, discover)
+- **NEW**: `--json/--ndjson` - Machine-readable output for automation (sync, list, status)
+- **NEW**: `--color {auto,always,never}` - Control color output
+
+#### Migration Guide (#472)
+
+```bash
+# Old → New
+vcspull import NAME URL              → vcspull add NAME URL
+vcspull import --scan DIR            → vcspull discover DIR
+vcspull sync -c FILE                 → vcspull sync -f FILE
+vcspull sync --workspace-root PATH   → vcspull sync -w PATH  # (or keep long form)
+vcspull fmt -c FILE                  → vcspull fmt -f FILE
+```
+
+### Features
+
+#### Developer Experience Improvements (#472)
+
+- Action commands (`sync`, `add`, `discover`) support `--dry-run` for safe previewing of changes
+- Structured output (`--json`, `--ndjson`) enables CI/CD integration and automation
+- Semantic colors with `NO_COLOR` environment variable support
+- Short `-w` flag for workspace root reduces typing
+- Consistent flag naming across all commands
+- `vcspull sync --dry-run` renders a Terraform-style plan (with live progress on
+  TTYs) and exposes the same data via a stable JSON/NDJSON schema for automation
+
+#### New Introspection Commands (#472)
+
+- `vcspull list` - View all configured repositories
+  - `--tree` mode groups by workspace root
+  - `--json/--ndjson` for programmatic access
+- `vcspull status` - Check repository health
+  - Shows which repos exist, are clean/dirty, or missing
+  - `--detailed` mode shows branch, ahead/behind tracking, and full paths
 
 ## vcspull v1.38.0 (2025-10-18)
 
