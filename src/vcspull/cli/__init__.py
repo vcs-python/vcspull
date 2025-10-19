@@ -336,6 +336,13 @@ def cli(_args: list[str] | None = None) -> None:
             output_ndjson=getattr(args, "output_ndjson", False),
             color=getattr(args, "color", "auto"),
             exit_on_error=args.exit_on_error,
+            show_unchanged=getattr(args, "show_unchanged", False),
+            summary_only=getattr(args, "summary_only", False),
+            long_view=getattr(args, "long_view", False),
+            relative_paths=getattr(args, "relative_paths", False),
+            fetch=getattr(args, "fetch", False),
+            offline=getattr(args, "offline", False),
+            verbosity=getattr(args, "verbosity", 0),
             parser=sync_parser,
         )
     elif args.subparser_name == "list":

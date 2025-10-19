@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import contextlib
 import json
+import pathlib
 import shutil
+import sys
 import typing as t
 
 import pytest
@@ -174,7 +176,7 @@ SYNC_REPO_FIXTURES: list[SyncFixture] = [
         test_id="sync--empty",
         sync_args=["sync"],
         expected_exit_code=0,
-        expected_in_out=["positional arguments:"],
+        expected_in_out=["No repositories matched the criteria."],
     ),
     # Sync: Help
     SyncFixture(
@@ -197,45 +199,6 @@ SYNC_REPO_FIXTURES: list[SyncFixture] = [
         sync_args=["sync", "my_git_repo"],
         expected_exit_code=0,
         expected_in_out="my_git_repo",
-    ),
-]
-
-
-class SyncNewBehaviourFixture(t.NamedTuple):
-    """Fixture for new sync flag behaviours."""
-
-    test_id: str
-    cli_args: list[str]
-    expect_json: bool
-    expected_stdout_contains: list[str]
-    expected_log_contains: list[str]
-    expected_summary: dict[str, int] | None
-
-
-SYNC_NEW_BEHAVIOUR_FIXTURES: list[SyncNewBehaviourFixture] = [
-    SyncNewBehaviourFixture(
-        test_id="dry-run-human",
-        cli_args=["sync", "--dry-run", "my_git_repo"],
-        expect_json=False,
-        expected_stdout_contains=["Would sync my_git_repo", "Summary"],
-        expected_log_contains=["Would sync my_git_repo"],
-        expected_summary=None,
-    ),
-    SyncNewBehaviourFixture(
-        test_id="dry-run-json",
-        cli_args=["sync", "--dry-run", "--json", "my_git_repo"],
-        expect_json=True,
-        expected_stdout_contains=[],
-        expected_log_contains=[],
-        expected_summary={"total": 1, "previewed": 1, "synced": 0, "failed": 0},
-    ),
-    SyncNewBehaviourFixture(
-        test_id="workspace-filter-no-match",
-        cli_args=["sync", "my_git_repo", "--workspace", "~/other/"],
-        expect_json=False,
-        expected_stdout_contains=["No repositories matched the criteria."],
-        expected_log_contains=[],
-        expected_summary=None,
     ),
 ]
 
@@ -481,73 +444,6 @@ def test_sync_broken(
 
 
 @pytest.mark.parametrize(
-    list(SyncNewBehaviourFixture._fields),
-    SYNC_NEW_BEHAVIOUR_FIXTURES,
-    ids=[fixture.test_id for fixture in SYNC_NEW_BEHAVIOUR_FIXTURES],
-)
-def test_sync_new_behaviours(
-    test_id: str,
-    cli_args: list[str],
-    expect_json: bool,
-    expected_stdout_contains: list[str],
-    expected_log_contains: list[str],
-    expected_summary: dict[str, int] | None,
-    tmp_path: pathlib.Path,
-    capsys: pytest.CaptureFixture[str],
-    caplog: pytest.LogCaptureFixture,
-    monkeypatch: pytest.MonkeyPatch,
-    user_path: pathlib.Path,
-    config_path: pathlib.Path,
-    git_repo: GitSync,
-) -> None:
-    """Test new sync behaviours such as dry-run preview and workspace filtering."""
-    import logging
-
-    caplog.set_level(logging.INFO)
-
-    config = {
-        "~/github_projects/": {
-            "my_git_repo": {
-                "url": f"git+file://{git_repo.path}",
-                "remotes": {"origin": f"git+file://{git_repo.path}"},
-            },
-        },
-    }
-    yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False), encoding="utf-8"
-    )
-
-    monkeypatch.chdir(tmp_path)
-
-    with contextlib.suppress(SystemExit):
-        cli(cli_args)
-
-    captured = capsys.readouterr()
-    stdout = "".join([captured.out, captured.err])
-
-    for needle in expected_stdout_contains:
-        assert needle in stdout
-
-    for needle in expected_log_contains:
-        assert needle in caplog.text
-
-    if expect_json:
-        start = captured.out.find("[")
-        assert start >= 0, "Expected JSON payload in stdout"
-        payload = json.loads(captured.out[start:])
-        assert isinstance(payload, list)
-        statuses = [event for event in payload if event.get("reason") == "sync"]
-        assert any(event.get("status") == "preview" for event in statuses)
-        summary = next(event for event in payload if event.get("reason") == "summary")
-        assert expected_summary is not None
-        assert summary["total"] == expected_summary["total"]
-        assert summary["previewed"] == expected_summary["previewed"]
-        assert summary["synced"] == expected_summary["synced"]
-        assert summary["failed"] == expected_summary["failed"]
-
-
-@pytest.mark.parametrize(
     list(CLINegativeFixture._fields),
     CLI_NEGATIVE_FIXTURES,
     ids=[fixture.test_id for fixture in CLI_NEGATIVE_FIXTURES],
@@ -625,7 +521,56 @@ def test_cli_negative_flows(
         assert expected_stdout_fragment in captured.out
 
 
-def test_sync_ndjson_machine_output(
+class DryRunPlanFixture(t.NamedTuple):
+    """Fixture for Terraform-style dry-run plan output."""
+
+    test_id: str
+    cli_args: list[str]
+    pre_sync: bool = False
+    expected_contains: list[str] | None = None
+    expected_not_contains: list[str] | None = None
+    repository_names: tuple[str, ...] = ("my_git_repo",)
+    force_tty: bool = False
+
+
+DRY_RUN_PLAN_FIXTURES: list[DryRunPlanFixture] = [
+    DryRunPlanFixture(
+        test_id="clone-default",
+        cli_args=["sync", "--dry-run", "my_git_repo"],
+        expected_contains=[
+            "Plan: 1 to clone (+)",
+            "+ my_git_repo",
+            "missing",
+        ],
+    ),
+    DryRunPlanFixture(
+        test_id="summary-only",
+        cli_args=["sync", "--dry-run", "--summary-only", "my_git_repo"],
+        expected_contains=["Plan: 1 to clone (+)", "Tip: run without --dry-run"],
+        expected_not_contains=["~/github_projects/"],
+    ),
+    DryRunPlanFixture(
+        test_id="unchanged-show",
+        cli_args=["sync", "--dry-run", "--show-unchanged", "my_git_repo"],
+        pre_sync=True,
+        expected_contains=["Plan: 0 to clone (+)", "✓ my_git_repo"],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(DryRunPlanFixture._fields),
+    DRY_RUN_PLAN_FIXTURES,
+    ids=[fixture.test_id for fixture in DRY_RUN_PLAN_FIXTURES],
+)
+def test_sync_dry_run_plan_human(
+    test_id: str,
+    cli_args: list[str],
+    pre_sync: bool,
+    expected_contains: list[str] | None,
+    expected_not_contains: list[str] | None,
+    repository_names: list[str],
+    force_tty: bool,
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
@@ -633,39 +578,101 @@ def test_sync_ndjson_machine_output(
     config_path: pathlib.Path,
     git_repo: GitSync,
 ) -> None:
-    """NDJSON mode should emit pure JSON lines without progress noise."""
-    config = {
-        "~/github_projects/": {
-            "my_git_repo": {
-                "url": f"git+file://{git_repo.path}",
-                "remotes": {"origin": f"git+file://{git_repo.path}"},
-            },
-        },
-    }
+    """Validate human-readable plan output variants."""
+    config: dict[str, dict[str, dict[str, t.Any]]] = {"~/github_projects/": {}}
+    for name in repository_names:
+        config["~/github_projects/"][name] = {
+            "url": f"git+file://{git_repo.path}",
+            "remotes": {"origin": f"git+file://{git_repo.path}"},
+        }
+
     yaml_config = config_path / ".vcspull.yaml"
     yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
     )
 
     monkeypatch.chdir(tmp_path)
 
+    workspace_root = pathlib.Path(user_path) / "github_projects"
+    for name in repository_names:
+        candidate = workspace_root / name
+        if candidate.exists():
+            shutil.rmtree(candidate)
+
+    if force_tty:
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+
+    if pre_sync:
+        with contextlib.suppress(SystemExit):
+            cli(["sync", repository_names[0]])
+
     with contextlib.suppress(SystemExit):
-        cli(["sync", "--ndjson", "--dry-run", "my_git_repo"])
+        cli(cli_args)
 
     captured = capsys.readouterr()
-    ndjson_lines = [line for line in captured.out.splitlines() if line.strip()]
-    assert ndjson_lines, "Expected NDJSON payload on stdout"
+    output = "".join([captured.out, captured.err])
 
-    events = [json.loads(line) for line in ndjson_lines]
-    reasons = {event["reason"] for event in events}
-    assert reasons >= {"sync", "summary"}
-    preview_statuses = {
-        event.get("status") for event in events if event["reason"] == "sync"
-    }
-    assert preview_statuses == {"preview"}
+    if expected_contains:
+        for needle in expected_contains:
+            assert needle in output
+
+    if expected_not_contains:
+        for needle in expected_not_contains:
+            assert needle not in output
 
 
-def test_sync_json_machine_output(
+class DryRunPlanMachineFixture(t.NamedTuple):
+    """Fixture for JSON/NDJSON plan output."""
+
+    test_id: str
+    cli_args: list[str]
+    mode: t.Literal["json", "ndjson"]
+    expected_summary: dict[str, int]
+    repository_names: tuple[str, ...] = ("my_git_repo",)
+    pre_sync: bool = True
+
+
+DRY_RUN_PLAN_MACHINE_FIXTURES: list[DryRunPlanMachineFixture] = [
+    DryRunPlanMachineFixture(
+        test_id="json-summary",
+        cli_args=["sync", "--dry-run", "--json", "--show-unchanged", "my_git_repo"],
+        mode="json",
+        expected_summary={
+            "clone": 0,
+            "update": 0,
+            "unchanged": 1,
+            "blocked": 0,
+            "errors": 0,
+        },
+    ),
+    DryRunPlanMachineFixture(
+        test_id="ndjson-summary",
+        cli_args=["sync", "--dry-run", "--ndjson", "--show-unchanged", "my_git_repo"],
+        mode="ndjson",
+        expected_summary={
+            "clone": 0,
+            "update": 0,
+            "unchanged": 1,
+            "blocked": 0,
+            "errors": 0,
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(DryRunPlanMachineFixture._fields),
+    DRY_RUN_PLAN_MACHINE_FIXTURES,
+    ids=[fixture.test_id for fixture in DRY_RUN_PLAN_MACHINE_FIXTURES],
+)
+def test_sync_dry_run_plan_machine(
+    test_id: str,
+    cli_args: list[str],
+    mode: t.Literal["json", "ndjson"],
+    expected_summary: dict[str, int],
+    repository_names: list[str],
+    pre_sync: bool,
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
@@ -673,29 +680,95 @@ def test_sync_json_machine_output(
     config_path: pathlib.Path,
     git_repo: GitSync,
 ) -> None:
-    """JSON mode should emit a single array without progress chatter."""
-    config = {
-        "~/github_projects/": {
-            "my_git_repo": {
-                "url": f"git+file://{git_repo.path}",
-                "remotes": {"origin": f"git+file://{git_repo.path}"},
-            },
-        },
-    }
+    """Validate machine-readable plan parity."""
+    config: dict[str, dict[str, dict[str, t.Any]]] = {"~/github_projects/": {}}
+    for name in repository_names:
+        config["~/github_projects/"][name] = {
+            "url": f"git+file://{git_repo.path}",
+            "remotes": {"origin": f"git+file://{git_repo.path}"},
+        }
+
     yaml_config = config_path / ".vcspull.yaml"
     yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
     )
 
     monkeypatch.chdir(tmp_path)
 
+    workspace_root = pathlib.Path(user_path) / "github_projects"
+    for name in repository_names:
+        candidate = workspace_root / name
+        if candidate.exists():
+            shutil.rmtree(candidate)
+
+    if pre_sync:
+        with contextlib.suppress(SystemExit):
+            cli(["sync", repository_names[0]])
+        capsys.readouterr()
+
     with contextlib.suppress(SystemExit):
-        cli(["sync", "--json", "--dry-run", "my_git_repo"])
+        cli(cli_args)
 
     captured = capsys.readouterr()
-    payload = captured.out.strip()
-    assert payload.startswith("[") and payload.endswith("]"), payload
-    events = json.loads(payload)
-    assert isinstance(events, list)
-    reasons = {event["reason"] for event in events}
-    assert reasons >= {"sync", "summary"}
+
+    if mode == "json":
+        payload = json.loads(captured.out)
+        summary = payload["summary"]
+    else:
+        events = [
+            json.loads(line) for line in captured.out.splitlines() if line.strip()
+        ]
+        assert events, "Expected NDJSON payload"
+        summary = events[-1]
+
+    assert summary["clone"] == expected_summary["clone"]
+    assert summary["update"] == expected_summary["update"]
+    assert summary["unchanged"] == expected_summary["unchanged"]
+    assert summary["blocked"] == expected_summary["blocked"]
+    assert summary["errors"] == expected_summary["errors"]
+
+
+def test_sync_dry_run_plan_progress(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+) -> None:
+    """TTY dry-run should surface a live progress line."""
+    config = {
+        "~/github_projects/": {
+            "repo_one": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"origin": f"git+file://{git_repo.path}"},
+            },
+            "repo_two": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"origin": f"git+file://{git_repo.path}"},
+            },
+        }
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+
+    workspace_root = pathlib.Path(user_path) / "github_projects"
+    for name in ("repo_one", "repo_two"):
+        candidate = workspace_root / name
+        if candidate.exists():
+            shutil.rmtree(candidate)
+
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "--dry-run", "repo_*"])
+
+    captured = capsys.readouterr()
+    output = "".join([captured.out, captured.err])
+    assert "Progress:" in output
+    assert "Plan:" in output

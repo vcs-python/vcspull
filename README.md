@@ -164,12 +164,20 @@ discover under the standard config locations.
 $ vcspull sync
 ```
 
-Preview planned work with dry-run mode or generate structured output for CI:
+Preview planned work with Terraform-style plan output or emit structured data
+for CI/CD:
 
 ```console
 $ vcspull sync --dry-run "*"
-$ vcspull sync --ndjson "*" | jq --slurp 'map(select(.reason == "summary"))'
+$ vcspull sync --dry-run --show-unchanged "workspace-*"
+$ vcspull sync --dry-run --json "*" | jq '.summary'
+$ vcspull sync --dry-run --ndjson "*" | jq --slurp 'map(select(.type == "summary"))'
 ```
+
+Dry runs stream a progress line when stdout is a TTY, then print a concise plan
+summary (`+/~/✓/⚠/✗`) grouped by workspace. Use `--summary-only`,
+`--relative-paths`, `--long`, or `-v/-vv` for alternate views, and
+`--fetch`/`--offline` to control how remote metadata is refreshed.
 
 Keep nested VCS repositories updated too, lets say you have a mercurial
 or svn project with a git dependency:
