@@ -9,6 +9,7 @@ import subprocess
 import typing as t
 
 from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull.util import contract_user_home
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
@@ -344,7 +345,9 @@ def _format_status_line(
     formatter.emit_text(f"{symbol} {colors.info(name)}: {status_color}")
 
     if detailed:
-        formatter.emit_text(f"  {colors.muted('Path:')} {status['path']}")
+        formatter.emit_text(
+            f"  {colors.muted('Path:')} {contract_user_home(status['path'])}"
+        )
         branch = status.get("branch")
         if branch:
             formatter.emit_text(f"  {colors.muted('Branch:')} {branch}")

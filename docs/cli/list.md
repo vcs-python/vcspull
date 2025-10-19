@@ -23,9 +23,9 @@ List all configured repositories:
 
 ```console
 $ vcspull list
-• tiktoken → /home/d/study/ai/tiktoken
-• GeographicLib → /home/d/study/c++/GeographicLib
-• flask → /home/d/code/flask
+• tiktoken → ~/study/ai/tiktoken
+• GeographicLib → ~/study/c++/GeographicLib
+• flask → ~/code/flask
 ```
 
 ## Filtering repositories
@@ -34,8 +34,8 @@ Filter repositories using fnmatch-style patterns:
 
 ```console
 $ vcspull list 'flask*'
-• flask → /home/d/code/flask
-• flask-sqlalchemy → /home/d/code/flask-sqlalchemy
+• flask → ~/code/flask
+• flask-sqlalchemy → ~/code/flask-sqlalchemy
 ```
 
 Multiple patterns are supported:
@@ -52,14 +52,14 @@ Group repositories by workspace root with `--tree`:
 $ vcspull list --tree
 
 ~/study/ai/
-  • tiktoken → /home/d/study/ai/tiktoken
+  • tiktoken → ~/study/ai/tiktoken
 
 ~/study/c++/
-  • GeographicLib → /home/d/study/c++/GeographicLib
-  • anax → /home/d/study/c++/anax
+  • GeographicLib → ~/study/c++/GeographicLib
+  • anax → ~/study/c++/anax
 
 ~/code/
-  • flask → /home/d/code/flask
+  • flask → ~/code/flask
 ```
 
 ## JSON output
@@ -77,13 +77,13 @@ Output format:
   {
     "name": "tiktoken",
     "url": "git+https://github.com/openai/tiktoken.git",
-    "path": "/home/d/study/ai/tiktoken",
+    "path": "~/study/ai/tiktoken",
     "workspace_root": "~/study/ai/"
   },
   {
     "name": "flask",
     "url": "git+https://github.com/pallets/flask.git",
-    "path": "/home/d/code/flask",
+    "path": "~/code/flask",
     "workspace_root": "~/code/"
   }
 ]
@@ -104,8 +104,8 @@ For streaming and line-oriented processing, use `--ndjson`:
 
 ```console
 $ vcspull list --ndjson
-{"name":"tiktoken","url":"git+https://github.com/openai/tiktoken.git","path":"/home/d/study/ai/tiktoken","workspace_root":"~/study/ai/"}
-{"name":"flask","url":"git+https://github.com/pallets/flask.git","path":"/home/d/code/flask","workspace_root":"~/code/"}
+{"name":"tiktoken","url":"git+https://github.com/openai/tiktoken.git","path":"~/study/ai/tiktoken","workspace_root":"~/study/ai/"}
+{"name":"flask","url":"git+https://github.com/pallets/flask.git","path":"~/code/flask","workspace_root":"~/code/"}
 ```
 
 Each line is a complete JSON object, making it ideal for:
@@ -134,8 +134,8 @@ Filter repositories by workspace root with `-w/--workspace/--workspace-root`:
 
 ```console
 $ vcspull list -w ~/code/
-• flask → /home/d/code/flask
-• requests → /home/d/code/requests
+• flask → ~/code/flask
+• requests → ~/code/requests
 ```
 
 Globbing is supported, so you can target multiple related workspaces:
