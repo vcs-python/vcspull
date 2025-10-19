@@ -26,11 +26,11 @@ log = logging.getLogger(__name__)
 def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
     """Create ``vcspull fmt`` argument subparser."""
     parser.add_argument(
-        "-c",
-        "--config",
+        "-f",
+        "--file",
         dest="config",
-        metavar="file",
-        help="path to custom config file (default: .vcspull.yaml or ~/.vcspull.yaml)",
+        metavar="FILE",
+        help="path to config file (default: .vcspull.yaml or ~/.vcspull.yaml)",
     )
     parser.add_argument(
         "--write",

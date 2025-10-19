@@ -36,16 +36,49 @@ NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     """Create ``vcspull sync`` argument subparser."""
     config_file = parser.add_argument(
-        "--config",
-        "-c",
-        metavar="config-file",
-        help="optional filepath to specify vcspull config",
+        "-f",
+        "--file",
+        dest="config",
+        metavar="FILE",
+        help="path to config file (default: ~/.vcspull.yaml or ./.vcspull.yaml)",
+    )
+    parser.add_argument(
+        "-w",
+        "--workspace",
+        "--workspace-root",
+        dest="workspace_root",
+        metavar="DIR",
+        help="filter by workspace root directory",
     )
     parser.add_argument(
         "repo_patterns",
-        metavar="filter",
+        metavar="pattern",
         nargs="*",
         help="patterns / terms of repos, accepts globs / fnmatch(3)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        "-n",
+        action="store_true",
+        help="preview what would be synced without making changes",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="output as JSON",
+    )
+    parser.add_argument(
+        "--ndjson",
+        action="store_true",
+        dest="output_ndjson",
+        help="output as NDJSON (one JSON per line)",
+    )
+    parser.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="when to use colors (default: auto)",
     )
     parser.add_argument(
         "--exit-on-error",
@@ -67,6 +100,11 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
 def sync(
     repo_patterns: list[str],
     config: pathlib.Path | None,
+    workspace_root: str | None,
+    dry_run: bool,
+    output_json: bool,
+    output_ndjson: bool,
+    color: str,
     exit_on_error: bool,
     parser: argparse.ArgumentParser
     | None = None,  # optional so sync can be unit tested
@@ -99,11 +137,19 @@ def sync(
         found_repos.extend(filter_repos(configs, path=path, vcs_url=vcs_url, name=name))
 
     for repo in found_repos:
+        repo_name = repo.get("name", "unknown")
+        repo_path = repo.get("path", "unknown")
+
+        if dry_run:
+            # Dry run mode: just log what would be done
+            log.info(f"Would sync {repo_name} at {repo_path}")
+            continue
+
         try:
             update_repo(repo)
-        except Exception as e:  # noqa: PERF203
+        except Exception as e:
             log.info(
-                f"Failed syncing {repo.get('name')}",
+                f"Failed syncing {repo_name}",
             )
             if log.isEnabledFor(logging.DEBUG):
                 import traceback
