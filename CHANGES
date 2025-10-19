@@ -37,7 +37,7 @@ _Notes on upcoming releases will be added here_
 
 ### Improvements
 
-#### Improved home directories paths (#472)
+#### Improved home directories paths (#473)
 
 - **Human-readable output**: Contract `$HOME` to `~/` in introspection commands
   - `vcspull list`, `vcspull status`, and `vcspull sync --dry-run` now display
