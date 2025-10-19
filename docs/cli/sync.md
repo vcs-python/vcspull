@@ -4,6 +4,10 @@
 
 # vcspull sync
 
+The `vcspull sync` command clones and updates repositories defined in your
+vcspull configuration. It's the primary command for keeping your local workspace
+synchronized with remote repositories.
+
 ## Command
 
 ```{eval-rst}
@@ -14,6 +18,93 @@
     :path: sync
     :nodescription:
 ```
+
+## Dry run mode
+
+Preview what would be synchronized without making changes:
+
+```console
+$ vcspull sync --dry-run '*'
+Would sync flask at /home/d/code/flask
+Would sync django at /home/d/code/django
+Would sync requests at /home/d/code/requests
+```
+
+Use `--dry-run` or `-n` to:
+- Verify your configuration before syncing
+- Check which repositories would be updated
+- Test pattern filters
+- Preview operations in CI/CD
+
+## JSON output
+
+Export sync operations as JSON for automation:
+
+```console
+$ vcspull sync --json '*'
+```
+
+This is a planned feature that will output structured sync results including:
+- Repository names and paths
+- Sync status (cloned, updated, skipped, error)
+- Commit information
+- Error messages
+
+## NDJSON output
+
+Stream sync events line-by-line with `--ndjson`:
+
+```console
+$ vcspull sync --ndjson '*'
+```
+
+Each line is a JSON object representing a sync event, ideal for:
+- Real-time processing
+- Progress monitoring
+- Log aggregation
+
+## Configuration file selection
+
+Specify a custom config file with `-f/--file`:
+
+```console
+$ vcspull sync -f ~/projects/.vcspull.yaml '*'
+```
+
+By default, vcspull searches for config files in:
+1. Current directory (`.vcspull.yaml`)
+2. Home directory (`~/.vcspull.yaml`)
+3. XDG config directory (`~/.config/vcspull/`)
+
+## Workspace filtering
+
+Filter repositories by workspace root with `-w/--workspace` or `--workspace-root`:
+
+```console
+$ vcspull sync -w ~/code/ '*'
+```
+
+This syncs only repositories in the specified workspace root,  useful for:
+- Selective workspace updates
+- Multi-workspace setups
+- Targeted sync operations
+
+All three flag names work identically:
+
+```console
+$ vcspull sync --workspace ~/code/ '*'
+$ vcspull sync --workspace-root ~/code/ '*'
+```
+
+## Color output
+
+Control colored output with `--color`:
+
+- `--color auto` (default): Use colors if outputting to a terminal
+- `--color always`: Always use colors
+- `--color never`: Never use colors
+
+The `NO_COLOR` environment variable is also respected.
 
 ## Filtering repos
 

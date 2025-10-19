@@ -112,10 +112,10 @@ YAML? Create a `~/.vcspull.yaml` file:
 ```
 
 Already have repositories cloned locally? Use
-`vcspull import --scan ~/code --recursive` to detect existing Git checkouts and
-append them to your configuration. See {ref}`cli-import` for more details and
+`vcspull discover ~/code --recursive` to detect existing Git checkouts and
+append them to your configuration. See {ref}`cli-discover` for more details and
 options such as `--workspace-root` and `--yes` for unattended runs. After editing or
-importing, run `vcspull fmt --write` (documented in {ref}`cli-fmt`) to
+discovering repositories, run `vcspull fmt --write` (documented in {ref}`cli-fmt`) to
 normalize keys and keep your configuration tidy.
 
 The `git+` in front of the repository URL. Mercurial repositories use
@@ -138,10 +138,10 @@ be any name):
   sdl2pp: "git+https://github.com/libSDL2pp/libSDL2pp.git"
 ```
 
-Use `-c` to specify a config.
+Use `-f/--file` to specify a config.
 
 ```console
-$ vcspull sync -c .deps.yaml
+$ vcspull sync -f .deps.yaml
 ```
 
 You can also use [fnmatch] to pull repositories from your config in
