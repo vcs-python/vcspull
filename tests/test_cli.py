@@ -226,7 +226,7 @@ SYNC_NEW_BEHAVIOUR_FIXTURES: list[SyncNewBehaviourFixture] = [
         cli_args=["sync", "--dry-run", "--json", "my_git_repo"],
         expect_json=True,
         expected_stdout_contains=[],
-        expected_log_contains=["Would sync my_git_repo"],
+        expected_log_contains=[],
         expected_summary={"total": 1, "previewed": 1, "synced": 0, "failed": 0},
     ),
     SyncNewBehaviourFixture(
@@ -623,3 +623,43 @@ def test_cli_negative_flows(
 
     if expected_stdout_fragment is not None:
         assert expected_stdout_fragment in captured.out
+
+
+def test_sync_ndjson_machine_output(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+) -> None:
+    """NDJSON mode should emit pure JSON lines without progress noise."""
+    config = {
+        "~/github_projects/": {
+            "my_git_repo": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"origin": f"git+file://{git_repo.path}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "--ndjson", "--dry-run", "my_git_repo"])
+
+    captured = capsys.readouterr()
+    ndjson_lines = [line for line in captured.out.splitlines() if line.strip()]
+    assert ndjson_lines, "Expected NDJSON payload on stdout"
+
+    events = [json.loads(line) for line in ndjson_lines]
+    reasons = {event["reason"] for event in events}
+    assert reasons >= {"sync", "summary"}
+    preview_statuses = {
+        event.get("status") for event in events if event["reason"] == "sync"
+    }
+    assert preview_statuses == {"preview"}

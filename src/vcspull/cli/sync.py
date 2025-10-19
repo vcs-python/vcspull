@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 import sys
 import typing as t
+from collections.abc import Callable
 from copy import deepcopy
+from datetime import datetime
 
 from libvcs._internal.shortcuts import create_project
 from libvcs.url import registry as url_tools
@@ -21,12 +23,13 @@ from ._workspaces import filter_by_workspace
 if t.TYPE_CHECKING:
     import argparse
     import pathlib
-    from datetime import datetime
 
     from libvcs._internal.types import VCSLiteral
     from libvcs.sync.git import GitSync
 
 log = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[str, datetime], None]
 
 
 def clamp(n: int, _min: int, _max: int) -> int:
@@ -124,6 +127,8 @@ def sync(
     formatter = OutputFormatter(output_mode)
     colors = Colors(get_color_mode(color))
 
+    is_human = formatter.mode == OutputMode.HUMAN
+
     if config:
         configs = load_configs([config])
     else:
@@ -140,7 +145,7 @@ def sync(
             name = repo_pattern
 
         found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
-        if not found:
+        if not found and is_human:
             log.info(NO_REPOS_FOR_TERM_MSG.format(name=name))
         found_repos.extend(found)
 
@@ -163,6 +168,17 @@ def sync(
 
     summary = {"total": 0, "synced": 0, "previewed": 0, "failed": 0}
 
+    progress_callback: ProgressCallback
+    if is_human:
+        progress_callback = progress_cb
+    else:
+
+        def silent_progress(_output: str, _timestamp: datetime) -> None:
+            """Suppress progress for machine-readable output."""
+            return None
+
+        progress_callback = silent_progress
+
     for repo in found_repos:
         repo_name = repo.get("name", "unknown")
         repo_path = repo.get("path", "unknown")
@@ -181,7 +197,8 @@ def sync(
             summary["previewed"] += 1
             event["status"] = "preview"
             formatter.emit(event)
-            log.info(f"Would sync {repo_name} at {repo_path}")
+            if is_human:
+                log.info(f"Would sync {repo_name} at {repo_path}")
             formatter.emit_text(
                 f"{colors.warning('→')} Would sync {colors.info(repo_name)} "
                 f"{colors.muted('→')} {repo_path}",
@@ -189,15 +206,16 @@ def sync(
             continue
 
         try:
-            update_repo(repo)
+            update_repo(repo, progress_callback=progress_callback)
         except Exception as e:
             summary["failed"] += 1
             event["status"] = "error"
             event["error"] = str(e)
             formatter.emit(event)
-            log.info(
-                f"Failed syncing {repo_name}",
-            )
+            if is_human:
+                log.info(
+                    f"Failed syncing {repo_name}",
+                )
             if log.isEnabledFor(logging.DEBUG):
                 import traceback
 
@@ -275,6 +293,7 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
 
 def update_repo(
     repo_dict: t.Any,
+    progress_callback: ProgressCallback | None = None,
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
 ) -> GitSync:
     """Synchronize a single repository."""
@@ -283,7 +302,8 @@ def update_repo(
         repo_dict["pip_url"] = repo_dict.pop("url")
     if "url" not in repo_dict:
         repo_dict["url"] = repo_dict.pop("pip_url")
-    repo_dict["progress_callback"] = progress_cb
+
+    repo_dict["progress_callback"] = progress_callback or progress_cb
 
     if repo_dict.get("vcs") is None:
         vcs = guess_vcs(url=repo_dict["url"])
