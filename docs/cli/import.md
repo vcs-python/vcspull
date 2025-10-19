@@ -18,17 +18,6 @@ The `vcspull import` command previously registered existing repositories with yo
 configuration. You could either provide a single repository name and URL or scan
 directories for Git repositories that already lived on disk.
 
-## Command
-
-```{eval-rst}
-.. argparse::
-    :module: vcspull.cli
-    :func: create_parser
-    :prog: vcspull
-    :path: import
-    :nodescription:
-```
-
 ## Manual import
 
 Provide a repository name and remote URL to append an entry to your
