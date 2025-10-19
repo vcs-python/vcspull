@@ -42,8 +42,8 @@ Filter repositories using fnmatch-style patterns:
 
 ```console
 $ vcspull status 'django*'
-• django → /home/d/code/django (exists, clean)
-• django-extensions → /home/d/code/django-extensions (missing)
+• django → ~/code/django (exists, clean)
+• django-extensions → ~/code/django-extensions (missing)
 ```
 
 Multiple patterns are supported:
@@ -59,7 +59,7 @@ Show additional information with `--detailed` or `-d`:
 ```console
 $ vcspull status --detailed
 ✓ flask: up to date
-  Path: /home/d/code/flask
+  Path: ~/code/flask
   Branch: main
   Ahead/Behind: 0/0
 ```
@@ -84,7 +84,7 @@ Output format:
   {
     "reason": "status",
     "name": "tiktoken",
-    "path": "/home/d/study/ai/tiktoken",
+    "path": "~/study/ai/tiktoken",
     "workspace_root": "~/study/ai/",
     "exists": false,
     "is_git": false,
@@ -96,7 +96,7 @@ Output format:
   {
     "reason": "status",
     "name": "flask",
-    "path": "/home/d/code/flask",
+    "path": "~/code/flask",
     "workspace_root": "~/code/",
     "exists": true,
     "is_git": true,
@@ -140,8 +140,8 @@ For streaming output, use `--ndjson`:
 
 ```console
 $ vcspull status --ndjson
-{"reason":"status","name":"tiktoken","path":"/home/d/study/ai/tiktoken","workspace_root":"~/study/ai/","exists":false,"is_git":false,"clean":null}
-{"reason":"status","name":"flask","path":"/home/d/code/flask","workspace_root":"~/code/","exists":true,"is_git":true,"clean":true}
+{"reason":"status","name":"tiktoken","path":"~/study/ai/tiktoken","workspace_root":"~/study/ai/","exists":false,"is_git":false,"clean":null}
+{"reason":"status","name":"flask","path":"~/code/flask","workspace_root":"~/code/","exists":true,"is_git":true,"clean":true}
 {"reason":"summary","total":2,"exists":1,"missing":1,"clean":1,"dirty":0}
 ```
 

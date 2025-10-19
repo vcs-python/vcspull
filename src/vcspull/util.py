@@ -42,6 +42,40 @@ def get_config_dir() -> pathlib.Path:
     return path
 
 
+def contract_user_home(path: str | pathlib.Path) -> str:
+    """Contract user home directory to ~ for display purposes.
+
+    Parameters
+    ----------
+    path : str | pathlib.Path
+        Path to contract
+
+    Returns
+    -------
+    str
+        Path with $HOME contracted to ~
+
+    Examples
+    --------
+    >>> contract_user_home("/home/user/code/repo")
+    '~/code/repo'
+    >>> contract_user_home("/opt/project")
+    '/opt/project'
+    """
+    path_str = str(path)
+    home_str = str(pathlib.Path.home())
+
+    # Replace home directory with ~ if path starts with it
+    if path_str.startswith(home_str):
+        # Handle both /home/user and /home/user/ cases
+        relative = path_str[len(home_str) :]
+        if relative.startswith(os.sep):
+            relative = relative[1:]
+        return f"~/{relative}" if relative else "~"
+
+    return path_str
+
+
 T = t.TypeVar("T", bound=dict[str, t.Any])
 
 

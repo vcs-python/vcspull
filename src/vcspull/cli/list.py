@@ -8,6 +8,7 @@ import pathlib
 import typing as t
 
 from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull.util import contract_user_home
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
@@ -170,10 +171,10 @@ def _output_flat(
             }
         )
 
-        # Human output
+        # Human output (contract home directory for privacy/brevity)
         formatter.emit_text(
             f"{colors.muted('•')} {colors.info(repo_name)} "
-            f"{colors.muted('→')} {repo_path}",
+            f"{colors.muted('→')} {contract_user_home(repo_path)}",
         )
 
 
@@ -221,8 +222,8 @@ def _output_tree(
                 }
             )
 
-            # Human output: indented repo
+            # Human output: indented repo (contract home directory for privacy/brevity)
             formatter.emit_text(
                 f"  {colors.muted('•')} {colors.info(repo_name)} "
-                f"{colors.muted('→')} {repo_path}",
+                f"{colors.muted('→')} {contract_user_home(repo_path)}",
             )

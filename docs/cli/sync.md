@@ -25,9 +25,9 @@ Preview what would be synchronized without making changes:
 
 ```console
 $ vcspull sync --dry-run '*'
-Would sync flask at /home/d/code/flask
-Would sync django at /home/d/code/django
-Would sync requests at /home/d/code/requests
+Would sync flask at ~/code/flask
+Would sync django at ~/code/django
+Would sync requests at ~/code/requests
 ```
 
 Use `--dry-run` or `-n` to:
@@ -46,7 +46,7 @@ $ vcspull sync --dry-run --json '*'
   {
     "reason": "sync",
     "name": "flask",
-    "path": "/home/d/code/flask",
+    "path": "~/code/flask",
     "workspace_root": "~/code/",
     "status": "preview"
   },
@@ -75,7 +75,7 @@ Stream sync events line-by-line with `--ndjson`:
 
 ```console
 $ vcspull sync --dry-run --ndjson '*'
-{"reason":"sync","name":"flask","path":"/home/d/code/flask","workspace_root":"~/code/","status":"preview"}
+{"reason":"sync","name":"flask","path":"~/code/flask","workspace_root":"~/code/","status":"preview"}
 {"reason":"summary","total":3,"synced":0,"previewed":3,"failed":0}
 ```
 

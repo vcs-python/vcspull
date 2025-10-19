@@ -25,6 +25,7 @@ from libvcs.url import registry as url_tools
 from vcspull import exc
 from vcspull.config import filter_repos, find_config_files, load_configs
 from vcspull.types import ConfigDict
+from vcspull.util import contract_user_home
 
 from ._colors import Colors, get_color_mode
 from ._output import (
@@ -433,6 +434,9 @@ def _render_plan(
                     display_path = str(rel_path)
                 except ValueError:
                     display_path = entry.path
+            else:
+                # Contract home directory for privacy/brevity in human output
+                display_path = contract_user_home(display_path)
 
             detail_text = _format_detail_text(
                 entry,
