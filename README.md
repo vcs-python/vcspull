@@ -119,6 +119,33 @@ The scan shows each repository before import unless you opt into `--yes`. Add
 `-w ~/code/` to pin the resulting workspace root or `-f` to
 write somewhere other than the default `~/.vcspull.yaml`.
 
+### Inspect configured repositories
+
+List what vcspull already knows about without mutating anything:
+
+```console
+$ vcspull list
+$ vcspull list --tree
+$ vcspull list --json | jq '.[].name'
+```
+
+`--json` emits a single JSON array, while `--ndjson` streams newline-delimited
+objects that are easy to consume from shell pipelines.
+
+### Check repository status
+
+Get a quick health check for all configured workspaces:
+
+```console
+$ vcspull status
+$ vcspull status --detailed
+$ vcspull status --ndjson | jq --slurp 'map(select(.reason == "summary"))'
+```
+
+The status command respects `--workspace/-w` filters and the global
+`--color {auto,always,never}` flag. JSON and NDJSON output mirrors the list
+command for automation workflows.
+
 ### Normalize configuration files
 
 After importing or editing by hand, run the formatter to tidy up keys and keep
@@ -135,6 +162,13 @@ discover under the standard config locations.
 
 ```console
 $ vcspull sync
+```
+
+Preview planned work with dry-run mode or generate structured output for CI:
+
+```console
+$ vcspull sync --dry-run "*"
+$ vcspull sync --ndjson "*" | jq --slurp 'map(select(.reason == "summary"))'
 ```
 
 Keep nested VCS repositories updated too, lets say you have a mercurial
