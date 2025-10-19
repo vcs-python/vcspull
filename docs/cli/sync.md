@@ -41,21 +41,42 @@ Use `--dry-run` or `-n` to:
 Export sync operations as JSON for automation:
 
 ```console
-$ vcspull sync --json '*'
+$ vcspull sync --dry-run --json '*'
+[
+  {
+    "reason": "sync",
+    "name": "flask",
+    "path": "/home/d/code/flask",
+    "workspace_root": "~/code/",
+    "status": "preview"
+  },
+  {
+    "reason": "summary",
+    "total": 3,
+    "synced": 0,
+    "previewed": 3,
+    "failed": 0
+  }
+]
 ```
 
-This is a planned feature that will output structured sync results including:
-- Repository names and paths
-- Sync status (cloned, updated, skipped, error)
-- Commit information
-- Error messages
+Each event emitted during the run includes:
+
+- `reason`: `"sync"` for repository events, `"summary"` for the final summary
+- `name`, `path`, `workspace_root`: Repository metadata from your config
+- `status`: `"synced"`, `"preview"`, or `"error"` (with an `error` field)
+
+Use `--json` without `--dry-run` to capture actual sync executions—successful
+and failed repositories are emitted with their final state.
 
 ## NDJSON output
 
 Stream sync events line-by-line with `--ndjson`:
 
 ```console
-$ vcspull sync --ndjson '*'
+$ vcspull sync --dry-run --ndjson '*'
+{"reason":"sync","name":"flask","path":"/home/d/code/flask","workspace_root":"~/code/","status":"preview"}
+{"reason":"summary","total":3,"synced":0,"previewed":3,"failed":0}
 ```
 
 Each line is a JSON object representing a sync event, ideal for:

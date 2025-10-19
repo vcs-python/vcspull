@@ -23,9 +23,9 @@ Check the status of all configured repositories:
 
 ```console
 $ vcspull status
-• tiktoken → /home/d/study/ai/tiktoken (missing)
-• flask → /home/d/code/flask (exists, clean)
-• django → /home/d/code/django (exists, clean)
+✗ tiktoken: missing
+✓ flask: up to date
+✓ django: up to date
 
 Summary: 3 repositories, 2 exist, 1 missing
 ```
@@ -58,12 +58,16 @@ Show additional information with `--detailed` or `-d`:
 
 ```console
 $ vcspull status --detailed
-• flask → /home/d/code/flask
+✓ flask: up to date
   Path: /home/d/code/flask
-  Status: exists, git repository, clean
+  Branch: main
+  Ahead/Behind: 0/0
 ```
 
-This mode shows the full path and expanded status information.
+This mode shows the full path, active branch, and divergence counters (`ahead`
+and `behind`) relative to the tracked upstream. If the working tree has
+uncommitted changes the headline reports `dirty` and the JSON payloads set
+`clean` to `false`.
 
 ## JSON output
 
@@ -84,7 +88,10 @@ Output format:
     "workspace_root": "~/study/ai/",
     "exists": false,
     "is_git": false,
-    "clean": null
+    "clean": null,
+    "branch": null,
+    "ahead": null,
+    "behind": null
   },
   {
     "reason": "status",
@@ -93,7 +100,10 @@ Output format:
     "workspace_root": "~/code/",
     "exists": true,
     "is_git": true,
-    "clean": true
+    "clean": true,
+    "branch": "main",
+    "ahead": 0,
+    "behind": 0
   },
   {
     "reason": "summary",
@@ -113,7 +123,9 @@ Each status entry includes:
 - `workspace_root`: Configuration section this repo belongs to
 - `exists`: Whether the directory exists
 - `is_git`: Whether it's a Git repository
-- `clean`: Git working tree status (null if not a Git repo or doesn't exist)
+- `clean`: Git working tree status (`null` if not a git repo or missing)
+- `branch`: Current branch (when detailed information is available)
+- `ahead`, `behind`: Divergence counts relative to the upstream branch
 
 Filter with [jq]:
 

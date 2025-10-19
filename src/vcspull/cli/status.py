@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import subprocess
 import typing as t
 
 from vcspull.config import filter_repos, find_config_files, load_configs
@@ -74,6 +75,23 @@ def create_status_subparser(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _run_git_command(
+    repo_path: pathlib.Path,
+    *args: str,
+) -> subprocess.CompletedProcess[str] | None:
+    """Execute a git command and return the completed process."""
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
 def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.Any]:
     """Check the status of a single repository.
 
@@ -100,6 +118,9 @@ def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.A
         "exists": False,
         "is_git": False,
         "clean": None,
+        "branch": None,
+        "ahead": None,
+        "behind": None,
     }
 
     # Check if repository exists
@@ -110,12 +131,52 @@ def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.A
         if (repo_path / ".git").exists():
             status["is_git"] = True
 
-            # TODO: Add more detailed status checks when detailed=True
-            # - Check if clean/dirty
-            # - Check if ahead/behind remote
-            # - Check current branch
-            # For now, just mark as clean if .git exists
-            status["clean"] = True
+            porcelain_result = _run_git_command(repo_path, "status", "--porcelain")
+            if porcelain_result is not None:
+                status["clean"] = porcelain_result.stdout.strip() == ""
+            else:
+                status["clean"] = True
+
+            if detailed:
+                branch_result = _run_git_command(
+                    repo_path,
+                    "rev-parse",
+                    "--abbrev-ref",
+                    "HEAD",
+                )
+                if branch_result is not None:
+                    status["branch"] = branch_result.stdout.strip()
+
+                ahead = 0
+                behind = 0
+                upstream_available = _run_git_command(
+                    repo_path,
+                    "rev-parse",
+                    "--abbrev-ref",
+                    "@{upstream}",
+                )
+                if upstream_available is not None:
+                    counts = _run_git_command(
+                        repo_path,
+                        "rev-list",
+                        "--left-right",
+                        "--count",
+                        "@{upstream}...HEAD",
+                    )
+                    if counts is not None:
+                        parts = counts.stdout.strip().split()
+                        if len(parts) == 2:
+                            behind, ahead = (int(parts[0]), int(parts[1]))
+                status["ahead"] = ahead
+                status["behind"] = behind
+
+                # Maintain clean flag if porcelain failed
+                if status["clean"] is None:
+                    status["clean"] = True
+            else:
+                status["branch"] = None
+                status["ahead"] = None
+                status["behind"] = None
 
     return status
 
@@ -249,10 +310,32 @@ def _format_status_line(
         status_color = colors.error(message)
     elif status["is_git"]:
         symbol = colors.success("✓")
-        message = "up to date" if status["clean"] else "dirty"
-        status_color = (
-            colors.success(message) if status["clean"] else colors.warning(message)
-        )
+        clean_state = status["clean"]
+        ahead = status.get("ahead")
+        behind = status.get("behind")
+        if clean_state is False:
+            message = "dirty"
+            status_color = colors.warning(message)
+        elif isinstance(ahead, int) and isinstance(behind, int):
+            if ahead > 0 and behind > 0:
+                message = f"diverged (ahead {ahead}, behind {behind})"
+                status_color = colors.warning(message)
+            elif ahead > 0:
+                message = f"ahead by {ahead}"
+                status_color = colors.info(message)
+            elif behind > 0:
+                message = f"behind by {behind}"
+                status_color = colors.warning(message)
+            else:
+                message = "up to date"
+                status_color = colors.success(message)
+        else:
+            message = "up to date" if clean_state else "dirty"
+            status_color = (
+                colors.success(message)
+                if clean_state in {True, None}
+                else colors.warning(message)
+            )
     else:
         symbol = colors.warning("⚠")
         message = "not a git repo"
@@ -262,3 +345,10 @@ def _format_status_line(
 
     if detailed:
         formatter.emit_text(f"  {colors.muted('Path:')} {status['path']}")
+        branch = status.get("branch")
+        if branch:
+            formatter.emit_text(f"  {colors.muted('Branch:')} {branch}")
+        ahead = status.get("ahead")
+        behind = status.get("behind")
+        if isinstance(ahead, int) and isinstance(behind, int):
+            formatter.emit_text(f"  {colors.muted('Ahead/Behind:')} {ahead}/{behind}")

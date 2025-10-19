@@ -130,11 +130,22 @@ $ vcspull list -f ~/projects/.vcspull.yaml
 
 ## Workspace filtering
 
-Filter repositories by workspace root (planned feature):
+Filter repositories by workspace root with `-w/--workspace/--workspace-root`:
 
 ```console
 $ vcspull list -w ~/code/
+• flask → /home/d/code/flask
+• requests → /home/d/code/requests
 ```
+
+Globbing is supported, so you can target multiple related workspaces:
+
+```console
+$ vcspull list --workspace '*/work/*'
+```
+
+The workspace filter combines with pattern filters and structured output flags,
+allowing you to export subsets of your configuration quickly.
 
 ## Color output
 
