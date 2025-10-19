@@ -407,7 +407,7 @@ def format_config_file(
             elif len(home_configs) > 1:
                 log.error(
                     "Multiple home config files found, "
-                    "please specify one with -c/--config",
+                    "please specify one with -f/--file",
                 )
                 return
             else:
