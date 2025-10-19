@@ -20,8 +20,10 @@ class AddRepoFixture(t.NamedTuple):
     name: str
     url: str
     workspace_root: str | None
-    path: str | None
+    path_relative: str | None
     dry_run: bool
+    use_default_config: bool
+    preexisting_config: dict[str, t.Any] | None
     expected_in_config: dict[str, t.Any]
     expected_log_messages: list[str]
 
@@ -32,8 +34,10 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
         name="myproject",
         url="git+https://github.com/user/myproject.git",
         workspace_root=None,
-        path=None,
+        path_relative=None,
         dry_run=False,
+        use_default_config=False,
+        preexisting_config=None,
         expected_in_config={
             "./": {
                 "myproject": {"repo": "git+https://github.com/user/myproject.git"},
@@ -46,8 +50,10 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
         name="flask",
         url="git+https://github.com/pallets/flask.git",
         workspace_root="~/code/",
-        path=None,
+        path_relative=None,
         dry_run=False,
+        use_default_config=False,
+        preexisting_config=None,
         expected_in_config={
             "~/code/": {
                 "flask": {"repo": "git+https://github.com/pallets/flask.git"},
@@ -60,10 +66,72 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
         name="django",
         url="git+https://github.com/django/django.git",
         workspace_root=None,
-        path=None,
+        path_relative=None,
         dry_run=True,
+        use_default_config=False,
+        preexisting_config=None,
         expected_in_config={},  # Nothing written in dry-run
         expected_log_messages=["Would add 'django'"],
+    ),
+    AddRepoFixture(
+        test_id="default-config-created-when-missing",
+        name="autoproject",
+        url="git+https://github.com/user/autoproject.git",
+        workspace_root=None,
+        path_relative=None,
+        dry_run=False,
+        use_default_config=True,
+        preexisting_config=None,
+        expected_in_config={
+            "./": {
+                "autoproject": {
+                    "repo": "git+https://github.com/user/autoproject.git",
+                },
+            },
+        },
+        expected_log_messages=[
+            "No config specified and no default found",
+            "Successfully added 'autoproject'",
+        ],
+    ),
+    AddRepoFixture(
+        test_id="path-inferrs-workspace-root",
+        name="lib",
+        url="git+https://github.com/user/lib.git",
+        workspace_root=None,
+        path_relative="code/lib",
+        dry_run=False,
+        use_default_config=False,
+        preexisting_config=None,
+        expected_in_config={
+            "~/code/lib/": {
+                "lib": {"repo": "git+https://github.com/user/lib.git"},
+            },
+        },
+        expected_log_messages=["Successfully added 'lib'"],
+    ),
+    AddRepoFixture(
+        test_id="normalizes-existing-workspace-label",
+        name="extra",
+        url="git+https://github.com/user/extra.git",
+        workspace_root=None,
+        path_relative=None,
+        dry_run=False,
+        use_default_config=False,
+        preexisting_config={
+            "~/code": {
+                "existing": {"repo": "git+https://github.com/user/existing.git"},
+            },
+        },
+        expected_in_config={
+            "~/code/": {
+                "existing": {"repo": "git+https://github.com/user/existing.git"},
+            },
+            "./": {
+                "extra": {"repo": "git+https://github.com/user/extra.git"},
+            },
+        },
+        expected_log_messages=["Successfully added 'extra'"],
     ),
 ]
 
@@ -78,8 +146,10 @@ def test_add_repo(
     name: str,
     url: str,
     workspace_root: str | None,
-    path: str | None,
+    path_relative: str | None,
     dry_run: bool,
+    use_default_config: bool,
+    preexisting_config: dict[str, t.Any] | None,
     expected_in_config: dict[str, t.Any],
     expected_log_messages: list[str],
     tmp_path: pathlib.Path,
@@ -96,14 +166,27 @@ def test_add_repo(
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
 
-    config_file = tmp_path / ".vcspull.yaml"
+    target_config_file = tmp_path / ".vcspull.yaml"
+    config_argument: str | None = (
+        None if use_default_config else str(target_config_file)
+    )
+
+    if preexisting_config is not None:
+        import yaml
+
+        target_config_file.write_text(
+            yaml.dump(preexisting_config),
+            encoding="utf-8",
+        )
+
+    path_argument = str(tmp_path / path_relative) if path_relative else None
 
     # Run add_repo
     add_repo(
         name=name,
         url=url,
-        config_file_path_str=str(config_file),
-        path=path,
+        config_file_path_str=config_argument,
+        path=path_argument,
         workspace_root_path=workspace_root,
         dry_run=dry_run,
     )
@@ -118,18 +201,18 @@ def test_add_repo(
     # Check config file
     if dry_run:
         # In dry-run mode, config file should not be created
-        if len(expected_in_config) == 0:
-            assert not config_file.exists(), (
+        if len(expected_in_config) == 0 and not use_default_config:
+            assert not target_config_file.exists(), (
                 "Config file should not be created in dry-run mode"
             )
     else:
         # In normal mode, check the config was written correctly
         if len(expected_in_config) > 0:
-            assert config_file.exists(), "Config file should be created"
+            assert target_config_file.exists(), "Config file should be created"
 
             import yaml
 
-            with config_file.open() as f:
+            with target_config_file.open() as f:
                 actual_config = yaml.safe_load(f)
 
             for workspace, repos in expected_in_config.items():

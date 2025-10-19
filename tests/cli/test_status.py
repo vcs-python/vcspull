@@ -63,6 +63,31 @@ CHECK_REPO_STATUS_FIXTURES: list[CheckRepoStatusFixture] = [
 ]
 
 
+class StatusRunFixture(t.NamedTuple):
+    """Fixture for end-to-end status command runs."""
+
+    test_id: str
+    workspace_filter: str | None
+    output_ndjson: bool
+    expected_names: list[str]
+
+
+STATUS_RUN_FIXTURES: list[StatusRunFixture] = [
+    StatusRunFixture(
+        test_id="workspace-filter",
+        workspace_filter="~/code/",
+        output_ndjson=False,
+        expected_names=["repo1"],
+    ),
+    StatusRunFixture(
+        test_id="ndjson-output",
+        workspace_filter=None,
+        output_ndjson=True,
+        expected_names=["repo1"],
+    ),
+]
+
+
 @pytest.mark.parametrize(
     list(CheckRepoStatusFixture._fields),
     CHECK_REPO_STATUS_FIXTURES,
@@ -266,3 +291,70 @@ def test_status_repos_pattern_filter(
     # Should only show flask
     assert "flask" in captured.out
     assert "django" not in captured.out
+
+
+@pytest.mark.parametrize(
+    list(StatusRunFixture._fields),
+    STATUS_RUN_FIXTURES,
+    ids=[fixture.test_id for fixture in STATUS_RUN_FIXTURES],
+)
+def test_status_repos_workspace_filter_and_ndjson(
+    test_id: str,
+    workspace_filter: str | None,
+    output_ndjson: bool,
+    expected_names: list[str],
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    capsys: t.Any,
+) -> None:
+    """Test status workspace filtering and NDJSON output."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    repo_path = tmp_path / "code" / "repo1"
+    other_repo_path = tmp_path / "work" / "repo2"
+
+    config_data = {
+        str(tmp_path / "code") + "/": {
+            "repo1": {"repo": "git+https://github.com/user/repo1.git"},
+        },
+        str(tmp_path / "work") + "/": {
+            "repo2": {"repo": "git+https://github.com/user/repo2.git"},
+        },
+    }
+    create_test_config(config_file, config_data)
+
+    init_git_repo(repo_path)
+    init_git_repo(other_repo_path)
+
+    status_repos(
+        repo_patterns=[],
+        config_path=config_file,
+        workspace_root=workspace_filter,
+        detailed=False,
+        output_json=False,
+        output_ndjson=output_ndjson,
+        color="never",
+    )
+
+    captured = capsys.readouterr()
+
+    if output_ndjson:
+        status_entries = []
+        for line in captured.out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            payload = json.loads(line)
+            if payload.get("reason") == "status":
+                status_entries.append(payload)
+        names = [entry["name"] for entry in status_entries]
+        for expected in expected_names:
+            assert expected in names
+    else:
+        for expected in expected_names:
+            assert expected in captured.out
+        # Ensure other repo is not shown when filtered
+        if workspace_filter:
+            assert "repo2" not in captured.out

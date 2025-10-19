@@ -30,6 +30,7 @@ class ListReposFixture(t.NamedTuple):
     tree: bool
     output_json: bool
     output_ndjson: bool
+    workspace_filter: str | None
     expected_repo_names: list[str]
 
 
@@ -46,6 +47,7 @@ LIST_REPOS_FIXTURES: list[ListReposFixture] = [
         tree=False,
         output_json=False,
         output_ndjson=False,
+        workspace_filter=None,
         expected_repo_names=["flask", "django"],
     ),
     ListReposFixture(
@@ -61,6 +63,7 @@ LIST_REPOS_FIXTURES: list[ListReposFixture] = [
         tree=False,
         output_json=False,
         output_ndjson=False,
+        workspace_filter=None,
         expected_repo_names=["flask"],
     ),
     ListReposFixture(
@@ -74,6 +77,38 @@ LIST_REPOS_FIXTURES: list[ListReposFixture] = [
         tree=False,
         output_json=True,
         output_ndjson=False,
+        workspace_filter=None,
+        expected_repo_names=["flask"],
+    ),
+    ListReposFixture(
+        test_id="list-ndjson-output",
+        config_data={
+            "~/code/": {
+                "flask": {"repo": "git+https://github.com/pallets/flask.git"},
+            },
+        },
+        patterns=[],
+        tree=False,
+        output_json=False,
+        output_ndjson=True,
+        workspace_filter=None,
+        expected_repo_names=["flask"],
+    ),
+    ListReposFixture(
+        test_id="list-workspace-filter",
+        config_data={
+            "~/code/": {
+                "flask": {"repo": "git+https://github.com/pallets/flask.git"},
+            },
+            "~/work/": {
+                "internal": {"repo": "git+https://github.com/user/internal.git"},
+            },
+        },
+        patterns=[],
+        tree=False,
+        output_json=False,
+        output_ndjson=False,
+        workspace_filter="~/code/",
         expected_repo_names=["flask"],
     ),
 ]
@@ -91,6 +126,7 @@ def test_list_repos(
     tree: bool,
     output_json: bool,
     output_ndjson: bool,
+    workspace_filter: str | None,
     expected_repo_names: list[str],
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
@@ -107,7 +143,7 @@ def test_list_repos(
     list_repos(
         repo_patterns=patterns,
         config_path=config_file,
-        workspace_root=None,
+        workspace_root=workspace_filter,
         tree=tree,
         output_json=output_json,
         output_ndjson=output_ndjson,

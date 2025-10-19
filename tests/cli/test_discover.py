@@ -36,6 +36,10 @@ class DiscoverFixture(t.NamedTuple):
     dry_run: bool
     yes: bool
     expected_repo_count: int
+    config_relpath: str | None
+    preexisting_config: dict[str, t.Any] | None
+    user_input: str | None
+    expected_workspace_labels: set[str] | None
 
 
 DISCOVER_FIXTURES: list[DiscoverFixture] = [
@@ -50,6 +54,10 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         dry_run=False,
         yes=True,
         expected_repo_count=2,
+        config_relpath=".vcspull.yaml",
+        preexisting_config=None,
+        user_input=None,
+        expected_workspace_labels={"~/code/"},
     ),
     DiscoverFixture(
         test_id="discover-recursive",
@@ -63,6 +71,10 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         dry_run=False,
         yes=True,
         expected_repo_count=3,
+        config_relpath=".vcspull.yaml",
+        preexisting_config=None,
+        user_input=None,
+        expected_workspace_labels={"~/code/"},
     ),
     DiscoverFixture(
         test_id="discover-dry-run",
@@ -74,6 +86,74 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         dry_run=True,
         yes=True,
         expected_repo_count=0,  # Nothing written in dry-run
+        config_relpath=".vcspull.yaml",
+        preexisting_config=None,
+        user_input=None,
+        expected_workspace_labels=None,
+    ),
+    DiscoverFixture(
+        test_id="discover-default-config",
+        repos_to_create=[
+            ("repo1", "git+https://github.com/user/repo1.git"),
+        ],
+        recursive=False,
+        workspace_override=None,
+        dry_run=False,
+        yes=True,
+        expected_repo_count=1,
+        config_relpath=None,
+        preexisting_config=None,
+        user_input=None,
+        expected_workspace_labels={"~/code/"},
+    ),
+    DiscoverFixture(
+        test_id="discover-workspace-normalization",
+        repos_to_create=[
+            ("repo1", "git+https://github.com/user/repo1.git"),
+        ],
+        recursive=False,
+        workspace_override=None,
+        dry_run=False,
+        yes=True,
+        expected_repo_count=2,
+        config_relpath=".vcspull.yaml",
+        preexisting_config={
+            "~/code": {
+                "existing": {"repo": "git+https://github.com/user/existing.git"},
+            },
+        },
+        user_input=None,
+        expected_workspace_labels={"~/code/"},
+    ),
+    DiscoverFixture(
+        test_id="discover-interactive-confirm",
+        repos_to_create=[
+            ("repo1", "git+https://github.com/user/repo1.git"),
+        ],
+        recursive=False,
+        workspace_override=None,
+        dry_run=False,
+        yes=False,
+        expected_repo_count=1,
+        config_relpath=".vcspull.yaml",
+        preexisting_config=None,
+        user_input="y",
+        expected_workspace_labels={"~/code/"},
+    ),
+    DiscoverFixture(
+        test_id="discover-interactive-abort",
+        repos_to_create=[
+            ("repo1", "git+https://github.com/user/repo1.git"),
+        ],
+        recursive=False,
+        workspace_override=None,
+        dry_run=False,
+        yes=False,
+        expected_repo_count=0,
+        config_relpath=".vcspull.yaml",
+        preexisting_config=None,
+        user_input="n",
+        expected_workspace_labels=None,
     ),
 ]
 
@@ -91,6 +171,10 @@ def test_discover_repos(
     dry_run: bool,
     yes: bool,
     expected_repo_count: int,
+    config_relpath: str | None,
+    preexisting_config: dict[str, t.Any] | None,
+    user_input: str | None,
+    expected_workspace_labels: set[str] | None,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: t.Any,
@@ -111,12 +195,29 @@ def test_discover_repos(
         repo_path = scan_dir / repo_name
         init_git_repo(repo_path, remote_url)
 
-    config_file = tmp_path / ".vcspull.yaml"
+    if config_relpath is None:
+        target_config_file = tmp_path / ".vcspull.yaml"
+        config_argument = None
+    else:
+        target_config_file = tmp_path / config_relpath
+        target_config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_argument = str(target_config_file)
+
+    if preexisting_config is not None:
+        import yaml
+
+        target_config_file.write_text(
+            yaml.dump(preexisting_config),
+            encoding="utf-8",
+        )
+
+    if user_input is not None:
+        monkeypatch.setattr("builtins.input", lambda _: user_input)
 
     # Run discover
     discover_repos(
         scan_dir_str=str(scan_dir),
-        config_file_path_str=str(config_file),
+        config_file_path_str=config_argument,
         recursive=recursive,
         workspace_root_override=workspace_override,
         yes=yes,
@@ -131,12 +232,15 @@ def test_discover_repos(
 
     # Check config file was created and has expected repos
     if expected_repo_count > 0:
-        assert config_file.exists()
+        assert target_config_file.exists()
 
         import yaml
 
-        with config_file.open() as f:
+        with target_config_file.open() as f:
             config = yaml.safe_load(f)
+
+        if expected_workspace_labels is not None:
+            assert set(config.keys()) == expected_workspace_labels
 
         # Count repos in config
         total_repos = sum(

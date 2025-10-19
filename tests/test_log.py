@@ -428,6 +428,7 @@ def test_get_cli_logger_names_includes_base() -> None:
         "vcspull.cli",
         "vcspull.cli._colors",
         "vcspull.cli._output",
+        "vcspull.cli._workspaces",
         "vcspull.cli.add",
         "vcspull.cli.discover",
         "vcspull.cli.fmt",

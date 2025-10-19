@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import shutil
 import typing as t
 
@@ -196,6 +197,45 @@ SYNC_REPO_FIXTURES: list[SyncFixture] = [
         sync_args=["sync", "my_git_repo"],
         expected_exit_code=0,
         expected_in_out="my_git_repo",
+    ),
+]
+
+
+class SyncNewBehaviourFixture(t.NamedTuple):
+    """Fixture for new sync flag behaviours."""
+
+    test_id: str
+    cli_args: list[str]
+    expect_json: bool
+    expected_stdout_contains: list[str]
+    expected_log_contains: list[str]
+    expected_summary: dict[str, int] | None
+
+
+SYNC_NEW_BEHAVIOUR_FIXTURES: list[SyncNewBehaviourFixture] = [
+    SyncNewBehaviourFixture(
+        test_id="dry-run-human",
+        cli_args=["sync", "--dry-run", "my_git_repo"],
+        expect_json=False,
+        expected_stdout_contains=["Would sync my_git_repo", "Summary"],
+        expected_log_contains=["Would sync my_git_repo"],
+        expected_summary=None,
+    ),
+    SyncNewBehaviourFixture(
+        test_id="dry-run-json",
+        cli_args=["sync", "--dry-run", "--json", "my_git_repo"],
+        expect_json=True,
+        expected_stdout_contains=[],
+        expected_log_contains=["Would sync my_git_repo"],
+        expected_summary={"total": 1, "previewed": 1, "synced": 0, "failed": 0},
+    ),
+    SyncNewBehaviourFixture(
+        test_id="workspace-filter-no-match",
+        cli_args=["sync", "my_git_repo", "--workspace", "~/other/"],
+        expect_json=False,
+        expected_stdout_contains=["No repositories matched the criteria."],
+        expected_log_contains=[],
+        expected_summary=None,
     ),
 ]
 
@@ -410,3 +450,70 @@ def test_sync_broken(
             expected_not_in_err = [expected_not_in_err]
         for needle in expected_not_in_err:
             assert needle not in err
+
+
+@pytest.mark.parametrize(
+    list(SyncNewBehaviourFixture._fields),
+    SYNC_NEW_BEHAVIOUR_FIXTURES,
+    ids=[fixture.test_id for fixture in SYNC_NEW_BEHAVIOUR_FIXTURES],
+)
+def test_sync_new_behaviours(
+    test_id: str,
+    cli_args: list[str],
+    expect_json: bool,
+    expected_stdout_contains: list[str],
+    expected_log_contains: list[str],
+    expected_summary: dict[str, int] | None,
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+) -> None:
+    """Test new sync behaviours such as dry-run preview and workspace filtering."""
+    import logging
+
+    caplog.set_level(logging.INFO)
+
+    config = {
+        "~/github_projects/": {
+            "my_git_repo": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"origin": f"git+file://{git_repo.path}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    with contextlib.suppress(SystemExit):
+        cli(cli_args)
+
+    captured = capsys.readouterr()
+    stdout = "".join([captured.out, captured.err])
+
+    for needle in expected_stdout_contains:
+        assert needle in stdout
+
+    for needle in expected_log_contains:
+        assert needle in caplog.text
+
+    if expect_json:
+        start = captured.out.find("[")
+        assert start >= 0, "Expected JSON payload in stdout"
+        payload = json.loads(captured.out[start:])
+        assert isinstance(payload, list)
+        statuses = [event for event in payload if event.get("reason") == "sync"]
+        assert any(event.get("status") == "preview" for event in statuses)
+        summary = next(event for event in payload if event.get("reason") == "summary")
+        assert expected_summary is not None
+        assert summary["total"] == expected_summary["total"]
+        assert summary["previewed"] == expected_summary["previewed"]
+        assert summary["synced"] == expected_summary["synced"]
+        assert summary["failed"] == expected_summary["failed"]

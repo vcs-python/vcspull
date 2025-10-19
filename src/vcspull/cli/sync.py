@@ -12,6 +12,11 @@ from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull.types import ConfigDict
+
+from ._colors import Colors, get_color_mode
+from ._output import OutputFormatter, OutputMode, get_output_mode
+from ._workspaces import filter_by_workspace
 
 if t.TYPE_CHECKING:
     import argparse
@@ -115,11 +120,15 @@ def sync(
             parser.print_help()
         sys.exit(2)
 
+    output_mode = get_output_mode(output_json, output_ndjson)
+    formatter = OutputFormatter(output_mode)
+    colors = Colors(get_color_mode(color))
+
     if config:
         configs = load_configs([config])
     else:
         configs = load_configs(find_config_files(include_home=True))
-    found_repos = []
+    found_repos: list[ConfigDict] = []
 
     for repo_pattern in repo_patterns:
         path, vcs_url, name = None, None, None
@@ -130,24 +139,62 @@ def sync(
         else:
             name = repo_pattern
 
-        # collect the repos from the config files
         found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
-        if len(found) == 0:
+        if not found:
             log.info(NO_REPOS_FOR_TERM_MSG.format(name=name))
-        found_repos.extend(filter_repos(configs, path=path, vcs_url=vcs_url, name=name))
+        found_repos.extend(found)
+
+    if workspace_root:
+        found_repos = filter_by_workspace(found_repos, workspace_root)
+
+    if not found_repos:
+        formatter.emit(
+            {
+                "reason": "summary",
+                "total": 0,
+                "synced": 0,
+                "previewed": 0,
+                "failed": 0,
+            }
+        )
+        formatter.emit_text(colors.warning("No repositories matched the criteria."))
+        formatter.finalize()
+        return
+
+    summary = {"total": 0, "synced": 0, "previewed": 0, "failed": 0}
 
     for repo in found_repos:
         repo_name = repo.get("name", "unknown")
         repo_path = repo.get("path", "unknown")
+        workspace_label = repo.get("workspace_root", "")
+
+        summary["total"] += 1
+
+        event: dict[str, t.Any] = {
+            "reason": "sync",
+            "name": repo_name,
+            "path": str(repo_path),
+            "workspace_root": str(workspace_label),
+        }
 
         if dry_run:
-            # Dry run mode: just log what would be done
+            summary["previewed"] += 1
+            event["status"] = "preview"
+            formatter.emit(event)
             log.info(f"Would sync {repo_name} at {repo_path}")
+            formatter.emit_text(
+                f"{colors.warning('→')} Would sync {colors.info(repo_name)} "
+                f"{colors.muted('→')} {repo_path}",
+            )
             continue
 
         try:
             update_repo(repo)
         except Exception as e:
+            summary["failed"] += 1
+            event["status"] = "error"
+            event["error"] = str(e)
+            formatter.emit(event)
             log.info(
                 f"Failed syncing {repo_name}",
             )
@@ -155,10 +202,48 @@ def sync(
                 import traceback
 
                 traceback.print_exc()
+            formatter.emit_text(
+                f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
+                f"{colors.error(str(e))}",
+            )
             if exit_on_error:
+                formatter.emit(
+                    {
+                        "reason": "summary",
+                        **summary,
+                    }
+                )
+                formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
                 raise SystemExit(EXIT_ON_ERROR_MSG) from e
+            continue
+
+        summary["synced"] += 1
+        event["status"] = "synced"
+        formatter.emit(event)
+        formatter.emit_text(
+            f"{colors.success('✓')} Synced {colors.info(repo_name)} "
+            f"{colors.muted('→')} {repo_path}",
+        )
+
+    formatter.emit(
+        {
+            "reason": "summary",
+            **summary,
+        }
+    )
+
+    if formatter.mode == OutputMode.HUMAN:
+        formatter.emit_text(
+            f"\n{colors.info('Summary:')} "
+            f"{summary['total']} repos, "
+            f"{colors.success(str(summary['synced']))} synced, "
+            f"{colors.warning(str(summary['previewed']))} previewed, "
+            f"{colors.error(str(summary['failed']))} failed",
+        )
+
+    formatter.finalize()
 
 
 def progress_cb(output: str, timestamp: datetime) -> None:

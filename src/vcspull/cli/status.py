@@ -11,6 +11,7 @@ from vcspull.config import filter_repos, find_config_files, load_configs
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
+from ._workspaces import filter_by_workspace
 
 if t.TYPE_CHECKING:
     from vcspull.types import ConfigDict
@@ -164,8 +165,7 @@ def status_repos(
 
     # Further filter by workspace root if specified
     if workspace_root:
-        # TODO: Implement workspace root filtering
-        pass
+        found_repos = filter_by_workspace(found_repos, workspace_root)
 
     # Initialize output formatter and colors
     output_mode = get_output_mode(output_json, output_ndjson)
