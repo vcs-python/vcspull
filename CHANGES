@@ -31,9 +31,9 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
-## vcspull v1.41.0 (2025-10-25)
-
 _Notes on upcoming releases will be added here_
+
+## vcspull v1.41.0 (2025-10-25)
 
 ### Breaking Changes
 
