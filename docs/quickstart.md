@@ -52,14 +52,25 @@ In their versions you will see notification like `a1`, `b1`, and `rc1`, respecti
 
   ```console
   $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
+  // Usage: vcspull@next sync [config]
   ```
 
-  Then use `vcspull@next sync [config]...`.
+- [uv tool install][uv-tools]\:
+
+  ```console
+  $ uv tool install --prerelease=allow vcspull
+  ```
 
 - [uv]\:
 
   ```console
-  $ uv tool install --prerelease=allow vcspull
+  $ uv add vcspull --prerelease allow
+  ```
+
+- [uvx]\:
+
+  ```console
+  $ uvx --from 'vcspull' --prerelease allow vcspull
   ```
 
 via trunk (can break easily):
@@ -85,6 +96,8 @@ via trunk (can break easily):
 [pip]: https://pip.pypa.io/en/stable/
 [pipx]: https://pypa.github.io/pipx/docs/
 [uv]: https://docs.astral.sh/uv/
+[uv-tools]: https://docs.astral.sh/uv/concepts/tools/
+[uvx]: https://docs.astral.sh/uv/guides/tools/
 
 ## Configuration
 
