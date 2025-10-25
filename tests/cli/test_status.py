@@ -16,6 +16,7 @@ from vcspull.cli.status import (
     check_repo_status,
     status_repos,
 )
+from vcspull.types import ConfigDict
 
 if t.TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -561,8 +562,6 @@ async def test_check_repos_status_async_basic(
     tmp_path: pathlib.Path,
 ) -> None:
     """Test basic async concurrent status checking."""
-    from vcspull.types import ConfigDict
-
     # Create test repos
     repo1_path = tmp_path / "repo1"
     repo2_path = tmp_path / "repo2"
@@ -573,7 +572,7 @@ async def test_check_repos_status_async_basic(
     # repo3 intentionally not created (missing)
 
     repos = t.cast(
-        list[ConfigDict],
+        list["ConfigDict"],
         [
             {"name": "repo1", "path": str(repo1_path)},
             {"name": "repo2", "path": str(repo2_path)},
@@ -601,8 +600,6 @@ async def test_check_repos_status_async_with_detailed(
     tmp_path: pathlib.Path,
 ) -> None:
     """Test async status checking with detailed mode."""
-    from vcspull.types import ConfigDict
-
     repo_path, _remote_path = setup_repo_with_remote(tmp_path)
 
     repos = t.cast(
@@ -630,8 +627,6 @@ async def test_check_repos_status_async_concurrency_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that semaphore limits concurrent operations."""
-    from vcspull.types import ConfigDict
-
     # Create multiple repos
     repos_list = []
     for i in range(10):
