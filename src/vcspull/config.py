@@ -287,13 +287,10 @@ def load_configs(
     return repos
 
 
-ConfigDictTuple = tuple["ConfigDict", "ConfigDict"]
-
-
 def detect_duplicate_repos(
     config1: list[ConfigDict],
     config2: list[ConfigDict],
-) -> list[ConfigDictTuple]:
+) -> list[tuple[ConfigDict, ConfigDict]]:
     """Return duplicate repos dict if repo_dir same and vcs different.
 
     Parameters
@@ -304,13 +301,13 @@ def detect_duplicate_repos(
 
     Returns
     -------
-    list[ConfigDictTuple]
+    list[tuple[ConfigDict, ConfigDict]]
         List of duplicate tuples
     """
     if not config1:
         return []
 
-    dupes: list[ConfigDictTuple] = []
+    dupes: list[tuple[ConfigDict, ConfigDict]] = []
 
     repo_dirs = {
         pathlib.Path(repo["path"]).parent / repo["name"]: repo for repo in config1

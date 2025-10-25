@@ -24,7 +24,6 @@ from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull.config import filter_repos, find_config_files, load_configs
-from vcspull.types import ConfigDict
 from vcspull.util import contract_user_home
 
 from ._colors import Colors, get_color_mode
@@ -47,6 +46,8 @@ if t.TYPE_CHECKING:
 
     from libvcs._internal.types import VCSLiteral
     from libvcs.sync.git import GitSync
+
+    from vcspull.types import ConfigDict
 
 log = logging.getLogger(__name__)
 

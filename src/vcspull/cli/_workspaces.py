@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import fnmatch
 import pathlib
+import typing as t
 
 from vcspull.config import canonicalize_workspace_path, workspace_root_label
-from vcspull.types import ConfigDict
+
+if t.TYPE_CHECKING:
+    from vcspull.types import ConfigDict
 
 
 def _normalize_workspace_label(
