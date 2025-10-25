@@ -265,3 +265,98 @@ def test_list_repos_pattern_no_match(
 
     captured = capsys.readouterr()
     assert "No repositories found" in captured.out
+
+
+# Tests for path contraction in JSON output
+
+
+class PathContractionFixture(t.NamedTuple):
+    """Fixture for testing path contraction in JSON/NDJSON output."""
+
+    test_id: str
+    output_json: bool
+    output_ndjson: bool
+    tree: bool
+
+
+PATH_CONTRACTION_FIXTURES: list[PathContractionFixture] = [
+    PathContractionFixture(
+        test_id="json-output-contracts-paths",
+        output_json=True,
+        output_ndjson=False,
+        tree=False,
+    ),
+    PathContractionFixture(
+        test_id="ndjson-output-contracts-paths",
+        output_json=False,
+        output_ndjson=True,
+        tree=False,
+    ),
+    PathContractionFixture(
+        test_id="json-tree-output-contracts-paths",
+        output_json=True,
+        output_ndjson=False,
+        tree=True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(PathContractionFixture._fields),
+    PATH_CONTRACTION_FIXTURES,
+    ids=[fixture.test_id for fixture in PATH_CONTRACTION_FIXTURES],
+)
+def test_list_repos_path_contraction(
+    test_id: str,
+    output_json: bool,
+    output_ndjson: bool,
+    tree: bool,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    capsys: t.Any,
+) -> None:
+    """Test that JSON/NDJSON output contracts home directory paths."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_data = {
+        "~/code/": {
+            "flask": {"repo": "git+https://github.com/pallets/flask.git"},
+            "django": {"repo": "git+https://github.com/django/django.git"},
+        },
+    }
+    create_test_config(config_file, config_data)
+
+    list_repos(
+        repo_patterns=[],
+        config_path=config_file,
+        workspace_root=None,
+        tree=tree,
+        output_json=output_json,
+        output_ndjson=output_ndjson,
+        color="never",
+    )
+
+    captured = capsys.readouterr()
+
+    if output_json:
+        output_data = json.loads(captured.out)
+        assert isinstance(output_data, list)
+        for item in output_data:
+            path = item["path"]
+            # Path should start with ~/ not /home/<user>/
+            assert path.startswith("~/"), f"Path {path} should be contracted to ~/..."
+            assert not path.startswith(str(tmp_path)), (
+                f"Path {path} should not contain absolute home path"
+            )
+    elif output_ndjson:
+        lines = [line for line in captured.out.strip().split("\n") if line]
+        for line in lines:
+            item = json.loads(line)
+            path = item["path"]
+            # Path should start with ~/ not /home/<user>/
+            assert path.startswith("~/"), f"Path {path} should be contracted to ~/..."
+            assert not path.startswith(str(tmp_path)), (
+                f"Path {path} should not contain absolute home path"
+            )

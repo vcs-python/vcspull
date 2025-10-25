@@ -263,7 +263,7 @@ def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.A
 
     status: dict[str, t.Any] = {
         "name": repo_name,
-        "path": str(repo_path),
+        "path": contract_user_home(repo_path),
         "workspace_root": workspace_root,
         "exists": False,
         "is_git": False,

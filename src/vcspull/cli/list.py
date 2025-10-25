@@ -161,12 +161,12 @@ def _output_flat(
         repo_url = repo.get("url", repo.get("pip_url", "unknown"))
         repo_path = repo.get("path", "unknown")
 
-        # JSON/NDJSON output
+        # JSON/NDJSON output (contract home for privacy/portability)
         formatter.emit(
             {
                 "name": repo_name,
                 "url": str(repo_url),
-                "path": str(repo_path),
+                "path": contract_user_home(repo_path),
                 "workspace_root": str(repo.get("workspace_root", "")),
             }
         )
@@ -212,12 +212,12 @@ def _output_tree(
             repo_url = repo.get("url", repo.get("pip_url", "unknown"))
             repo_path = repo.get("path", "unknown")
 
-            # JSON/NDJSON output
+            # JSON/NDJSON output (contract home for privacy/portability)
             formatter.emit(
                 {
                     "name": repo_name,
                     "url": str(repo_url),
-                    "path": str(repo_path),
+                    "path": contract_user_home(repo_path),
                     "workspace_root": workspace,
                 }
             )

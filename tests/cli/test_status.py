@@ -843,3 +843,112 @@ def test_status_repos_concurrent_max_concurrent_limit(
 
     status_entries = [item for item in output_data if item.get("reason") == "status"]
     assert len(status_entries) == 5  # All repos should be checked
+
+
+# Tests for path contraction in JSON output
+
+
+class StatusPathContractionFixture(t.NamedTuple):
+    """Fixture for testing path contraction in status JSON/NDJSON output."""
+
+    test_id: str
+    output_json: bool
+    output_ndjson: bool
+    detailed: bool
+
+
+STATUS_PATH_CONTRACTION_FIXTURES: list[StatusPathContractionFixture] = [
+    StatusPathContractionFixture(
+        test_id="json-output-contracts-paths",
+        output_json=True,
+        output_ndjson=False,
+        detailed=False,
+    ),
+    StatusPathContractionFixture(
+        test_id="ndjson-output-contracts-paths",
+        output_json=False,
+        output_ndjson=True,
+        detailed=False,
+    ),
+    StatusPathContractionFixture(
+        test_id="json-detailed-contracts-paths",
+        output_json=True,
+        output_ndjson=False,
+        detailed=True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(StatusPathContractionFixture._fields),
+    STATUS_PATH_CONTRACTION_FIXTURES,
+    ids=[fixture.test_id for fixture in STATUS_PATH_CONTRACTION_FIXTURES],
+)
+def test_status_repos_path_contraction(
+    test_id: str,
+    output_json: bool,
+    output_ndjson: bool,
+    detailed: bool,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: t.Any,
+) -> None:
+    """Test that status JSON/NDJSON output contracts home directory paths."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    repo1_path = tmp_path / "code" / "repo1"
+    repo2_path = tmp_path / "code" / "repo2"
+
+    config_data = {
+        str(tmp_path / "code") + "/": {
+            "repo1": {"repo": "git+https://github.com/user/repo1.git"},
+            "repo2": {"repo": "git+https://github.com/user/repo2.git"},
+        },
+    }
+    create_test_config(config_file, config_data)
+
+    init_git_repo(repo1_path)
+    init_git_repo(repo2_path)
+
+    status_repos(
+        repo_patterns=[],
+        config_path=config_file,
+        workspace_root=None,
+        detailed=detailed,
+        output_json=output_json,
+        output_ndjson=output_ndjson,
+        color="never",
+        concurrent=False,  # Use sequential for deterministic testing
+        max_concurrent=None,
+    )
+
+    captured = capsys.readouterr()
+
+    if output_json:
+        output_data = json.loads(captured.out)
+        status_entries = [
+            item for item in output_data if item.get("reason") == "status"
+        ]
+        for entry in status_entries:
+            path = entry["path"]
+            # Path should start with ~/ not /home/<user>/
+            assert path.startswith("~/"), f"Path {path} should be contracted to ~/..."
+            assert not path.startswith(str(tmp_path)), (
+                f"Path {path} should not contain absolute home path"
+            )
+    elif output_ndjson:
+        lines = [line for line in captured.out.strip().split("\n") if line]
+        status_entries = [
+            json.loads(line)
+            for line in lines
+            if json.loads(line).get("reason") == "status"
+        ]
+        for entry in status_entries:
+            path = entry["path"]
+            # Path should start with ~/ not /home/<user>/
+            assert path.startswith("~/"), f"Path {path} should be contracted to ~/..."
+            assert not path.startswith(str(tmp_path)), (
+                f"Path {path} should not contain absolute home path"
+            )

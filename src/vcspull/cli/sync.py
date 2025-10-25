@@ -264,7 +264,7 @@ def _build_plan_entry(
 
     return PlanEntry(
         name=str(repo.get("name", "unknown")),
-        path=str(repo_path),
+        path=contract_user_home(repo_path),
         workspace_root=workspace_root,
         action=action,
         detail=detail,
@@ -724,7 +724,7 @@ def sync(
         event: dict[str, t.Any] = {
             "reason": "sync",
             "name": repo_name,
-            "path": str(repo_path),
+            "path": contract_user_home(repo_path),
             "workspace_root": str(workspace_label),
         }
 
