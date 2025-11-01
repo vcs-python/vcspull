@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import typing as t
 from dataclasses import dataclass, field
@@ -185,6 +186,7 @@ class OutputFormatter:
 
         if self.mode == OutputMode.NDJSON:
             # Stream one JSON object per line immediately
+            sys.stdout.write(json.dumps(payload) + "\n")
             sys.stdout.flush()
         elif self.mode == OutputMode.JSON:
             # Buffer for later output as single array
@@ -200,11 +202,14 @@ class OutputFormatter:
             Text to output
         """
         if self.mode == OutputMode.HUMAN:
-            pass
+            sys.stdout.write(text + "\n")
+            sys.stdout.flush()
 
     def finalize(self) -> None:
         """Finalize output (flush JSON buffer if needed)."""
         if self.mode == OutputMode.JSON and self._json_buffer:
+            sys.stdout.write(json.dumps(self._json_buffer, indent=2) + "\n")
+            sys.stdout.flush()
             self._json_buffer.clear()
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
 import pathlib
@@ -499,8 +500,9 @@ def _emit_plan_output(
             formatter.emit(entry)
         formatter.emit(plan.summary)
         return
-
-    PlanResult(entries=display_entries, summary=plan.summary)
+    structured = PlanResult(entries=display_entries, summary=plan.summary)
+    sys.stdout.write(json.dumps(structured.to_json_object(), indent=2) + "\n")
+    sys.stdout.flush()
 
 
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
