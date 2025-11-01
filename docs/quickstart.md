@@ -58,7 +58,7 @@ In their versions you will see notification like `a1`, `b1`, and `rc1`, respecti
 - [uv tool install][uv-tools]\:
 
   ```console
-  $ uv tool install --prerelease=allow vcspull
+  $ uv tool install --prerelease allow vcspull
   ```
 
 - [uv]\:
