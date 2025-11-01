@@ -31,6 +31,7 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 ### Breaking changes
 
+- Bump minimum libvcs from v0.36.0 -> v0.37.0
 - Drop support for Python 3.9; the new minimum is Python 3.10 (#478)
 
   See also:
