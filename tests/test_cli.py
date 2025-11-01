@@ -21,7 +21,6 @@ from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
 sync_module = importlib.import_module("vcspull.cli.sync")
 
 if t.TYPE_CHECKING:
-    import pathlib
     from typing import TypeAlias
 
     from libvcs.sync.git import GitSync
@@ -498,13 +497,14 @@ def test_cli_negative_flows(
                             "path": str(repo_dir),
                         },
                     },
-                }
+                },
             ),
             encoding="utf-8",
         )
 
         def _missing_git(
-            cmd: list[str], **kwargs: object
+            cmd: list[str],
+            **kwargs: object,
         ) -> subprocess.CompletedProcess[str]:
             if cmd and cmd[0] == "git":
                 error_message = "git not installed"
@@ -705,7 +705,7 @@ def test_sync_dry_run_plan_human(
         cli(cli_args)
 
     captured = capsys.readouterr()
-    output = "".join([captured.out, captured.err])
+    output = f"{captured.out}{captured.err}"
 
     if expected_contains:
         for needle in expected_contains:
@@ -779,7 +779,7 @@ DRY_RUN_PLAN_MACHINE_FIXTURES: list[DryRunPlanMachineFixture] = [
                 behind=2,
                 branch="main",
                 remote_branch="origin/main",
-            )
+            ),
         ],
         expected_operation_subset={
             "name": "repo-json",
@@ -809,7 +809,7 @@ DRY_RUN_PLAN_MACHINE_FIXTURES: list[DryRunPlanMachineFixture] = [
                 action=PlanAction.CLONE,
                 detail="missing",
                 url="git+https://example.com/repo-ndjson.git",
-            )
+            ),
         ],
         expected_operation_subset={
             "name": "repo-ndjson",
@@ -950,7 +950,7 @@ def test_sync_dry_run_plan_progress(
                 "url": f"git+file://{git_repo.path}",
                 "remotes": {"origin": f"git+file://{git_repo.path}"},
             },
-        }
+        },
     }
     yaml_config = config_path / ".vcspull.yaml"
     yaml_config.write_text(
@@ -971,6 +971,6 @@ def test_sync_dry_run_plan_progress(
         cli(["sync", "--dry-run", "repo_*"])
 
     captured = capsys.readouterr()
-    output = "".join([captured.out, captured.err])
+    output = f"{captured.out}{captured.err}"
     assert "Progress:" in output
     assert "Plan:" in output

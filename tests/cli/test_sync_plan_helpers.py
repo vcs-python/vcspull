@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
 import subprocess
 import typing as t
 
@@ -10,6 +9,9 @@ import pytest
 
 from vcspull.cli._output import PlanAction
 from vcspull.cli.sync import SyncPlanConfig, _determine_plan_action, _maybe_fetch
+
+if t.TYPE_CHECKING:
+    import pathlib
 
 
 class MaybeFetchFixture(t.NamedTuple):

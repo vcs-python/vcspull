@@ -124,7 +124,12 @@ PLAN_SUMMARY_PAYLOAD_FIXTURES: list[PlanSummaryPayloadFixture] = [
     PlanSummaryPayloadFixture(
         test_id="with-duration",
         summary=PlanSummary(
-            clone=0, update=1, unchanged=0, blocked=0, errors=0, duration_ms=120
+            clone=0,
+            update=1,
+            unchanged=0,
+            blocked=0,
+            errors=0,
+            duration_ms=120,
         ),
         expected_total=1,
     ),

@@ -8,8 +8,6 @@ import typing as t
 from vcspull.util import contract_user_home, get_config_dir
 
 if t.TYPE_CHECKING:
-    import pathlib
-
     import pytest
 
 

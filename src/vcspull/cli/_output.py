@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 import typing as t
 from dataclasses import dataclass, field
@@ -147,7 +146,7 @@ class PlanResult:
                 {
                     "path": workspace_root,
                     "operations": [entry.to_payload() for entry in entries],
-                }
+                },
             )
         return {
             "format_version": "1",
@@ -186,7 +185,6 @@ class OutputFormatter:
 
         if self.mode == OutputMode.NDJSON:
             # Stream one JSON object per line immediately
-            print(json.dumps(payload), file=sys.stdout)
             sys.stdout.flush()
         elif self.mode == OutputMode.JSON:
             # Buffer for later output as single array
@@ -202,12 +200,11 @@ class OutputFormatter:
             Text to output
         """
         if self.mode == OutputMode.HUMAN:
-            print(text)
+            pass
 
     def finalize(self) -> None:
         """Finalize output (flush JSON buffer if needed)."""
         if self.mode == OutputMode.JSON and self._json_buffer:
-            print(json.dumps(self._json_buffer, indent=2), file=sys.stdout)
             self._json_buffer.clear()
 
 

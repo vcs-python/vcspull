@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import pathlib
 import subprocess
 import typing as t
 
@@ -16,15 +15,18 @@ from vcspull.cli.status import (
     check_repo_status,
     status_repos,
 )
-from vcspull.types import ConfigDict
 
 if t.TYPE_CHECKING:
+    import pathlib
+
     from _pytest.monkeypatch import MonkeyPatch
+
+    from vcspull.types import ConfigDict
 
 
 def create_test_config(config_path: pathlib.Path, repos: dict[str, t.Any]) -> None:
     """Create a test config file."""
-    with config_path.open("w") as f:
+    with config_path.open("w", encoding="utf-8") as f:
         yaml.dump(repos, f)
 
 
@@ -572,7 +574,7 @@ async def test_check_repos_status_async_basic(
     # repo3 intentionally not created (missing)
 
     repos = t.cast(
-        list["ConfigDict"],
+        "list[ConfigDict]",
         [
             {"name": "repo1", "path": str(repo1_path)},
             {"name": "repo2", "path": str(repo2_path)},
@@ -603,7 +605,7 @@ async def test_check_repos_status_async_with_detailed(
     repo_path, _remote_path = setup_repo_with_remote(tmp_path)
 
     repos = t.cast(
-        list[ConfigDict],
+        "list[ConfigDict]",
         [
             {"name": "project", "path": str(repo_path)},
         ],
@@ -634,7 +636,7 @@ async def test_check_repos_status_async_concurrency_limit(
         init_git_repo(repo_path)
         repos_list.append({"name": f"repo{i}", "path": str(repo_path)})
 
-    repos = t.cast(list[ConfigDict], repos_list)
+    repos = t.cast("list[ConfigDict]", repos_list)
 
     # Track concurrent calls
     concurrent_calls = []

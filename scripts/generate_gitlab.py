@@ -61,14 +61,14 @@ try:
 
         if result != "y":
             log.info(
-                f"Aborting per user request as existing config file ({config_filename})"
-                " should not be overwritten!",
+                "Aborting per user request as existing config file (%s) should not be overwritten!",
+                config_filename,
             )
             sys.exit(0)
 
-    config_file = config_filename.open(mode="w")
+    config_file = config_filename.open(encoding="utf-8", mode="w")
 except OSError:
-    log.info(f"File {config_filename} not accessible")
+    log.info("File %s not accessible", config_filename)
     sys.exit(1)
 
 response = requests.get(
@@ -78,7 +78,7 @@ response = requests.get(
 )
 
 if response.status_code != 200:
-    log.info(f"Error: {response}")
+    log.info("Error: %s", response)
     sys.exit(1)
 
 path_prefix = pathlib.Path().cwd()

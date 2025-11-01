@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import logging
 import os
@@ -22,6 +21,8 @@ from ._output import OutputFormatter, get_output_mode
 from ._workspaces import filter_by_workspace
 
 if t.TYPE_CHECKING:
+    import argparse
+
     from vcspull.types import ConfigDict
 
 log = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ class StatusProgressPrinter:
                 f"Progress: {processed}/{self.total}",
                 self._colors.success(f"✓:{exists}"),
                 self._colors.error(f"✗:{missing}"),
-            )
+            ),
         )
         clean_len = _visible_length(line)
         padding = max(self._last_render_len - clean_len, 0)
@@ -204,7 +205,9 @@ async def _check_repos_status_async(
     async def check_with_limit(repo: ConfigDict) -> dict[str, t.Any]:
         async with semaphore:
             return await asyncio.to_thread(
-                check_repo_status, repo, detailed=config.detailed
+                check_repo_status,
+                repo,
+                detailed=config.detailed,
             )
 
     tasks = [asyncio.create_task(check_with_limit(repo)) for repo in repos]
@@ -410,7 +413,9 @@ def status_repos(
 
         progress_enabled = formatter.mode == OutputMode.HUMAN and sys.stdout.isatty()
         progress_printer = StatusProgressPrinter(
-            len(found_repos), colors, progress_enabled
+            len(found_repos),
+            colors,
+            progress_enabled,
         )
 
         start_time = perf_counter()
@@ -419,7 +424,7 @@ def status_repos(
                 found_repos,
                 config=check_config,
                 progress=progress_printer if progress_enabled else None,
-            )
+            ),
         )
         duration_ms = int((perf_counter() - start_time) * 1000)
 
@@ -453,7 +458,7 @@ def status_repos(
             {
                 "reason": "status",
                 **status,
-            }
+            },
         )
 
         # Human output
@@ -541,7 +546,7 @@ def _format_status_line(
 
     if detailed:
         formatter.emit_text(
-            f"  {colors.muted('Path:')} {contract_user_home(status['path'])}"
+            f"  {colors.muted('Path:')} {contract_user_home(status['path'])}",
         )
         branch = status.get("branch")
         if branch:

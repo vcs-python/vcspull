@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
 import typing as t
 
 import pytest
@@ -10,6 +9,8 @@ import pytest
 from vcspull import config
 
 if t.TYPE_CHECKING:
+    import pathlib
+
     from vcspull.types import ConfigDict, RawConfigDict
 
 

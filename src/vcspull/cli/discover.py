@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import logging
 import os
 import pathlib
@@ -21,6 +20,9 @@ from vcspull.config import (
     save_config_yaml,
     workspace_root_label,
 )
+
+if t.TYPE_CHECKING:
+    import argparse
 
 log = logging.getLogger(__name__)
 
@@ -222,7 +224,7 @@ def discover_repos(
         cwd=cwd,
         home=home,
     )
-    raw_config, workspace_map, merge_conflicts, _merge_changes = normalization_result
+    raw_config, workspace_map, merge_conflicts, merge_changes = normalization_result
 
     for message in merge_conflicts:
         log.warning(message)
@@ -348,7 +350,7 @@ def discover_repos(
                     Style.RESET_ALL,
                 )
 
-    changes_made = _merge_changes > 0
+    changes_made = merge_changes > 0
 
     if not repos_to_add:
         if existing_repos:

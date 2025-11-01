@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import logging
 import os
 import pathlib
@@ -42,7 +41,6 @@ from .status import check_repo_status
 
 if t.TYPE_CHECKING:
     import argparse
-    import pathlib
 
     from libvcs._internal.types import VCSLiteral
     from libvcs.sync.git import GitSync
@@ -114,7 +112,7 @@ class PlanProgressPrinter:
                 self._colors.muted(f"✓:{summary.unchanged}"),
                 self._colors.warning(f"⚠:{summary.blocked}"),
                 self._colors.error(f"✗:{summary.errors}"),
-            )
+            ),
         )
         clean_len = _visible_length(line)
         padding = max(self._last_render_len - clean_len, 0)
@@ -145,7 +143,7 @@ def _get_repo_path(repo: ConfigDict) -> pathlib.Path:
     """Return the resolved filesystem path for a repository entry."""
     raw_path = repo.get("path")
     if raw_path is None:
-        return pathlib.Path().resolve()
+        return pathlib.Path.cwd()
     return pathlib.Path(str(raw_path)).expanduser()
 
 
@@ -459,7 +457,7 @@ def _render_plan(
                     extra_lines.append(f"url: {entry.url}")
                 if entry.ahead is not None or entry.behind is not None:
                     extra_lines.append(
-                        f"ahead/behind: {entry.ahead or 0}/{entry.behind or 0}"
+                        f"ahead/behind: {entry.ahead or 0}/{entry.behind or 0}",
                     )
                 if entry.error:
                     extra_lines.append(f"error: {entry.error}")
@@ -502,8 +500,7 @@ def _emit_plan_output(
         formatter.emit(plan.summary)
         return
 
-    structured = PlanResult(entries=display_entries, summary=plan.summary)
-    print(json.dumps(structured.to_json_object(), indent=2))
+    PlanResult(entries=display_entries, summary=plan.summary)
 
 
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -679,7 +676,7 @@ def sync(
                 found_repos,
                 config=plan_config,
                 progress=progress_printer if progress_enabled else None,
-            )
+            ),
         )
         plan_result.summary.duration_ms = int((perf_counter() - start_time) * 1000)
         if progress_enabled:
@@ -711,7 +708,7 @@ def sync(
 
         def silent_progress(output: str, timestamp: datetime) -> None:
             """Suppress progress for machine-readable output."""
-            return None
+            return
 
         progress_callback = silent_progress
 
@@ -755,7 +752,8 @@ def sync(
             formatter.emit(event)
             if is_human:
                 log.info(
-                    f"Failed syncing {repo_name}",
+                    "Failed syncing %s",
+                    repo_name,
                 )
             if log.isEnabledFor(logging.DEBUG):
                 import traceback
@@ -770,7 +768,7 @@ def sync(
                     {
                         "reason": "summary",
                         **summary,
-                    }
+                    },
                 )
                 formatter.finalize()
                 if parser is not None:
@@ -790,7 +788,7 @@ def sync(
         {
             "reason": "summary",
             **summary,
-        }
+        },
     )
 
     if formatter.mode == OutputMode.HUMAN:

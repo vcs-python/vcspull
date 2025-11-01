@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import logging
 import pathlib
 import traceback
@@ -19,6 +18,9 @@ from vcspull.config import (
     save_config_yaml,
     workspace_root_label,
 )
+
+if t.TYPE_CHECKING:
+    import argparse
 
 log = logging.getLogger(__name__)
 
@@ -180,8 +182,8 @@ def add_repo(
         cwd=cwd,
         home=home,
     )
-    raw_config, workspace_map, merge_conflicts, _merge_changes = normalization_result
-    config_was_normalized = _merge_changes > 0
+    raw_config, workspace_map, merge_conflicts, merge_changes = normalization_result
+    config_was_normalized = merge_changes > 0
 
     for message in merge_conflicts:
         log.warning(message)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
 import subprocess
 import typing as t
 
@@ -11,6 +10,8 @@ import pytest
 from vcspull.cli.discover import discover_repos
 
 if t.TYPE_CHECKING:
+    import pathlib
+
     from _pytest.monkeypatch import MonkeyPatch
 
 

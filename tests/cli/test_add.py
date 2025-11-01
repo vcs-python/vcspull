@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
 import typing as t
 
 import pytest
@@ -10,6 +9,8 @@ import pytest
 from vcspull.cli.add import add_repo
 
 if t.TYPE_CHECKING:
+    import pathlib
+
     from _pytest.monkeypatch import MonkeyPatch
 
 
@@ -205,25 +206,24 @@ def test_add_repo(
             assert not target_config_file.exists(), (
                 "Config file should not be created in dry-run mode"
             )
-    else:
-        # In normal mode, check the config was written correctly
-        if len(expected_in_config) > 0:
-            assert target_config_file.exists(), "Config file should be created"
+    # In normal mode, check the config was written correctly
+    elif len(expected_in_config) > 0:
+        assert target_config_file.exists(), "Config file should be created"
 
-            import yaml
+        import yaml
 
-            with target_config_file.open() as f:
-                actual_config = yaml.safe_load(f)
+        with target_config_file.open() as f:
+            actual_config = yaml.safe_load(f)
 
-            for workspace, repos in expected_in_config.items():
-                assert workspace in actual_config, (
-                    f"Workspace '{workspace}' should be in config"
+        for workspace, repos in expected_in_config.items():
+            assert workspace in actual_config, (
+                f"Workspace '{workspace}' should be in config"
+            )
+            for repo_name, repo_data in repos.items():
+                assert repo_name in actual_config[workspace], (
+                    f"Repo '{repo_name}' should be in workspace '{workspace}'"
                 )
-                for repo_name, repo_data in repos.items():
-                    assert repo_name in actual_config[workspace], (
-                        f"Repo '{repo_name}' should be in workspace '{workspace}'"
-                    )
-                    assert actual_config[workspace][repo_name] == repo_data
+                assert actual_config[workspace][repo_name] == repo_data
 
 
 def test_add_repo_duplicate_warning(

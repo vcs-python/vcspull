@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import pathlib
 import typing as t
 
 import pytest
@@ -12,12 +11,14 @@ import yaml
 from vcspull.cli.list import list_repos
 
 if t.TYPE_CHECKING:
+    import pathlib
+
     from _pytest.monkeypatch import MonkeyPatch
 
 
 def create_test_config(config_path: pathlib.Path, repos: dict[str, t.Any]) -> None:
     """Create a test config file."""
-    with config_path.open("w") as f:
+    with config_path.open("w", encoding="utf-8") as f:
         yaml.dump(repos, f)
 
 

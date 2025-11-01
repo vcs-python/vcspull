@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import argparse
 import logging
-import pathlib
 import typing as t
 
 from vcspull.config import filter_repos, find_config_files, load_configs
@@ -15,6 +13,9 @@ from ._output import OutputFormatter, get_output_mode
 from ._workspaces import filter_by_workspace
 
 if t.TYPE_CHECKING:
+    import argparse
+    import pathlib
+
     from vcspull.types import ConfigDict
 
 log = logging.getLogger(__name__)
@@ -168,7 +169,7 @@ def _output_flat(
                 "url": str(repo_url),
                 "path": contract_user_home(repo_path),
                 "workspace_root": str(repo.get("workspace_root", "")),
-            }
+            },
         )
 
         # Human output (contract home directory for privacy/brevity)
@@ -219,7 +220,7 @@ def _output_tree(
                     "url": str(repo_url),
                     "path": contract_user_home(repo_path),
                     "workspace_root": workspace,
-                }
+                },
             )
 
             # Human output: indented repo (contract home directory for privacy/brevity)
