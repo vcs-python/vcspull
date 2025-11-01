@@ -31,8 +31,9 @@ from __future__ import annotations
 
 import pathlib
 import typing as t
+from typing import TypeAlias
 
-from typing_extensions import NotRequired, TypeAlias, TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 if t.TYPE_CHECKING:
     from libvcs._internal.types import StrPath, VCSLiteral

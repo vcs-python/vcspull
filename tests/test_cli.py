@@ -22,11 +22,11 @@ sync_module = importlib.import_module("vcspull.cli.sync")
 
 if t.TYPE_CHECKING:
     import pathlib
+    from typing import TypeAlias
 
     from libvcs.sync.git import GitSync
-    from typing_extensions import TypeAlias
 
-    ExpectedOutput: TypeAlias = t.Optional[t.Union[str, list[str]]]
+    ExpectedOutput: TypeAlias = str | list[str] | None
 
 
 class SyncCLINonExistentRepo(t.NamedTuple):

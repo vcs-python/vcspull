@@ -2,7 +2,7 @@
 name = "vcspull"
 version = "1.41.0"
 description = "Manage and sync multiple git, mercurial, and svn repos"
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 license = { text = "MIT" }
 authors = [
   {name = "Tony Narlock", email = "tony@git-pull.com"}
@@ -16,7 +16,6 @@ classifiers = [
   "Operating System :: MacOS :: MacOS X",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -145,7 +144,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.mypy]
-python_version = 3.9
+python_version = "3.10"
 warn_unused_configs = true
 files = [
   "src",
@@ -185,7 +184,7 @@ exclude_lines = [
 ]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
