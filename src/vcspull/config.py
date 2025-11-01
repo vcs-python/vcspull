@@ -525,8 +525,9 @@ def normalize_workspace_roots(
                         change_count += 1
                     elif existing_value[repo_name] != repo_config:
                         conflict_message = (
-                            f"Workspace root '{label}' contains conflicting definitions "
-                            "for repository '{repo}'. Keeping the existing entry."
+                            f"Workspace root '{label}' contains conflicting "
+                            "definitions for repository '{repo}'. Keeping the existing "
+                            "entry."
                         )
                         conflicts.append(
                             conflict_message.format(
