@@ -17,7 +17,9 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 
 ## vcspull v1.36.x (unreleased)
 
-- _Notes on upcoming releases will be added here_
+### Development
+
+- Add Python 3.14 to test matrix (#477)
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
