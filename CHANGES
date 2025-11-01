@@ -15,7 +15,7 @@ $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
 // Usage: vcspull@next sync [config]
 ```
 
-[uv](https://docs.astral.sh/uv/getting-started/features/#python-versions):
+[uv](https://docs.astral.sh/uv/):
 
 ```console
 $ uv add vcspull --prerelease allow
