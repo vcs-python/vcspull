@@ -260,7 +260,7 @@ See donation options at <https://tony.sh/support.html>.
 
 # More information
 
-- Python support: >= 3.9, pypy
+- Python support: >= 3.10, pypy
 - VCS supported: git(1), svn(1), hg(1)
 - Source: <https://github.com/vcs-python/vcspull>
 - Docs: <https://vcspull.git-pull.com>
