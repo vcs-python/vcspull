@@ -2,7 +2,7 @@
 name = "vcspull"
 version = "1.41.0"
 description = "Manage and sync multiple git, mercurial, and svn repos"
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 license = { text = "MIT" }
 authors = [
   {name = "Tony Narlock", email = "tony@git-pull.com"}
