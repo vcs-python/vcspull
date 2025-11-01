@@ -6,7 +6,7 @@ import pathlib
 import typing as t
 
 if t.TYPE_CHECKING:
-    from typing_extensions import TypeGuard
+    from typing import TypeGuard
 
     from vcspull.types import RawConfigDict
 

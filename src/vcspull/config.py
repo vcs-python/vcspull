@@ -21,8 +21,7 @@ log = logging.getLogger(__name__)
 
 if t.TYPE_CHECKING:
     from collections.abc import Callable
-
-    from typing_extensions import TypeGuard
+    from typing import TypeGuard
 
     from .types import ConfigDict, RawConfigDict
 
