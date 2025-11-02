@@ -104,6 +104,10 @@ $ vcspull add my-lib https://github.com/example/my-lib.git --path ~/code/my-lib
   `-w ~/projects/libs`.
 - Pass `-f/--file` to add to an alternate YAML file.
 - Use `--dry-run` to preview changes before writing.
+- Point at an existing checkout (`vcspull add ~/projects/example`) to infer the
+  name and remote; add `--yes` to skip the confirmation prompt.
+- Append `--no-merge` if you prefer to review duplicate workspace roots
+  yourself instead of having vcspull merge them automatically.
 - Follow with `vcspull sync my-lib` to clone or update the working tree after registration.
 
 ### Discover local checkouts and add en masse
@@ -116,8 +120,9 @@ $ vcspull discover ~/code --recursive
 ```
 
 The scan shows each repository before import unless you opt into `--yes`. Add
-`-w ~/code/` to pin the resulting workspace root or `-f` to
-write somewhere other than the default `~/.vcspull.yaml`.
+`-w ~/code/` to pin the resulting workspace root or `-f` to write somewhere other
+than the default `~/.vcspull.yaml`. Duplicate workspace roots are merged by
+default; include `--no-merge` to keep them separate while you review the log.
 
 ### Inspect configured repositories
 
@@ -148,15 +153,16 @@ command for automation workflows.
 
 ### Normalize configuration files
 
-After importing or editing by hand, run the formatter to tidy up keys and keep
-entries sorted:
+After importing or editing by hand, run the formatter to tidy up keys, merge
+duplicate workspace sections, and keep entries sorted:
 
 ```console
 $ vcspull fmt -f ~/.vcspull.yaml --write
 ```
 
 Use `vcspull fmt --all --write` to format every YAML file that vcspull can
-discover under the standard config locations.
+discover under the standard config locations. Add `--no-merge` if you only want
+duplicate roots reported, not rewritten.
 
 ## Sync your repos
 

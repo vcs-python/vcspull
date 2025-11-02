@@ -6,6 +6,11 @@
 entries stay consistent. By default the formatter prints the proposed changes to
 stdout. Apply the updates in place with `--write`.
 
+When duplicate workspace roots are encountered, the formatter merges them into a
+single section so repositories are never dropped. Prefer to review duplicates
+without rewriting them? Pass `--no-merge` to leave the original sections in
+place while still showing a warning.
+
 ## Command
 
 ```{eval-rst}
@@ -19,12 +24,14 @@ stdout. Apply the updates in place with `--write`.
 
 ## What gets formatted
 
-The formatter performs three main tasks:
+The formatter performs four main tasks:
 
 - Expands string-only entries into verbose dictionaries using the `repo` key.
 - Converts legacy `url` keys to `repo` for consistency with the rest of the
   tooling.
 - Sorts directory keys and repository names alphabetically to minimize diffs.
+- Consolidates duplicate workspace roots into a single merged section while
+  logging any conflicts.
 
 For example:
 
