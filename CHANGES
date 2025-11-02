@@ -42,7 +42,7 @@ _Upcoming changes will be written here._
 - Adds `--no-merge` for workflows that need to preserve duplicate entries while
   still seeing diagnostic warnings.
 
-#### `vcspull add` protects workspace configs during imports (#480)
+#### `vcspull add`: Fixes and streamlining for configuration read/writing (#480)
 
 - Loads configs with the duplicate-aware parser before editing so existing
   workspace roots are merged instead of silently overwritten.
@@ -59,7 +59,7 @@ _Upcoming changes will be written here._
 - `vcspull discover --no-merge` surfaces duplicate workspace roots without
   rewriting existing config entries.
 
-#### Core config loads retain duplicate workspace roots (#480)
+#### Configuration loader: Support for duplicate workspace roots (#480)
 
 - `load_configs` now consumes the duplicate-aware loader so commands like
   `vcspull list`, `vcspull status`, and `vcspull sync` keep every repository
