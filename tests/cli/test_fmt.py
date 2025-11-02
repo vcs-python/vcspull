@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import pathlib
+import textwrap
 import typing as t
 
 import pytest
 import yaml
 
+from vcspull.cli import cli
 from vcspull.cli.fmt import format_config, format_config_file, normalize_repo_config
 from vcspull.config import (
     canonicalize_workspace_path,
@@ -18,6 +21,13 @@ from vcspull.config import (
 
 if t.TYPE_CHECKING:
     from _pytest.logging import LogCaptureFixture
+
+
+def _assert_yaml_snapshot(config_path: pathlib.Path, expected: str) -> None:
+    """Compare saved YAML config against an expected snapshot."""
+    snapshot = textwrap.dedent(expected).strip("\n") + "\n"
+    content = config_path.read_text(encoding="utf-8")
+    assert content == snapshot
 
 
 class WorkspaceRootFixture(t.NamedTuple):
@@ -404,3 +414,159 @@ def test_format_all_configs(
     assert "already formatted correctly" in text
     assert "Repositories in ~/work/ will be sorted alphabetically" in text
     assert "All 3 configuration files processed successfully" in text
+
+
+def test_format_config_detects_and_merges_duplicate_roots(
+    tmp_path: pathlib.Path,
+    caplog: LogCaptureFixture,
+) -> None:
+    """Duplicate workspace roots should be detected and merged by default."""
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(
+        """~/study/c/:
+  repo1: url1
+~/study/c/:
+  repo2: url2
+""",
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.INFO):
+        format_config_file(str(config_file), write=False, format_all=False)
+
+    text = caplog.text
+    assert "Merged" in text
+    assert "workspace root" in text
+
+
+def test_format_config_no_merge_flag_skips_duplicate_merge(
+    tmp_path: pathlib.Path,
+    caplog: LogCaptureFixture,
+) -> None:
+    """--no-merge should prevent duplicate workspace roots from being combined."""
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(
+        """~/study/c/:
+  repo1: url1
+~/study/c/:
+  repo2: url2
+""",
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        format_config_file(
+            str(config_file),
+            write=True,
+            format_all=False,
+            merge_roots=False,
+        )
+
+    text = caplog.text
+    assert "skipping merge" in text
+    _assert_yaml_snapshot(
+        config_file,
+        """~/study/c/:
+  repo2:
+    repo: url2
+""",
+    )
+
+
+def test_format_config_merges_duplicate_roots_when_writing(
+    tmp_path: pathlib.Path,
+) -> None:
+    """When merging, formatted file should contain combined repositories."""
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(
+        """~/study/c/:
+  repo1: url1
+~/study/c/:
+  repo2: url2
+""",
+        encoding="utf-8",
+    )
+
+    format_config_file(str(config_file), write=True, format_all=False)
+
+    _assert_yaml_snapshot(
+        config_file,
+        """~/study/c/:
+  repo1:
+    repo: url1
+  repo2:
+    repo: url2
+""",
+    )
+
+
+class FmtIntegrationFixture(t.NamedTuple):
+    """Fixture for parametrized fmt CLI integration tests."""
+
+    test_id: str
+    cli_args: list[str]
+    expected_log_fragment: str
+    expected_yaml: str
+
+
+FMT_CLI_FIXTURES: list[FmtIntegrationFixture] = [
+    FmtIntegrationFixture(
+        test_id="merge-default",
+        cli_args=["fmt", "-f", "{config}", "--write"],
+        expected_log_fragment="Merged",
+        expected_yaml="""~/study/c/:
+  repo1:
+    repo: url1
+  repo2:
+    repo: url2
+""",
+    ),
+    FmtIntegrationFixture(
+        test_id="no-merge",
+        cli_args=["fmt", "-f", "{config}", "--write", "--no-merge"],
+        expected_log_fragment="skipping merge",
+        expected_yaml="""~/study/c/:
+  repo2:
+    repo: url2
+""",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(FmtIntegrationFixture._fields),
+    FMT_CLI_FIXTURES,
+    ids=[fixture.test_id for fixture in FMT_CLI_FIXTURES],
+)
+def test_fmt_cli_integration(
+    tmp_path: pathlib.Path,
+    caplog: LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    test_id: str,
+    cli_args: list[str],
+    expected_log_fragment: str,
+    expected_yaml: str,
+) -> None:
+    """Run vcspull fmt via CLI to ensure duplicate handling respects flags."""
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(
+        """~/study/c/:
+  repo1: url1
+~/study/c/:
+  repo2: url2
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    formatted_args = [
+        arg.format(config=str(config_file)) if "{config}" in arg else arg
+        for arg in cli_args
+    ]
+
+    with caplog.at_level(logging.INFO), contextlib.suppress(SystemExit):
+        cli(formatted_args)
+
+    _assert_yaml_snapshot(config_file, expected_yaml)
+    assert expected_log_fragment in caplog.text
