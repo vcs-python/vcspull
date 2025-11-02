@@ -5,11 +5,11 @@ from __future__ import annotations
 import contextlib
 import logging
 import pathlib
-import textwrap
 import typing as t
 
 import pytest
 import yaml
+from syrupy.assertion import SnapshotAssertion
 
 from vcspull.cli import cli
 from vcspull.cli.fmt import format_config, format_config_file, normalize_repo_config
@@ -21,13 +21,6 @@ from vcspull.config import (
 
 if t.TYPE_CHECKING:
     from _pytest.logging import LogCaptureFixture
-
-
-def _assert_yaml_snapshot(config_path: pathlib.Path, expected: str) -> None:
-    """Compare saved YAML config against an expected snapshot."""
-    snapshot = textwrap.dedent(expected).strip("\n") + "\n"
-    content = config_path.read_text(encoding="utf-8")
-    assert content == snapshot
 
 
 class WorkspaceRootFixture(t.NamedTuple):
@@ -88,6 +81,7 @@ WORKSPACE_ROOT_FIXTURES: list[WorkspaceRootFixture] = [
 def test_workspace_root_normalization(
     test_id: str,
     config_factory: t.Callable[[pathlib.Path], dict[str, t.Any]],
+    snapshot_json: SnapshotAssertion,
 ) -> None:
     """Ensure format_config merges duplicate workspace roots."""
     home_dir = pathlib.Path.home()
@@ -110,6 +104,7 @@ def test_workspace_root_normalization(
     assert sorted(normalized_config.keys()) == expected_labels
     formatted, _changes = format_config(normalized_config)
     assert sorted(formatted.keys()) == expected_labels
+    assert formatted == snapshot_json
     assert merge_changes >= len(config) - len(canonical_paths)
 
 
@@ -159,7 +154,7 @@ def test_normalize_repo_config_both_url_and_repo() -> None:
     assert normalized == config
 
 
-def test_format_config_sorts_directories() -> None:
+def test_format_config_sorts_directories(snapshot_json: SnapshotAssertion) -> None:
     """Workspace roots should be sorted alphabetically."""
     config = {
         "~/zzz/": {"repo1": "url1"},
@@ -167,11 +162,11 @@ def test_format_config_sorts_directories() -> None:
         "~/mmm/": {"repo3": "url3"},
     }
     formatted, changes = format_config(config)
-    assert list(formatted.keys()) == ["~/aaa/", "~/mmm/", "~/zzz/"]
+    assert formatted == snapshot_json
     assert changes > 0
 
 
-def test_format_config_sorts_repositories() -> None:
+def test_format_config_sorts_repositories(snapshot_json: SnapshotAssertion) -> None:
     """Repositories within a workspace root should be sorted."""
     config = {
         "~/projects/": {
@@ -181,11 +176,11 @@ def test_format_config_sorts_repositories() -> None:
         },
     }
     formatted, changes = format_config(config)
-    assert list(formatted["~/projects/"].keys()) == ["alpha", "beta", "zebra"]
+    assert formatted == snapshot_json
     assert changes > 0
 
 
-def test_format_config_converts_compact_entries() -> None:
+def test_format_config_converts_compact_entries(snapshot_json: SnapshotAssertion) -> None:
     """Compact repository entries should convert to verbose form."""
     config = {
         "~/projects/": {
@@ -195,19 +190,13 @@ def test_format_config_converts_compact_entries() -> None:
         },
     }
     formatted, changes = format_config(config)
-    assert formatted["~/projects/"]["repo1"] == {
-        "repo": "git+https://github.com/user/repo1.git",
-    }
-    assert formatted["~/projects/"]["repo2"] == {
-        "repo": "git+https://github.com/user/repo2.git",
-    }
-    assert formatted["~/projects/"]["repo3"] == {
-        "repo": "git+https://github.com/user/repo3.git",
-    }
+    assert formatted == snapshot_json
     assert changes == 2
 
 
-def test_format_config_no_changes_when_already_normalized() -> None:
+def test_format_config_no_changes_when_already_normalized(
+    snapshot_json: SnapshotAssertion,
+) -> None:
     """Formatter should report zero changes for already-normalized configs."""
     config = {
         "~/aaa/": {
@@ -219,11 +208,11 @@ def test_format_config_no_changes_when_already_normalized() -> None:
         },
     }
     formatted, changes = format_config(config)
-    assert formatted == config
+    assert formatted == snapshot_json
     assert changes == 0
 
 
-def test_format_config_complex_changes() -> None:
+def test_format_config_complex_changes(snapshot_json: SnapshotAssertion) -> None:
     """Formatter should handle sorting and conversions together."""
     config = {
         "~/zzz/": {
@@ -239,13 +228,7 @@ def test_format_config_complex_changes() -> None:
         },
     }
     formatted, changes = format_config(config)
-    assert list(formatted.keys()) == ["~/aaa/", "~/zzz/"]
-    assert list(formatted["~/zzz/"].keys()) == ["alpha", "beta", "zebra"]
-    assert formatted["~/aaa/"]["repo1"] == {"repo": "another-compact"}
-    assert formatted["~/zzz/"]["zebra"] == {"repo": "compact-url"}
-    assert formatted["~/zzz/"]["alpha"] == {"repo": "verbose-url"}
-    assert formatted["~/zzz/"]["beta"]["repo"] == "already-good"
-    assert formatted["~/zzz/"]["beta"]["remotes"] == {"upstream": "upstream-url"}
+    assert formatted == snapshot_json
     assert changes > 0
 
 
@@ -276,7 +259,10 @@ def test_format_config_file_without_write(
     assert "Run with --write to apply" in caplog.text
 
 
-def test_format_config_file_with_write(tmp_path: pathlib.Path) -> None:
+def test_format_config_file_with_write(
+    tmp_path: pathlib.Path,
+    snapshot_yaml: SnapshotAssertion,
+) -> None:
     """format_config_file should rewrite file when write=True."""
     config_file = tmp_path / ".vcspull.yaml"
     original_config = {
@@ -289,8 +275,8 @@ def test_format_config_file_with_write(tmp_path: pathlib.Path) -> None:
 
     format_config_file(str(config_file), write=True, format_all=False)
 
-    saved_config = yaml.safe_load(config_file.read_text(encoding="utf-8"))
-    assert saved_config["~/zzz/"]["repo1"] == {"repo": "url1"}
+    yaml_text = config_file.read_text(encoding="utf-8")
+    assert yaml_text == snapshot_yaml(name="format-config-file-with-write")
 
 
 def test_format_config_file_invalid_yaml(
@@ -442,6 +428,7 @@ def test_format_config_detects_and_merges_duplicate_roots(
 def test_format_config_no_merge_flag_skips_duplicate_merge(
     tmp_path: pathlib.Path,
     caplog: LogCaptureFixture,
+    snapshot_yaml: SnapshotAssertion,
 ) -> None:
     """--no-merge should prevent duplicate workspace roots from being combined."""
     config_file = tmp_path / ".vcspull.yaml"
@@ -464,17 +451,13 @@ def test_format_config_no_merge_flag_skips_duplicate_merge(
 
     text = caplog.text
     assert "skipping merge" in text
-    _assert_yaml_snapshot(
-        config_file,
-        """~/study/c/:
-  repo2:
-    repo: url2
-""",
-    )
+    yaml_text = config_file.read_text(encoding="utf-8")
+    assert yaml_text == snapshot_yaml(name="format-config-file-no-merge")
 
 
 def test_format_config_merges_duplicate_roots_when_writing(
     tmp_path: pathlib.Path,
+    snapshot_yaml: SnapshotAssertion,
 ) -> None:
     """When merging, formatted file should contain combined repositories."""
     config_file = tmp_path / ".vcspull.yaml"
@@ -489,15 +472,8 @@ def test_format_config_merges_duplicate_roots_when_writing(
 
     format_config_file(str(config_file), write=True, format_all=False)
 
-    _assert_yaml_snapshot(
-        config_file,
-        """~/study/c/:
-  repo1:
-    repo: url1
-  repo2:
-    repo: url2
-""",
-    )
+    yaml_text = config_file.read_text(encoding="utf-8")
+    assert yaml_text == snapshot_yaml(name="format-config-file-merge")
 
 
 class FmtIntegrationFixture(t.NamedTuple):
@@ -506,7 +482,7 @@ class FmtIntegrationFixture(t.NamedTuple):
     test_id: str
     cli_args: list[str]
     expected_log_fragment: str
-    expected_yaml: str
+    snapshot_name: str
 
 
 FMT_CLI_FIXTURES: list[FmtIntegrationFixture] = [
@@ -514,21 +490,13 @@ FMT_CLI_FIXTURES: list[FmtIntegrationFixture] = [
         test_id="merge-default",
         cli_args=["fmt", "-f", "{config}", "--write"],
         expected_log_fragment="Merged",
-        expected_yaml="""~/study/c/:
-  repo1:
-    repo: url1
-  repo2:
-    repo: url2
-""",
+        snapshot_name="fmt-cli-merge",
     ),
     FmtIntegrationFixture(
         test_id="no-merge",
         cli_args=["fmt", "-f", "{config}", "--write", "--no-merge"],
         expected_log_fragment="skipping merge",
-        expected_yaml="""~/study/c/:
-  repo2:
-    repo: url2
-""",
+        snapshot_name="fmt-cli-no-merge",
     ),
 ]
 
@@ -542,10 +510,11 @@ def test_fmt_cli_integration(
     tmp_path: pathlib.Path,
     caplog: LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
+    snapshot_yaml: SnapshotAssertion,
     test_id: str,
     cli_args: list[str],
     expected_log_fragment: str,
-    expected_yaml: str,
+    snapshot_name: str,
 ) -> None:
     """Run vcspull fmt via CLI to ensure duplicate handling respects flags."""
     config_file = tmp_path / ".vcspull.yaml"
@@ -568,5 +537,6 @@ def test_fmt_cli_integration(
     with caplog.at_level(logging.INFO), contextlib.suppress(SystemExit):
         cli(formatted_args)
 
-    _assert_yaml_snapshot(config_file, expected_yaml)
+    yaml_text = config_file.read_text(encoding="utf-8")
+    assert yaml_text == snapshot_yaml(name=snapshot_name)
     assert expected_log_fragment in caplog.text
