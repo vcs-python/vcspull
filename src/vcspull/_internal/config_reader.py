@@ -241,7 +241,7 @@ def _duplicate_tracking_construct_mapping(
 
     for key_node, value_node in node.value:
         construct = t.cast(
-            t.Callable[[yaml.nodes.Node], t.Any],
+            "t.Callable[[yaml.nodes.Node], t.Any]",
             loader.construct_object,
         )
         key = construct(key_node)
@@ -289,7 +289,7 @@ class DuplicateAwareConfigReader(ConfigReader):
         try:
             data = loader.get_single_data()
         finally:
-            dispose = t.cast(t.Callable[[], None], loader.dispose)
+            dispose = t.cast("t.Callable[[], None]", loader.dispose)
             dispose()
 
         if data is None:
@@ -301,7 +301,7 @@ class DuplicateAwareConfigReader(ConfigReader):
             loaded = t.cast("dict[str, t.Any]", data)
 
         duplicate_sections = {
-            t.cast(str, key): values
+            t.cast("str", key): values
             for key, values in loader.top_level_key_values.items()
             if len(values) > 1
         }

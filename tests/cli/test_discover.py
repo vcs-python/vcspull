@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import typing as t
 
 import pytest
-from syrupy.assertion import SnapshotAssertion
 
 from vcspull.cli.discover import discover_repos
 
@@ -14,6 +14,7 @@ if t.TYPE_CHECKING:
     import pathlib
 
     from _pytest.monkeypatch import MonkeyPatch
+    from syrupy.assertion import SnapshotAssertion
 
 
 def init_git_repo(repo_path: pathlib.Path, remote_url: str) -> None:
@@ -361,6 +362,11 @@ def test_discover_repos(
 
     if preexisting_yaml is not None or not merge_duplicates:
         normalized_log = caplog.text.replace(str(target_config_file), "<config>")
+        normalized_log = re.sub(
+            r"discover\.py:\d+",
+            "discover.py:<line>",
+            normalized_log,
+        )
         snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
     if dry_run:

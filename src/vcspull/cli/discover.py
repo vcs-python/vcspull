@@ -262,26 +262,24 @@ def discover_repos(
                     label,
                     Style.RESET_ALL,
                 )
-    else:
-        if duplicate_root_occurrences:
-            duplicate_merge_details = [
-                (label, len(values))
-                for label, values in duplicate_root_occurrences.items()
-            ]
-            for label, occurrence_count in duplicate_merge_details:
-                log.warning(
-                    "%s•%s Duplicate workspace root %s%s%s appears %s%d%s time%s; "
-                    "skipping merge because --no-merge was provided.",
-                    Fore.BLUE,
-                    Style.RESET_ALL,
-                    Fore.MAGENTA,
-                    label,
-                    Style.RESET_ALL,
-                    Fore.YELLOW,
-                    occurrence_count,
-                    Style.RESET_ALL,
-                    "" if occurrence_count == 1 else "s",
-                )
+    elif duplicate_root_occurrences:
+        duplicate_merge_details = [
+            (label, len(values)) for label, values in duplicate_root_occurrences.items()
+        ]
+        for label, occurrence_count in duplicate_merge_details:
+            log.warning(
+                "%s•%s Duplicate workspace root %s%s%s appears %s%d%s time%s; "
+                "skipping merge because --no-merge was provided.",
+                Fore.BLUE,
+                Style.RESET_ALL,
+                Fore.MAGENTA,
+                label,
+                Style.RESET_ALL,
+                Fore.YELLOW,
+                occurrence_count,
+                Style.RESET_ALL,
+                "" if occurrence_count == 1 else "s",
+            )
 
     cwd = pathlib.Path.cwd()
     home = pathlib.Path.home()

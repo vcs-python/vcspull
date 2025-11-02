@@ -4,20 +4,22 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import re
 import subprocess
 import textwrap
 import typing as t
 
 import pytest
-from syrupy.assertion import SnapshotAssertion
 
-from vcspull.cli.add import add_repo, handle_add_command
+from vcspull.cli.add import add_repo, create_add_subparser, handle_add_command
 from vcspull.util import contract_user_home
 
 if t.TYPE_CHECKING:
     import pathlib
 
     from _pytest.monkeypatch import MonkeyPatch
+    from syrupy.assertion import SnapshotAssertion
 
 
 class AddRepoFixture(t.NamedTuple):
@@ -374,7 +376,7 @@ def test_add_repo_duplicate_merge_behavior(
             ~/study/python/:
               repo2:
                 repo: git+https://example.com/repo2.git
-            """
+            """,
         ),
         encoding="utf-8",
     )
@@ -400,6 +402,7 @@ def test_add_repo_duplicate_merge_behavior(
         assert expected_warning in caplog.text
 
     normalized_log = caplog.text.replace(str(config_file), "<config>")
+    normalized_log = re.sub(r"add\.py:\d+", "add.py:<line>", normalized_log)
     snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
 
@@ -408,21 +411,27 @@ class PathAddFixture(t.NamedTuple):
 
     test_id: str
     remote_url: str | None
+    explicit_url: str | None
     assume_yes: bool
     prompt_response: str | None
     dry_run: bool
     expected_written: bool
-    expected_url_kind: str  # "remote" or "path"
+    expected_url_kind: str  # "remote", "path", or "explicit"
     override_name: str | None
     expected_warning: str | None
     merge_duplicates: bool
     preexisting_yaml: str | None
+    use_relative_repo_path: bool
+    workspace_override: str | None
+    expected_workspace_label: str
+    preserve_config_path_in_log: bool
 
 
 PATH_ADD_FIXTURES: list[PathAddFixture] = [
     PathAddFixture(
         test_id="path-auto-confirm",
         remote_url="https://github.com/avast/pytest-docker",
+        explicit_url=None,
         assume_yes=True,
         prompt_response=None,
         dry_run=False,
@@ -432,10 +441,15 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         expected_warning=None,
         merge_duplicates=True,
         preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override=None,
+        expected_workspace_label="~/study/python/",
+        preserve_config_path_in_log=False,
     ),
     PathAddFixture(
         test_id="path-interactive-accept",
         remote_url="https://github.com/example/project",
+        explicit_url=None,
         assume_yes=False,
         prompt_response="y",
         dry_run=False,
@@ -445,10 +459,15 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         expected_warning=None,
         merge_duplicates=True,
         preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override=None,
+        expected_workspace_label="~/study/python/",
+        preserve_config_path_in_log=False,
     ),
     PathAddFixture(
         test_id="path-interactive-decline",
         remote_url="https://github.com/example/decline",
+        explicit_url=None,
         assume_yes=False,
         prompt_response="n",
         dry_run=False,
@@ -458,10 +477,15 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         expected_warning=None,
         merge_duplicates=True,
         preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override=None,
+        expected_workspace_label="~/study/python/",
+        preserve_config_path_in_log=False,
     ),
     PathAddFixture(
         test_id="path-no-remote",
         remote_url=None,
+        explicit_url=None,
         assume_yes=True,
         prompt_response=None,
         dry_run=False,
@@ -471,10 +495,15 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         expected_warning="Unable to determine git remote",
         merge_duplicates=True,
         preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override=None,
+        expected_workspace_label="~/study/python/",
+        preserve_config_path_in_log=False,
     ),
     PathAddFixture(
         test_id="path-no-merge",
         remote_url="https://github.com/example/no-merge",
+        explicit_url=None,
         assume_yes=True,
         prompt_response=None,
         dry_run=False,
@@ -491,6 +520,82 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
   repo2:
     repo: git+https://example.com/repo2.git
 """,
+        use_relative_repo_path=False,
+        workspace_override=None,
+        expected_workspace_label="~/study/python/",
+        preserve_config_path_in_log=False,
+    ),
+    PathAddFixture(
+        test_id="path-explicit-url",
+        remote_url=None,
+        explicit_url="https://github.com/manual/source",
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="explicit",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override=None,
+        expected_workspace_label="~/study/python/",
+        preserve_config_path_in_log=False,
+    ),
+    PathAddFixture(
+        test_id="path-relative-derives-workspace",
+        remote_url="https://github.com/example/rel",
+        explicit_url=None,
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+        use_relative_repo_path=True,
+        workspace_override=None,
+        expected_workspace_label="~/study/python/",
+        preserve_config_path_in_log=False,
+    ),
+    PathAddFixture(
+        test_id="path-workspace-override",
+        remote_url="https://github.com/example/workspace",
+        explicit_url=None,
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override="~/custom/",
+        expected_workspace_label="~/custom/",
+        preserve_config_path_in_log=False,
+    ),
+    PathAddFixture(
+        test_id="path-dry-run-shows-tilde-config",
+        remote_url="https://github.com/example/tilde",
+        explicit_url=None,
+        assume_yes=False,
+        prompt_response=None,
+        dry_run=True,
+        expected_written=False,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override=None,
+        expected_workspace_label="~/study/python/",
+        preserve_config_path_in_log=True,
     ),
 ]
 
@@ -503,6 +608,7 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
 def test_handle_add_command_path_mode(
     test_id: str,
     remote_url: str | None,
+    explicit_url: str | None,
     assume_yes: bool,
     prompt_response: str | None,
     dry_run: bool,
@@ -512,6 +618,10 @@ def test_handle_add_command_path_mode(
     expected_warning: str | None,
     merge_duplicates: bool,
     preexisting_yaml: str | None,
+    use_relative_repo_path: bool,
+    workspace_override: str | None,
+    expected_workspace_label: str,
+    preserve_config_path_in_log: bool,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: t.Any,
@@ -534,13 +644,18 @@ def test_handle_add_command_path_mode(
     expected_input = prompt_response if prompt_response is not None else "y"
     monkeypatch.setattr("builtins.input", lambda _: expected_input)
 
+    repo_arg: str
+    if use_relative_repo_path:
+        repo_arg = os.fspath(repo_path.relative_to(tmp_path))
+    else:
+        repo_arg = str(repo_path)
+
     args = argparse.Namespace(
-        target=str(repo_path),
-        url=None,
+        repo_path=repo_arg,
+        url=explicit_url,
         override_name=override_name,
         config=str(config_file),
-        path=None,
-        workspace_root_path=None,
+        workspace_root_path=workspace_override,
         dry_run=dry_run,
         assume_yes=assume_yes,
         merge_duplicates=merge_duplicates,
@@ -556,7 +671,17 @@ def test_handle_add_command_path_mode(
 
     normalized_log = log_output.replace(str(config_file), "<config>")
     normalized_log = normalized_log.replace(str(repo_path), "<repo_path>")
-    snapshot.assert_match({"test_id": test_id, "log": normalized_log})
+    normalized_log = re.sub(r"add\.py:\d+", "add.py:<line>", normalized_log)
+    if preserve_config_path_in_log:
+        assert contract_user_home(config_file) in log_output
+        snapshot.assert_match(
+            {
+                "test_id": test_id,
+                "log": normalized_log.replace("<config>", "~/.vcspull.yaml"),
+            }
+        )
+    else:
+        snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
     if dry_run:
         assert "skipped (dry-run)" in log_output
@@ -576,13 +701,19 @@ def test_handle_add_command_path_mode(
         with config_file.open(encoding="utf-8") as fh:
             config_data = yaml.safe_load(fh)
 
-        workspace = "~/study/python/"
+        workspace = expected_workspace_label
         assert workspace in config_data
         assert repo_name in config_data[workspace]
 
         repo_entry = config_data[workspace][repo_name]
         expected_url: str
-        if expected_url_kind == "remote" and remote_url is not None:
+        if expected_url_kind == "explicit" and explicit_url is not None:
+            expected_url = (
+                explicit_url
+                if explicit_url.startswith("git+")
+                else f"git+{explicit_url}"
+            )
+        elif expected_url_kind == "remote" and remote_url is not None:
             cleaned_remote = remote_url.strip()
             expected_url = (
                 cleaned_remote
@@ -603,4 +734,41 @@ def test_handle_add_command_path_mode(
                 workspace = config_data.get("~/study/python/")
                 if workspace is not None:
                     assert repo_name not in workspace
-        assert "Aborted import" in log_output
+        if not dry_run:
+            assert "Aborted import" in log_output
+
+
+def test_add_repo_dry_run_contracts_config_path(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    """Dry-run logging shows tilde-shortened config file paths."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_path = tmp_path / ".vcspull.yaml"
+
+    add_repo(
+        name="tilde-repo",
+        url="git+https://example.com/tilde-repo.git",
+        config_file_path_str=str(config_path),
+        path=str(tmp_path / "projects/tilde-repo"),
+        workspace_root_path=None,
+        dry_run=True,
+    )
+
+    assert "~/.vcspull.yaml" in caplog.text
+
+
+def test_add_parser_rejects_extra_positional() -> None:
+    """Passing both name and URL should raise a parse error in the new parser."""
+    parser = argparse.ArgumentParser(prog="vcspull")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    add_parser = subparsers.add_parser("add")
+    create_add_subparser(add_parser)
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["add", "name", "https://example.com/repo.git"])
