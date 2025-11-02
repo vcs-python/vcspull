@@ -377,6 +377,7 @@ def cli(_args: list[str] | None = None) -> None:
             workspace_root_override=args.workspace_root_path,
             yes=args.yes,
             dry_run=args.dry_run,
+            merge_duplicates=args.merge_duplicates,
         )
     elif args.subparser_name == "fmt":
         format_config_file(

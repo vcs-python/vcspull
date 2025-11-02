@@ -84,12 +84,19 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         help="Preview changes without writing to config file",
     )
     parser.add_argument(
+        "--no-merge",
+        dest="merge_duplicates",
+        action="store_false",
+        help="Skip merging duplicate workspace roots before writing",
+    )
+    parser.add_argument(
         "-y",
         "--yes",
         dest="assume_yes",
         action="store_true",
         help="Automatically confirm interactive prompts",
     )
+    parser.set_defaults(merge_duplicates=True)
 
 
 def _resolve_workspace_path(
@@ -174,6 +181,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
             path=args.path,
             workspace_root_path=args.workspace_root_path,
             dry_run=args.dry_run,
+            merge_duplicates=args.merge_duplicates,
         )
         return
 
@@ -289,6 +297,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
         path=str(repo_path),
         workspace_root_path=workspace_root_input,
         dry_run=args.dry_run,
+        merge_duplicates=args.merge_duplicates,
     )
 
 
@@ -299,6 +308,8 @@ def add_repo(
     path: str | None,
     workspace_root_path: str | None,
     dry_run: bool,
+    *,
+    merge_duplicates: bool = True,
 ) -> None:
     """Add a repository to the vcspull configuration.
 
@@ -365,41 +376,84 @@ def add_repo(
             config_file_path,
         )
 
-    (
-        raw_config,
-        duplicate_merge_conflicts,
-        duplicate_merge_changes,
-        duplicate_merge_details,
-    ) = merge_duplicate_workspace_roots(raw_config, duplicate_root_occurrences)
+    duplicate_merge_conflicts: list[str] = []
+    duplicate_merge_changes = 0
+    duplicate_merge_details: list[tuple[str, int]] = []
 
-    for message in duplicate_merge_conflicts:
-        log.warning(message)
+    if merge_duplicates:
+        (
+            raw_config,
+            duplicate_merge_conflicts,
+            duplicate_merge_changes,
+            duplicate_merge_details,
+        ) = merge_duplicate_workspace_roots(raw_config, duplicate_root_occurrences)
+        for message in duplicate_merge_conflicts:
+            log.warning(message)
 
-    if duplicate_merge_changes and duplicate_merge_details:
-        for label, occurrence_count in duplicate_merge_details:
-            log.info(
-                "%s•%s Merged %s%d%s duplicate entr%s for workspace root %s%s%s",
-                Fore.BLUE,
-                Style.RESET_ALL,
-                Fore.YELLOW,
-                occurrence_count,
-                Style.RESET_ALL,
-                "y" if occurrence_count == 1 else "ies",
-                Fore.MAGENTA,
-                label,
-                Style.RESET_ALL,
-            )
+        if duplicate_merge_changes and duplicate_merge_details:
+            for label, occurrence_count in duplicate_merge_details:
+                log.info(
+                    "%s•%s Merged %s%d%s duplicate entr%s for workspace root %s%s%s",
+                    Fore.BLUE,
+                    Style.RESET_ALL,
+                    Fore.YELLOW,
+                    occurrence_count,
+                    Style.RESET_ALL,
+                    "y" if occurrence_count == 1 else "ies",
+                    Fore.MAGENTA,
+                    label,
+                    Style.RESET_ALL,
+                )
+    else:
+        if duplicate_root_occurrences:
+            duplicate_merge_details = [
+                (label, len(values))
+                for label, values in duplicate_root_occurrences.items()
+            ]
+            for label, occurrence_count in duplicate_merge_details:
+                log.warning(
+                    "%s•%s Duplicate workspace root %s%s%s appears %s%d%s time%s; "
+                    "skipping merge because --no-merge was provided.",
+                    Fore.BLUE,
+                    Style.RESET_ALL,
+                    Fore.MAGENTA,
+                    label,
+                    Style.RESET_ALL,
+                    Fore.YELLOW,
+                    occurrence_count,
+                    Style.RESET_ALL,
+                    "" if occurrence_count == 1 else "s",
+                )
+
+        duplicate_merge_conflicts = []
 
     cwd = pathlib.Path.cwd()
     home = pathlib.Path.home()
 
-    normalization_result = normalize_workspace_roots(
-        raw_config,
-        cwd=cwd,
-        home=home,
-    )
-    raw_config, workspace_map, merge_conflicts, merge_changes = normalization_result
-    config_was_normalized = (merge_changes + duplicate_merge_changes) > 0
+    if merge_duplicates:
+        (
+            raw_config,
+            workspace_map,
+            merge_conflicts,
+            merge_changes,
+        ) = normalize_workspace_roots(
+            raw_config,
+            cwd=cwd,
+            home=home,
+        )
+        config_was_normalized = (merge_changes + duplicate_merge_changes) > 0
+    else:
+        (
+            _normalized_preview,
+            workspace_map,
+            merge_conflicts,
+            _merge_changes,
+        ) = normalize_workspace_roots(
+            raw_config,
+            cwd=cwd,
+            home=home,
+        )
+        config_was_normalized = False
 
     for message in merge_conflicts:
         log.warning(message)
