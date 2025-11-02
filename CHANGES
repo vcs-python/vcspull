@@ -49,8 +49,15 @@ _Upcoming changes will be written here._
 - Accepts repositories by path (`vcspull add ~/study/python/project`), detects
   `origin` remotes, and prompts for confirmation. Use `--yes` to auto-approve
   scripted runs.
+- Adds `--no-merge` so `vcspull add` can skip auto-merging duplicates while
+  still surfacing warnings for manual follow-up.
 - CLI previews contract workspace paths to `~/…` for consistency with other
   commands and easier scanning.
+
+#### `vcspull discover` honors --no-merge (#480)
+
+- `vcspull discover --no-merge` surfaces duplicate workspace roots without
+  rewriting existing config entries.
 
 ### Development
 
