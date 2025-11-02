@@ -1,0 +1,13 @@
+{
+  "~/projects/": {
+    "repo1": {
+      "repo": "git+https://github.com/user/repo1.git"
+    },
+    "repo2": {
+      "repo": "git+https://github.com/user/repo2.git"
+    },
+    "repo3": {
+      "repo": "git+https://github.com/user/repo3.git"
+    }
+  }
+}

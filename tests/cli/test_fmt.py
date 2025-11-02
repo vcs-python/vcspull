@@ -180,7 +180,9 @@ def test_format_config_sorts_repositories(snapshot_json: SnapshotAssertion) -> N
     assert changes > 0
 
 
-def test_format_config_converts_compact_entries(snapshot_json: SnapshotAssertion) -> None:
+def test_format_config_converts_compact_entries(
+    snapshot_json: SnapshotAssertion,
+) -> None:
     """Compact repository entries should convert to verbose form."""
     config = {
         "~/projects/": {
