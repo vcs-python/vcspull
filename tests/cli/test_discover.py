@@ -441,7 +441,7 @@ def test_discover_config_load_edges(
         if mode == "non_dict":
             monkeypatch.setattr(
                 "vcspull.cli.discover.DuplicateAwareConfigReader.load_with_duplicates",
-                lambda _path: (["invalid"], {}),
+                lambda _path: (["invalid"], {}, []),
             )
         else:  # mode == "exception"
 

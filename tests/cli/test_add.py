@@ -820,7 +820,10 @@ NO_MERGE_PRESERVATION_FIXTURES: list[NoMergePreservationFixture] = [
 
 
 @pytest.mark.xfail(
-    reason="vcspull add --no-merge overwrites earlier duplicate workspace sections (data loss bug)",
+    reason=(
+        "vcspull add --no-merge overwrites earlier duplicate workspace sections "
+        "(data loss bug)"
+    ),
 )
 @pytest.mark.parametrize(
     list(NoMergePreservationFixture._fields),
@@ -837,7 +840,7 @@ def test_add_repo_no_merge_preserves_duplicate_sections(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """vcspull add should not drop duplicate workspace sections when --no-merge."""
+    """CLI add should not drop duplicate workspace sections when --no-merge."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
 
@@ -850,9 +853,11 @@ def test_add_repo_no_merge_preserves_duplicate_sections(
     (
         _initial_config,
         initial_duplicates,
+        initial_items,
     ) = DuplicateAwareConfigReader.load_with_duplicates(config_file)
     assert workspace_label in initial_duplicates
     assert len(initial_duplicates[workspace_label]) == 2
+    assert [key for key, _ in initial_items] == [workspace_label, workspace_label]
 
     add_repo(
         name=new_repo_name,
@@ -867,7 +872,13 @@ def test_add_repo_no_merge_preserves_duplicate_sections(
     (
         _final_config,
         duplicate_sections,
+        final_items,
     ) = DuplicateAwareConfigReader.load_with_duplicates(config_file)
+
+    assert [key for key, _ in final_items] == [
+        workspace_label,
+        workspace_label,
+    ], f"{test_id}: final items unexpectedly merged"
 
     assert workspace_label in duplicate_sections, f"{test_id}: workspace missing"
     workspace_entries = duplicate_sections[workspace_label]

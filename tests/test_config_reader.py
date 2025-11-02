@@ -93,3 +93,41 @@ def test_duplicate_aware_reader_passes_through_json(tmp_path: pathlib.Path) -> N
         },
     }
     assert reader.duplicate_sections == {}
+
+
+def test_duplicate_aware_reader_preserves_top_level_item_order(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Loader should expose ordered top-level items so duplicates can be replayed."""
+    yaml_content = textwrap.dedent(
+        """\
+        ~/study/python/:
+          Flexget:
+            repo: git+https://github.com/Flexget/Flexget.git
+        ~/study/python/:
+          bubbles:
+            repo: git+https://github.com/Stiivi/bubbles.git
+        ~/study/python/:
+          cubes:
+            repo: git+https://github.com/Stiivi/cubes.git
+        """,
+    )
+    config_path = _write(tmp_path, "ordered.yaml", yaml_content)
+
+    reader = DuplicateAwareConfigReader.from_file(config_path)
+
+    items = reader.top_level_items
+    assert [key for key, _ in items] == [
+        "~/study/python/",
+        "~/study/python/",
+        "~/study/python/",
+    ]
+    assert items[0][1] == {
+        "Flexget": {"repo": "git+https://github.com/Flexget/Flexget.git"},
+    }
+    assert items[1][1] == {
+        "bubbles": {"repo": "git+https://github.com/Stiivi/bubbles.git"},
+    }
+    assert items[2][1] == {
+        "cubes": {"repo": "git+https://github.com/Stiivi/cubes.git"},
+    }
