@@ -8,13 +8,13 @@ import pathlib
 import traceback
 import typing as t
 
-import yaml
 from colorama import Fore, Style
 
-from vcspull._internal.config_reader import ConfigReader
+from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull.config import (
     find_config_files,
     find_home_config_files,
+    merge_duplicate_workspace_roots,
     normalize_workspace_roots,
     save_config_yaml,
 )
@@ -23,149 +23,6 @@ if t.TYPE_CHECKING:
     import argparse
 
 log = logging.getLogger(__name__)
-
-
-class _DuplicateTrackingSafeLoader(yaml.SafeLoader):
-    """PyYAML loader that records duplicate top-level keys."""
-
-    def __init__(self, stream: str) -> None:
-        super().__init__(stream)
-        self.top_level_key_values: dict[t.Any, list[t.Any]] = {}
-        self._mapping_depth = 0
-
-
-def _duplicate_tracking_construct_mapping(
-    loader: _DuplicateTrackingSafeLoader,
-    node: yaml.nodes.MappingNode,
-    deep: bool = False,
-) -> dict[t.Any, t.Any]:
-    loader._mapping_depth += 1
-    loader.flatten_mapping(node)
-    mapping: dict[t.Any, t.Any] = {}
-
-    for key_node, value_node in node.value:
-        construct = t.cast(
-            t.Callable[[yaml.nodes.Node], t.Any],
-            loader.construct_object,
-        )
-        key = construct(key_node)
-        value = construct(value_node)
-
-        if loader._mapping_depth == 1:
-            loader.top_level_key_values.setdefault(key, []).append(copy.deepcopy(value))
-
-        mapping[key] = value
-
-    loader._mapping_depth -= 1
-    return mapping
-
-
-_DuplicateTrackingSafeLoader.add_constructor(
-    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
-    _duplicate_tracking_construct_mapping,
-)
-
-
-def _load_yaml_config_with_duplicates(
-    config_file_path: pathlib.Path,
-) -> tuple[dict[str, t.Any], dict[str, list[t.Any]]]:
-    content = config_file_path.read_text(encoding="utf-8")
-    loader = _DuplicateTrackingSafeLoader(content)
-
-    try:
-        data = loader.get_single_data()
-    finally:
-        dispose = t.cast(t.Callable[[], None], loader.dispose)
-        dispose()
-
-    if data is None:
-        return {}, {}
-    if not isinstance(data, dict):
-        msg = f"Config file {config_file_path} is not a valid YAML dictionary."
-        raise TypeError(msg)
-
-    duplicates = {
-        t.cast(str, key): values
-        for key, values in loader.top_level_key_values.items()
-        if len(values) > 1
-    }
-
-    return t.cast("dict[str, t.Any]", data), duplicates
-
-
-def _load_config_with_duplicate_roots(
-    config_file_path: pathlib.Path,
-) -> tuple[dict[str, t.Any], dict[str, list[t.Any]]]:
-    if config_file_path.suffix.lower() in {".yaml", ".yml"}:
-        return _load_yaml_config_with_duplicates(config_file_path)
-
-    return ConfigReader._from_file(config_file_path), {}
-
-
-def _merge_duplicate_workspace_root_entries(
-    label: str,
-    occurrences: list[t.Any],
-) -> tuple[t.Any, list[str], int]:
-    conflicts: list[str] = []
-    change_count = max(len(occurrences) - 1, 0)
-
-    if not occurrences:
-        return {}, conflicts, change_count
-
-    if not all(isinstance(entry, dict) for entry in occurrences):
-        conflicts.append(
-            (
-                f"Workspace root '{label}' contains duplicate entries that are not "
-                "mappings. Keeping the last occurrence."
-            ),
-        )
-        return occurrences[-1], conflicts, change_count
-
-    merged: dict[str, t.Any] = {}
-
-    for entry in occurrences:
-        assert isinstance(entry, dict)
-        for repo_name, repo_config in entry.items():
-            if repo_name not in merged:
-                merged[repo_name] = copy.deepcopy(repo_config)
-            elif merged[repo_name] != repo_config:
-                conflicts.append(
-                    (
-                        f"Workspace root '{label}' contains conflicting definitions "
-                        f"for repository '{repo_name}'. Keeping the existing entry."
-                    ),
-                )
-
-    return merged, conflicts, change_count
-
-
-def _merge_duplicate_workspace_roots(
-    config_data: dict[str, t.Any],
-    duplicate_roots: dict[str, list[t.Any]],
-) -> tuple[dict[str, t.Any], list[str], int, list[tuple[str, int]]]:
-    if not duplicate_roots:
-        return config_data, [], 0, []
-
-    merged_config = copy.deepcopy(config_data)
-    conflicts: list[str] = []
-    change_count = 0
-    details: list[tuple[str, int]] = []
-
-    for label, occurrences in duplicate_roots.items():
-        (
-            merged_value,
-            entry_conflicts,
-            entry_changes,
-        ) = _merge_duplicate_workspace_root_entries(
-            label,
-            occurrences,
-        )
-        merged_config[label] = merged_value
-        conflicts.extend(entry_conflicts)
-        change_count += entry_changes
-        details.append((label, len(occurrences)))
-
-    return merged_config, conflicts, change_count, details
 
 
 def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
@@ -315,17 +172,11 @@ def format_single_config(
 
     # Load existing config
     try:
-        raw_config, duplicate_root_occurrences = _load_config_with_duplicate_roots(
-            config_file_path,
+        raw_config, duplicate_root_occurrences = (
+            DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
         )
-        if not isinstance(raw_config, dict):
-            log.error(
-                "Config file %s is not a valid YAML dictionary.",
-                config_file_path,
-            )
-            return False
     except TypeError:
-        log.exception("Invalid configuration in %s", config_file_path)
+        log.exception("Config file %s is not a mapping", config_file_path)
         return False
     except Exception:
         log.exception("Error loading config from %s", config_file_path)
@@ -349,7 +200,7 @@ def format_single_config(
             duplicate_merge_conflicts,
             duplicate_merge_changes,
             duplicate_merge_details,
-        ) = _merge_duplicate_workspace_roots(working_config, duplicate_root_occurrences)
+        ) = merge_duplicate_workspace_roots(working_config, duplicate_root_occurrences)
     elif duplicate_root_occurrences:
         duplicate_merge_details = [
             (label, len(values)) for label, values in duplicate_root_occurrences.items()
