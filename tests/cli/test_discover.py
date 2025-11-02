@@ -6,6 +6,7 @@ import subprocess
 import typing as t
 
 import pytest
+from syrupy.assertion import SnapshotAssertion
 
 from vcspull.cli.discover import discover_repos
 
@@ -41,6 +42,8 @@ class DiscoverFixture(t.NamedTuple):
     preexisting_config: dict[str, t.Any] | None
     user_input: str | None
     expected_workspace_labels: set[str] | None
+    merge_duplicates: bool
+    preexisting_yaml: str | None
 
 
 DISCOVER_FIXTURES: list[DiscoverFixture] = [
@@ -59,6 +62,8 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         preexisting_config=None,
         user_input=None,
         expected_workspace_labels={"~/code/"},
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     DiscoverFixture(
         test_id="discover-recursive",
@@ -76,6 +81,8 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         preexisting_config=None,
         user_input=None,
         expected_workspace_labels={"~/code/"},
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     DiscoverFixture(
         test_id="discover-dry-run",
@@ -91,6 +98,8 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         preexisting_config=None,
         user_input=None,
         expected_workspace_labels=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     DiscoverFixture(
         test_id="discover-default-config",
@@ -106,6 +115,8 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         preexisting_config=None,
         user_input=None,
         expected_workspace_labels={"~/code/"},
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     DiscoverFixture(
         test_id="discover-workspace-normalization",
@@ -125,6 +136,8 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         },
         user_input=None,
         expected_workspace_labels={"~/code/"},
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     DiscoverFixture(
         test_id="discover-interactive-confirm",
@@ -140,6 +153,8 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         preexisting_config=None,
         user_input="y",
         expected_workspace_labels={"~/code/"},
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     DiscoverFixture(
         test_id="discover-interactive-abort",
@@ -155,6 +170,32 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         preexisting_config=None,
         user_input="n",
         expected_workspace_labels=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+    ),
+    DiscoverFixture(
+        test_id="discover-no-merge",
+        repos_to_create=[
+            ("repo3", "git+https://github.com/user/repo3.git"),
+        ],
+        recursive=False,
+        workspace_override=None,
+        dry_run=False,
+        yes=True,
+        expected_repo_count=2,
+        config_relpath=".vcspull.yaml",
+        preexisting_config=None,
+        user_input=None,
+        expected_workspace_labels={"~/code/"},
+        merge_duplicates=False,
+        preexisting_yaml="""
+~/code/:
+  repo1:
+    repo: git+https://example.com/repo1.git
+~/code/:
+  repo2:
+    repo: git+https://example.com/repo2.git
+""",
     ),
 ]
 
@@ -263,9 +304,12 @@ def test_discover_repos(
     preexisting_config: dict[str, t.Any] | None,
     user_input: str | None,
     expected_workspace_labels: set[str] | None,
+    merge_duplicates: bool,
+    preexisting_yaml: str | None,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: t.Any,
+    snapshot: SnapshotAssertion,
 ) -> None:
     """Test discovering repositories from filesystem."""
     import logging
@@ -291,7 +335,9 @@ def test_discover_repos(
         target_config_file.parent.mkdir(parents=True, exist_ok=True)
         config_argument = str(target_config_file)
 
-    if preexisting_config is not None:
+    if preexisting_yaml is not None:
+        target_config_file.write_text(preexisting_yaml, encoding="utf-8")
+    elif preexisting_config is not None:
         import yaml
 
         target_config_file.write_text(
@@ -310,7 +356,12 @@ def test_discover_repos(
         workspace_root_override=workspace_override,
         yes=yes,
         dry_run=dry_run,
+        merge_duplicates=merge_duplicates,
     )
+
+    if preexisting_yaml is not None or not merge_duplicates:
+        normalized_log = caplog.text.replace(str(target_config_file), "<config>")
+        snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
     if dry_run:
         # In dry-run mode, config file should not be created/modified
@@ -383,8 +434,8 @@ def test_discover_config_load_edges(
 
         if mode == "non_dict":
             monkeypatch.setattr(
-                "vcspull.cli.discover.ConfigReader._from_file",
-                lambda _path: ["invalid"],
+                "vcspull.cli.discover.DuplicateAwareConfigReader.load_with_duplicates",
+                lambda _path: (["invalid"], {}),
             )
         else:  # mode == "exception"
 
@@ -393,7 +444,7 @@ def test_discover_config_load_edges(
                 raise ValueError(error_message)
 
             monkeypatch.setattr(
-                "vcspull.cli.discover.ConfigReader._from_file",
+                "vcspull.cli.discover.DuplicateAwareConfigReader.load_with_duplicates",
                 _raise,
             )
 

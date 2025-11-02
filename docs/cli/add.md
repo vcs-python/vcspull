@@ -63,6 +63,11 @@ The `--path` flag is useful when:
 - Using non-standard directory layouts
 - The repository name doesn't match the desired directory name
 
+You can also point `vcspull add` at an existing checkout. Supplying a path such
+as `vcspull add ~/projects/example` infers the repository name, inspects its
+`origin` remote, and prompts before writing. Add `--yes` when you need to skip
+the confirmation in scripts.
+
 ## Choosing configuration files
 
 By default, vcspull looks for the first YAML configuration file in:
@@ -142,14 +147,10 @@ $ vcspull add tooling https://github.com/company/tooling.git \
 
 ## Handling duplicates
 
-If a repository with the same name already exists in the workspace, vcspull will warn you:
-
-```console
-$ vcspull add flask https://github.com/pallets/flask.git -w ~/code/
-WARNING: Repository 'flask' already exists in workspace '~/code/'.
-```
-
-The existing entry is preserved and not overwritten.
+vcspull merges duplicate workspace sections by default so existing repositories
+stay intact. When conflicts appear, the command logs what it kept. Prefer to
+resolve duplicates yourself? Pass `--no-merge` to leave every section untouched
+while still surfacing warnings.
 
 ## After adding repositories
 

@@ -15,7 +15,7 @@ from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
 from ._formatter import VcspullHelpFormatter
-from .add import add_repo, create_add_subparser
+from .add import add_repo, create_add_subparser, handle_add_command
 from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
 from .list import create_list_subparser, list_repos
@@ -368,14 +368,7 @@ def cli(_args: list[str] | None = None) -> None:
             max_concurrent=getattr(args, "max_concurrent", None),
         )
     elif args.subparser_name == "add":
-        add_repo(
-            name=args.name,
-            url=args.url,
-            config_file_path_str=args.config,
-            path=args.path,
-            workspace_root_path=args.workspace_root_path,
-            dry_run=args.dry_run,
-        )
+        handle_add_command(args)
     elif args.subparser_name == "discover":
         discover_repos(
             scan_dir_str=args.scan_dir,
@@ -384,6 +377,7 @@ def cli(_args: list[str] | None = None) -> None:
             workspace_root_override=args.workspace_root_path,
             yes=args.yes,
             dry_run=args.dry_run,
+            merge_duplicates=args.merge_duplicates,
         )
     elif args.subparser_name == "fmt":
         format_config_file(

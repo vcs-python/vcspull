@@ -45,6 +45,10 @@ Scan complete: 2 repositories added, 0 skipped
 ```
 
 The command prompts for each repository before adding it to your configuration.
+When a matching workspace section already exists, vcspull merges the new entry
+into it so previously tracked repositories stay intact. Prefer to review
+duplicates yourself? Add `--no-merge` to keep every section untouched while
+still seeing a warning.
 
 ## Recursive scanning
 

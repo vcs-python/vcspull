@@ -11,11 +11,12 @@ import typing as t
 
 from colorama import Fore, Style
 
-from vcspull._internal.config_reader import ConfigReader
+from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
+    merge_duplicate_workspace_roots,
     normalize_workspace_roots,
     save_config_yaml,
     workspace_root_label,
@@ -104,6 +105,13 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Preview changes without writing to config file",
     )
+    parser.add_argument(
+        "--no-merge",
+        dest="merge_duplicates",
+        action="store_false",
+        help="Skip merging duplicate workspace roots before writing",
+    )
+    parser.set_defaults(merge_duplicates=True)
 
 
 def _resolve_workspace_path(
@@ -142,6 +150,8 @@ def discover_repos(
     workspace_root_override: str | None,
     yes: bool,
     dry_run: bool,
+    *,
+    merge_duplicates: bool = True,
 ) -> None:
     """Scan filesystem for git repositories and add to vcspull config.
 
@@ -186,27 +196,36 @@ def discover_repos(
         else:
             config_file_path = home_configs[0]
 
-    raw_config: dict[str, t.Any] = {}
+    raw_config: dict[str, t.Any]
+    duplicate_root_occurrences: dict[str, list[t.Any]]
     if config_file_path.exists() and config_file_path.is_file():
         try:
-            loaded_config = ConfigReader._from_file(config_file_path)
+            (
+                raw_config,
+                duplicate_root_occurrences,
+            ) = DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
+        except TypeError:
+            log.exception(
+                "Config file %s is not a valid YAML dictionary.",
+                config_file_path,
+            )
+            return
         except Exception:
             log.exception("Error loading YAML from %s. Aborting.", config_file_path)
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
             return
-
-        if loaded_config is None:
+        if raw_config is None:
             raw_config = {}
-        elif isinstance(loaded_config, dict):
-            raw_config = loaded_config
-        else:
+        elif not isinstance(raw_config, dict):
             log.error(
                 "Config file %s is not a valid YAML dictionary.",
                 config_file_path,
             )
             return
     else:
+        raw_config = {}
+        duplicate_root_occurrences = {}
         log.info(
             "%si%s Config file %s%s%s not found. A new one will be created.",
             Fore.CYAN,
@@ -216,15 +235,79 @@ def discover_repos(
             Style.RESET_ALL,
         )
 
+    duplicate_merge_conflicts: list[str] = []
+    duplicate_merge_changes = 0
+    duplicate_merge_details: list[tuple[str, int]] = []
+
+    if merge_duplicates:
+        (
+            raw_config,
+            duplicate_merge_conflicts,
+            duplicate_merge_changes,
+            duplicate_merge_details,
+        ) = merge_duplicate_workspace_roots(raw_config, duplicate_root_occurrences)
+        for message in duplicate_merge_conflicts:
+            log.warning(message)
+        if duplicate_merge_changes and duplicate_merge_details:
+            for label, occurrence_count in duplicate_merge_details:
+                log.info(
+                    "%s•%s Merged %s%d%s duplicate entr%s for workspace root %s%s%s",
+                    Fore.BLUE,
+                    Style.RESET_ALL,
+                    Fore.YELLOW,
+                    occurrence_count,
+                    Style.RESET_ALL,
+                    "y" if occurrence_count == 1 else "ies",
+                    Fore.MAGENTA,
+                    label,
+                    Style.RESET_ALL,
+                )
+    else:
+        if duplicate_root_occurrences:
+            duplicate_merge_details = [
+                (label, len(values))
+                for label, values in duplicate_root_occurrences.items()
+            ]
+            for label, occurrence_count in duplicate_merge_details:
+                log.warning(
+                    "%s•%s Duplicate workspace root %s%s%s appears %s%d%s time%s; "
+                    "skipping merge because --no-merge was provided.",
+                    Fore.BLUE,
+                    Style.RESET_ALL,
+                    Fore.MAGENTA,
+                    label,
+                    Style.RESET_ALL,
+                    Fore.YELLOW,
+                    occurrence_count,
+                    Style.RESET_ALL,
+                    "" if occurrence_count == 1 else "s",
+                )
+
     cwd = pathlib.Path.cwd()
     home = pathlib.Path.home()
 
-    normalization_result = normalize_workspace_roots(
-        raw_config,
-        cwd=cwd,
-        home=home,
-    )
-    raw_config, workspace_map, merge_conflicts, merge_changes = normalization_result
+    if merge_duplicates:
+        (
+            raw_config,
+            workspace_map,
+            merge_conflicts,
+            merge_changes,
+        ) = normalize_workspace_roots(
+            raw_config,
+            cwd=cwd,
+            home=home,
+        )
+    else:
+        (
+            _,
+            workspace_map,
+            merge_conflicts,
+            merge_changes,
+        ) = normalize_workspace_roots(
+            raw_config,
+            cwd=cwd,
+            home=home,
+        )
 
     for message in merge_conflicts:
         log.warning(message)
@@ -350,7 +433,9 @@ def discover_repos(
                     Style.RESET_ALL,
                 )
 
-    changes_made = merge_changes > 0
+    changes_made = merge_duplicates and (
+        merge_changes > 0 or duplicate_merge_changes > 0
+    )
 
     if not repos_to_add:
         if existing_repos:

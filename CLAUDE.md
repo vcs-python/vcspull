@@ -103,7 +103,6 @@ Follow this workflow for code changes:
    - `cli/__init__.py`: Main CLI entry point with argument parsing
    - `cli/sync.py`: Repository synchronization functionality
    - `cli/add.py`: Adding new repositories to configuration
-   - `cli/add_from_fs.py`: Scanning filesystem for repositories
 
 3. **Repository Management**
    - Uses `libvcs` package for VCS operations (git, svn, hg)

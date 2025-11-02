@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import argparse
+import logging
+import subprocess
+import textwrap
 import typing as t
 
 import pytest
+from syrupy.assertion import SnapshotAssertion
 
-from vcspull.cli.add import add_repo
+from vcspull.cli.add import add_repo, handle_add_command
+from vcspull.util import contract_user_home
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -27,6 +33,17 @@ class AddRepoFixture(t.NamedTuple):
     preexisting_config: dict[str, t.Any] | None
     expected_in_config: dict[str, t.Any]
     expected_log_messages: list[str]
+
+
+def init_git_repo(repo_path: pathlib.Path, remote_url: str | None) -> None:
+    """Initialize a git repository with an optional origin remote."""
+    repo_path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(repo_path)], check=True)
+    if remote_url:
+        subprocess.run(
+            ["git", "-C", str(repo_path), "remote", "add", "origin", remote_url],
+            check=True,
+        )
 
 
 ADD_REPO_FIXTURES: list[AddRepoFixture] = [
@@ -297,3 +314,293 @@ def test_add_repo_creates_new_file(
 
     assert "./" in config
     assert "newrepo" in config["./"]
+
+
+class AddDuplicateMergeFixture(t.NamedTuple):
+    """Fixture describing duplicate merge toggles for add_repo."""
+
+    test_id: str
+    merge_duplicates: bool
+    expected_repo_names: set[str]
+    expected_warning: str | None
+
+
+ADD_DUPLICATE_MERGE_FIXTURES: list[AddDuplicateMergeFixture] = [
+    AddDuplicateMergeFixture(
+        test_id="merge-on",
+        merge_duplicates=True,
+        expected_repo_names={"repo1", "repo2", "pytest-docker"},
+        expected_warning=None,
+    ),
+    AddDuplicateMergeFixture(
+        test_id="merge-off",
+        merge_duplicates=False,
+        expected_repo_names={"repo2", "pytest-docker"},
+        expected_warning="Duplicate workspace root",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(AddDuplicateMergeFixture._fields),
+    ADD_DUPLICATE_MERGE_FIXTURES,
+    ids=[fixture.test_id for fixture in ADD_DUPLICATE_MERGE_FIXTURES],
+)
+def test_add_repo_duplicate_merge_behavior(
+    test_id: str,
+    merge_duplicates: bool,
+    expected_repo_names: set[str],
+    expected_warning: str | None,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Duplicate workspace roots log appropriately based on merge toggle."""
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(
+        textwrap.dedent(
+            """\
+            ~/study/python/:
+              repo1:
+                repo: git+https://example.com/repo1.git
+            ~/study/python/:
+              repo2:
+                repo: git+https://example.com/repo2.git
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    add_repo(
+        name="pytest-docker",
+        url="git+https://github.com/avast/pytest-docker.git",
+        config_file_path_str=str(config_file),
+        path=str(tmp_path / "study/python/pytest-docker"),
+        workspace_root_path="~/study/python/",
+        dry_run=False,
+        merge_duplicates=merge_duplicates,
+    )
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_after = yaml.safe_load(fh)
+
+    assert "~/study/python/" in config_after
+    repos = config_after["~/study/python/"]
+    assert set(repos.keys()) == expected_repo_names
+
+    if expected_warning is not None:
+        assert expected_warning in caplog.text
+
+    normalized_log = caplog.text.replace(str(config_file), "<config>")
+    snapshot.assert_match({"test_id": test_id, "log": normalized_log})
+
+
+class PathAddFixture(t.NamedTuple):
+    """Fixture describing CLI path-mode add scenarios."""
+
+    test_id: str
+    remote_url: str | None
+    assume_yes: bool
+    prompt_response: str | None
+    dry_run: bool
+    expected_written: bool
+    expected_url_kind: str  # "remote" or "path"
+    override_name: str | None
+    expected_warning: str | None
+    merge_duplicates: bool
+    preexisting_yaml: str | None
+
+
+PATH_ADD_FIXTURES: list[PathAddFixture] = [
+    PathAddFixture(
+        test_id="path-auto-confirm",
+        remote_url="https://github.com/avast/pytest-docker",
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+    ),
+    PathAddFixture(
+        test_id="path-interactive-accept",
+        remote_url="https://github.com/example/project",
+        assume_yes=False,
+        prompt_response="y",
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="remote",
+        override_name="project-alias",
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+    ),
+    PathAddFixture(
+        test_id="path-interactive-decline",
+        remote_url="https://github.com/example/decline",
+        assume_yes=False,
+        prompt_response="n",
+        dry_run=False,
+        expected_written=False,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+    ),
+    PathAddFixture(
+        test_id="path-no-remote",
+        remote_url=None,
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="path",
+        override_name=None,
+        expected_warning="Unable to determine git remote",
+        merge_duplicates=True,
+        preexisting_yaml=None,
+    ),
+    PathAddFixture(
+        test_id="path-no-merge",
+        remote_url="https://github.com/example/no-merge",
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning="Duplicate workspace root",
+        merge_duplicates=False,
+        preexisting_yaml="""
+~/study/python/:
+  repo1:
+    repo: git+https://example.com/repo1.git
+~/study/python/:
+  repo2:
+    repo: git+https://example.com/repo2.git
+""",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(PathAddFixture._fields),
+    PATH_ADD_FIXTURES,
+    ids=[fixture.test_id for fixture in PATH_ADD_FIXTURES],
+)
+def test_handle_add_command_path_mode(
+    test_id: str,
+    remote_url: str | None,
+    assume_yes: bool,
+    prompt_response: str | None,
+    dry_run: bool,
+    expected_written: bool,
+    expected_url_kind: str,
+    override_name: str | None,
+    expected_warning: str | None,
+    merge_duplicates: bool,
+    preexisting_yaml: str | None,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """CLI path mode prompts and adds repositories appropriately."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    repo_path = tmp_path / "study/python/pytest-docker"
+    init_git_repo(repo_path, remote_url)
+
+    config_file = tmp_path / ".vcspull.yaml"
+
+    if preexisting_yaml is not None:
+        config_file.write_text(preexisting_yaml, encoding="utf-8")
+
+    expected_input = prompt_response if prompt_response is not None else "y"
+    monkeypatch.setattr("builtins.input", lambda _: expected_input)
+
+    args = argparse.Namespace(
+        target=str(repo_path),
+        url=None,
+        override_name=override_name,
+        config=str(config_file),
+        path=None,
+        workspace_root_path=None,
+        dry_run=dry_run,
+        assume_yes=assume_yes,
+        merge_duplicates=merge_duplicates,
+    )
+
+    handle_add_command(args)
+
+    log_output = caplog.text
+    contracted_path = contract_user_home(repo_path)
+
+    assert "Found new repository to import" in log_output
+    assert contracted_path in log_output
+
+    normalized_log = log_output.replace(str(config_file), "<config>")
+    normalized_log = normalized_log.replace(str(repo_path), "<repo_path>")
+    snapshot.assert_match({"test_id": test_id, "log": normalized_log})
+
+    if dry_run:
+        assert "skipped (dry-run)" in log_output
+
+    if assume_yes:
+        assert "auto-confirm" in log_output
+
+    if expected_warning is not None:
+        assert expected_warning in log_output
+
+    repo_name = override_name or repo_path.name
+
+    if expected_written:
+        import yaml
+
+        assert config_file.exists()
+        with config_file.open(encoding="utf-8") as fh:
+            config_data = yaml.safe_load(fh)
+
+        workspace = "~/study/python/"
+        assert workspace in config_data
+        assert repo_name in config_data[workspace]
+
+        repo_entry = config_data[workspace][repo_name]
+        expected_url: str
+        if expected_url_kind == "remote" and remote_url is not None:
+            cleaned_remote = remote_url.strip()
+            expected_url = (
+                cleaned_remote
+                if cleaned_remote.startswith("git+")
+                else f"git+{cleaned_remote}"
+            )
+        else:
+            expected_url = str(repo_path)
+
+        assert repo_entry == {"repo": expected_url}
+    else:
+        if config_file.exists():
+            import yaml
+
+            with config_file.open(encoding="utf-8") as fh:
+                config_data = yaml.safe_load(fh)
+            if config_data is not None:
+                workspace = config_data.get("~/study/python/")
+                if workspace is not None:
+                    assert repo_name not in workspace
+        assert "Aborted import" in log_output

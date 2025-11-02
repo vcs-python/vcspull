@@ -487,7 +487,6 @@ def test_setup_logger_leaves_cli_loggers_propagating(caplog: LogCaptureFixture) 
 
     for logger_name in [
         "vcspull.cli.add",
-        "vcspull.cli.add_from_fs",
         "vcspull.cli.sync",
     ]:
         logger = logging.getLogger(logger_name)

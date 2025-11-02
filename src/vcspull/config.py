@@ -14,7 +14,7 @@ from libvcs.sync.git import GitRemote
 from vcspull.validator import is_valid_config
 
 from . import exc
-from ._internal.config_reader import ConfigReader
+from ._internal.config_reader import ConfigReader, DuplicateAwareConfigReader
 from .util import get_config_dir, update_dict
 
 log = logging.getLogger(__name__)
@@ -241,6 +241,8 @@ def find_config_files(
 def load_configs(
     files: list[pathlib.Path],
     cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
+    *,
+    merge_duplicates: bool = True,
 ) -> list[ConfigDict]:
     """Return repos from a list of files.
 
@@ -268,9 +270,44 @@ def load_configs(
         if isinstance(file, str):
             file = pathlib.Path(file)
         assert isinstance(file, pathlib.Path)
-        conf = ConfigReader._from_file(file)
-        assert is_valid_config(conf)
-        newrepos = extract_repos(conf, cwd=cwd)
+
+        config_content, duplicate_roots = (
+            DuplicateAwareConfigReader.load_with_duplicates(file)
+        )
+
+        if merge_duplicates:
+            (
+                config_content,
+                merge_conflicts,
+                _merge_change_count,
+                merge_details,
+            ) = merge_duplicate_workspace_roots(config_content, duplicate_roots)
+
+            for conflict in merge_conflicts:
+                log.warning("%s: %s", file, conflict)
+
+            for root_label, occurrence_count in merge_details:
+                duplicate_count = max(occurrence_count - 1, 0)
+                if duplicate_count == 0:
+                    continue
+                plural = "entry" if duplicate_count == 1 else "entries"
+                log.info(
+                    "%s: merged %d duplicate %s for workspace root '%s'",
+                    file,
+                    duplicate_count,
+                    plural,
+                    root_label,
+                )
+        elif duplicate_roots:
+            duplicate_list = ", ".join(sorted(duplicate_roots.keys()))
+            log.warning(
+                "%s: duplicate workspace roots detected (%s); keeping last occurrences",
+                file,
+                duplicate_list,
+            )
+
+        assert is_valid_config(config_content)
+        newrepos = extract_repos(config_content, cwd=cwd)
 
         if not repos:
             repos.extend(newrepos)
@@ -442,6 +479,74 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         indent=2,
     )
     config_file_path.write_text(yaml_content, encoding="utf-8")
+
+
+def merge_duplicate_workspace_root_entries(
+    label: str,
+    occurrences: list[t.Any],
+) -> tuple[t.Any, list[str], int]:
+    """Merge duplicate entries for a single workspace root."""
+    conflicts: list[str] = []
+    change_count = max(len(occurrences) - 1, 0)
+
+    if not occurrences:
+        return {}, conflicts, change_count
+
+    if not all(isinstance(entry, dict) for entry in occurrences):
+        conflicts.append(
+            (
+                f"Workspace root '{label}' contains duplicate entries that are not "
+                "mappings. Keeping the last occurrence."
+            ),
+        )
+        return occurrences[-1], conflicts, change_count
+
+    merged: dict[str, t.Any] = {}
+
+    for entry in occurrences:
+        assert isinstance(entry, dict)
+        for repo_name, repo_config in entry.items():
+            if repo_name not in merged:
+                merged[repo_name] = copy.deepcopy(repo_config)
+            elif merged[repo_name] != repo_config:
+                conflicts.append(
+                    (
+                        f"Workspace root '{label}' contains conflicting definitions "
+                        f"for repository '{repo_name}'. Keeping the existing entry."
+                    ),
+                )
+
+    return merged, conflicts, change_count
+
+
+def merge_duplicate_workspace_roots(
+    config_data: dict[str, t.Any],
+    duplicate_roots: dict[str, list[t.Any]],
+) -> tuple[dict[str, t.Any], list[str], int, list[tuple[str, int]]]:
+    """Merge duplicate workspace root sections captured during load."""
+    if not duplicate_roots:
+        return copy.deepcopy(config_data), [], 0, []
+
+    merged_config = copy.deepcopy(config_data)
+    conflicts: list[str] = []
+    change_count = 0
+    details: list[tuple[str, int]] = []
+
+    for label, occurrences in duplicate_roots.items():
+        (
+            merged_value,
+            entry_conflicts,
+            entry_changes,
+        ) = merge_duplicate_workspace_root_entries(
+            label,
+            occurrences,
+        )
+        merged_config[label] = merged_value
+        conflicts.extend(entry_conflicts)
+        change_count += entry_changes
+        details.append((label, len(occurrences)))
+
+    return merged_config, conflicts, change_count, details
 
 
 def canonicalize_workspace_path(

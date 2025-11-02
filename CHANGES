@@ -37,17 +37,42 @@ _Upcoming changes will be written here._
 
 #### `vcspull fmt` gains duplicate root merging (#479)
 
-- Detects repeated workspace root labels and merges their repositories during
-  formatting so users keep a single normalized section.
-- Adds `--no-merge` for workflows that need to preserve duplicate entries while
-  still seeing diagnostic warnings.
+- Running `vcspull fmt` now consolidates repeated workspace sections into one
+  merged block so no repositories vanish during cleanup; pass `--no-merge` if
+  you want the command to surface duplicates without rewriting them.
+
+#### `vcspull add` protects workspace configs during imports (#480)
+
+- Default behavior now merges duplicate workspace roots so prior entries stay
+  intact; add `--no-merge` to keep the raw sections and handle them yourself.
+- You can invoke `vcspull add ~/study/python/project`; the command inspects the
+  path, auto-fills the `origin` remote, shows the tilde-shortened workspace, and
+  asks for confirmation unless you supply `--yes`.
+- CLI previews now contract `$HOME` to `~/…`, matching the rest of the UX.
+
+#### `vcspull discover` honors --no-merge (#480)
+
+- Running `vcspull discover --no-merge` only reports duplicates—it leaves the
+  file untouched until you decide to act.
+
+#### Configuration loader: Support for duplicate workspace roots (#480)
+
+- Commands backed by `load_configs` (`list`, `status`, `sync`, etc.)
+  automatically keep every repository even when workspace sections repeat; pass
+  `merge_duplicates=False` to fall back to the legacy "last entry wins"
+  behavior with a warning.
 
 ### Development
 
 #### Snapshot coverage for formatter tests (#479)
 
-- Formatter scenarios now use [Syrupy]-backed JSON and YAML snapshots to guard
-  against regressions in duplicate workspace-root merging.
+- Formatter scenarios are checked against [Syrupy] JSON/YAML snapshots, making it
+  obvious when future changes alter the merged output or log text.
+
+#### CLI `add` path-mode regression tests (#480)
+
+- Parameterized pytest scenarios cover interactive prompts, duplicate merging,
+  and path inference to keep the redesigned workflow stable.
 
 [syrupy]: https://github.com/syrupy-project/syrupy
 
