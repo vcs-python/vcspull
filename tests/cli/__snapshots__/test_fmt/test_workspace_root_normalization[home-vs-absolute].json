@@ -1,0 +1,10 @@
+{
+  "~/study/c/": {
+    "cpython": {
+      "repo": "git+https://github.com/python/cpython.git"
+    },
+    "tmux": {
+      "repo": "git+https://github.com/tmux/tmux.git"
+    }
+  }
+}

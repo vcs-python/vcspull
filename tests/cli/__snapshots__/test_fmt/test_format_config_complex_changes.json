@@ -1,0 +1,21 @@
+{
+  "~/aaa/": {
+    "repo1": {
+      "repo": "another-compact"
+    }
+  },
+  "~/zzz/": {
+    "alpha": {
+      "repo": "verbose-url"
+    },
+    "beta": {
+      "remotes": {
+        "upstream": "upstream-url"
+      },
+      "repo": "already-good"
+    },
+    "zebra": {
+      "repo": "compact-url"
+    }
+  }
+}

@@ -33,6 +33,24 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
+### Improvements
+
+#### `vcspull fmt` gains duplicate root merging (#479)
+
+- Detects repeated workspace root labels and merges their repositories during
+  formatting so users keep a single normalized section.
+- Adds `--no-merge` for workflows that need to preserve duplicate entries while
+  still seeing diagnostic warnings.
+
+### Development
+
+#### Snapshot coverage for formatter tests (#479)
+
+- Formatter scenarios now use [Syrupy]-backed JSON and YAML snapshots to guard
+  against regressions in duplicate workspace-root merging.
+
+[syrupy]: https://github.com/syrupy-project/syrupy
+
 ## vcspull v1.42.0 (2025-11-01)
 
 ### Breaking changes

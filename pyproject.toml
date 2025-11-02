@@ -85,6 +85,7 @@ dev = [
   # Testing
   "gp-libs",
   "pytest",
+  "syrupy",
   "pytest-asyncio",
   "pytest-rerunfailures",
   "pytest-mock",
@@ -119,6 +120,7 @@ docs = [
 testing = [
   "gp-libs",
   "pytest",
+  "syrupy",
   "pytest-asyncio",
   "pytest-rerunfailures",
   "pytest-mock",

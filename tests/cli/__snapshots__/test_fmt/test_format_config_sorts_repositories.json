@@ -1,0 +1,13 @@
+{
+  "~/projects/": {
+    "alpha": {
+      "repo": "url2"
+    },
+    "beta": {
+      "repo": "url3"
+    },
+    "zebra": {
+      "repo": "url1"
+    }
+  }
+}

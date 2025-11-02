@@ -1,0 +1,15 @@
+{
+  "~/aaa/": {
+    "alpha": {
+      "repo": "url1"
+    },
+    "beta": {
+      "repo": "url2"
+    }
+  },
+  "~/bbb/": {
+    "charlie": {
+      "repo": "url3"
+    }
+  }
+}

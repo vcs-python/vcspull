@@ -386,4 +386,9 @@ def cli(_args: list[str] | None = None) -> None:
             dry_run=args.dry_run,
         )
     elif args.subparser_name == "fmt":
-        format_config_file(args.config, args.write, args.all)
+        format_config_file(
+            args.config,
+            args.write,
+            args.all,
+            merge_roots=args.merge_roots,
+        )
