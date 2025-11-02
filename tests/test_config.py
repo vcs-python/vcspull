@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import textwrap
 import typing as t
 
 import pytest
@@ -149,13 +150,15 @@ def test_extract_repos_injects_workspace_root(
 def _write_duplicate_config(tmp_path: pathlib.Path) -> pathlib.Path:
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
-        (
-            "~/workspace/:\n"
-            "  alpha:\n"
-            "    repo: git+https://example.com/alpha.git\n"
-            "~/workspace/:\n"
-            "  beta:\n"
-            "    repo: git+https://example.com/beta.git\n"
+        textwrap.dedent(
+            """\
+            ~/workspace/:
+              alpha:
+                repo: git+https://example.com/alpha.git
+            ~/workspace/:
+              beta:
+                repo: git+https://example.com/beta.git
+            """
         ),
         encoding="utf-8",
     )
