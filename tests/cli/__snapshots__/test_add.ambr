@@ -3,7 +3,7 @@
   dict({
     'log': '''
       WARNING  vcspull.cli.add:add.py:<line> • Duplicate workspace root ~/study/python/ appears 2 times; skipping merge because --no-merge was provided.
-      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker.git) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker.git) to ~/.vcspull.yaml under '~/study/python/'.
   
     ''',
     'test_id': 'merge-off',
@@ -13,7 +13,7 @@
   dict({
     'log': '''
       INFO     vcspull.cli.add:add.py:<line> • Merged 2 duplicate entries for workspace root ~/study/python/
-      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker.git) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker.git) to ~/.vcspull.yaml under '~/study/python/'.
   
     ''',
     'test_id': 'merge-on',
@@ -27,11 +27,26 @@
       INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
       INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
       INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
-      INFO     vcspull.cli.add:add.py:<line> Config file <config> not found. A new one will be created.
-      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker) to ~/.vcspull.yaml under '~/study/python/'.
   
     ''',
     'test_id': 'path-auto-confirm',
+  })
+# ---
+# name: test_handle_add_command_path_mode[path-dry-run-shows-tilde-config]
+  dict({
+    'log': '''
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/example/tilde)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: skipped (dry-run)
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> → Would add 'pytest-docker' (git+https://github.com/example/tilde) to ~/.vcspull.yaml under '~/study/python/'.
+  
+    ''',
+    'test_id': 'path-dry-run-shows-tilde-config',
   })
 # ---
 # name: test_handle_add_command_path_mode[path-explicit-url]
@@ -42,8 +57,8 @@
       INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
       INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
       INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
-      INFO     vcspull.cli.add:add.py:<line> Config file <config> not found. A new one will be created.
-      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/manual/source) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/manual/source) to ~/.vcspull.yaml under '~/study/python/'.
   
     ''',
     'test_id': 'path-explicit-url',
@@ -56,8 +71,8 @@
       INFO     vcspull.cli.add:add.py:<line>   + project-alias (https://github.com/example/project)
       INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
       INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
-      INFO     vcspull.cli.add:add.py:<line> Config file <config> not found. A new one will be created.
-      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'project-alias' (git+https://github.com/example/project) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'project-alias' (git+https://github.com/example/project) to ~/.vcspull.yaml under '~/study/python/'.
   
     ''',
     'test_id': 'path-interactive-accept',
@@ -85,7 +100,7 @@
       INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
       INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
       WARNING  vcspull.cli.add:add.py:<line> • Duplicate workspace root ~/study/python/ appears 2 times; skipping merge because --no-merge was provided.
-      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/example/no-merge) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/example/no-merge) to ~/.vcspull.yaml under '~/study/python/'.
   
     ''',
     'test_id': 'path-no-merge',
@@ -100,10 +115,40 @@
       INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
       INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
       INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
-      INFO     vcspull.cli.add:add.py:<line> Config file <config> not found. A new one will be created.
-      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (<repo_path>) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (<repo_path>) to ~/.vcspull.yaml under '~/study/python/'.
   
     ''',
     'test_id': 'path-no-remote',
+  })
+# ---
+# name: test_handle_add_command_path_mode[path-relative-derives-workspace]
+  dict({
+    'log': '''
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/example/rel)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/example/rel) to ~/.vcspull.yaml under '~/study/python/'.
+  
+    ''',
+    'test_id': 'path-relative-derives-workspace',
+  })
+# ---
+# name: test_handle_add_command_path_mode[path-workspace-override]
+  dict({
+    'log': '''
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/example/workspace)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/custom/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/example/workspace) to ~/.vcspull.yaml under '~/custom/'.
+  
+    ''',
+    'test_id': 'path-workspace-override',
   })
 # ---
