@@ -42,30 +42,26 @@ _Upcoming changes will be written here._
 - Adds `--no-merge` for workflows that need to preserve duplicate entries while
   still seeing diagnostic warnings.
 
-#### `vcspull add`: Fixes and streamlining for configuration read/writing (#480)
+#### `vcspull add` protects workspace configs during imports (#480)
 
-- Loads configs with the duplicate-aware parser before editing so existing
-  workspace roots are merged instead of silently overwritten.
-- Accepts repositories by path (`vcspull add ~/study/python/project`), detects
-  `origin` remotes, and prompts for confirmation. Use `--yes` to auto-approve
-  scripted runs.
-- Adds `--no-merge` so `vcspull add` can skip auto-merging duplicates while
-  still surfacing warnings for manual follow-up.
-- CLI previews contract workspace paths to `~/…` for consistency with other
-  commands and easier scanning.
+- Default behavior now merges duplicate workspace roots so prior entries stay
+  intact; add `--no-merge` to keep the raw sections and handle them yourself.
+- You can invoke `vcspull add ~/study/python/project`; the command inspects the
+  path, auto-fills the `origin` remote, shows the tilde-shortened workspace, and
+  asks for confirmation unless you supply `--yes`.
+- CLI previews now contract `$HOME` to `~/…`, matching the rest of the UX.
 
 #### `vcspull discover` honors --no-merge (#480)
 
-- `vcspull discover --no-merge` surfaces duplicate workspace roots without
-  rewriting existing config entries.
+- Running `vcspull discover --no-merge` only reports duplicates—it leaves the
+  file untouched until you decide to act.
 
 #### Configuration loader: Support for duplicate workspace roots (#480)
 
-- `load_configs` now consumes the duplicate-aware loader so commands like
-  `vcspull list`, `vcspull status`, and `vcspull sync` keep every repository
-  even when configuration files repeat workspace sections.
-- Developers can opt out with `merge_duplicates=False`, which preserves the
-  legacy "last occurrence wins" semantics while logging a warning.
+- Commands backed by `load_configs` (`list`, `status`, `sync`, etc.)
+  automatically keep every repository even when workspace sections repeat; pass
+  `merge_duplicates=False` to fall back to the legacy "last entry wins"
+  behavior with a warning.
 
 ### Development
 
