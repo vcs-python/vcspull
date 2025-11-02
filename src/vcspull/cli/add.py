@@ -37,21 +37,21 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         The parser to configure
     """
     parser.add_argument(
-        "target",
+        "repo_path",
         help=(
-            "Repository name (when providing a URL) or filesystem path to an "
-            "existing project"
+            "Filesystem path to an existing project. The parent directory "
+            "becomes the workspace unless overridden with --workspace."
         ),
-    )
-    parser.add_argument(
-        "url",
-        nargs="?",
-        help="Repository URL when explicitly specifying the name",
     )
     parser.add_argument(
         "--name",
         dest="override_name",
         help="Override detected repository name when importing from a path",
+    )
+    parser.add_argument(
+        "--url",
+        dest="url",
+        help="Repository URL to record (overrides detected remotes)",
     )
     parser.add_argument(
         "-f",
@@ -67,8 +67,8 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         dest="workspace_root_path",
         metavar="DIR",
         help=(
-            "Workspace root directory in config (e.g., '~/projects/'). "
-            "If not specified, will be inferred from --path or use current directory."
+            "Workspace root directory in config (e.g., '~/projects/'). Defaults "
+            "to the parent directory of the repository path."
         ),
     )
     parser.add_argument(
@@ -322,7 +322,7 @@ def add_repo(
             config_file_path = pathlib.Path.cwd() / ".vcspull.yaml"
             log.info(
                 "No config specified and no default found, will create at %s",
-                config_file_path,
+                contract_user_home(config_file_path),
             )
         elif len(home_configs) > 1:
             log.error(
@@ -335,6 +335,8 @@ def add_repo(
     # Load existing config
     raw_config: dict[str, t.Any]
     duplicate_root_occurrences: dict[str, list[t.Any]]
+    display_config_path = contract_user_home(config_file_path)
+
     if config_file_path.exists() and config_file_path.is_file():
         try:
             (
@@ -357,7 +359,7 @@ def add_repo(
         duplicate_root_occurrences = {}
         log.info(
             "Config file %s not found. A new one will be created.",
-            config_file_path,
+            display_config_path,
         )
 
     duplicate_merge_conflicts: list[str] = []
@@ -494,7 +496,7 @@ def add_repo(
                     Fore.YELLOW,
                     Style.RESET_ALL,
                     Fore.BLUE,
-                    config_file_path,
+                    display_config_path,
                     Style.RESET_ALL,
                 )
             else:
@@ -505,7 +507,7 @@ def add_repo(
                         Fore.GREEN,
                         Style.RESET_ALL,
                         Fore.BLUE,
-                        config_file_path,
+                        display_config_path,
                         Style.RESET_ALL,
                     )
                 except Exception:
@@ -530,7 +532,7 @@ def add_repo(
             url,
             Style.RESET_ALL,
             Fore.BLUE,
-            config_file_path,
+            display_config_path,
             Style.RESET_ALL,
             Fore.MAGENTA,
             workspace_label,
@@ -550,7 +552,7 @@ def add_repo(
                 url,
                 Style.RESET_ALL,
                 Fore.BLUE,
-                config_file_path,
+                display_config_path,
                 Style.RESET_ALL,
                 Fore.MAGENTA,
                 workspace_label,
