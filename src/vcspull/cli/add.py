@@ -61,12 +61,6 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         help="path to config file (default: ~/.vcspull.yaml or ./.vcspull.yaml)",
     )
     parser.add_argument(
-        "--path",
-        dest="path",
-        help="Local directory path where repo will be cloned "
-        "(determines workspace root if not specified with --workspace)",
-    )
-    parser.add_argument(
         "-w",
         "--workspace",
         "--workspace-root",
@@ -171,23 +165,9 @@ def _normalize_detected_url(remote: str | None) -> tuple[str, str]:
 
 def handle_add_command(args: argparse.Namespace) -> None:
     """Entry point for the ``vcspull add`` CLI command."""
-    explicit_url = getattr(args, "url", None)
-
-    if explicit_url:
-        add_repo(
-            name=args.target,
-            url=explicit_url,
-            config_file_path_str=args.config,
-            path=args.path,
-            workspace_root_path=args.workspace_root_path,
-            dry_run=args.dry_run,
-            merge_duplicates=args.merge_duplicates,
-        )
-        return
-
-    repo_input = getattr(args, "target", None)
+    repo_input = getattr(args, "repo_path", None)
     if repo_input is None:
-        log.error("A repository path or name must be provided.")
+        log.error("A repository path must be provided.")
         return
 
     cwd = pathlib.Path.cwd()
@@ -204,8 +184,12 @@ def handle_add_command(args: argparse.Namespace) -> None:
     override_name = getattr(args, "override_name", None)
     repo_name = override_name or repo_path.name
 
-    detected_remote = _detect_git_remote(repo_path)
-    display_url, config_url = _normalize_detected_url(detected_remote)
+    explicit_url = getattr(args, "url", None)
+    if explicit_url:
+        display_url, config_url = _normalize_detected_url(explicit_url)
+    else:
+        detected_remote = _detect_git_remote(repo_path)
+        display_url, config_url = _normalize_detected_url(detected_remote)
 
     if not config_url:
         display_url = contract_user_home(repo_path)

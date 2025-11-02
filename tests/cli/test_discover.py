@@ -6,7 +6,6 @@ import subprocess
 import typing as t
 
 import pytest
-from syrupy.assertion import SnapshotAssertion
 
 from vcspull.cli.discover import discover_repos
 
@@ -14,6 +13,7 @@ if t.TYPE_CHECKING:
     import pathlib
 
     from _pytest.monkeypatch import MonkeyPatch
+    from syrupy.assertion import SnapshotAssertion
 
 
 def init_git_repo(repo_path: pathlib.Path, remote_url: str) -> None:

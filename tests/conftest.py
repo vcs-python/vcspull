@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
-from syrupy.assertion import SnapshotAssertion
 from syrupy.extensions.json import JSONSnapshotExtension
 from syrupy.extensions.single_file import SingleFileSnapshotExtension, WriteMode
+
+if TYPE_CHECKING:
+    from syrupy.assertion import SnapshotAssertion
 
 
 class YamlSnapshotExtension(SingleFileSnapshotExtension):

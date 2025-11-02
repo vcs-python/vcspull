@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-import pathlib
 import textwrap
+from typing import TYPE_CHECKING
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
+
+if TYPE_CHECKING:
+    import pathlib
 
 
 def _write(tmp_path: pathlib.Path, name: str, content: str) -> pathlib.Path:
@@ -24,7 +27,7 @@ def test_duplicate_aware_reader_records_yaml_duplicates(tmp_path: pathlib.Path) 
         ~/study/python/:
           repo2:
             repo: git+https://example.com/repo2.git
-        """
+        """,
     )
     config_path = _write(tmp_path, "config.yaml", yaml_content)
 
@@ -55,7 +58,7 @@ def test_duplicate_aware_reader_handles_yaml_without_duplicates(
         ~/code/:
           repo:
             repo: git+https://example.com/repo.git
-        """
+        """,
     )
     config_path = _write(tmp_path, "single.yaml", yaml_content)
 
@@ -78,7 +81,7 @@ def test_duplicate_aware_reader_passes_through_json(tmp_path: pathlib.Path) -> N
             "repo": {"repo": "git+https://example.com/repo.git"}
           }
         }
-        """
+        """,
     )
     config_path = _write(tmp_path, "config.json", json_content)
 

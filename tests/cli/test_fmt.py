@@ -9,7 +9,6 @@ import typing as t
 
 import pytest
 import yaml
-from syrupy.assertion import SnapshotAssertion
 
 from vcspull.cli import cli
 from vcspull.cli.fmt import format_config, format_config_file, normalize_repo_config
@@ -21,6 +20,7 @@ from vcspull.config import (
 
 if t.TYPE_CHECKING:
     from _pytest.logging import LogCaptureFixture
+    from syrupy.assertion import SnapshotAssertion
 
 
 class WorkspaceRootFixture(t.NamedTuple):

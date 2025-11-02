@@ -9,7 +9,6 @@ import textwrap
 import typing as t
 
 import pytest
-from syrupy.assertion import SnapshotAssertion
 
 from vcspull.cli.add import add_repo, handle_add_command
 from vcspull.util import contract_user_home
@@ -18,6 +17,7 @@ if t.TYPE_CHECKING:
     import pathlib
 
     from _pytest.monkeypatch import MonkeyPatch
+    from syrupy.assertion import SnapshotAssertion
 
 
 class AddRepoFixture(t.NamedTuple):
@@ -374,7 +374,7 @@ def test_add_repo_duplicate_merge_behavior(
             ~/study/python/:
               repo2:
                 repo: git+https://example.com/repo2.git
-            """
+            """,
         ),
         encoding="utf-8",
     )

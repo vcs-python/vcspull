@@ -158,7 +158,7 @@ def _write_duplicate_config(tmp_path: pathlib.Path) -> pathlib.Path:
             ~/workspace/:
               beta:
                 repo: git+https://example.com/beta.git
-            """
+            """,
         ),
         encoding="utf-8",
     )
