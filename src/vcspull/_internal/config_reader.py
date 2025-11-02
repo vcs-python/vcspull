@@ -228,6 +228,7 @@ class _DuplicateTrackingSafeLoader(yaml.SafeLoader):
         super().__init__(stream)
         self.top_level_key_values: dict[t.Any, list[t.Any]] = {}
         self._mapping_depth = 0
+        self.top_level_items: list[tuple[t.Any, t.Any]] = []
 
 
 def _duplicate_tracking_construct_mapping(
@@ -248,7 +249,9 @@ def _duplicate_tracking_construct_mapping(
         value = construct(value_node)
 
         if loader._mapping_depth == 1:
-            loader.top_level_key_values.setdefault(key, []).append(copy.deepcopy(value))
+            duplicated_value = copy.deepcopy(value)
+            loader.top_level_key_values.setdefault(key, []).append(duplicated_value)
+            loader.top_level_items.append((copy.deepcopy(key), duplicated_value))
 
         mapping[key] = value
 
@@ -270,20 +273,27 @@ class DuplicateAwareConfigReader(ConfigReader):
         content: RawConfigData,
         *,
         duplicate_sections: dict[str, list[t.Any]] | None = None,
+        top_level_items: list[tuple[str, t.Any]] | None = None,
     ) -> None:
         super().__init__(content)
         self._duplicate_sections = duplicate_sections or {}
+        self._top_level_items = top_level_items or []
 
     @property
     def duplicate_sections(self) -> dict[str, list[t.Any]]:
         """Mapping of top-level keys to the list of duplicated values."""
         return self._duplicate_sections
 
+    @property
+    def top_level_items(self) -> list[tuple[str, t.Any]]:
+        """Ordered list of top-level items, including duplicates."""
+        return copy.deepcopy(self._top_level_items)
+
     @classmethod
     def _load_yaml_with_duplicates(
         cls,
         content: str,
-    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]]]:
+    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]], list[tuple[str, t.Any]]]:
         loader = _DuplicateTrackingSafeLoader(content)
 
         try:
@@ -306,33 +316,42 @@ class DuplicateAwareConfigReader(ConfigReader):
             if len(values) > 1
         }
 
-        return loaded, duplicate_sections
+        top_level_items = [
+            (t.cast("str", key), copy.deepcopy(value))
+            for key, value in loader.top_level_items
+        ]
+
+        return loaded, duplicate_sections, top_level_items
 
     @classmethod
     def _load_from_path(
         cls,
         path: pathlib.Path,
-    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]]]:
+    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]], list[tuple[str, t.Any]]]:
         if path.suffix.lower() in {".yaml", ".yml"}:
             content = path.read_text(encoding="utf-8")
             return cls._load_yaml_with_duplicates(content)
 
-        return ConfigReader._from_file(path), {}
+        return ConfigReader._from_file(path), {}, []
 
     @classmethod
     def from_file(cls, path: pathlib.Path) -> DuplicateAwareConfigReader:
-        content, duplicate_sections = cls._load_from_path(path)
-        return cls(content, duplicate_sections=duplicate_sections)
+        content, duplicate_sections, top_level_items = cls._load_from_path(path)
+        return cls(
+            content,
+            duplicate_sections=duplicate_sections,
+            top_level_items=top_level_items,
+        )
 
     @classmethod
     def _from_file(cls, path: pathlib.Path) -> dict[str, t.Any]:
-        content, _ = cls._load_from_path(path)
+        content, _, _ = cls._load_from_path(path)
         return content
 
     @classmethod
     def load_with_duplicates(
         cls,
         path: pathlib.Path,
-    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]]]:
+    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]], list[tuple[str, t.Any]]]:
         reader = cls.from_file(path)
-        return reader.content, reader.duplicate_sections
+        return reader.content, reader.duplicate_sections, reader.top_level_items

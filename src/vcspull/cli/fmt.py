@@ -172,7 +172,7 @@ def format_single_config(
 
     # Load existing config
     try:
-        raw_config, duplicate_root_occurrences = (
+        raw_config, duplicate_root_occurrences, _top_level_items = (
             DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
         )
     except TypeError:

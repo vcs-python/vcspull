@@ -271,7 +271,7 @@ def load_configs(
             file = pathlib.Path(file)
         assert isinstance(file, pathlib.Path)
 
-        config_content, duplicate_roots = (
+        config_content, duplicate_roots, _top_level_items = (
             DuplicateAwareConfigReader.load_with_duplicates(file)
         )
 
