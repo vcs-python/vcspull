@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import typing as t
 
 import pytest
@@ -143,3 +144,65 @@ def test_extract_repos_injects_workspace_root(
         assert repo["workspace_root"] == expected_root
         expected_path = config.expand_dir(pl.Path(expected_root), cwd=tmp_path) / name
         assert repo["path"] == expected_path
+
+
+def _write_duplicate_config(tmp_path: pathlib.Path) -> pathlib.Path:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        (
+            "~/workspace/:\n"
+            "  alpha:\n"
+            "    repo: git+https://example.com/alpha.git\n"
+            "~/workspace/:\n"
+            "  beta:\n"
+            "    repo: git+https://example.com/beta.git\n"
+        ),
+        encoding="utf-8",
+    )
+    return config_path
+
+
+def test_load_configs_merges_duplicate_workspace_roots(
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Duplicate workspace roots are merged to keep every repository."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    caplog.set_level(logging.INFO, logger="vcspull.config")
+
+    config_path = _write_duplicate_config(tmp_path)
+
+    repos = config.load_configs([config_path], cwd=tmp_path)
+
+    repo_names = {repo["name"] for repo in repos}
+    assert repo_names == {"alpha", "beta"}
+
+    merged_messages = [message for message in caplog.messages if "merged" in message]
+    assert merged_messages, "Expected a merge log entry for duplicate roots"
+
+
+def test_load_configs_can_skip_merging_duplicates(
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The merge step can be skipped while still warning about duplicates."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    caplog.set_level(logging.WARNING, logger="vcspull.config")
+
+    config_path = _write_duplicate_config(tmp_path)
+
+    repos = config.load_configs(
+        [config_path],
+        cwd=tmp_path,
+        merge_duplicates=False,
+    )
+
+    repo_names = {repo["name"] for repo in repos}
+    assert repo_names == {"beta"}
+
+    warning_messages = [
+        message for message in caplog.messages if "duplicate" in message
+    ]
+    assert warning_messages, "Expected a warning about duplicate workspace roots"

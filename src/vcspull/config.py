@@ -14,7 +14,7 @@ from libvcs.sync.git import GitRemote
 from vcspull.validator import is_valid_config
 
 from . import exc
-from ._internal.config_reader import ConfigReader
+from ._internal.config_reader import ConfigReader, DuplicateAwareConfigReader
 from .util import get_config_dir, update_dict
 
 log = logging.getLogger(__name__)
@@ -241,6 +241,8 @@ def find_config_files(
 def load_configs(
     files: list[pathlib.Path],
     cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
+    *,
+    merge_duplicates: bool = True,
 ) -> list[ConfigDict]:
     """Return repos from a list of files.
 
@@ -268,9 +270,44 @@ def load_configs(
         if isinstance(file, str):
             file = pathlib.Path(file)
         assert isinstance(file, pathlib.Path)
-        conf = ConfigReader._from_file(file)
-        assert is_valid_config(conf)
-        newrepos = extract_repos(conf, cwd=cwd)
+
+        config_content, duplicate_roots = (
+            DuplicateAwareConfigReader.load_with_duplicates(file)
+        )
+
+        if merge_duplicates:
+            (
+                config_content,
+                merge_conflicts,
+                _merge_change_count,
+                merge_details,
+            ) = merge_duplicate_workspace_roots(config_content, duplicate_roots)
+
+            for conflict in merge_conflicts:
+                log.warning("%s: %s", file, conflict)
+
+            for root_label, occurrence_count in merge_details:
+                duplicate_count = max(occurrence_count - 1, 0)
+                if duplicate_count == 0:
+                    continue
+                plural = "entry" if duplicate_count == 1 else "entries"
+                log.info(
+                    "%s: merged %d duplicate %s for workspace root '%s'",
+                    file,
+                    duplicate_count,
+                    plural,
+                    root_label,
+                )
+        elif duplicate_roots:
+            duplicate_list = ", ".join(sorted(duplicate_roots.keys()))
+            log.warning(
+                "%s: duplicate workspace roots detected (%s); keeping last occurrences",
+                file,
+                duplicate_list,
+            )
+
+        assert is_valid_config(config_content)
+        newrepos = extract_repos(config_content, cwd=cwd)
 
         if not repos:
             repos.extend(newrepos)
