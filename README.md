@@ -93,19 +93,18 @@ machines. Subsequent syncs of initialized repos will fetch the latest commits.
 
 ### Add repositories from the CLI
 
-Register a single repository without touching YAML manually:
+Register a single repository by pointing at the checkout:
 
 ```console
-$ vcspull add my-lib https://github.com/example/my-lib.git --path ~/code/my-lib
+$ vcspull add ~/projects/libs/my-lib
 ```
 
-- Omit `--path` to default the entry under `./`.
-- Use `-w/--workspace` when you want to force a specific workspace root, e.g.
-  `-w ~/projects/libs`.
-- Pass `-f/--file` to add to an alternate YAML file.
-- Use `--dry-run` to preview changes before writing.
-- Point at an existing checkout (`vcspull add ~/projects/example`) to infer the
-  name and remote; add `--yes` to skip the confirmation prompt.
+- vcspull infers the name from the directory and detects the `origin` remote.
+  Pass `--url` when you need to record a different remote.
+- Override the derived name with `--name` and the workspace root with
+  `-w/--workspace`.
+- `--dry-run` previews the update, while `--yes` skips the confirmation prompt.
+- `-f/--file` selects an alternate configuration file.
 - Append `--no-merge` if you prefer to review duplicate workspace roots
   yourself instead of having vcspull merge them automatically.
 - Follow with `vcspull sync my-lib` to clone or update the working tree after registration.

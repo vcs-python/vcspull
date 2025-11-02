@@ -29,9 +29,25 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 ## vcspull v1.44.x (unreleased)
 
-<!-- Maintainers, insert changes / features for the next release here -->
+### Improvements
 
-_Upcoming changes will be written here._
+#### `vcspull add` streamlines path-first imports (#481)
+
+- The CLI now requires a repository path as its positional argument, inferring
+  the name and `origin` remote automatically. Supply `--url` to record an
+  alternative remote and `--name` when you need a different label.
+- Workspace roots default to the checkout's parent directory; use
+  `--workspace/--workspace-root` to override the destination while keeping the
+  path-first flow intact.
+- CLI output contracts configuration paths to `~/.vcspull.yaml`, keeping
+  dry-run previews concise when configs live under the home directory.
+
+### Development
+
+#### Snapshot stability for CLI logs (#481)
+
+- Discover command snapshots replace volatile line numbers with placeholders so
+  future refactors and lint rewrites do not break the test suite.
 
 ## vcspull v1.43.0 (2025-11-02)
 
