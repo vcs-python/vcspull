@@ -42,12 +42,27 @@ _Upcoming changes will be written here._
 - Adds `--no-merge` for workflows that need to preserve duplicate entries while
   still seeing diagnostic warnings.
 
+#### `vcspull add` protects workspace configs during imports (#480)
+
+- Loads configs with the duplicate-aware parser before editing so existing
+  workspace roots are merged instead of silently overwritten.
+- Accepts repositories by path (`vcspull add ~/study/python/project`), detects
+  `origin` remotes, and prompts for confirmation. Use `--yes` to auto-approve
+  scripted runs.
+- CLI previews contract workspace paths to `~/…` for consistency with other
+  commands and easier scanning.
+
 ### Development
 
 #### Snapshot coverage for formatter tests (#479)
 
 - Formatter scenarios now use [Syrupy]-backed JSON and YAML snapshots to guard
   against regressions in duplicate workspace-root merging.
+
+#### CLI `add` path-mode regression tests (#480)
+
+- Parameterized pytest scenarios cover interactive prompts, duplicate merging,
+  and path inference to keep the redesigned workflow stable.
 
 [syrupy]: https://github.com/syrupy-project/syrupy
 
