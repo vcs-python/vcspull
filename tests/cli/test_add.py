@@ -8,6 +8,7 @@ import subprocess
 import typing as t
 
 import pytest
+from syrupy.assertion import SnapshotAssertion
 
 from vcspull.cli.add import add_repo, handle_add_command
 from vcspull.util import contract_user_home
@@ -314,12 +315,47 @@ def test_add_repo_creates_new_file(
     assert "newrepo" in config["./"]
 
 
-def test_add_repo_merges_duplicate_workspace_roots(
+class AddDuplicateMergeFixture(t.NamedTuple):
+    """Fixture describing duplicate merge toggles for add_repo."""
+
+    test_id: str
+    merge_duplicates: bool
+    expected_repo_names: set[str]
+    expected_warning: str | None
+
+
+ADD_DUPLICATE_MERGE_FIXTURES: list[AddDuplicateMergeFixture] = [
+    AddDuplicateMergeFixture(
+        test_id="merge-on",
+        merge_duplicates=True,
+        expected_repo_names={"repo1", "repo2", "pytest-docker"},
+        expected_warning=None,
+    ),
+    AddDuplicateMergeFixture(
+        test_id="merge-off",
+        merge_duplicates=False,
+        expected_repo_names={"repo2", "pytest-docker"},
+        expected_warning="Duplicate workspace root",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(AddDuplicateMergeFixture._fields),
+    ADD_DUPLICATE_MERGE_FIXTURES,
+    ids=[fixture.test_id for fixture in ADD_DUPLICATE_MERGE_FIXTURES],
+)
+def test_add_repo_duplicate_merge_behavior(
+    test_id: str,
+    merge_duplicates: bool,
+    expected_repo_names: set[str],
+    expected_warning: str | None,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: t.Any,
+    snapshot: SnapshotAssertion,
 ) -> None:
-    """Duplicate workspace roots are merged without losing repositories."""
+    """Duplicate workspace roots log appropriately based on merge toggle."""
     import yaml
 
     caplog.set_level(logging.INFO)
@@ -347,16 +383,21 @@ def test_add_repo_merges_duplicate_workspace_roots(
         path=str(tmp_path / "study/python/pytest-docker"),
         workspace_root_path="~/study/python/",
         dry_run=False,
+        merge_duplicates=merge_duplicates,
     )
 
-    with config_file.open() as fh:
-        merged_config = yaml.safe_load(fh)
+    with config_file.open(encoding="utf-8") as fh:
+        config_after = yaml.safe_load(fh)
 
-    assert "~/study/python/" in merged_config
-    repos = merged_config["~/study/python/"]
-    assert set(repos.keys()) == {"repo1", "repo2", "pytest-docker"}
+    assert "~/study/python/" in config_after
+    repos = config_after["~/study/python/"]
+    assert set(repos.keys()) == expected_repo_names
 
-    assert "Merged" in caplog.text
+    if expected_warning is not None:
+        assert expected_warning in caplog.text
+
+    normalized_log = caplog.text.replace(str(config_file), "<config>")
+    snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
 
 class PathAddFixture(t.NamedTuple):
@@ -371,6 +412,8 @@ class PathAddFixture(t.NamedTuple):
     expected_url_kind: str  # "remote" or "path"
     override_name: str | None
     expected_warning: str | None
+    merge_duplicates: bool
+    preexisting_yaml: str | None
 
 
 PATH_ADD_FIXTURES: list[PathAddFixture] = [
@@ -384,6 +427,8 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         expected_url_kind="remote",
         override_name=None,
         expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     PathAddFixture(
         test_id="path-interactive-accept",
@@ -395,6 +440,8 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         expected_url_kind="remote",
         override_name="project-alias",
         expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     PathAddFixture(
         test_id="path-interactive-decline",
@@ -406,6 +453,8 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         expected_url_kind="remote",
         override_name=None,
         expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
     ),
     PathAddFixture(
         test_id="path-no-remote",
@@ -417,6 +466,28 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         expected_url_kind="path",
         override_name=None,
         expected_warning="Unable to determine git remote",
+        merge_duplicates=True,
+        preexisting_yaml=None,
+    ),
+    PathAddFixture(
+        test_id="path-no-merge",
+        remote_url="https://github.com/example/no-merge",
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning="Duplicate workspace root",
+        merge_duplicates=False,
+        preexisting_yaml="""
+~/study/python/:
+  repo1:
+    repo: git+https://example.com/repo1.git
+~/study/python/:
+  repo2:
+    repo: git+https://example.com/repo2.git
+""",
     ),
 ]
 
@@ -436,9 +507,12 @@ def test_handle_add_command_path_mode(
     expected_url_kind: str,
     override_name: str | None,
     expected_warning: str | None,
+    merge_duplicates: bool,
+    preexisting_yaml: str | None,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: t.Any,
+    snapshot: SnapshotAssertion,
 ) -> None:
     """CLI path mode prompts and adds repositories appropriately."""
     caplog.set_level(logging.INFO)
@@ -450,6 +524,9 @@ def test_handle_add_command_path_mode(
     init_git_repo(repo_path, remote_url)
 
     config_file = tmp_path / ".vcspull.yaml"
+
+    if preexisting_yaml is not None:
+        config_file.write_text(preexisting_yaml, encoding="utf-8")
 
     expected_input = prompt_response if prompt_response is not None else "y"
     monkeypatch.setattr("builtins.input", lambda _: expected_input)
@@ -463,6 +540,7 @@ def test_handle_add_command_path_mode(
         workspace_root_path=None,
         dry_run=dry_run,
         assume_yes=assume_yes,
+        merge_duplicates=merge_duplicates,
     )
 
     handle_add_command(args)
@@ -472,6 +550,10 @@ def test_handle_add_command_path_mode(
 
     assert "Found new repository to import" in log_output
     assert contracted_path in log_output
+
+    normalized_log = log_output.replace(str(config_file), "<config>")
+    normalized_log = normalized_log.replace(str(repo_path), "<repo_path>")
+    snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
     if dry_run:
         assert "skipped (dry-run)" in log_output
