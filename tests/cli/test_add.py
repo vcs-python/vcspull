@@ -819,12 +819,6 @@ NO_MERGE_PRESERVATION_FIXTURES: list[NoMergePreservationFixture] = [
 ]
 
 
-@pytest.mark.xfail(
-    reason=(
-        "vcspull add --no-merge overwrites earlier duplicate workspace sections "
-        "(data loss bug)"
-    ),
-)
 @pytest.mark.parametrize(
     list(NoMergePreservationFixture._fields),
     NO_MERGE_PRESERVATION_FIXTURES,
