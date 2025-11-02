@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import subprocess
 import textwrap
 import typing as t
@@ -400,6 +401,7 @@ def test_add_repo_duplicate_merge_behavior(
         assert expected_warning in caplog.text
 
     normalized_log = caplog.text.replace(str(config_file), "<config>")
+    normalized_log = re.sub(r"add\.py:\d+", "add.py:<line>", normalized_log)
     snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
 
@@ -408,11 +410,12 @@ class PathAddFixture(t.NamedTuple):
 
     test_id: str
     remote_url: str | None
+    explicit_url: str | None
     assume_yes: bool
     prompt_response: str | None
     dry_run: bool
     expected_written: bool
-    expected_url_kind: str  # "remote" or "path"
+    expected_url_kind: str  # "remote", "path", or "explicit"
     override_name: str | None
     expected_warning: str | None
     merge_duplicates: bool
@@ -423,6 +426,7 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
     PathAddFixture(
         test_id="path-auto-confirm",
         remote_url="https://github.com/avast/pytest-docker",
+        explicit_url=None,
         assume_yes=True,
         prompt_response=None,
         dry_run=False,
@@ -436,6 +440,7 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
     PathAddFixture(
         test_id="path-interactive-accept",
         remote_url="https://github.com/example/project",
+        explicit_url=None,
         assume_yes=False,
         prompt_response="y",
         dry_run=False,
@@ -449,6 +454,7 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
     PathAddFixture(
         test_id="path-interactive-decline",
         remote_url="https://github.com/example/decline",
+        explicit_url=None,
         assume_yes=False,
         prompt_response="n",
         dry_run=False,
@@ -462,6 +468,7 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
     PathAddFixture(
         test_id="path-no-remote",
         remote_url=None,
+        explicit_url=None,
         assume_yes=True,
         prompt_response=None,
         dry_run=False,
@@ -475,6 +482,7 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
     PathAddFixture(
         test_id="path-no-merge",
         remote_url="https://github.com/example/no-merge",
+        explicit_url=None,
         assume_yes=True,
         prompt_response=None,
         dry_run=False,
@@ -492,6 +500,20 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
     repo: git+https://example.com/repo2.git
 """,
     ),
+    PathAddFixture(
+        test_id="path-explicit-url",
+        remote_url=None,
+        explicit_url="https://github.com/manual/source",
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="explicit",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+    ),
 ]
 
 
@@ -503,6 +525,7 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
 def test_handle_add_command_path_mode(
     test_id: str,
     remote_url: str | None,
+    explicit_url: str | None,
     assume_yes: bool,
     prompt_response: str | None,
     dry_run: bool,
@@ -535,11 +558,10 @@ def test_handle_add_command_path_mode(
     monkeypatch.setattr("builtins.input", lambda _: expected_input)
 
     args = argparse.Namespace(
-        target=str(repo_path),
-        url=None,
+        repo_path=str(repo_path),
+        url=explicit_url,
         override_name=override_name,
         config=str(config_file),
-        path=None,
         workspace_root_path=None,
         dry_run=dry_run,
         assume_yes=assume_yes,
@@ -556,6 +578,7 @@ def test_handle_add_command_path_mode(
 
     normalized_log = log_output.replace(str(config_file), "<config>")
     normalized_log = normalized_log.replace(str(repo_path), "<repo_path>")
+    normalized_log = re.sub(r"add\.py:\d+", "add.py:<line>", normalized_log)
     snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
     if dry_run:
@@ -582,7 +605,13 @@ def test_handle_add_command_path_mode(
 
         repo_entry = config_data[workspace][repo_name]
         expected_url: str
-        if expected_url_kind == "remote" and remote_url is not None:
+        if expected_url_kind == "explicit" and explicit_url is not None:
+            expected_url = (
+                explicit_url
+                if explicit_url.startswith("git+")
+                else f"git+{explicit_url}"
+            )
+        elif expected_url_kind == "remote" and remote_url is not None:
             cleaned_remote = remote_url.strip()
             expected_url = (
                 cleaned_remote

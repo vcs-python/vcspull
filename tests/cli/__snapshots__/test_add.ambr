@@ -2,8 +2,8 @@
 # name: test_add_repo_duplicate_merge_behavior[merge-off]
   dict({
     'log': '''
-      WARNING  vcspull.cli.add:add.py:414 • Duplicate workspace root ~/study/python/ appears 2 times; skipping merge because --no-merge was provided.
-      INFO     vcspull.cli.add:add.py:558 ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker.git) to <config> under '~/study/python/'.
+      WARNING  vcspull.cli.add:add.py:<line> • Duplicate workspace root ~/study/python/ appears 2 times; skipping merge because --no-merge was provided.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker.git) to <config> under '~/study/python/'.
   
     ''',
     'test_id': 'merge-off',
@@ -12,8 +12,8 @@
 # name: test_add_repo_duplicate_merge_behavior[merge-on]
   dict({
     'log': '''
-      INFO     vcspull.cli.add:add.py:395 • Merged 2 duplicate entries for workspace root ~/study/python/
-      INFO     vcspull.cli.add:add.py:558 ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker.git) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> • Merged 2 duplicate entries for workspace root ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker.git) to <config> under '~/study/python/'.
   
     ''',
     'test_id': 'merge-on',
@@ -22,27 +22,42 @@
 # name: test_handle_add_command_path_mode[path-auto-confirm]
   dict({
     'log': '''
-      INFO     vcspull.cli.add:add.py:235 Found new repository to import:
-      INFO     vcspull.cli.add:add.py:236   + pytest-docker (https://github.com/avast/pytest-docker)
-      INFO     vcspull.cli.add:add.py:247   • workspace: ~/study/python/
-      INFO     vcspull.cli.add:add.py:255   ↳ path: ~/study/python/pytest-docker
-      INFO     vcspull.cli.add:add.py:276 ? Import this repository? [y/N]: y (auto-confirm)
-      INFO     vcspull.cli.add:add.py:374 Config file <config> not found. A new one will be created.
-      INFO     vcspull.cli.add:add.py:558 ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/avast/pytest-docker)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
+      INFO     vcspull.cli.add:add.py:<line> Config file <config> not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/avast/pytest-docker) to <config> under '~/study/python/'.
   
     ''',
     'test_id': 'path-auto-confirm',
   })
 # ---
+# name: test_handle_add_command_path_mode[path-explicit-url]
+  dict({
+    'log': '''
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/manual/source)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
+      INFO     vcspull.cli.add:add.py:<line> Config file <config> not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/manual/source) to <config> under '~/study/python/'.
+  
+    ''',
+    'test_id': 'path-explicit-url',
+  })
+# ---
 # name: test_handle_add_command_path_mode[path-interactive-accept]
   dict({
     'log': '''
-      INFO     vcspull.cli.add:add.py:235 Found new repository to import:
-      INFO     vcspull.cli.add:add.py:236   + project-alias (https://github.com/example/project)
-      INFO     vcspull.cli.add:add.py:247   • workspace: ~/study/python/
-      INFO     vcspull.cli.add:add.py:255   ↳ path: ~/study/python/pytest-docker
-      INFO     vcspull.cli.add:add.py:374 Config file <config> not found. A new one will be created.
-      INFO     vcspull.cli.add:add.py:558 ✓ Successfully added 'project-alias' (git+https://github.com/example/project) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + project-alias (https://github.com/example/project)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> Config file <config> not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'project-alias' (git+https://github.com/example/project) to <config> under '~/study/python/'.
   
     ''',
     'test_id': 'path-interactive-accept',
@@ -51,11 +66,11 @@
 # name: test_handle_add_command_path_mode[path-interactive-decline]
   dict({
     'log': '''
-      INFO     vcspull.cli.add:add.py:235 Found new repository to import:
-      INFO     vcspull.cli.add:add.py:236   + pytest-docker (https://github.com/example/decline)
-      INFO     vcspull.cli.add:add.py:247   • workspace: ~/study/python/
-      INFO     vcspull.cli.add:add.py:255   ↳ path: ~/study/python/pytest-docker
-      INFO     vcspull.cli.add:add.py:290 Aborted import of 'pytest-docker' from <repo_path>
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/example/decline)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> Aborted import of 'pytest-docker' from <repo_path>
   
     ''',
     'test_id': 'path-interactive-decline',
@@ -64,13 +79,13 @@
 # name: test_handle_add_command_path_mode[path-no-merge]
   dict({
     'log': '''
-      INFO     vcspull.cli.add:add.py:235 Found new repository to import:
-      INFO     vcspull.cli.add:add.py:236   + pytest-docker (https://github.com/example/no-merge)
-      INFO     vcspull.cli.add:add.py:247   • workspace: ~/study/python/
-      INFO     vcspull.cli.add:add.py:255   ↳ path: ~/study/python/pytest-docker
-      INFO     vcspull.cli.add:add.py:276 ? Import this repository? [y/N]: y (auto-confirm)
-      WARNING  vcspull.cli.add:add.py:414 • Duplicate workspace root ~/study/python/ appears 2 times; skipping merge because --no-merge was provided.
-      INFO     vcspull.cli.add:add.py:558 ✓ Successfully added 'pytest-docker' (git+https://github.com/example/no-merge) to <config> under '~/study/python/'.
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/example/no-merge)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
+      WARNING  vcspull.cli.add:add.py:<line> • Duplicate workspace root ~/study/python/ appears 2 times; skipping merge because --no-merge was provided.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/example/no-merge) to <config> under '~/study/python/'.
   
     ''',
     'test_id': 'path-no-merge',
@@ -79,14 +94,14 @@
 # name: test_handle_add_command_path_mode[path-no-remote]
   dict({
     'log': '''
-      WARNING  vcspull.cli.add:add.py:213 Unable to determine git remote for <repo_path>; using local path in config.
-      INFO     vcspull.cli.add:add.py:235 Found new repository to import:
-      INFO     vcspull.cli.add:add.py:236   + pytest-docker (~/study/python/pytest-docker)
-      INFO     vcspull.cli.add:add.py:247   • workspace: ~/study/python/
-      INFO     vcspull.cli.add:add.py:255   ↳ path: ~/study/python/pytest-docker
-      INFO     vcspull.cli.add:add.py:276 ? Import this repository? [y/N]: y (auto-confirm)
-      INFO     vcspull.cli.add:add.py:374 Config file <config> not found. A new one will be created.
-      INFO     vcspull.cli.add:add.py:558 ✓ Successfully added 'pytest-docker' (<repo_path>) to <config> under '~/study/python/'.
+      WARNING  vcspull.cli.add:add.py:<line> Unable to determine git remote for <repo_path>; using local path in config.
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (~/study/python/pytest-docker)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ~/study/python/
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
+      INFO     vcspull.cli.add:add.py:<line> Config file <config> not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (<repo_path>) to <config> under '~/study/python/'.
   
     ''',
     'test_id': 'path-no-remote',
