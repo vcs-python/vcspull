@@ -106,6 +106,20 @@ class ConfigReader:
         assert isinstance(path, pathlib.Path)
         content = path.open(encoding="utf-8").read()
 
+        # TODO(#?): Align this loader with the duplicate-aware YAML handling that
+        # ``vcspull fmt`` introduced in November 2025. The formatter now uses a
+        # custom SafeLoader subclass to retain and merge duplicate workspace root
+        # sections so repos are never overwritten. ConfigReader currently drops
+        # later duplicates because PyYAML keeps only the last key. Options:
+        # 1) Extract the formatter's loader/merge helpers into a shared utility
+        #    that ConfigReader can reuse here;
+        # 2) Replace ConfigReader entirely when reading vcspull configs and call
+        #    the formatter helpers directly;
+        # 3) Keep this basic loader but add an opt-in path for duplicate-aware
+        #    parsing so commands like ``vcspull add`` can avoid data loss.
+        # Revisit once the new ``vcspull add`` flow lands so both commands share
+        # the same duplication safeguards.
+
         if path.suffix in {".yaml", ".yml"}:
             fmt: FormatLiteral = "yaml"
         elif path.suffix == ".json":
