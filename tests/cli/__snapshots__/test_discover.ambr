@@ -2,12 +2,12 @@
 # name: test_discover_repos[discover-no-merge]
   dict({
     'log': '''
-      WARNING  vcspull.cli.discover:discover.py:272 • Duplicate workspace root ~/code/ appears 2 times; skipping merge because --no-merge was provided.
-      INFO     vcspull.cli.discover:discover.py:469 
+      WARNING  vcspull.cli.discover:discover.py:<line> • Duplicate workspace root ~/code/ appears 2 times; skipping merge because --no-merge was provided.
+      INFO     vcspull.cli.discover:discover.py:<line> 
       Found 1 new repository to import:
-      INFO     vcspull.cli.discover:discover.py:478   + repo3 (git+https://github.com/user/repo3.git)
-      INFO     vcspull.cli.discover:discover.py:527 + Importing 'repo3' (git+https://github.com/user/repo3.git) under '~/code/'.
-      INFO     vcspull.cli.discover:discover.py:546 ✓ Successfully updated <config>.
+      INFO     vcspull.cli.discover:discover.py:<line>   + repo3 (git+https://github.com/user/repo3.git)
+      INFO     vcspull.cli.discover:discover.py:<line> + Importing 'repo3' (git+https://github.com/user/repo3.git) under '~/code/'.
+      INFO     vcspull.cli.discover:discover.py:<line> ✓ Successfully updated <config>.
   
     ''',
     'test_id': 'discover-no-merge',

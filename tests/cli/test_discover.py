@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import typing as t
 
@@ -361,6 +362,11 @@ def test_discover_repos(
 
     if preexisting_yaml is not None or not merge_duplicates:
         normalized_log = caplog.text.replace(str(target_config_file), "<config>")
+        normalized_log = re.sub(
+            r"discover\.py:\d+",
+            "discover.py:<line>",
+            normalized_log,
+        )
         snapshot.assert_match({"test_id": test_id, "log": normalized_log})
 
     if dry_run:
