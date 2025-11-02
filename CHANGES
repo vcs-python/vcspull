@@ -59,6 +59,14 @@ _Upcoming changes will be written here._
 - `vcspull discover --no-merge` surfaces duplicate workspace roots without
   rewriting existing config entries.
 
+#### Core config loads retain duplicate workspace roots (#480)
+
+- `load_configs` now consumes the duplicate-aware loader so commands like
+  `vcspull list`, `vcspull status`, and `vcspull sync` keep every repository
+  even when configuration files repeat workspace sections.
+- Developers can opt out with `merge_duplicates=False`, which preserves the
+  legacy "last occurrence wins" semantics while logging a warning.
+
 ### Development
 
 #### Snapshot coverage for formatter tests (#479)
