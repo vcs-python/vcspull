@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import logging
 import pathlib
+import subprocess
 import traceback
 import typing as t
 
 from colorama import Fore, Style
 
-from vcspull._internal.config_reader import ConfigReader
+from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
+    merge_duplicate_workspace_roots,
     normalize_workspace_roots,
     save_config_yaml,
     workspace_root_label,
 )
+from vcspull.util import contract_user_home
 
 if t.TYPE_CHECKING:
     import argparse
@@ -34,12 +37,21 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         The parser to configure
     """
     parser.add_argument(
-        "name",
-        help="Name for the repository in the config",
+        "target",
+        help=(
+            "Repository name (when providing a URL) or filesystem path to an "
+            "existing project"
+        ),
     )
     parser.add_argument(
         "url",
-        help="Repository URL (e.g., https://github.com/user/repo.git)",
+        nargs="?",
+        help="Repository URL when explicitly specifying the name",
+    )
+    parser.add_argument(
+        "--name",
+        dest="override_name",
+        help="Override detected repository name when importing from a path",
     )
     parser.add_argument(
         "-f",
@@ -71,6 +83,13 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Preview changes without writing to config file",
     )
+    parser.add_argument(
+        "-y",
+        "--yes",
+        dest="assume_yes",
+        action="store_true",
+        help="Automatically confirm interactive prompts",
+    )
 
 
 def _resolve_workspace_path(
@@ -100,6 +119,177 @@ def _resolve_workspace_path(
     if repo_path_str:
         return expand_dir(pathlib.Path(repo_path_str), cwd)
     return cwd
+
+
+def _detect_git_remote(repo_path: pathlib.Path) -> str | None:
+    """Return the ``origin`` remote URL for a Git repository if available."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "remote", "get-url", "origin"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        log.debug("git executable not found when inspecting %s", repo_path)
+        return None
+    except subprocess.CalledProcessError:
+        log.debug("No git remote 'origin' configured for %s", repo_path)
+        return None
+
+    remote = result.stdout.strip()
+    return remote or None
+
+
+def _normalize_detected_url(remote: str | None) -> tuple[str, str]:
+    """Return display and config URLs derived from a detected remote."""
+    if remote is None:
+        return "", ""
+
+    display_url = remote
+    config_url = remote
+
+    normalized = remote.strip()
+
+    if normalized and not normalized.startswith("git+"):
+        if normalized.startswith(("http://", "https://", "file://")):
+            config_url = f"git+{normalized}"
+        else:
+            config_url = normalized
+    elif normalized:
+        config_url = normalized
+
+    return display_url, config_url
+
+
+def handle_add_command(args: argparse.Namespace) -> None:
+    """Entry point for the ``vcspull add`` CLI command."""
+    explicit_url = getattr(args, "url", None)
+
+    if explicit_url:
+        add_repo(
+            name=args.target,
+            url=explicit_url,
+            config_file_path_str=args.config,
+            path=args.path,
+            workspace_root_path=args.workspace_root_path,
+            dry_run=args.dry_run,
+        )
+        return
+
+    repo_input = getattr(args, "target", None)
+    if repo_input is None:
+        log.error("A repository path or name must be provided.")
+        return
+
+    cwd = pathlib.Path.cwd()
+    repo_path = expand_dir(pathlib.Path(repo_input), cwd=cwd)
+
+    if not repo_path.exists():
+        log.error("Repository path %s does not exist.", repo_path)
+        return
+
+    if not repo_path.is_dir():
+        log.error("Repository path %s is not a directory.", repo_path)
+        return
+
+    override_name = getattr(args, "override_name", None)
+    repo_name = override_name or repo_path.name
+
+    detected_remote = _detect_git_remote(repo_path)
+    display_url, config_url = _normalize_detected_url(detected_remote)
+
+    if not config_url:
+        display_url = contract_user_home(repo_path)
+        config_url = str(repo_path)
+        log.warning(
+            "Unable to determine git remote for %s; using local path in config.",
+            repo_path,
+        )
+
+    workspace_root_input = (
+        args.workspace_root_path
+        if getattr(args, "workspace_root_path", None)
+        else repo_path.parent.as_posix()
+    )
+
+    workspace_path = expand_dir(pathlib.Path(workspace_root_input), cwd=cwd)
+    workspace_label = workspace_root_label(
+        workspace_path,
+        cwd=cwd,
+        home=pathlib.Path.home(),
+    )
+
+    summary_url = display_url or config_url
+
+    display_path = contract_user_home(repo_path)
+
+    log.info("%sFound new repository to import:%s", Fore.GREEN, Style.RESET_ALL)
+    log.info(
+        "  %s+%s %s%s%s (%s%s%s)",
+        Fore.GREEN,
+        Style.RESET_ALL,
+        Fore.CYAN,
+        repo_name,
+        Style.RESET_ALL,
+        Fore.YELLOW,
+        summary_url,
+        Style.RESET_ALL,
+    )
+    log.info(
+        "  %s•%s workspace: %s%s%s",
+        Fore.BLUE,
+        Style.RESET_ALL,
+        Fore.MAGENTA,
+        workspace_label,
+        Style.RESET_ALL,
+    )
+    log.info(
+        "  %s↳%s path: %s%s%s",
+        Fore.BLUE,
+        Style.RESET_ALL,
+        Fore.BLUE,
+        display_path,
+        Style.RESET_ALL,
+    )
+
+    prompt_text = f"{Fore.CYAN}?{Style.RESET_ALL} Import this repository? [y/N]: "
+
+    proceed = True
+    if args.dry_run:
+        log.info(
+            "%s?%s Import this repository? [y/N]: %sskipped (dry-run)%s",
+            Fore.CYAN,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            Style.RESET_ALL,
+        )
+    elif getattr(args, "assume_yes", False):
+        log.info(
+            "%s?%s Import this repository? [y/N]: %sy (auto-confirm)%s",
+            Fore.CYAN,
+            Style.RESET_ALL,
+            Fore.GREEN,
+            Style.RESET_ALL,
+        )
+    else:
+        try:
+            response = input(prompt_text)
+        except EOFError:
+            response = ""
+        proceed = response.strip().lower() in {"y", "yes"}
+        if not proceed:
+            log.info("Aborted import of '%s' from %s", repo_name, repo_path)
+            return
+
+    add_repo(
+        name=repo_name,
+        url=config_url,
+        config_file_path_str=args.config,
+        path=str(repo_path),
+        workspace_root_path=workspace_root_input,
+        dry_run=args.dry_run,
+    )
 
 
 def add_repo(
@@ -148,31 +338,57 @@ def add_repo(
             config_file_path = home_configs[0]
 
     # Load existing config
-    raw_config: dict[str, t.Any] = {}
+    raw_config: dict[str, t.Any]
+    duplicate_root_occurrences: dict[str, list[t.Any]]
     if config_file_path.exists() and config_file_path.is_file():
         try:
-            loaded_config = ConfigReader._from_file(config_file_path)
+            (
+                raw_config,
+                duplicate_root_occurrences,
+            ) = DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
+        except TypeError:
+            log.exception(
+                "Config file %s is not a valid YAML dictionary.",
+                config_file_path,
+            )
+            return
         except Exception:
             log.exception("Error loading YAML from %s. Aborting.", config_file_path)
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
             return
-
-        if loaded_config is None:
-            raw_config = {}
-        elif isinstance(loaded_config, dict):
-            raw_config = loaded_config
-        else:
-            log.error(
-                "Config file %s is not a valid YAML dictionary.",
-                config_file_path,
-            )
-            return
     else:
+        raw_config = {}
+        duplicate_root_occurrences = {}
         log.info(
             "Config file %s not found. A new one will be created.",
             config_file_path,
         )
+
+    (
+        raw_config,
+        duplicate_merge_conflicts,
+        duplicate_merge_changes,
+        duplicate_merge_details,
+    ) = merge_duplicate_workspace_roots(raw_config, duplicate_root_occurrences)
+
+    for message in duplicate_merge_conflicts:
+        log.warning(message)
+
+    if duplicate_merge_changes and duplicate_merge_details:
+        for label, occurrence_count in duplicate_merge_details:
+            log.info(
+                "%s•%s Merged %s%d%s duplicate entr%s for workspace root %s%s%s",
+                Fore.BLUE,
+                Style.RESET_ALL,
+                Fore.YELLOW,
+                occurrence_count,
+                Style.RESET_ALL,
+                "y" if occurrence_count == 1 else "ies",
+                Fore.MAGENTA,
+                label,
+                Style.RESET_ALL,
+            )
 
     cwd = pathlib.Path.cwd()
     home = pathlib.Path.home()
@@ -183,7 +399,7 @@ def add_repo(
         home=home,
     )
     raw_config, workspace_map, merge_conflicts, merge_changes = normalization_result
-    config_was_normalized = merge_changes > 0
+    config_was_normalized = (merge_changes + duplicate_merge_changes) > 0
 
     for message in merge_conflicts:
         log.warning(message)
