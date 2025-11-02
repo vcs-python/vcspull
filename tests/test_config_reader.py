@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+import textwrap
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 
@@ -15,13 +16,15 @@ def _write(tmp_path: pathlib.Path, name: str, content: str) -> pathlib.Path:
 
 def test_duplicate_aware_reader_records_yaml_duplicates(tmp_path: pathlib.Path) -> None:
     """YAML duplicate workspace roots are captured without data loss."""
-    yaml_content = (
-        "~/study/python/:\n"
-        "  repo1:\n"
-        "    repo: git+https://example.com/repo1.git\n"
-        "~/study/python/:\n"
-        "  repo2:\n"
-        "    repo: git+https://example.com/repo2.git\n"
+    yaml_content = textwrap.dedent(
+        """\
+        ~/study/python/:
+          repo1:
+            repo: git+https://example.com/repo1.git
+        ~/study/python/:
+          repo2:
+            repo: git+https://example.com/repo2.git
+        """
     )
     config_path = _write(tmp_path, "config.yaml", yaml_content)
 
@@ -47,7 +50,13 @@ def test_duplicate_aware_reader_handles_yaml_without_duplicates(
     tmp_path: pathlib.Path,
 ) -> None:
     """YAML without duplicate keys reports an empty duplicate map."""
-    yaml_content = "~/code/:\n  repo:\n    repo: git+https://example.com/repo.git\n"
+    yaml_content = textwrap.dedent(
+        """\
+        ~/code/:
+          repo:
+            repo: git+https://example.com/repo.git
+        """
+    )
     config_path = _write(tmp_path, "single.yaml", yaml_content)
 
     reader = DuplicateAwareConfigReader.from_file(config_path)
@@ -62,12 +71,14 @@ def test_duplicate_aware_reader_handles_yaml_without_duplicates(
 
 def test_duplicate_aware_reader_passes_through_json(tmp_path: pathlib.Path) -> None:
     """JSON configs remain supported and duplicates remain empty."""
-    json_content = (
-        "{\n"
-        '  "~/code/": {\n'
-        '    "repo": {"repo": "git+https://example.com/repo.git"}\n'
-        "  }\n"
-        "}\n"
+    json_content = textwrap.dedent(
+        """\
+        {
+          "~/code/": {
+            "repo": {"repo": "git+https://example.com/repo.git"}
+          }
+        }
+        """
     )
     config_path = _write(tmp_path, "config.json", json_content)
 

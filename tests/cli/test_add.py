@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import subprocess
+import textwrap
 import typing as t
 
 import pytest
@@ -365,13 +366,15 @@ def test_add_repo_duplicate_merge_behavior(
 
     config_file = tmp_path / ".vcspull.yaml"
     config_file.write_text(
-        (
-            "~/study/python/:\n"
-            "  repo1:\n"
-            "    repo: git+https://example.com/repo1.git\n"
-            "~/study/python/:\n"
-            "  repo2:\n"
-            "    repo: git+https://example.com/repo2.git\n"
+        textwrap.dedent(
+            """\
+            ~/study/python/:
+              repo1:
+                repo: git+https://example.com/repo1.git
+            ~/study/python/:
+              repo2:
+                repo: git+https://example.com/repo2.git
+            """
         ),
         encoding="utf-8",
     )
