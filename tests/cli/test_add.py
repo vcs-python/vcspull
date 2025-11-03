@@ -892,12 +892,6 @@ def test_add_repo_no_merge_preserves_duplicate_sections(
     assert contains_new_repo, f"{test_id}: new repo missing from duplicate sections"
 
 
-@pytest.mark.xfail(
-    reason=(
-        "vcspull add run from the workspace root labels the workspace as './' "
-        "instead of the expected '~/…/' path"
-    ),
-)
 def test_handle_add_command_workspace_label_from_workspace_root(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
