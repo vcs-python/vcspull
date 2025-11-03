@@ -487,17 +487,28 @@ def add_repo(
     else:
         preserve_workspace_label = workspace_root_path in {".", "./"}
 
+    preferred_label = workspace_root_label(
+        workspace_path,
+        cwd=cwd,
+        home=home,
+        preserve_cwd_label=preserve_workspace_label,
+    )
+
     if workspace_label is None:
-        workspace_label = workspace_root_label(
-            workspace_path,
-            cwd=cwd,
-            home=home,
-            preserve_cwd_label=preserve_workspace_label,
-        )
+        workspace_label = preferred_label
         workspace_map[workspace_path] = workspace_label
         raw_config.setdefault(workspace_label, {})
         if not merge_duplicates:
             config_items.append((workspace_label, {}))
+    elif workspace_label == "./" and preferred_label != workspace_label:
+        existing_section = raw_config.pop(workspace_label, {})
+        raw_config[preferred_label] = existing_section
+        workspace_map[workspace_path] = preferred_label
+        workspace_label = preferred_label
+        if not merge_duplicates:
+            for idx, (label, section) in enumerate(config_items):
+                if label == "./":
+                    config_items[idx] = (preferred_label, section)
 
     if workspace_label not in raw_config:
         raw_config[workspace_label] = {}
