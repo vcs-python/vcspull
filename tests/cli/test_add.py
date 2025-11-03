@@ -932,3 +932,106 @@ def test_handle_add_command_workspace_label_from_workspace_root(
         config_data = yaml.safe_load(fh)
 
     assert expected_label in config_data
+
+
+@pytest.mark.parametrize("merge_duplicates", [True, False])
+def test_handle_add_command_workspace_label_variants(
+    merge_duplicates: bool,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    """Path-first adds should keep tilde workspaces regardless of merge flag."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    workspace_root = tmp_path / "study/python"
+    repo_path = workspace_root / "pytest-docker"
+    init_git_repo(repo_path, remote_url="https://github.com/avast/pytest-docker")
+
+    monkeypatch.chdir(workspace_root)
+
+    config_file = tmp_path / ".vcspull.yaml"
+
+    args = argparse.Namespace(
+        repo_path=str(repo_path),
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=merge_duplicates,
+    )
+
+    handle_add_command(args)
+
+    expected_label = "~/study/python/"
+
+    assert expected_label in caplog.text
+
+    import yaml
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh) or {}
+
+    assert expected_label in config_data
+    assert "./" not in config_data
+
+
+def test_handle_add_command_upgrades_dot_workspace_section(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    """Existing './' sections should be relabeled to their tilde equivalent."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    workspace_root = tmp_path / "study/python"
+    repo_path = workspace_root / "pytest-docker"
+    init_git_repo(repo_path, remote_url="https://github.com/avast/pytest-docker")
+
+    monkeypatch.chdir(workspace_root)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    import yaml
+
+    config_file.write_text(
+        yaml.dump(
+            {
+                "./": {
+                    "existing": {
+                        "repo": "git+https://github.com/example/existing.git",
+                    },
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    args = argparse.Namespace(
+        repo_path=str(repo_path),
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    expected_label = "~/study/python/"
+    assert expected_label in caplog.text
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh) or {}
+
+    assert expected_label in config_data
+    assert "./" not in config_data
+    assert "existing" in config_data[expected_label]
+    assert "pytest-docker" in config_data[expected_label]
