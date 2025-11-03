@@ -33,6 +33,15 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
+### Bug Fixes
+
+#### `vcspull add --no-merge` preserves duplicate workspace roots (#482)
+
+- Duplicate workspace sections are no longer flattened when adding a repository
+  with `--no-merge`; all previously configured repositories stay intact.
+- The configuration loader now exposes ordered duplicate entries so CLI writes
+  can target the correct section without data loss.
+
 ## vcspull v1.44.0 (2025-11-02)
 
 ### Improvements

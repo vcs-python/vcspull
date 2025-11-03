@@ -271,7 +271,7 @@ def load_configs(
             file = pathlib.Path(file)
         assert isinstance(file, pathlib.Path)
 
-        config_content, duplicate_roots = (
+        config_content, duplicate_roots, _top_level_items = (
             DuplicateAwareConfigReader.load_with_duplicates(file)
         )
 
@@ -478,6 +478,29 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         content=data,
         indent=2,
     )
+    config_file_path.write_text(yaml_content, encoding="utf-8")
+
+
+def save_config_yaml_with_items(
+    config_file_path: pathlib.Path,
+    items: list[tuple[str, t.Any]],
+) -> None:
+    """Persist configuration data while preserving duplicate top-level sections."""
+    documents: list[str] = []
+
+    for label, section in items:
+        dumped = ConfigReader._dump(
+            fmt="yaml",
+            content={label: section},
+            indent=2,
+        ).rstrip()
+        if dumped:
+            documents.append(dumped)
+
+    yaml_content = "\n".join(documents)
+    if yaml_content:
+        yaml_content += "\n"
+
     config_file_path.write_text(yaml_content, encoding="utf-8")
 
 

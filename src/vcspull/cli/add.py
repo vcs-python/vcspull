@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import pathlib
 import subprocess
@@ -18,6 +19,7 @@ from vcspull.config import (
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
     save_config_yaml,
+    save_config_yaml_with_items,
     workspace_root_label,
 )
 from vcspull.util import contract_user_home
@@ -335,6 +337,7 @@ def add_repo(
     # Load existing config
     raw_config: dict[str, t.Any]
     duplicate_root_occurrences: dict[str, list[t.Any]]
+    top_level_items: list[tuple[str, t.Any]]
     display_config_path = contract_user_home(config_file_path)
 
     if config_file_path.exists() and config_file_path.is_file():
@@ -342,6 +345,7 @@ def add_repo(
             (
                 raw_config,
                 duplicate_root_occurrences,
+                top_level_items,
             ) = DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
         except TypeError:
             log.exception(
@@ -357,10 +361,31 @@ def add_repo(
     else:
         raw_config = {}
         duplicate_root_occurrences = {}
+        top_level_items = []
         log.info(
             "Config file %s not found. A new one will be created.",
             display_config_path,
         )
+
+    config_items: list[tuple[str, t.Any]] = (
+        [(label, copy.deepcopy(section)) for label, section in top_level_items]
+        if top_level_items
+        else [(label, copy.deepcopy(section)) for label, section in raw_config.items()]
+    )
+
+    def _aggregate_items(items: list[tuple[str, t.Any]]) -> dict[str, t.Any]:
+        aggregated: dict[str, t.Any] = {}
+        for label, section in items:
+            if isinstance(section, dict):
+                workspace_section = aggregated.setdefault(label, {})
+                for repo_name, repo_config in section.items():
+                    workspace_section[repo_name] = copy.deepcopy(repo_config)
+            else:
+                aggregated[label] = copy.deepcopy(section)
+        return aggregated
+
+    if not merge_duplicates:
+        raw_config = _aggregate_items(config_items)
 
     duplicate_merge_conflicts: list[str] = []
     duplicate_merge_changes = 0
@@ -416,6 +441,10 @@ def add_repo(
     cwd = pathlib.Path.cwd()
     home = pathlib.Path.home()
 
+    aggregated_config = (
+        raw_config if merge_duplicates else _aggregate_items(config_items)
+    )
+
     if merge_duplicates:
         (
             raw_config,
@@ -423,7 +452,7 @@ def add_repo(
             merge_conflicts,
             merge_changes,
         ) = normalize_workspace_roots(
-            raw_config,
+            aggregated_config,
             cwd=cwd,
             home=home,
         )
@@ -435,7 +464,7 @@ def add_repo(
             merge_conflicts,
             _merge_changes,
         ) = normalize_workspace_roots(
-            raw_config,
+            aggregated_config,
             cwd=cwd,
             home=home,
         )
@@ -458,15 +487,24 @@ def add_repo(
         )
         workspace_map[workspace_path] = workspace_label
         raw_config.setdefault(workspace_label, {})
+        if not merge_duplicates:
+            config_items.append((workspace_label, {}))
 
     if workspace_label not in raw_config:
         raw_config[workspace_label] = {}
+        if not merge_duplicates:
+            config_items.append((workspace_label, {}))
     elif not isinstance(raw_config[workspace_label], dict):
         log.error(
             "Workspace root '%s' in configuration is not a dictionary. Aborting.",
             workspace_label,
         )
         return
+    workspace_sections: list[tuple[int, dict[str, t.Any]]] = [
+        (idx, section)
+        for idx, (label, section) in enumerate(config_items)
+        if label == workspace_label and isinstance(section, dict)
+    ]
 
     # Check if repo already exists
     if name in raw_config[workspace_label]:
@@ -517,7 +555,18 @@ def add_repo(
         return
 
     # Add the repository in verbose format
-    raw_config[workspace_label][name] = {"repo": url}
+    new_repo_entry = {"repo": url}
+    if merge_duplicates:
+        raw_config[workspace_label][name] = new_repo_entry
+    else:
+        target_section: dict[str, t.Any]
+        if workspace_sections:
+            _, target_section = workspace_sections[-1]
+        else:
+            target_section = {}
+            config_items.append((workspace_label, target_section))
+        target_section[name] = copy.deepcopy(new_repo_entry)
+        raw_config[workspace_label][name] = copy.deepcopy(new_repo_entry)
 
     # Save or preview config
     if dry_run:
@@ -540,7 +589,10 @@ def add_repo(
         )
     else:
         try:
-            save_config_yaml(config_file_path, raw_config)
+            if merge_duplicates:
+                save_config_yaml(config_file_path, raw_config)
+            else:
+                save_config_yaml_with_items(config_file_path, config_items)
             log.info(
                 "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
                 Fore.GREEN,

@@ -12,6 +12,7 @@ import typing as t
 
 import pytest
 
+from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull.cli.add import add_repo, create_add_subparser, handle_add_command
 from vcspull.util import contract_user_home
 
@@ -772,3 +773,120 @@ def test_add_parser_rejects_extra_positional() -> None:
 
     with pytest.raises(SystemExit):
         parser.parse_args(["add", "name", "https://example.com/repo.git"])
+
+
+class NoMergePreservationFixture(t.NamedTuple):
+    """Fixture for asserting --no-merge keeps duplicate sections intact."""
+
+    test_id: str
+    initial_yaml: str
+    expected_original_repos: tuple[str, ...]
+    new_repo_name: str
+    new_repo_url: str
+    workspace_label: str
+
+
+NO_MERGE_PRESERVATION_FIXTURES: list[NoMergePreservationFixture] = [
+    NoMergePreservationFixture(
+        test_id="duplicate-root-yaml",
+        initial_yaml=textwrap.dedent(
+            """\
+            ~/study/python/:
+              Flexget:
+                repo: git+https://github.com/Flexget/Flexget.git
+              MyST-Parser:
+                repo: git@github.com:executablebooks/MyST-Parser.git
+              RootTheBox:
+                repo: git+https://github.com/moloch--/RootTheBox.git
+            ~/study/python/:
+              bubbles:
+                repo: git+https://github.com/Stiivi/bubbles.git
+              cubes:
+                repo: git+https://github.com/Stiivi/cubes.git
+            """
+        ),
+        expected_original_repos=(
+            "Flexget",
+            "MyST-Parser",
+            "RootTheBox",
+            "bubbles",
+            "cubes",
+        ),
+        new_repo_name="pytest-docker",
+        new_repo_url="git+https://github.com/avast/pytest-docker",
+        workspace_label="~/study/python/",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(NoMergePreservationFixture._fields),
+    NO_MERGE_PRESERVATION_FIXTURES,
+    ids=[fixture.test_id for fixture in NO_MERGE_PRESERVATION_FIXTURES],
+)
+def test_add_repo_no_merge_preserves_duplicate_sections(
+    test_id: str,
+    initial_yaml: str,
+    expected_original_repos: tuple[str, ...],
+    new_repo_name: str,
+    new_repo_url: str,
+    workspace_label: str,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """CLI add should not drop duplicate workspace sections when --no-merge."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(initial_yaml, encoding="utf-8")
+
+    repo_path = tmp_path / "study/python" / new_repo_name
+    repo_path.mkdir(parents=True, exist_ok=True)
+
+    (
+        _initial_config,
+        initial_duplicates,
+        initial_items,
+    ) = DuplicateAwareConfigReader.load_with_duplicates(config_file)
+    assert workspace_label in initial_duplicates
+    assert len(initial_duplicates[workspace_label]) == 2
+    assert [key for key, _ in initial_items] == [workspace_label, workspace_label]
+
+    add_repo(
+        name=new_repo_name,
+        url=new_repo_url,
+        config_file_path_str=str(config_file),
+        path=str(repo_path),
+        workspace_root_path=workspace_label,
+        dry_run=False,
+        merge_duplicates=False,
+    )
+
+    (
+        _final_config,
+        duplicate_sections,
+        final_items,
+    ) = DuplicateAwareConfigReader.load_with_duplicates(config_file)
+
+    assert [key for key, _ in final_items] == [
+        workspace_label,
+        workspace_label,
+    ], f"{test_id}: final items unexpectedly merged"
+
+    assert workspace_label in duplicate_sections, f"{test_id}: workspace missing"
+    workspace_entries = duplicate_sections[workspace_label]
+    assert len(workspace_entries) == 2, f"{test_id}: duplicate sections collapsed"
+
+    combined_repos: set[str] = set()
+    contains_new_repo = False
+
+    for entry in workspace_entries:
+        assert isinstance(entry, dict), f"{test_id}: workspace entry not dict"
+        combined_repos.update(entry.keys())
+        if new_repo_name in entry:
+            contains_new_repo = True
+
+    expected_repos = set(expected_original_repos) | {new_repo_name}
+    assert combined_repos == expected_repos, f"{test_id}: repositories mismatch"
+    assert contains_new_repo, f"{test_id}: new repo missing from duplicate sections"
