@@ -33,6 +33,14 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
+### Bug Fixes
+
+#### `vcspull add` keeps tilde workspace labels in path-first mode (#482, #483)
+
+- Running `vcspull add ~/study/python/…` from inside the workspace now logs the
+  workspace as `~/study/python/` instead of `./`, preserving tilde-shortened
+  labels for path-first imports.
+
 ## vcspull v1.45.0 (2025-11-02)
 
 ### Bug Fixes

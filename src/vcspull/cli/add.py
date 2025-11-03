@@ -201,9 +201,10 @@ def handle_add_command(args: argparse.Namespace) -> None:
             repo_path,
         )
 
+    workspace_root_arg = getattr(args, "workspace_root_path", None)
     workspace_root_input = (
-        args.workspace_root_path
-        if getattr(args, "workspace_root_path", None)
+        workspace_root_arg
+        if workspace_root_arg is not None
         else repo_path.parent.as_posix()
     )
 
@@ -212,6 +213,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
         workspace_path,
         cwd=cwd,
         home=pathlib.Path.home(),
+        preserve_cwd_label=workspace_root_arg in {".", "./"},
     )
 
     summary_url = display_url or config_url
@@ -479,11 +481,18 @@ def add_repo(
         cwd=cwd,
     )
     workspace_label = workspace_map.get(workspace_path)
+
+    if workspace_root_path is None:
+        preserve_workspace_label = path is None
+    else:
+        preserve_workspace_label = workspace_root_path in {".", "./"}
+
     if workspace_label is None:
         workspace_label = workspace_root_label(
             workspace_path,
             cwd=cwd,
             home=home,
+            preserve_cwd_label=preserve_workspace_label,
         )
         workspace_map[workspace_path] = workspace_label
         raw_config.setdefault(workspace_label, {})

@@ -890,3 +890,45 @@ def test_add_repo_no_merge_preserves_duplicate_sections(
     expected_repos = set(expected_original_repos) | {new_repo_name}
     assert combined_repos == expected_repos, f"{test_id}: repositories mismatch"
     assert contains_new_repo, f"{test_id}: new repo missing from duplicate sections"
+
+
+def test_handle_add_command_workspace_label_from_workspace_root(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    """CLI add should label workspace roots with their tilde path even from root cwd."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    workspace_root = tmp_path / "study/python"
+    repo_path = workspace_root / "pytest-docker"
+    init_git_repo(repo_path, remote_url="https://github.com/avast/pytest-docker")
+
+    monkeypatch.chdir(workspace_root)
+
+    config_file = tmp_path / ".vcspull.yaml"
+
+    args = argparse.Namespace(
+        repo_path=str(repo_path),
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    expected_label = "~/study/python/"
+    assert expected_label in caplog.text
+
+    import yaml
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh)
+
+    assert expected_label in config_data

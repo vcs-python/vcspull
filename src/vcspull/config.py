@@ -588,12 +588,13 @@ def workspace_root_label(
     *,
     cwd: pathlib.Path | None = None,
     home: pathlib.Path | None = None,
+    preserve_cwd_label: bool = True,
 ) -> str:
     """Create a normalized label for a workspace root path."""
     cwd = cwd or pathlib.Path.cwd()
     home = home or pathlib.Path.home()
 
-    if workspace_path == cwd:
+    if preserve_cwd_label and workspace_path == cwd:
         return "./"
 
     try:
