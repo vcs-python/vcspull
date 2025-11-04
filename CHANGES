@@ -33,7 +33,13 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
+## vcspull v1.46.1 (2025-11-03)
+
 ### Bug Fixes
+
+#### Fix `vcspull.__version__`
+
+- v1.46.0 shipped with v1.45.0
 
 #### `vcspull add`: Fix legacy `./` heuristics for path-first flow (#484)
 
