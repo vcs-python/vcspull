@@ -120,7 +120,8 @@ def _resolve_workspace_path(
     if workspace_root:
         return canonicalize_workspace_path(workspace_root, cwd=cwd)
     if repo_path_str:
-        return expand_dir(pathlib.Path(repo_path_str), cwd)
+        repo_path = expand_dir(pathlib.Path(repo_path_str), cwd)
+        return repo_path.parent
     return cwd
 
 
@@ -515,10 +516,7 @@ def add_repo(
                 found_label = current_label
                 break
 
-        if found_label is None:
-            workspace_label = preferred_label
-        else:
-            workspace_label = found_label
+        workspace_label = preferred_label if found_label is None else found_label
 
         for idx in matching_indexes:
             if items[idx]["label"] == "./" and workspace_label != "./":
