@@ -597,6 +597,9 @@ def workspace_root_label(
     if preserve_cwd_label and workspace_path == cwd:
         return "./"
 
+    if workspace_path == home:
+        return "~/"
+
     try:
         relative_to_home = workspace_path.relative_to(home)
         label = f"~/{relative_to_home.as_posix()}"

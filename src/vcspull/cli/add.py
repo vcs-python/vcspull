@@ -17,7 +17,6 @@ from vcspull.config import (
     expand_dir,
     find_home_config_files,
     merge_duplicate_workspace_roots,
-    normalize_workspace_roots,
     save_config_yaml,
     save_config_yaml_with_items,
     workspace_root_label,
@@ -120,7 +119,8 @@ def _resolve_workspace_path(
     if workspace_root:
         return canonicalize_workspace_path(workspace_root, cwd=cwd)
     if repo_path_str:
-        return expand_dir(pathlib.Path(repo_path_str), cwd)
+        repo_path = expand_dir(pathlib.Path(repo_path_str), cwd)
+        return repo_path.parent
     return cwd
 
 
@@ -163,6 +163,50 @@ def _normalize_detected_url(remote: str | None) -> tuple[str, str]:
         config_url = normalized
 
     return display_url, config_url
+
+
+def _build_ordered_items(
+    top_level_items: list[tuple[str, t.Any]] | None,
+    raw_config: dict[str, t.Any],
+) -> list[dict[str, t.Any]]:
+    """Return deep-copied top-level items preserving original ordering."""
+    source: list[tuple[str, t.Any]] = top_level_items or list(raw_config.items())
+
+    ordered: list[dict[str, t.Any]] = []
+    for label, section in source:
+        ordered.append({"label": label, "section": copy.deepcopy(section)})
+    return ordered
+
+
+def _aggregate_from_ordered_items(
+    items: list[dict[str, t.Any]],
+) -> dict[str, t.Any]:
+    """Collapse ordered top-level items into a mapping grouped by label."""
+    aggregated: dict[str, t.Any] = {}
+    for entry in items:
+        label = entry["label"]
+        section = entry["section"]
+        if isinstance(section, dict):
+            workspace_section = aggregated.setdefault(label, {})
+            for repo_name, repo_config in section.items():
+                workspace_section[repo_name] = copy.deepcopy(repo_config)
+        else:
+            aggregated[label] = copy.deepcopy(section)
+    return aggregated
+
+
+def _collect_duplicate_sections(
+    items: list[dict[str, t.Any]],
+) -> dict[str, list[t.Any]]:
+    """Return mapping of labels to their repeated sections (>= 2 occurrences)."""
+    occurrences: dict[str, list[t.Any]] = {}
+    for entry in items:
+        label = entry["label"]
+        occurrences.setdefault(label, []).append(copy.deepcopy(entry["section"]))
+
+    return {
+        label: sections for label, sections in occurrences.items() if len(sections) > 1
+    }
 
 
 def handle_add_command(args: argparse.Namespace) -> None:
@@ -369,26 +413,102 @@ def add_repo(
             display_config_path,
         )
 
-    config_items: list[tuple[str, t.Any]] = (
-        [(label, copy.deepcopy(section)) for label, section in top_level_items]
-        if top_level_items
-        else [(label, copy.deepcopy(section)) for label, section in raw_config.items()]
+    cwd = pathlib.Path.cwd()
+    home = pathlib.Path.home()
+
+    workspace_path = _resolve_workspace_path(
+        workspace_root_path,
+        path,
+        cwd=cwd,
     )
 
-    def _aggregate_items(items: list[tuple[str, t.Any]]) -> dict[str, t.Any]:
-        aggregated: dict[str, t.Any] = {}
-        for label, section in items:
-            if isinstance(section, dict):
-                workspace_section = aggregated.setdefault(label, {})
-                for repo_name, repo_config in section.items():
-                    workspace_section[repo_name] = copy.deepcopy(repo_config)
+    explicit_dot = workspace_root_path in {".", "./"}
+
+    preferred_label = workspace_root_label(
+        workspace_path,
+        cwd=cwd,
+        home=home,
+        preserve_cwd_label=explicit_dot,
+    )
+
+    new_repo_entry = {"repo": url}
+
+    def _ensure_workspace_label_for_merge(
+        config_data: dict[str, t.Any],
+    ) -> tuple[str, bool]:
+        workspace_map: dict[pathlib.Path, str] = {}
+        for label, section in config_data.items():
+            if not isinstance(section, dict):
+                continue
+            try:
+                path_key = canonicalize_workspace_path(label, cwd=cwd)
+            except Exception:
+                continue
+            workspace_map[path_key] = label
+
+        existing_label = workspace_map.get(workspace_path)
+        relabelled = False
+
+        if explicit_dot:
+            workspace_label = "./"
+            if existing_label and existing_label != "./":
+                config_data["./"] = config_data.pop(existing_label)
+                relabelled = True
             else:
-                aggregated[label] = copy.deepcopy(section)
-        return aggregated
+                config_data.setdefault("./", {})
+        else:
+            if existing_label is None:
+                workspace_label = preferred_label
+                config_data.setdefault(workspace_label, {})
+            else:
+                workspace_label = existing_label
 
-    if not merge_duplicates:
-        raw_config = _aggregate_items(config_items)
+        if workspace_label not in config_data:
+            config_data[workspace_label] = {}
 
+        return workspace_label, relabelled
+
+    def _prepare_no_merge_items(
+        items: list[dict[str, t.Any]],
+    ) -> tuple[str, int, bool]:
+        matching_indexes: list[int] = []
+        for idx, entry in enumerate(items):
+            section = entry["section"]
+            if not isinstance(section, dict):
+                continue
+            try:
+                path_key = canonicalize_workspace_path(entry["label"], cwd=cwd)
+            except Exception:
+                continue
+            if path_key == workspace_path:
+                matching_indexes.append(idx)
+
+        relabelled = False
+
+        if explicit_dot:
+            if matching_indexes:
+                for idx in matching_indexes:
+                    if items[idx]["label"] != "./":
+                        items[idx]["label"] = "./"
+                        relabelled = True
+                target_index = matching_indexes[-1]
+            else:
+                items.append({"label": "./", "section": {}})
+                target_index = len(items) - 1
+            workspace_label = items[target_index]["label"]
+            return workspace_label, target_index, relabelled
+
+        if not matching_indexes:
+            workspace_label = preferred_label
+            items.append({"label": workspace_label, "section": {}})
+            target_index = len(items) - 1
+            return workspace_label, target_index, relabelled
+
+        target_index = matching_indexes[-1]
+        workspace_label = items[target_index]["label"]
+        return workspace_label, target_index, relabelled
+
+    config_was_relabelled = False
     duplicate_merge_conflicts: list[str] = []
     duplicate_merge_changes = 0
     duplicate_merge_details: list[tuple[str, int]] = []
@@ -417,140 +537,41 @@ def add_repo(
                     label,
                     Style.RESET_ALL,
                 )
-    else:
-        if duplicate_root_occurrences:
-            duplicate_merge_details = [
-                (label, len(values))
-                for label, values in duplicate_root_occurrences.items()
-            ]
-            for label, occurrence_count in duplicate_merge_details:
-                log.warning(
-                    "%s•%s Duplicate workspace root %s%s%s appears %s%d%s time%s; "
-                    "skipping merge because --no-merge was provided.",
-                    Fore.BLUE,
-                    Style.RESET_ALL,
-                    Fore.MAGENTA,
-                    label,
-                    Style.RESET_ALL,
-                    Fore.YELLOW,
-                    occurrence_count,
-                    Style.RESET_ALL,
-                    "" if occurrence_count == 1 else "s",
-                )
 
-        duplicate_merge_conflicts = []
+        workspace_label, relabelled = _ensure_workspace_label_for_merge(raw_config)
+        config_was_relabelled = relabelled
+        workspace_section = raw_config.get(workspace_label)
+        if not isinstance(workspace_section, dict):
+            log.error(
+                "Workspace root '%s' in configuration is not a dictionary. Aborting.",
+                workspace_label,
+            )
+            return
 
-    cwd = pathlib.Path.cwd()
-    home = pathlib.Path.home()
-
-    aggregated_config = (
-        raw_config if merge_duplicates else _aggregate_items(config_items)
-    )
-
-    if merge_duplicates:
-        (
-            raw_config,
-            workspace_map,
-            merge_conflicts,
-            merge_changes,
-        ) = normalize_workspace_roots(
-            aggregated_config,
-            cwd=cwd,
-            home=home,
-        )
-        config_was_normalized = (merge_changes + duplicate_merge_changes) > 0
-    else:
-        (
-            _normalized_preview,
-            workspace_map,
-            merge_conflicts,
-            _merge_changes,
-        ) = normalize_workspace_roots(
-            aggregated_config,
-            cwd=cwd,
-            home=home,
-        )
-        config_was_normalized = False
-
-    for message in merge_conflicts:
-        log.warning(message)
-
-    workspace_path = _resolve_workspace_path(
-        workspace_root_path,
-        path,
-        cwd=cwd,
-    )
-    workspace_label = workspace_map.get(workspace_path)
-
-    if workspace_root_path is None:
-        preserve_workspace_label = path is None
-    else:
-        preserve_workspace_label = workspace_root_path in {".", "./"}
-
-    if workspace_label is None:
-        workspace_label = workspace_root_label(
-            workspace_path,
-            cwd=cwd,
-            home=home,
-            preserve_cwd_label=preserve_workspace_label,
-        )
-        workspace_map[workspace_path] = workspace_label
-        raw_config.setdefault(workspace_label, {})
-        if not merge_duplicates:
-            config_items.append((workspace_label, {}))
-
-    if workspace_label not in raw_config:
-        raw_config[workspace_label] = {}
-        if not merge_duplicates:
-            config_items.append((workspace_label, {}))
-    elif not isinstance(raw_config[workspace_label], dict):
-        log.error(
-            "Workspace root '%s' in configuration is not a dictionary. Aborting.",
-            workspace_label,
-        )
-        return
-    workspace_sections: list[tuple[int, dict[str, t.Any]]] = [
-        (idx, section)
-        for idx, (label, section) in enumerate(config_items)
-        if label == workspace_label and isinstance(section, dict)
-    ]
-
-    # Check if repo already exists
-    if name in raw_config[workspace_label]:
-        existing_config = raw_config[workspace_label][name]
-        # Handle both string and dict formats
-        current_url: str
-        if isinstance(existing_config, str):
-            current_url = existing_config
-        elif isinstance(existing_config, dict):
-            repo_value = existing_config.get("repo")
-            url_value = existing_config.get("url")
-            current_url = repo_value or url_value or "unknown"
-        else:
-            current_url = str(existing_config)
-
-        log.warning(
-            "Repository '%s' already exists under '%s'. Current URL: %s. "
-            "To update, remove and re-add, or edit the YAML file manually.",
-            name,
-            workspace_label,
-            current_url,
-        )
-        if config_was_normalized:
-            if dry_run:
-                log.info(
-                    "%s→%s Would save normalized workspace roots to %s%s%s.",
-                    Fore.YELLOW,
-                    Style.RESET_ALL,
-                    Fore.BLUE,
-                    display_config_path,
-                    Style.RESET_ALL,
-                )
+        existing_config = workspace_section.get(name)
+        if existing_config is not None:
+            if isinstance(existing_config, str):
+                current_url = existing_config
+            elif isinstance(existing_config, dict):
+                repo_value = existing_config.get("repo")
+                url_value = existing_config.get("url")
+                current_url = repo_value or url_value or "unknown"
             else:
+                current_url = str(existing_config)
+
+            log.warning(
+                "Repository '%s' already exists under '%s'. Current URL: %s. "
+                "To update, remove and re-add, or edit the YAML file manually.",
+                name,
+                workspace_label,
+                current_url,
+            )
+
+            if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
                 try:
                     save_config_yaml(config_file_path, raw_config)
                     log.info(
-                        "%s✓%s Normalized workspace roots saved to %s%s%s.",
+                        "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
                         Style.RESET_ALL,
                         Fore.BLUE,
@@ -561,47 +582,41 @@ def add_repo(
                     log.exception("Error saving config to %s", config_file_path)
                     if log.isEnabledFor(logging.DEBUG):
                         traceback.print_exc()
-        return
+            elif (duplicate_merge_changes > 0 or config_was_relabelled) and dry_run:
+                log.info(
+                    "%s→%s Would save workspace label adjustments to %s%s%s.",
+                    Fore.YELLOW,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    display_config_path,
+                    Style.RESET_ALL,
+                )
+            return
 
-    # Add the repository in verbose format
-    new_repo_entry = {"repo": url}
-    if merge_duplicates:
-        raw_config[workspace_label][name] = new_repo_entry
-    else:
-        target_section: dict[str, t.Any]
-        if workspace_sections:
-            _, target_section = workspace_sections[-1]
-        else:
-            target_section = {}
-            config_items.append((workspace_label, target_section))
-        target_section[name] = copy.deepcopy(new_repo_entry)
-        raw_config[workspace_label][name] = copy.deepcopy(new_repo_entry)
+        workspace_section[name] = copy.deepcopy(new_repo_entry)
 
-    # Save or preview config
-    if dry_run:
-        log.info(
-            "%s→%s Would add %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
-            Fore.YELLOW,
-            Style.RESET_ALL,
-            Fore.CYAN,
-            name,
-            Style.RESET_ALL,
-            Fore.YELLOW,
-            url,
-            Style.RESET_ALL,
-            Fore.BLUE,
-            display_config_path,
-            Style.RESET_ALL,
-            Fore.MAGENTA,
-            workspace_label,
-            Style.RESET_ALL,
-        )
-    else:
+        if dry_run:
+            log.info(
+                "%s→%s Would add %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
+                Fore.YELLOW,
+                Style.RESET_ALL,
+                Fore.CYAN,
+                name,
+                Style.RESET_ALL,
+                Fore.YELLOW,
+                url,
+                Style.RESET_ALL,
+                Fore.BLUE,
+                display_config_path,
+                Style.RESET_ALL,
+                Fore.MAGENTA,
+                workspace_label,
+                Style.RESET_ALL,
+            )
+            return
+
         try:
-            if merge_duplicates:
-                save_config_yaml(config_file_path, raw_config)
-            else:
-                save_config_yaml_with_items(config_file_path, config_items)
+            save_config_yaml(config_file_path, raw_config)
             log.info(
                 "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
                 Fore.GREEN,
@@ -623,4 +638,146 @@ def add_repo(
             log.exception("Error saving config to %s", config_file_path)
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
-            return
+        return
+
+    ordered_items = _build_ordered_items(top_level_items, raw_config)
+
+    workspace_label, target_index, relabelled = _prepare_no_merge_items(ordered_items)
+    config_was_relabelled = relabelled
+
+    duplicate_sections = _collect_duplicate_sections(ordered_items)
+    for label, sections in duplicate_sections.items():
+        occurrence_count = len(sections)
+        log.warning(
+            "%s•%s Duplicate workspace root %s%s%s appears %s%d%s time%s; "
+            "skipping merge because --no-merge was provided.",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.MAGENTA,
+            label,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            occurrence_count,
+            Style.RESET_ALL,
+            "" if occurrence_count == 1 else "s",
+        )
+
+    raw_config_view = _aggregate_from_ordered_items(ordered_items)
+    workspace_section_view = raw_config_view.get(workspace_label)
+    if workspace_section_view is None:
+        workspace_section_view = {}
+        raw_config_view[workspace_label] = workspace_section_view
+
+    if not isinstance(workspace_section_view, dict):
+        log.error(
+            "Workspace root '%s' in configuration is not a dictionary. Aborting.",
+            workspace_label,
+        )
+        return
+
+    existing_config = workspace_section_view.get(name)
+    if existing_config is not None:
+        if isinstance(existing_config, str):
+            current_url = existing_config
+        elif isinstance(existing_config, dict):
+            repo_value = existing_config.get("repo")
+            url_value = existing_config.get("url")
+            current_url = repo_value or url_value or "unknown"
+        else:
+            current_url = str(existing_config)
+
+        log.warning(
+            "Repository '%s' already exists under '%s'. Current URL: %s. "
+            "To update, remove and re-add, or edit the YAML file manually.",
+            name,
+            workspace_label,
+            current_url,
+        )
+
+        if config_was_relabelled:
+            if dry_run:
+                log.info(
+                    "%s→%s Would save workspace label adjustments to %s%s%s.",
+                    Fore.YELLOW,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    display_config_path,
+                    Style.RESET_ALL,
+                )
+            else:
+                try:
+                    save_config_yaml_with_items(
+                        config_file_path,
+                        [(entry["label"], entry["section"]) for entry in ordered_items],
+                    )
+                    log.info(
+                        "%s✓%s Workspace label adjustments saved to %s%s%s.",
+                        Fore.GREEN,
+                        Style.RESET_ALL,
+                        Fore.BLUE,
+                        display_config_path,
+                        Style.RESET_ALL,
+                    )
+                except Exception:
+                    log.exception("Error saving config to %s", config_file_path)
+                    if log.isEnabledFor(logging.DEBUG):
+                        traceback.print_exc()
+        return
+
+    target_section = ordered_items[target_index]["section"]
+    if not isinstance(target_section, dict):
+        log.error(
+            "Workspace root '%s' in configuration is not a dictionary. Aborting.",
+            ordered_items[target_index]["label"],
+        )
+        return
+
+    target_section[name] = copy.deepcopy(new_repo_entry)
+    workspace_section_view[name] = copy.deepcopy(new_repo_entry)
+
+    if dry_run:
+        log.info(
+            "%s→%s Would add %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
+            Fore.YELLOW,
+            Style.RESET_ALL,
+            Fore.CYAN,
+            name,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            url,
+            Style.RESET_ALL,
+            Fore.BLUE,
+            display_config_path,
+            Style.RESET_ALL,
+            Fore.MAGENTA,
+            workspace_label,
+            Style.RESET_ALL,
+        )
+        return
+
+    try:
+        save_config_yaml_with_items(
+            config_file_path,
+            [(entry["label"], entry["section"]) for entry in ordered_items],
+        )
+        log.info(
+            "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
+            Fore.GREEN,
+            Style.RESET_ALL,
+            Fore.CYAN,
+            name,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            url,
+            Style.RESET_ALL,
+            Fore.BLUE,
+            display_config_path,
+            Style.RESET_ALL,
+            Fore.MAGENTA,
+            workspace_label,
+            Style.RESET_ALL,
+        )
+    except Exception:
+        log.exception("Error saving config to %s", config_file_path)
+        if log.isEnabledFor(logging.DEBUG):
+            traceback.print_exc()

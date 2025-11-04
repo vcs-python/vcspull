@@ -55,12 +55,12 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
         name="myproject",
         url="git+https://github.com/user/myproject.git",
         workspace_root=None,
-        path_relative=None,
+        path_relative="myproject",
         dry_run=False,
         use_default_config=False,
         preexisting_config=None,
         expected_in_config={
-            "./": {
+            "~/": {
                 "myproject": {"repo": "git+https://github.com/user/myproject.git"},
             },
         },
@@ -99,12 +99,12 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
         name="autoproject",
         url="git+https://github.com/user/autoproject.git",
         workspace_root=None,
-        path_relative=None,
+        path_relative="autoproject",
         dry_run=False,
         use_default_config=True,
         preexisting_config=None,
         expected_in_config={
-            "./": {
+            "~/": {
                 "autoproject": {
                     "repo": "git+https://github.com/user/autoproject.git",
                 },
@@ -125,7 +125,7 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
         use_default_config=False,
         preexisting_config=None,
         expected_in_config={
-            "~/code/lib/": {
+            "~/code/": {
                 "lib": {"repo": "git+https://github.com/user/lib.git"},
             },
         },
@@ -136,7 +136,7 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
         name="extra",
         url="git+https://github.com/user/extra.git",
         workspace_root=None,
-        path_relative=None,
+        path_relative="extra",
         dry_run=False,
         use_default_config=False,
         preexisting_config={
@@ -145,10 +145,10 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
             },
         },
         expected_in_config={
-            "~/code/": {
+            "~/code": {
                 "existing": {"repo": "git+https://github.com/user/existing.git"},
             },
-            "./": {
+            "~/": {
                 "extra": {"repo": "git+https://github.com/user/extra.git"},
             },
         },
@@ -260,13 +260,15 @@ def test_add_repo_duplicate_warning(
     monkeypatch.chdir(tmp_path)
 
     config_file = tmp_path / ".vcspull.yaml"
+    repo_path = tmp_path / "myproject"
+    repo_path.mkdir()
 
     # Add repo first time
     add_repo(
         name="myproject",
         url="git+https://github.com/user/myproject.git",
         config_file_path_str=str(config_file),
-        path=None,
+        path=str(repo_path),
         workspace_root_path=None,
         dry_run=False,
     )
@@ -279,7 +281,7 @@ def test_add_repo_duplicate_warning(
         name="myproject",
         url="git+https://github.com/user/myproject-v2.git",
         config_file_path_str=str(config_file),
-        path=None,
+        path=str(repo_path),
         workspace_root_path=None,
         dry_run=False,
     )
@@ -299,11 +301,14 @@ def test_add_repo_creates_new_file(
     config_file = tmp_path / ".vcspull.yaml"
     assert not config_file.exists()
 
+    repo_path = tmp_path / "newrepo"
+    repo_path.mkdir()
+
     add_repo(
         name="newrepo",
         url="git+https://github.com/user/newrepo.git",
         config_file_path_str=str(config_file),
-        path=None,
+        path=str(repo_path),
         workspace_root_path=None,
         dry_run=False,
     )
@@ -315,8 +320,8 @@ def test_add_repo_creates_new_file(
     with config_file.open() as f:
         config = yaml.safe_load(f)
 
-    assert "./" in config
-    assert "newrepo" in config["./"]
+    assert "~/" in config
+    assert "newrepo" in config["~/"]
 
 
 class AddDuplicateMergeFixture(t.NamedTuple):
@@ -597,6 +602,42 @@ PATH_ADD_FIXTURES: list[PathAddFixture] = [
         workspace_override=None,
         expected_workspace_label="~/study/python/",
         preserve_config_path_in_log=True,
+    ),
+    PathAddFixture(
+        test_id="path-explicit-dot-workspace",
+        remote_url="https://github.com/example/dot",
+        explicit_url=None,
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=True,
+        preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override="./",
+        expected_workspace_label="./",
+        preserve_config_path_in_log=False,
+    ),
+    PathAddFixture(
+        test_id="path-explicit-dot-workspace-no-merge",
+        remote_url="https://github.com/example/dot-nomerge",
+        explicit_url=None,
+        assume_yes=True,
+        prompt_response=None,
+        dry_run=False,
+        expected_written=True,
+        expected_url_kind="remote",
+        override_name=None,
+        expected_warning=None,
+        merge_duplicates=False,
+        preexisting_yaml=None,
+        use_relative_repo_path=False,
+        workspace_override="./",
+        expected_workspace_label="./",
+        preserve_config_path_in_log=False,
     ),
 ]
 
@@ -932,3 +973,102 @@ def test_handle_add_command_workspace_label_from_workspace_root(
         config_data = yaml.safe_load(fh)
 
     assert expected_label in config_data
+
+
+@pytest.mark.parametrize("merge_duplicates", [True, False])
+def test_handle_add_command_workspace_label_variants(
+    merge_duplicates: bool,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    """Path-first adds should keep tilde workspaces regardless of merge flag."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    workspace_root = tmp_path / "study/python"
+    repo_path = workspace_root / "pytest-docker"
+    init_git_repo(repo_path, remote_url="https://github.com/avast/pytest-docker")
+
+    monkeypatch.chdir(workspace_root)
+
+    config_file = tmp_path / ".vcspull.yaml"
+
+    args = argparse.Namespace(
+        repo_path=str(repo_path),
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=merge_duplicates,
+    )
+
+    handle_add_command(args)
+
+    expected_label = "~/study/python/"
+
+    assert expected_label in caplog.text
+
+    import yaml
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh) or {}
+
+    assert expected_label in config_data
+    assert "./" not in config_data
+
+
+def test_handle_add_command_preserves_existing_dot_workspace_section(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    """Existing './' sections should be preserved when they match the workspace."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    workspace_root = tmp_path / "study/python"
+    repo_path = workspace_root / "pytest-docker"
+    init_git_repo(repo_path, remote_url="https://github.com/avast/pytest-docker")
+
+    monkeypatch.chdir(workspace_root)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    import yaml
+
+    config_file.write_text(
+        yaml.dump(
+            {
+                "./": {
+                    "existing": {
+                        "repo": "git+https://github.com/example/existing.git",
+                    },
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    args = argparse.Namespace(
+        repo_path=str(repo_path),
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh) or {}
+
+    assert "./" in config_data
+    assert "existing" in config_data["./"]
+    assert "pytest-docker" in config_data["./"]
