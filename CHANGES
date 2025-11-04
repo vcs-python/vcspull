@@ -33,6 +33,20 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
+### Bug Fixes
+
+#### `vcspull add`: Fix legacy `./` heuristics for path-first flow (#484)
+
+- Path-based imports now always record their workspaces using the tilde label
+  unless callers explicitly pass `--workspace ./`, avoiding stray top-level
+  `./` sections.
+- Duplicate-aware writes operate directly on the ordered loader output, keeping
+  repeated workspace roots intact while removing the old `config_items`
+  scaffolding.
+- CLI decisions no longer round-trip through `normalize_workspace_roots`
+  unless duplicate merges are needed, reducing the chances of accidental YAML
+  rewrites during `--no-merge` operations.
+
 ## vcspull v1.46.0 (2025-11-02)
 
 ### Bug Fixes
