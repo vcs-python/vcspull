@@ -461,10 +461,6 @@ def add_repo(
             if existing_label is None:
                 workspace_label = preferred_label
                 config_data.setdefault(workspace_label, {})
-            elif existing_label == "./":
-                workspace_label = preferred_label
-                config_data[workspace_label] = config_data.pop("./")
-                relabelled = True
             else:
                 workspace_label = existing_label
 
@@ -508,20 +504,6 @@ def add_repo(
             items.append({"label": workspace_label, "section": {}})
             target_index = len(items) - 1
             return workspace_label, target_index, relabelled
-
-        found_label: str | None = None
-        for idx in reversed(matching_indexes):
-            current_label = items[idx]["label"]
-            if current_label != "./":
-                found_label = current_label
-                break
-
-        workspace_label = preferred_label if found_label is None else found_label
-
-        for idx in matching_indexes:
-            if items[idx]["label"] == "./" and workspace_label != "./":
-                items[idx]["label"] = workspace_label
-                relabelled = True
 
         target_index = matching_indexes[-1]
         workspace_label = items[target_index]["label"]
