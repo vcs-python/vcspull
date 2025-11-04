@@ -1021,12 +1021,12 @@ def test_handle_add_command_workspace_label_variants(
     assert "./" not in config_data
 
 
-def test_handle_add_command_upgrades_dot_workspace_section(
+def test_handle_add_command_preserves_existing_dot_workspace_section(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: t.Any,
 ) -> None:
-    """Existing './' sections should be relabeled to their tilde equivalent."""
+    """Existing './' sections should be preserved when they match the workspace."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1066,13 +1066,9 @@ def test_handle_add_command_upgrades_dot_workspace_section(
 
     handle_add_command(args)
 
-    expected_label = "~/study/python/"
-    assert expected_label in caplog.text
-
     with config_file.open(encoding="utf-8") as fh:
         config_data = yaml.safe_load(fh) or {}
 
-    assert expected_label in config_data
-    assert "./" not in config_data
-    assert "existing" in config_data[expected_label]
-    assert "pytest-docker" in config_data[expected_label]
+    assert "./" in config_data
+    assert "existing" in config_data["./"]
+    assert "pytest-docker" in config_data["./"]
