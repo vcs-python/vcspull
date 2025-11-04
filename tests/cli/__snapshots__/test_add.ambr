@@ -49,6 +49,36 @@
     'test_id': 'path-dry-run-shows-tilde-config',
   })
 # ---
+# name: test_handle_add_command_path_mode[path-explicit-dot-workspace-no-merge]
+  dict({
+    'log': '''
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/example/dot-nomerge)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ./
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/example/dot-nomerge) to ~/.vcspull.yaml under './'.
+  
+    ''',
+    'test_id': 'path-explicit-dot-workspace-no-merge',
+  })
+# ---
+# name: test_handle_add_command_path_mode[path-explicit-dot-workspace]
+  dict({
+    'log': '''
+      INFO     vcspull.cli.add:add.py:<line> Found new repository to import:
+      INFO     vcspull.cli.add:add.py:<line>   + pytest-docker (https://github.com/example/dot)
+      INFO     vcspull.cli.add:add.py:<line>   • workspace: ./
+      INFO     vcspull.cli.add:add.py:<line>   ↳ path: ~/study/python/pytest-docker
+      INFO     vcspull.cli.add:add.py:<line> ? Import this repository? [y/N]: y (auto-confirm)
+      INFO     vcspull.cli.add:add.py:<line> Config file ~/.vcspull.yaml not found. A new one will be created.
+      INFO     vcspull.cli.add:add.py:<line> ✓ Successfully added 'pytest-docker' (git+https://github.com/example/dot) to ~/.vcspull.yaml under './'.
+  
+    ''',
+    'test_id': 'path-explicit-dot-workspace',
+  })
+# ---
 # name: test_handle_add_command_path_mode[path-explicit-url]
   dict({
     'log': '''
