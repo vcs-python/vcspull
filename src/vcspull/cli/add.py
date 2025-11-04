@@ -17,7 +17,6 @@ from vcspull.config import (
     expand_dir,
     find_home_config_files,
     merge_duplicate_workspace_roots,
-    normalize_workspace_roots,
     save_config_yaml,
     save_config_yaml_with_items,
     workspace_root_label,
@@ -539,23 +538,8 @@ def add_repo(
                     Style.RESET_ALL,
                 )
 
-        normalization_changes = 0
-        if path is None:
-            (
-                raw_config,
-                _normalization_map,
-                normalization_conflicts,
-                normalization_changes,
-            ) = normalize_workspace_roots(
-                raw_config,
-                cwd=cwd,
-                home=home,
-            )
-            for message in normalization_conflicts:
-                log.warning(message)
-
         workspace_label, relabelled = _ensure_workspace_label_for_merge(raw_config)
-        config_was_relabelled = relabelled or (normalization_changes > 0)
+        config_was_relabelled = relabelled
         workspace_section = raw_config.get(workspace_label)
         if not isinstance(workspace_section, dict):
             log.error(
@@ -657,28 +641,9 @@ def add_repo(
         return
 
     ordered_items = _build_ordered_items(top_level_items, raw_config)
-    normalization_applied = False
-    if path is None:
-        for entry in ordered_items:
-            section = entry["section"]
-            if not isinstance(section, dict):
-                continue
-            try:
-                path_key = canonicalize_workspace_path(entry["label"], cwd=cwd)
-            except Exception:
-                continue
-            normalized_label = workspace_root_label(
-                path_key,
-                cwd=cwd,
-                home=home,
-                preserve_cwd_label=True,
-            )
-            if normalized_label != entry["label"]:
-                entry["label"] = normalized_label
-                normalization_applied = True
 
     workspace_label, target_index, relabelled = _prepare_no_merge_items(ordered_items)
-    config_was_relabelled = relabelled or normalization_applied
+    config_was_relabelled = relabelled
 
     duplicate_sections = _collect_duplicate_sections(ordered_items)
     for label, sections in duplicate_sections.items():
