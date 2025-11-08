@@ -13,8 +13,8 @@ import typing as t
 import pytest
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.private_path import PrivatePath
 from vcspull.cli.add import add_repo, create_add_subparser, handle_add_command
-from vcspull.util import contract_user_home
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -706,7 +706,7 @@ def test_handle_add_command_path_mode(
     handle_add_command(args)
 
     log_output = caplog.text
-    contracted_path = contract_user_home(repo_path)
+    contracted_path = str(PrivatePath(repo_path))
 
     assert "Found new repository to import" in log_output
     assert contracted_path in log_output
@@ -715,7 +715,7 @@ def test_handle_add_command_path_mode(
     normalized_log = normalized_log.replace(str(repo_path), "<repo_path>")
     normalized_log = re.sub(r"add\.py:\d+", "add.py:<line>", normalized_log)
     if preserve_config_path_in_log:
-        assert contract_user_home(config_file) in log_output
+        assert str(PrivatePath(config_file)) in log_output
         snapshot.assert_match(
             {
                 "test_id": test_id,
