@@ -33,6 +33,14 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
+### Development
+
+#### PrivatePath centralizes home-directory redaction (#485)
+
+- Introduced a dedicated `PrivatePath` helper for all CLI logging and structured
+  output, ensuring tilde-collapsed paths stay consistent without duplicating the
+  contraction logic across commands.
+
 ## vcspull v1.46.1 (2025-11-03)
 
 ### Bug Fixes
