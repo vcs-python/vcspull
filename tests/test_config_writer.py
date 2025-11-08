@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import pathlib
 import textwrap
 import typing as t
 
 import pytest
 
 from vcspull.config import save_config_yaml_with_items
+
+if t.TYPE_CHECKING:
+    import pathlib
 
 FixtureEntry = tuple[str, dict[str, t.Any]]
 

@@ -463,12 +463,11 @@ def add_repo(
                 relabelled = True
             else:
                 config_data.setdefault("./", {})
+        elif existing_label is None:
+            workspace_label = preferred_label
+            config_data.setdefault(workspace_label, {})
         else:
-            if existing_label is None:
-                workspace_label = preferred_label
-                config_data.setdefault(workspace_label, {})
-            else:
-                workspace_label = existing_label
+            workspace_label = existing_label
 
         if workspace_label not in config_data:
             config_data[workspace_label] = {}
