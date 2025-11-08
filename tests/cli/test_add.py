@@ -727,7 +727,7 @@ def test_handle_add_command_path_mode(
             {
                 "test_id": test_id,
                 "log": normalized_log.replace("<config>", "~/.vcspull.yaml"),
-            }
+            },
         )
     else:
         snapshot.assert_match({"test_id": test_id, "log": normalized_log})
@@ -885,7 +885,7 @@ NO_MERGE_PRESERVATION_FIXTURES: list[NoMergePreservationFixture] = [
                 repo: git+https://github.com/Stiivi/bubbles.git
               cubes:
                 repo: git+https://github.com/Stiivi/cubes.git
-            """
+            """,
         ),
         expected_original_repos=(
             "Flexget",
