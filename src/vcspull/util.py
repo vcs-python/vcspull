@@ -7,6 +7,8 @@ import pathlib
 import typing as t
 from collections.abc import Mapping
 
+from vcspull._internal.private_path import PrivatePath
+
 LEGACY_CONFIG_DIR = pathlib.Path("~/.vcspull/").expanduser()  # remove dupes of this
 
 
@@ -63,15 +65,22 @@ def contract_user_home(path: str | pathlib.Path) -> str:
     '/opt/project'
     """
     path_str = str(path)
-    home_str = str(pathlib.Path.home())
+    if path_str == "":
+        return path_str
 
-    # Replace home directory with ~ if path starts with it
+    if path_str.startswith("~"):
+        return path_str
+
+    home_str = str(pathlib.Path.home())
     if path_str.startswith(home_str):
-        # Handle both /home/user and /home/user/ cases
-        relative = path_str[len(home_str) :]
-        if relative.startswith(os.sep):
-            relative = relative[1:]
-        return f"~/{relative}" if relative else "~"
+        collapsed = str(PrivatePath(pathlib.Path(path_str)))
+        if (
+            path_str.endswith(os.sep)
+            and not collapsed.endswith(os.sep)
+            and path_str.rstrip(os.sep) != home_str
+        ):
+            collapsed += os.sep
+        return collapsed
 
     return path_str
 
