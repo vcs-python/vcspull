@@ -12,6 +12,7 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
@@ -212,7 +213,10 @@ def discover_repos(
             )
             return
         except Exception:
-            log.exception("Error loading YAML from %s. Aborting.", config_file_path)
+            log.exception(
+                "Error loading YAML from %s. Aborting.",
+                PrivatePath(config_file_path),
+            )
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
             return
@@ -458,7 +462,10 @@ def discover_repos(
                     Style.RESET_ALL,
                 )
             except Exception:
-                log.exception("Error saving config to %s", config_file_path)
+                log.exception(
+                    "Error saving config to %s",
+                    PrivatePath(config_file_path),
+                )
                 if log.isEnabledFor(logging.DEBUG):
                     traceback.print_exc()
             return
@@ -551,7 +558,10 @@ def discover_repos(
                 Style.RESET_ALL,
             )
         except Exception:
-            log.exception("Error saving config to %s", config_file_path)
+            log.exception(
+                "Error saving config to %s",
+                PrivatePath(config_file_path),
+            )
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
             return

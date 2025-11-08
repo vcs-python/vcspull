@@ -220,11 +220,11 @@ def handle_add_command(args: argparse.Namespace) -> None:
     repo_path = expand_dir(pathlib.Path(repo_input), cwd=cwd)
 
     if not repo_path.exists():
-        log.error("Repository path %s does not exist.", repo_path)
+        log.error("Repository path %s does not exist.", PrivatePath(repo_path))
         return
 
     if not repo_path.is_dir():
-        log.error("Repository path %s is not a directory.", repo_path)
+        log.error("Repository path %s is not a directory.", PrivatePath(repo_path))
         return
 
     override_name = getattr(args, "override_name", None)
@@ -319,7 +319,11 @@ def handle_add_command(args: argparse.Namespace) -> None:
             response = ""
         proceed = response.strip().lower() in {"y", "yes"}
         if not proceed:
-            log.info("Aborted import of '%s' from %s", repo_name, repo_path)
+            log.info(
+                "Aborted import of '%s' from %s",
+                repo_name,
+                PrivatePath(repo_path),
+            )
             return
 
     add_repo(
@@ -400,7 +404,10 @@ def add_repo(
             )
             return
         except Exception:
-            log.exception("Error loading YAML from %s. Aborting.", config_file_path)
+            log.exception(
+                "Error loading YAML from %s. Aborting.",
+                PrivatePath(config_file_path),
+            )
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
             return
@@ -579,7 +586,10 @@ def add_repo(
                         Style.RESET_ALL,
                     )
                 except Exception:
-                    log.exception("Error saving config to %s", config_file_path)
+                    log.exception(
+                        "Error saving config to %s",
+                        PrivatePath(config_file_path),
+                    )
                     if log.isEnabledFor(logging.DEBUG):
                         traceback.print_exc()
             elif (duplicate_merge_changes > 0 or config_was_relabelled) and dry_run:
@@ -635,7 +645,10 @@ def add_repo(
                 Style.RESET_ALL,
             )
         except Exception:
-            log.exception("Error saving config to %s", config_file_path)
+            log.exception(
+                "Error saving config to %s",
+                PrivatePath(config_file_path),
+            )
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
         return
@@ -719,7 +732,10 @@ def add_repo(
                         Style.RESET_ALL,
                     )
                 except Exception:
-                    log.exception("Error saving config to %s", config_file_path)
+                    log.exception(
+                        "Error saving config to %s",
+                        PrivatePath(config_file_path),
+                    )
                     if log.isEnabledFor(logging.DEBUG):
                         traceback.print_exc()
         return
@@ -778,6 +794,9 @@ def add_repo(
             Style.RESET_ALL,
         )
     except Exception:
-        log.exception("Error saving config to %s", config_file_path)
+        log.exception(
+            "Error saving config to %s",
+            PrivatePath(config_file_path),
+        )
         if log.isEnabledFor(logging.DEBUG):
             traceback.print_exc()
