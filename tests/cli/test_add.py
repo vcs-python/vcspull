@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import pathlib
 import re
 import subprocess
 import textwrap
@@ -692,6 +693,8 @@ def test_handle_add_command_path_mode(
     else:
         repo_arg = str(repo_path)
 
+    repo_name = override_name or repo_path.name
+
     args = argparse.Namespace(
         repo_path=repo_arg,
         url=explicit_url,
@@ -713,6 +716,10 @@ def test_handle_add_command_path_mode(
 
     normalized_log = log_output.replace(str(config_file), "<config>")
     normalized_log = normalized_log.replace(str(repo_path), "<repo_path>")
+    normalized_log = normalized_log.replace(
+        f"Aborted import of '{repo_name}' from {PrivatePath(repo_path)!s}",
+        f"Aborted import of '{repo_name}' from <repo_path>",
+    )
     normalized_log = re.sub(r"add\.py:\d+", "add.py:<line>", normalized_log)
     if preserve_config_path_in_log:
         assert str(PrivatePath(config_file)) in log_output
@@ -733,8 +740,6 @@ def test_handle_add_command_path_mode(
 
     if expected_warning is not None:
         assert expected_warning in log_output
-
-    repo_name = override_name or repo_path.name
 
     if expected_written:
         import yaml
@@ -803,6 +808,42 @@ def test_add_repo_dry_run_contracts_config_path(
     )
 
     assert "~/.vcspull.yaml" in caplog.text
+
+
+def test_handle_add_command_abort_uses_private_path(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    """Aborted add command logs repo path with home collapsed."""
+    caplog.set_level(logging.INFO)
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.chdir(home)
+    # Ensure PrivatePath resolves tilde within the temp home directory.
+    monkeypatch.setattr(pathlib.Path, "home", lambda: home)
+
+    repo_path = home / "study/python/pytest-docker"
+    repo_path.mkdir(parents=True)
+
+    args = argparse.Namespace(
+        repo_path=str(repo_path),
+        override_name=None,
+        url=None,
+        config=str(home / ".vcspull.yaml"),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=False,
+        merge_duplicates=True,
+    )
+
+    monkeypatch.setattr("builtins.input", lambda _: "n")
+
+    handle_add_command(args)
+
+    expected_path = str(PrivatePath(repo_path))
+    assert f"Aborted import of 'pytest-docker' from {expected_path}" in caplog.text
 
 
 def test_add_parser_rejects_extra_positional() -> None:
