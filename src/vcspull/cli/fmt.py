@@ -11,6 +11,7 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     find_config_files,
     find_home_config_files,
@@ -176,10 +177,16 @@ def format_single_config(
             DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
         )
     except TypeError:
-        log.exception("Config file %s is not a mapping", config_file_path)
+        log.exception(
+            "Config file %s is not a mapping",
+            PrivatePath(config_file_path),
+        )
         return False
     except Exception:
-        log.exception("Error loading config from %s", config_file_path)
+        log.exception(
+            "Error loading config from %s",
+            PrivatePath(config_file_path),
+        )
         if log.isEnabledFor(logging.DEBUG):
             traceback.print_exc()
         return False
@@ -359,7 +366,10 @@ def format_single_config(
                 Style.RESET_ALL,
             )
         except Exception:
-            log.exception("Error saving formatted config to %s", config_file_path)
+            log.exception(
+                "Error saving formatted config to %s",
+                PrivatePath(config_file_path),
+            )
             if log.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
             return False

@@ -13,8 +13,8 @@ import typing as t
 from dataclasses import dataclass
 from time import perf_counter
 
+from vcspull._internal.private_path import PrivatePath
 from vcspull.config import filter_repos, find_config_files, load_configs
-from vcspull.util import contract_user_home
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
@@ -266,7 +266,7 @@ def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.A
 
     status: dict[str, t.Any] = {
         "name": repo_name,
-        "path": contract_user_home(repo_path),
+        "path": str(PrivatePath(repo_path)),
         "workspace_root": workspace_root,
         "exists": False,
         "is_git": False,
@@ -546,7 +546,7 @@ def _format_status_line(
 
     if detailed:
         formatter.emit_text(
-            f"  {colors.muted('Path:')} {contract_user_home(status['path'])}",
+            f"  {colors.muted('Path:')} {PrivatePath(status['path'])}",
         )
         branch = status.get("branch")
         if branch:
