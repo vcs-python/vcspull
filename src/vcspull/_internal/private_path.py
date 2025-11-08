@@ -4,7 +4,13 @@ import os
 import pathlib
 import typing as t
 
-class PrivatePath(type(pathlib.Path())):
+if t.TYPE_CHECKING:
+    PrivatePathBase = pathlib.Path
+else:
+    PrivatePathBase = type(pathlib.Path())
+
+
+class PrivatePath(PrivatePathBase):
     """Path subclass that hides the user's home directory in textual output.
 
     The class behaves like :class:`pathlib.Path`, but normalizes string and
@@ -22,14 +28,14 @@ class PrivatePath(type(pathlib.Path())):
     PrivatePath('~/projects/vcspull')
     >>> str(PrivatePath("/tmp/example"))
     '/tmp/example'
-    >>> f\"build dir: {PrivatePath(home / 'build')}\"
+    >>> f'build dir: {PrivatePath(home / "build")}'
     'build dir: ~/build'
-    >>> \"{}\".format(PrivatePath(home / 'notes.txt'))
+    >>> '{}'.format(PrivatePath(home / 'notes.txt'))
     '~/notes.txt'
     """
 
     def __new__(cls, *args: t.Any, **kwargs: t.Any) -> PrivatePath:
-        return t.cast(PrivatePath, super().__new__(cls, *args, **kwargs))
+        return super().__new__(cls, *args, **kwargs)
 
     @classmethod
     def _collapse_home(cls, value: str) -> str:
