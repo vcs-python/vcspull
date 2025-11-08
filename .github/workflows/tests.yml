@@ -45,6 +45,9 @@ jobs:
           COV_CORE_CONFIG: pyproject.toml
           COV_CORE_DATAFILE: .coverage.eager
 
+      - name: Runtime dependency smoke test
+        run: uvx --isolated --reinstall --from . python scripts/runtime_dep_smoketest.py
+
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
