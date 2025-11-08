@@ -29,3 +29,14 @@ def test_absolute_paths_outside_home_are_unmodified() -> None:
 def test_existing_tilde_prefix_is_preserved() -> None:
     path = PrivatePath("~/.config/vcspull")
     assert str(path) == "~/.config/vcspull"
+
+
+def test_trailing_slash_collapses_to_directory_label() -> None:
+    home = Path.home()
+    path = PrivatePath(home / "projects/")
+    assert str(path) == f"~{os.sep}projects"
+
+
+def test_relative_path_unmodified() -> None:
+    path = PrivatePath("relative/path")
+    assert str(path) == "relative/path"
