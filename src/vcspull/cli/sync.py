@@ -23,8 +23,8 @@ from libvcs._internal.shortcuts import create_project
 from libvcs.url import registry as url_tools
 
 from vcspull import exc
+from vcspull._internal.private_path import PrivatePath
 from vcspull.config import filter_repos, find_config_files, load_configs
-from vcspull.util import contract_user_home
 
 from ._colors import Colors, get_color_mode
 from ._output import (
@@ -264,7 +264,7 @@ def _build_plan_entry(
 
     return PlanEntry(
         name=str(repo.get("name", "unknown")),
-        path=contract_user_home(repo_path),
+        path=str(PrivatePath(repo_path)),
         workspace_root=workspace_root,
         action=action,
         detail=detail,
@@ -436,7 +436,7 @@ def _render_plan(
                     display_path = entry.path
             else:
                 # Contract home directory for privacy/brevity in human output
-                display_path = contract_user_home(display_path)
+                display_path = str(PrivatePath(display_path))
 
             detail_text = _format_detail_text(
                 entry,
@@ -724,7 +724,7 @@ def sync(
         event: dict[str, t.Any] = {
             "reason": "sync",
             "name": repo_name,
-            "path": contract_user_home(repo_path),
+            "path": str(PrivatePath(repo_path)),
             "workspace_root": str(workspace_label),
         }
 

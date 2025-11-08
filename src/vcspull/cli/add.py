@@ -12,6 +12,7 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
@@ -21,7 +22,6 @@ from vcspull.config import (
     save_config_yaml_with_items,
     workspace_root_label,
 )
-from vcspull.util import contract_user_home
 
 if t.TYPE_CHECKING:
     import argparse
@@ -238,7 +238,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
         display_url, config_url = _normalize_detected_url(detected_remote)
 
     if not config_url:
-        display_url = contract_user_home(repo_path)
+        display_url = str(PrivatePath(repo_path))
         config_url = str(repo_path)
         log.warning(
             "Unable to determine git remote for %s; using local path in config.",
@@ -262,7 +262,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
 
     summary_url = display_url or config_url
 
-    display_path = contract_user_home(repo_path)
+    display_path = str(PrivatePath(repo_path))
 
     log.info("%sFound new repository to import:%s", Fore.GREEN, Style.RESET_ALL)
     log.info(
@@ -370,7 +370,7 @@ def add_repo(
             config_file_path = pathlib.Path.cwd() / ".vcspull.yaml"
             log.info(
                 "No config specified and no default found, will create at %s",
-                contract_user_home(config_file_path),
+                PrivatePath(config_file_path),
             )
         elif len(home_configs) > 1:
             log.error(
@@ -384,7 +384,7 @@ def add_repo(
     raw_config: dict[str, t.Any]
     duplicate_root_occurrences: dict[str, list[t.Any]]
     top_level_items: list[tuple[str, t.Any]]
-    display_config_path = contract_user_home(config_file_path)
+    display_config_path = str(PrivatePath(config_file_path))
 
     if config_file_path.exists() and config_file_path.is_file():
         try:

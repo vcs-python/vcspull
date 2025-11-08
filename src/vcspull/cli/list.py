@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 import typing as t
 
+from vcspull._internal.private_path import PrivatePath
 from vcspull.config import filter_repos, find_config_files, load_configs
-from vcspull.util import contract_user_home
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
@@ -167,7 +167,7 @@ def _output_flat(
             {
                 "name": repo_name,
                 "url": str(repo_url),
-                "path": contract_user_home(repo_path),
+                "path": str(PrivatePath(repo_path)),
                 "workspace_root": str(repo.get("workspace_root", "")),
             },
         )
@@ -175,7 +175,7 @@ def _output_flat(
         # Human output (contract home directory for privacy/brevity)
         formatter.emit_text(
             f"{colors.muted('•')} {colors.info(repo_name)} "
-            f"{colors.muted('→')} {contract_user_home(repo_path)}",
+            f"{colors.muted('→')} {PrivatePath(repo_path)}",
         )
 
 
@@ -218,7 +218,7 @@ def _output_tree(
                 {
                     "name": repo_name,
                     "url": str(repo_url),
-                    "path": contract_user_home(repo_path),
+                    "path": str(PrivatePath(repo_path)),
                     "workspace_root": workspace,
                 },
             )
@@ -226,5 +226,5 @@ def _output_tree(
             # Human output: indented repo (contract home directory for privacy/brevity)
             formatter.emit_text(
                 f"  {colors.muted('•')} {colors.info(repo_name)} "
-                f"{colors.muted('→')} {contract_user_home(repo_path)}",
+                f"{colors.muted('→')} {PrivatePath(repo_path)}",
             )
