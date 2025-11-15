@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import pathlib
 import typing as t
 
 from vcspull.util import get_config_dir
 
 if t.TYPE_CHECKING:
+    import pathlib
+
     import pytest
 
 

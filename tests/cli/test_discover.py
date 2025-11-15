@@ -14,8 +14,6 @@ from vcspull._internal.private_path import PrivatePath
 from vcspull.cli.discover import ConfigScope, _classify_config_scope, discover_repos
 
 if t.TYPE_CHECKING:
-    import pathlib
-
     from _pytest.monkeypatch import MonkeyPatch
     from syrupy.assertion import SnapshotAssertion
 
