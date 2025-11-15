@@ -698,7 +698,6 @@ def test_discover_normalization_only_save(
     assert "Successfully updated" in caplog.text
 
 
-@pytest.mark.xfail(reason="discover uses ./ for user-level configs (#487)", strict=True)
 def test_discover_user_config_prefers_absolute_workspace_label(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
@@ -754,6 +753,46 @@ def test_discover_user_config_prefers_absolute_workspace_label(
     assert "~/study/golang/" in config_data
     assert "./" not in config_data
     assert set(config_data["~/study/golang/"]) == {"moby", "typescript-go"}
+
+
+def test_discover_project_config_retains_relative_workspace_label(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    import yaml
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    monkeypatch.chdir(project_root)
+
+    init_git_repo(project_root / "repo-a", "git+https://github.com/example/repo-a.git")
+    init_git_repo(project_root / "repo-b", "git+https://github.com/example/repo-b.git")
+
+    config_file = project_root / ".vcspull.yaml"
+    config_file.write_text(
+        yaml.dump({}),
+        encoding="utf-8",
+    )
+
+    discover_repos(
+        scan_dir_str=str(project_root),
+        config_file_path_str=str(config_file),
+        recursive=False,
+        workspace_root_override=None,
+        yes=True,
+        dry_run=False,
+    )
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh)
+
+    assert config_data is not None
+    assert "./" in config_data
+    assert set(config_data["./"]) == {"repo-a", "repo-b"}
 
 
 @pytest.mark.parametrize(
