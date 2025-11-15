@@ -10,6 +10,7 @@ import typing as t
 import pytest
 import yaml
 
+from vcspull._internal.private_path import PrivatePath
 from vcspull.cli import cli
 from vcspull.cli.fmt import format_config, format_config_file, normalize_repo_config
 from vcspull.config import (
@@ -303,6 +304,10 @@ def test_format_config_file_missing_config(
     """Formatting without available config should emit an error."""
     monkeypatch.chdir(tmp_path)
 
+    home_config = pathlib.Path("~/.vcspull.yaml").expanduser()
+    if home_config.exists():
+        home_config.unlink()
+
     with caplog.at_level(logging.ERROR):
         format_config_file(None, write=False, format_all=False)
 
@@ -337,16 +342,40 @@ def test_format_config_file_reports_changes(
     assert "Run with --write to apply" in text
 
 
+def test_format_config_file_uses_private_path_in_logs(
+    user_path: pathlib.Path,
+    caplog: LogCaptureFixture,
+) -> None:
+    """CLI logs should redact the home directory via PrivatePath."""
+    config_file = user_path / ".vcspull.yaml"
+    config_file.write_text(
+        """~/projects/:
+  zebra: url1
+  alpha: url2
+""",
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.INFO):
+        format_config_file(str(config_file), write=True, format_all=False)
+
+    expected_path = str(PrivatePath(config_file))
+    text = caplog.text
+    assert f"in {expected_path}" in text
+    assert f"Successfully formatted {expected_path}" in text
+
+
 def test_format_all_configs(
     tmp_path: pathlib.Path,
     caplog: LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
 ) -> None:
     """format_config_file with --all should process discovered configs."""
-    config_dir = tmp_path / ".config" / "vcspull"
-    config_dir.mkdir(parents=True)
+    config_dir = user_path / ".config" / "vcspull"
+    config_dir.mkdir(parents=True, exist_ok=True)
 
-    home_config = tmp_path / ".vcspull.yaml"
+    home_config = user_path / ".vcspull.yaml"
     home_config.write_text(
         yaml.dump({"~/projects/": {"repo1": {"repo": "url1"}}}),
         encoding="utf-8",
@@ -396,9 +425,9 @@ def test_format_all_configs(
 
     text = caplog.text
     assert "Found 3 configuration files to format" in text
-    assert str(home_config) in text
-    assert str(work_config) in text
-    assert str(local_config) in text
+    assert str(PrivatePath(home_config)) in text
+    assert str(PrivatePath(work_config)) in text
+    assert str(PrivatePath(local_config)) in text
     assert "already formatted correctly" in text
     assert "Repositories in ~/work/ will be sorted alphabetically" in text
     assert "All 3 configuration files processed successfully" in text
