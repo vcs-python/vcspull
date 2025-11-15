@@ -28,6 +28,65 @@ if t.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+ConfigScope = t.Literal["system", "user", "project", "external"]
+
+
+def _classify_config_scope(
+    config_path: pathlib.Path,
+    *,
+    cwd: pathlib.Path,
+    home: pathlib.Path,
+) -> ConfigScope:
+    """Determine whether a config lives in user, system, project, or external scope."""
+    resolved = config_path.expanduser().resolve()
+    home = home.expanduser().resolve()
+    cwd = cwd.expanduser().resolve()
+
+    default_user_configs = {
+        (home / ".vcspull.yaml").resolve(),
+        (home / ".vcspull.json").resolve(),
+    }
+    if resolved in default_user_configs:
+        return "user"
+
+    xdg_config_home = (
+        pathlib.Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
+        .expanduser()
+        .resolve()
+    )
+    user_config_root = (xdg_config_home / "vcspull").resolve()
+    try:
+        resolved.relative_to(user_config_root)
+    except ValueError:
+        pass
+    else:
+        return "user"
+
+    xdg_config_dirs_value = os.environ.get("XDG_CONFIG_DIRS")
+    if xdg_config_dirs_value:
+        config_dir_bases = [
+            pathlib.Path(entry).expanduser().resolve()
+            for entry in xdg_config_dirs_value.split(os.pathsep)
+            if entry
+        ]
+    else:
+        config_dir_bases = [pathlib.Path("/etc/xdg").resolve()]
+
+    for base in config_dir_bases:
+        candidate = (base / "vcspull").resolve()
+        try:
+            resolved.relative_to(candidate)
+        except ValueError:
+            continue
+        else:
+            return "system"
+
+    try:
+        resolved.relative_to(cwd)
+    except ValueError:
+        return "external"
+    return "project"
+
 
 def get_git_origin_url(repo_path: pathlib.Path) -> str | None:
     """Get the origin URL from a git repository.
@@ -199,6 +258,11 @@ def discover_repos(
 
     display_config_path = str(PrivatePath(config_file_path))
 
+    cwd = pathlib.Path.cwd()
+    home = pathlib.Path.home()
+    config_scope = _classify_config_scope(config_file_path, cwd=cwd, home=home)
+    allow_relative_workspace = config_scope == "project"
+
     raw_config: dict[str, t.Any]
     duplicate_root_occurrences: dict[str, list[t.Any]]
     if config_file_path.exists() and config_file_path.is_file():
@@ -288,8 +352,8 @@ def discover_repos(
                 "" if occurrence_count == 1 else "s",
             )
 
-    cwd = pathlib.Path.cwd()
-    home = pathlib.Path.home()
+    explicit_relative_override = workspace_root_override in {".", "./"}
+    preserve_cwd_label = explicit_relative_override or allow_relative_workspace
 
     if merge_duplicates:
         (
@@ -301,6 +365,7 @@ def discover_repos(
             raw_config,
             cwd=cwd,
             home=home,
+            preserve_cwd_label=preserve_cwd_label,
         )
     else:
         (
@@ -312,6 +377,7 @@ def discover_repos(
             raw_config,
             cwd=cwd,
             home=home,
+            preserve_cwd_label=preserve_cwd_label,
         )
 
     for message in merge_conflicts:
@@ -378,7 +444,12 @@ def discover_repos(
     for name, url, workspace_path in found_repos:
         workspace_label = workspace_map.get(workspace_path)
         if workspace_label is None:
-            workspace_label = workspace_root_label(workspace_path, cwd=cwd, home=home)
+            workspace_label = workspace_root_label(
+                workspace_path,
+                cwd=cwd,
+                home=home,
+                preserve_cwd_label=preserve_cwd_label,
+            )
             workspace_map[workspace_path] = workspace_label
             raw_config.setdefault(workspace_label, {})
 
@@ -416,6 +487,7 @@ def discover_repos(
                         workspace_path,
                         cwd=cwd,
                         home=home,
+                        preserve_cwd_label=preserve_cwd_label,
                     )
                     workspace_map[workspace_path] = workspace_label
                     raw_config.setdefault(workspace_label, {})
@@ -517,7 +589,12 @@ def discover_repos(
     for repo_name, repo_url, workspace_path in repos_to_add:
         workspace_label = workspace_map.get(workspace_path)
         if workspace_label is None:
-            workspace_label = workspace_root_label(workspace_path, cwd=cwd, home=home)
+            workspace_label = workspace_root_label(
+                workspace_path,
+                cwd=cwd,
+                home=home,
+                preserve_cwd_label=preserve_cwd_label,
+            )
             workspace_map[workspace_path] = workspace_label
 
         if workspace_label not in raw_config:
