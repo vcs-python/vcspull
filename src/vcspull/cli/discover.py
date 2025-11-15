@@ -186,7 +186,7 @@ def discover_repos(
                 Fore.CYAN,
                 Style.RESET_ALL,
                 Fore.BLUE,
-                config_file_path,
+                PrivatePath(config_file_path),
                 Style.RESET_ALL,
             )
         elif len(home_configs) > 1:
@@ -196,6 +196,8 @@ def discover_repos(
             return
         else:
             config_file_path = home_configs[0]
+
+    display_config_path = str(PrivatePath(config_file_path))
 
     raw_config: dict[str, t.Any]
     duplicate_root_occurrences: dict[str, list[t.Any]]
@@ -209,7 +211,7 @@ def discover_repos(
         except TypeError:
             log.exception(
                 "Config file %s is not a valid YAML dictionary.",
-                config_file_path,
+                display_config_path,
             )
             return
         except Exception:
@@ -225,7 +227,7 @@ def discover_repos(
         elif not isinstance(raw_config, dict):
             log.error(
                 "Config file %s is not a valid YAML dictionary.",
-                config_file_path,
+                display_config_path,
             )
             return
     else:
@@ -236,7 +238,7 @@ def discover_repos(
             Fore.CYAN,
             Style.RESET_ALL,
             Fore.BLUE,
-            config_file_path,
+            display_config_path,
             Style.RESET_ALL,
         )
 
@@ -432,7 +434,7 @@ def discover_repos(
                     name,
                     Style.RESET_ALL,
                     Fore.BLUE,
-                    config_file_path,
+                    display_config_path,
                     Style.RESET_ALL,
                 )
 
@@ -458,7 +460,7 @@ def discover_repos(
                     Fore.GREEN,
                     Style.RESET_ALL,
                     Fore.BLUE,
-                    config_file_path,
+                    display_config_path,
                     Style.RESET_ALL,
                 )
             except Exception:
@@ -499,7 +501,7 @@ def discover_repos(
             Fore.YELLOW,
             Style.RESET_ALL,
             Fore.BLUE,
-            config_file_path,
+            display_config_path,
             Style.RESET_ALL,
         )
         return
@@ -554,7 +556,7 @@ def discover_repos(
                 Fore.GREEN,
                 Style.RESET_ALL,
                 Fore.BLUE,
-                config_file_path,
+                display_config_path,
                 Style.RESET_ALL,
             )
         except Exception:
