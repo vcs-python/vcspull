@@ -159,6 +159,9 @@ def format_single_config(
     bool
         True if formatting was successful, False otherwise
     """
+    # Precompute redacted path for CLI output.
+    display_config_path = str(PrivatePath(config_file_path))
+
     # Check if file exists
     if not config_file_path.exists():
         log.error(
@@ -166,7 +169,7 @@ def format_single_config(
             Fore.RED,
             Style.RESET_ALL,
             Fore.BLUE,
-            config_file_path,
+            display_config_path,
             Style.RESET_ALL,
         )
         return False
@@ -258,7 +261,7 @@ def format_single_config(
             Fore.GREEN,
             Style.RESET_ALL,
             Fore.BLUE,
-            config_file_path,
+            display_config_path,
             Style.RESET_ALL,
         )
         return True
@@ -273,7 +276,7 @@ def format_single_config(
         Style.RESET_ALL,
         "issue" if change_count == 1 else "issues",
         Fore.BLUE,
-        config_file_path,
+        display_config_path,
         Style.RESET_ALL,
     )
 
@@ -362,7 +365,7 @@ def format_single_config(
                 Fore.GREEN,
                 Style.RESET_ALL,
                 Fore.BLUE,
-                config_file_path,
+                display_config_path,
                 Style.RESET_ALL,
             )
         except Exception:
@@ -438,12 +441,13 @@ def format_config_file(
         )
 
         for config_file in config_files:
+            display_config_file = str(PrivatePath(config_file))
             log.info(
                 "  %s•%s %s%s%s",
                 Fore.BLUE,
                 Style.RESET_ALL,
                 Fore.CYAN,
-                config_file,
+                display_config_file,
                 Style.RESET_ALL,
             )
 

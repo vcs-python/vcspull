@@ -400,7 +400,7 @@ def add_repo(
         except TypeError:
             log.exception(
                 "Config file %s is not a valid YAML dictionary.",
-                config_file_path,
+                display_config_path,
             )
             return
         except Exception:

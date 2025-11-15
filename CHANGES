@@ -33,6 +33,21 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
+### Bug fixes
+
+#### Path privacy improvements (#488)
+
+Path privacy added to:
+
+- `vcspull fmt`: summary banners, success logs, and `--all` listings cache the
+  `PrivatePath` display value so config paths always render as `~/.vcspull.yaml`.
+- `vcspull add`: invalid-config errors reuse the redacted path, keeping failure
+  logs consistent with other config operations.
+- `vcspull discover`: warnings for repos without remotes and "no repos found"
+  notices collapse their target directories via `PrivatePath`.
+- `vcspull sync`: human "Synced …" lines now mirror the structured JSON payloads
+  by showing tilde-collapsed repository paths.
+
 ## vcspull v1.47.0 (2025-11-15)
 
 ### Bug Fixes

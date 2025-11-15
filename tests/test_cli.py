@@ -14,6 +14,7 @@ import pytest
 import yaml
 
 from vcspull.__about__ import __version__
+from vcspull._internal.private_path import PrivatePath
 from vcspull.cli import cli
 from vcspull.cli._output import PlanAction, PlanEntry, PlanResult, PlanSummary
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
@@ -974,3 +975,75 @@ def test_sync_dry_run_plan_progress(
     output = f"{captured.out}{captured.err}"
     assert "Progress:" in output
     assert "Plan:" in output
+
+
+def test_sync_human_output_redacts_repo_paths(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+) -> None:
+    """Synced log lines should collapse repo paths via PrivatePath."""
+    repo_path = user_path / "repos" / "private"
+    repo_path.mkdir(parents=True, exist_ok=True)
+
+    repo_config = {
+        "name": "private",
+        "url": "git+https://example.com/private.git",
+        "path": str(repo_path),
+        "workspace_root": "~/repos/",
+    }
+
+    monkeypatch.setattr(
+        sync_module,
+        "load_configs",
+        lambda _paths: [repo_config],
+    )
+    monkeypatch.setattr(
+        sync_module,
+        "find_config_files",
+        lambda include_home=True: [],
+    )
+
+    def _fake_filter_repos(
+        _configs: list[dict[str, t.Any]],
+        *,
+        path: str | None = None,
+        vcs_url: str | None = None,
+        name: str | None = None,
+    ) -> list[dict[str, t.Any]]:
+        if name and name != repo_config["name"]:
+            return []
+        if path and path != repo_config["path"]:
+            return []
+        if vcs_url and vcs_url != repo_config["url"]:
+            return []
+        return [repo_config]
+
+    monkeypatch.setattr(sync_module, "filter_repos", _fake_filter_repos)
+    monkeypatch.setattr(
+        sync_module,
+        "update_repo",
+        lambda _repo, progress_callback=None: None,
+    )
+
+    sync_module.sync(
+        repo_patterns=[repo_config["name"]],
+        config=None,
+        workspace_root=None,
+        dry_run=False,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        exit_on_error=False,
+        show_unchanged=False,
+        summary_only=False,
+        long_view=False,
+        relative_paths=False,
+        fetch=False,
+        offline=False,
+        verbosity=0,
+    )
+
+    captured = capsys.readouterr()
+    expected_path = str(PrivatePath(repo_path))
+    assert expected_path in captured.out

@@ -325,6 +325,32 @@ def test_add_repo_creates_new_file(
     assert "newrepo" in config["~/"]
 
 
+def test_add_repo_invalid_config_logs_private_path(
+    user_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Errors for invalid configs should report redacted paths."""
+    config_file = user_path / ".vcspull.yaml"
+    config_file.write_text("- repo: url\n", encoding="utf-8")
+
+    repo_dir = user_path / "projects" / "demo"
+    repo_dir.mkdir(parents=True, exist_ok=True)
+
+    caplog.set_level(logging.ERROR)
+
+    add_repo(
+        name="demo",
+        url="git+https://github.com/example/demo.git",
+        config_file_path_str=str(config_file),
+        path=str(repo_dir),
+        workspace_root_path=None,
+        dry_run=True,
+    )
+
+    expected_path = str(PrivatePath(config_file))
+    assert expected_path in caplog.text
+
+
 class AddDuplicateMergeFixture(t.NamedTuple):
     """Fixture describing duplicate merge toggles for add_repo."""
 
