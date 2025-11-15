@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import pathlib
 import re
 import subprocess
 import typing as t
 
 import pytest
 
-from vcspull.cli.discover import discover_repos
+from vcspull._internal.private_path import PrivatePath
+from vcspull.cli.discover import ConfigScope, _classify_config_scope, discover_repos
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -201,6 +203,55 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
 ]
 
 
+class ConfigScopeFixture(t.NamedTuple):
+    """Fixture describing config scope classification scenarios."""
+
+    test_id: str
+    config_template: str
+    cwd_template: str
+    env: dict[str, str]
+    expected_scope: ConfigScope
+
+
+CONFIG_SCOPE_FIXTURES: list[ConfigScopeFixture] = [
+    ConfigScopeFixture(
+        test_id="scope-user-home-default",
+        config_template="{home}/.vcspull.yaml",
+        cwd_template="{home}",
+        env={},
+        expected_scope="user",
+    ),
+    ConfigScopeFixture(
+        test_id="scope-user-xdg-home",
+        config_template="{xdg_home}/vcspull/personal.yaml",
+        cwd_template="{home}",
+        env={"XDG_CONFIG_HOME": "{xdg_home}"},
+        expected_scope="user",
+    ),
+    ConfigScopeFixture(
+        test_id="scope-system-xdg-dirs",
+        config_template="{xdg_system}/vcspull/system.yaml",
+        cwd_template="{home}",
+        env={"XDG_CONFIG_DIRS": "{xdg_system}"},
+        expected_scope="system",
+    ),
+    ConfigScopeFixture(
+        test_id="scope-project-relative",
+        config_template="{project}/.vcspull.yaml",
+        cwd_template="{project}",
+        env={},
+        expected_scope="project",
+    ),
+    ConfigScopeFixture(
+        test_id="scope-external-file",
+        config_template="{external}/configs/custom.yaml",
+        cwd_template="{project}",
+        env={},
+        expected_scope="external",
+    ),
+]
+
+
 class DiscoverLoadEdgeFixture(t.NamedTuple):
     """Fixture describing discover configuration loading edge cases."""
 
@@ -362,6 +413,10 @@ def test_discover_repos(
 
     if preexisting_yaml is not None or not merge_duplicates:
         normalized_log = caplog.text.replace(str(target_config_file), "<config>")
+        normalized_log = normalized_log.replace(
+            str(PrivatePath(target_config_file)),
+            "<config>",
+        )
         normalized_log = re.sub(
             r"discover\.py:\d+",
             "discover.py:<line>",
@@ -394,6 +449,67 @@ def test_discover_repos(
         assert total_repos == expected_repo_count, (
             f"Expected {expected_repo_count} repos, got {total_repos}"
         )
+
+
+@pytest.mark.parametrize(
+    list(ConfigScopeFixture._fields),
+    CONFIG_SCOPE_FIXTURES,
+    ids=[fixture.test_id for fixture in CONFIG_SCOPE_FIXTURES],
+)
+def test_classify_config_scope(
+    test_id: str,
+    config_template: str,
+    cwd_template: str,
+    env: dict[str, str],
+    expected_scope: ConfigScope,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Ensure _classify_config_scope handles user/system/project/external paths."""
+    base_home = tmp_path / "home"
+    base_home.mkdir()
+    project = tmp_path / "project"
+    project.mkdir()
+    xdg_home = tmp_path / "xdg-home"
+    (xdg_home / "vcspull").mkdir(parents=True)
+    xdg_system = tmp_path / "xdg-system"
+    (xdg_system / "vcspull").mkdir(parents=True)
+    external = tmp_path / "external"
+    (external / "configs").mkdir(parents=True)
+
+    replacements = {
+        "home": base_home,
+        "project": project,
+        "xdg_home": xdg_home,
+        "xdg_system": xdg_system,
+        "external": external,
+    }
+
+    def _expand(template: str) -> pathlib.Path:
+        expanded = template
+        for key, path in replacements.items():
+            expanded = expanded.replace(f"{{{key}}}", str(path))
+        return pathlib.Path(expanded)
+
+    config_path = _expand(config_template)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.touch()
+
+    cwd_path = _expand(cwd_template)
+    cwd_path.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.chdir(cwd_path)
+    monkeypatch.setenv("HOME", str(base_home))
+    for var in ["XDG_CONFIG_HOME", "XDG_CONFIG_DIRS"]:
+        monkeypatch.delenv(var, raising=False)
+    for key, value in env.items():
+        expanded_value = value
+        for name, path in replacements.items():
+            expanded_value = expanded_value.replace(f"{{{name}}}", str(path))
+        monkeypatch.setenv(key, expanded_value)
+
+    scope = _classify_config_scope(config_path, cwd=cwd_path, home=base_home)
+    assert scope == expected_scope
 
 
 @pytest.mark.parametrize(
@@ -691,6 +807,106 @@ def test_discover_normalization_only_save(
     assert saved_path == config_file
     assert expected_workspace_label in saved_config
     assert "Successfully updated" in caplog.text
+
+
+def test_discover_user_config_prefers_absolute_workspace_label(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    """User-level configs default to tilde-prefixed workspace labels."""
+    import logging
+
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    home = tmp_path
+    monkeypatch.setenv("HOME", str(home))
+
+    scan_dir = home / "study" / "golang"
+    scan_dir.mkdir(parents=True)
+    monkeypatch.chdir(scan_dir)
+
+    init_git_repo(scan_dir / "moby", "git+https://github.com/moby/moby.git")
+    init_git_repo(
+        scan_dir / "typescript-go",
+        "git+https://github.com/microsoft/typescript-go.git",
+    )
+
+    config_file = home / ".vcspull.yaml"
+    config_file.write_text(
+        yaml.dump(
+            {
+                "~/study/ai-agents/": {
+                    "aider": {
+                        "repo": "git@github.com:Aider-AI/aider.git",
+                    },
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    discover_repos(
+        scan_dir_str=str(scan_dir),
+        config_file_path_str=None,
+        recursive=False,
+        workspace_root_override=None,
+        yes=True,
+        dry_run=False,
+    )
+
+    assert "Successfully updated ~/.vcspull.yaml" in caplog.text
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh)
+
+    assert config_data is not None
+    assert "~/study/golang/" in config_data
+    assert "./" not in config_data
+    assert set(config_data["~/study/golang/"]) == {"moby", "typescript-go"}
+
+
+def test_discover_project_config_retains_relative_workspace_label(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Project-level configs keep relative './' workspace sections."""
+    import yaml
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    monkeypatch.chdir(project_root)
+
+    init_git_repo(project_root / "repo-a", "git+https://github.com/example/repo-a.git")
+    init_git_repo(project_root / "repo-b", "git+https://github.com/example/repo-b.git")
+
+    config_file = project_root / ".vcspull.yaml"
+    config_file.write_text(
+        yaml.dump({}),
+        encoding="utf-8",
+    )
+
+    discover_repos(
+        scan_dir_str=str(project_root),
+        config_file_path_str=str(config_file),
+        recursive=False,
+        workspace_root_override=None,
+        yes=True,
+        dry_run=False,
+    )
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh)
+
+    assert config_data is not None
+    assert "./" in config_data
+    assert set(config_data["./"]) == {"repo-a", "repo-b"}
 
 
 @pytest.mark.parametrize(
