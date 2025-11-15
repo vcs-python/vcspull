@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import re
 import subprocess
@@ -807,6 +808,41 @@ def test_discover_normalization_only_save(
     assert saved_path == config_file
     assert expected_workspace_label in saved_config
     assert "Successfully updated" in caplog.text
+
+
+def test_discover_logs_redact_scan_and_repo_paths(
+    user_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Warnings and info logs should display PrivatePath-collapsed values."""
+    scan_dir = user_path / "projects"
+    repo_dir = scan_dir / "demo"
+    (repo_dir / ".git").mkdir(parents=True, exist_ok=True)
+
+    caplog.set_level(logging.INFO, logger="vcspull.cli.discover")
+
+    monkeypatch.setattr(
+        "vcspull.cli.discover.get_git_origin_url",
+        lambda _path: None,
+    )
+
+    config_file = user_path / ".vcspull.yaml"
+    config_file.write_text("{}\n", encoding="utf-8")
+
+    discover_repos(
+        scan_dir_str=str(scan_dir),
+        config_file_path_str=str(config_file),
+        recursive=False,
+        workspace_root_override=None,
+        yes=True,
+        dry_run=True,
+    )
+
+    repo_display = str(PrivatePath(repo_dir))
+    scan_display = str(PrivatePath(scan_dir))
+    assert repo_display in caplog.text
+    assert scan_display in caplog.text
 
 
 def test_discover_user_config_prefers_absolute_workspace_label(

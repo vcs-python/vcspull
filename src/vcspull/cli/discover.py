@@ -404,7 +404,7 @@ def discover_repos(
                     log.warning(
                         "Could not determine remote URL for git repository "
                         "at %s. Skipping.",
-                        repo_path,
+                        PrivatePath(repo_path),
                     )
                     continue
 
@@ -420,7 +420,7 @@ def discover_repos(
                     log.warning(
                         "Could not determine remote URL for git repository "
                         "at %s. Skipping.",
-                        item,
+                        PrivatePath(item),
                     )
                     continue
 
@@ -433,7 +433,7 @@ def discover_repos(
             Fore.YELLOW,
             Style.RESET_ALL,
             Fore.BLUE,
-            scan_dir,
+            PrivatePath(scan_dir),
             Style.RESET_ALL,
         )
         return
