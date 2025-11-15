@@ -698,6 +698,64 @@ def test_discover_normalization_only_save(
     assert "Successfully updated" in caplog.text
 
 
+@pytest.mark.xfail(reason="discover uses ./ for user-level configs (#487)", strict=True)
+def test_discover_user_config_prefers_absolute_workspace_label(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: t.Any,
+) -> None:
+    import logging
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    home = tmp_path
+    monkeypatch.setenv("HOME", str(home))
+
+    scan_dir = home / "study" / "golang"
+    scan_dir.mkdir(parents=True)
+    monkeypatch.chdir(scan_dir)
+
+    init_git_repo(scan_dir / "moby", "git+https://github.com/moby/moby.git")
+    init_git_repo(
+        scan_dir / "typescript-go",
+        "git+https://github.com/microsoft/typescript-go.git",
+    )
+
+    config_file = home / ".vcspull.yaml"
+    config_file.write_text(
+        yaml.dump(
+            {
+                "~/study/ai-agents/": {
+                    "aider": {
+                        "repo": "git@github.com:Aider-AI/aider.git",
+                    },
+                },
+            },
+        ),
+        encoding="utf-8",
+    )
+
+    discover_repos(
+        scan_dir_str=str(scan_dir),
+        config_file_path_str=None,
+        recursive=False,
+        workspace_root_override=None,
+        yes=True,
+        dry_run=False,
+    )
+
+    assert "Successfully updated ~/.vcspull.yaml" in caplog.text
+
+    with config_file.open(encoding="utf-8") as fh:
+        config_data = yaml.safe_load(fh)
+
+    assert config_data is not None
+    assert "~/study/golang/" in config_data
+    assert "./" not in config_data
+    assert set(config_data["~/study/golang/"]) == {"moby", "typescript-go"}
+
+
 @pytest.mark.parametrize(
     list(DiscoverInvalidWorkspaceFixture._fields),
     DISCOVER_INVALID_WORKSPACE_FIXTURES,
