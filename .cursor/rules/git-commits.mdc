@@ -13,8 +13,6 @@ why: Explanation of necessity or impact.
 what:
 - Specific technical changes made
 - Focused on a single topic
-
-refs: #issue-number, breaking changes, or relevant links
 ```
 
 ## Component Patterns
@@ -83,7 +81,6 @@ what:
 - Integrate with existing Pane component logic
 - Document usage in Pane README
 
-refs: #485
 See also: https://example.com/docs/pane-capture
 ```
 

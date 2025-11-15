@@ -213,8 +213,6 @@ why: Explanation of necessity or impact.
 what:
 - Specific technical changes made
 - Focused on a single topic
-
-refs: #issue-number, breaking changes, or relevant links
 ```
 
 Common commit types:
@@ -235,8 +233,6 @@ what:
 - Add remote_url parameter to add_repo function
 - Update CLI argument parser to accept --remote-url option
 - Add tests for the new functionality
-
-refs: #123
 ```
 
 ## Debugging Tips
