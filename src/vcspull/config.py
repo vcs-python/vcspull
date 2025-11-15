@@ -617,6 +617,7 @@ def normalize_workspace_roots(
     *,
     cwd: pathlib.Path | None = None,
     home: pathlib.Path | None = None,
+    preserve_cwd_label: bool = True,
 ) -> tuple[dict[str, t.Any], dict[pathlib.Path, str], list[str], int]:
     """Normalize workspace root labels and merge duplicate sections."""
     cwd = cwd or pathlib.Path.cwd()
@@ -636,6 +637,7 @@ def normalize_workspace_roots(
                 canonical_path,
                 cwd=cwd,
                 home=home,
+                preserve_cwd_label=preserve_cwd_label,
             )
             path_to_label[canonical_path] = normalized_label
 
