@@ -718,13 +718,14 @@ def sync(
         repo_name = repo.get("name", "unknown")
         repo_path = repo.get("path", "unknown")
         workspace_label = repo.get("workspace_root", "")
+        display_repo_path = str(PrivatePath(repo_path))
 
         summary["total"] += 1
 
         event: dict[str, t.Any] = {
             "reason": "sync",
             "name": repo_name,
-            "path": str(PrivatePath(repo_path)),
+            "path": display_repo_path,
             "workspace_root": str(workspace_label),
         }
 
@@ -783,7 +784,7 @@ def sync(
         formatter.emit(event)
         formatter.emit_text(
             f"{colors.success('✓')} Synced {colors.info(repo_name)} "
-            f"{colors.muted('→')} {repo_path}",
+            f"{colors.muted('→')} {display_repo_path}",
         )
 
     formatter.emit(
