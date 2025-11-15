@@ -8,6 +8,7 @@ import typing as t
 
 import pytest
 
+from vcspull._internal.private_path import PrivatePath
 from vcspull.cli.discover import discover_repos
 
 if t.TYPE_CHECKING:
@@ -362,6 +363,10 @@ def test_discover_repos(
 
     if preexisting_yaml is not None or not merge_duplicates:
         normalized_log = caplog.text.replace(str(target_config_file), "<config>")
+        normalized_log = normalized_log.replace(
+            str(PrivatePath(target_config_file)),
+            "<config>",
+        )
         normalized_log = re.sub(
             r"discover\.py:\d+",
             "discover.py:<line>",
