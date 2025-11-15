@@ -33,6 +33,14 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
+### Bug Fixes
+
+#### `vcspull discover`: Success logs redact config paths (#487)
+
+Writes triggered by `vcspull discover` now pass the config file through
+`PrivatePath`, so confirmations like "✓ Successfully updated ~/.vcspull.yaml"
+and dry-run notices no longer leak the absolute home directory.
+
 ### Development
 
 #### PrivatePath centralizes home-directory redaction (#485)
