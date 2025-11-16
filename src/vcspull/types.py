@@ -31,9 +31,7 @@ from __future__ import annotations
 
 import pathlib
 import typing as t
-from typing import TypeAlias
-
-from typing_extensions import NotRequired, TypedDict
+from typing import TypeAlias, TypedDict
 
 if t.TYPE_CHECKING:
     from libvcs._internal.types import StrPath, VCSLiteral
@@ -54,16 +52,25 @@ RawConfigDir = dict[str, RawConfigDict]
 RawConfig = dict[str, RawConfigDir]
 
 
-class ConfigDict(TypedDict):
-    """Configuration map for vcspull after shorthands and variables resolved."""
+class _ConfigDictRequired(TypedDict):
+    """Required fields for resolved vcspull configuration entries."""
 
     vcs: VCSLiteral | None
     name: str
     path: pathlib.Path
     url: str
     workspace_root: str
-    remotes: NotRequired[GitSyncRemoteDict | None]
-    shell_command_after: NotRequired[list[str] | None]
+
+
+class _ConfigDictOptional(TypedDict, total=False):
+    """Optional fields for resolved vcspull configuration entries."""
+
+    remotes: GitSyncRemoteDict | None
+    shell_command_after: list[str] | None
+
+
+class ConfigDict(_ConfigDictRequired, _ConfigDictOptional):
+    """Configuration map for vcspull after shorthands and variables resolved."""
 
 
 ConfigDir = dict[str, ConfigDict]
