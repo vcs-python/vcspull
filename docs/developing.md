@@ -64,6 +64,24 @@ or:
 $ make test
 ```
 
+#### Runtime dependency smoke test
+
+Verify that the published wheel runs without dev/test extras:
+
+```console
+$ uvx --isolated --reinstall --from . python scripts/runtime_dep_smoketest.py
+```
+
+The script imports every ``vcspull`` module and exercises each CLI sub-command
+with ``--help``. There is also a pytest wrapper guarded by a dedicated marker:
+
+```console
+$ uv run pytest -m scripts__runtime_dep_smoketest scripts/test_runtime_dep_smoketest.py
+```
+
+These checks are network-dependent because they rely on ``uvx`` to build the
+package in an isolated environment.
+
 #### pytest options
 
 `PYTEST_ADDOPTS` can be set in the commands below. For more

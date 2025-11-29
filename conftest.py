@@ -96,3 +96,21 @@ def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest) -> pathl
 
     request.addfinalizer(clean)
     return path
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config,
+    items: list[pytest.Item],
+) -> None:
+    """Skip runtime smoke tests unless explicitly requested via ``-m``."""
+    marker_name = "scripts__runtime_dep_smoketest"
+    markexpr = getattr(config.option, "markexpr", "") or ""
+    if marker_name in markexpr:
+        return
+
+    skip_marker = pytest.mark.skip(
+        reason=f"pass -m {marker_name} to run runtime dependency smoke tests",
+    )
+    for item in items:
+        if marker_name in item.keywords:
+            item.add_marker(skip_marker)
