@@ -33,7 +33,9 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 _Upcoming changes will be written here._
 
-## vcspull v1.47.1 (2025-11-15)
+### Breaking changes
+
+- Bump minimum libvcs from v0.37.0 -> v0.38.0 (#489)
 
 ### Bug fixes
 
