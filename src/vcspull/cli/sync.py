@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
 import json
@@ -20,11 +21,14 @@ from io import StringIO
 from time import perf_counter
 
 from libvcs._internal.shortcuts import create_project
+from libvcs._internal.types import VCSLiteral
+from libvcs.sync.git import GitSync
 from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
 from ._output import (
@@ -39,14 +43,6 @@ from ._output import (
 )
 from ._workspaces import filter_by_workspace
 from .status import check_repo_status
-
-if t.TYPE_CHECKING:
-    import argparse
-
-    from libvcs._internal.types import VCSLiteral
-    from libvcs.sync.git import GitSync
-
-    from vcspull.types import ConfigDict
 
 log = logging.getLogger(__name__)
 

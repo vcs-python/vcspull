@@ -8,6 +8,7 @@ import logging
 import os
 import pathlib
 import typing as t
+from collections.abc import Callable
 
 from libvcs.sync.git import GitRemote
 
@@ -15,15 +16,10 @@ from vcspull.validator import is_valid_config
 
 from . import exc
 from ._internal.config_reader import ConfigReader, DuplicateAwareConfigReader
+from .types import ConfigDict, RawConfigDict
 from .util import get_config_dir, update_dict
 
 log = logging.getLogger(__name__)
-
-if t.TYPE_CHECKING:
-    from collections.abc import Callable
-    from typing import TypeGuard
-
-    from .types import ConfigDict, RawConfigDict
 
 
 def expand_dir(
@@ -34,14 +30,15 @@ def expand_dir(
 
     Parameters
     ----------
-    _dir : pathlib.Path
+    dir_ : pathlib.Path
+        Directory path to expand
     cwd : pathlib.Path, optional
-        current working dir (for deciphering relative _dir paths), defaults to
-        :py:meth:`os.getcwd()`
+        Current working dir (used to resolve relative paths). Defaults to
+        :py:meth:`pathlib.Path.cwd`.
 
     Returns
     -------
-    pathlib.Path :
+    pathlib.Path
         Absolute directory path
     """
     dir_ = pathlib.Path(os.path.expandvars(str(dir_))).expanduser()
@@ -136,7 +133,7 @@ def extract_repos(
                             **url,
                         )
 
-            def is_valid_config_dict(val: t.Any) -> TypeGuard[ConfigDict]:
+            def is_valid_config_dict(val: t.Any) -> t.TypeGuard[ConfigDict]:
                 assert isinstance(val, dict)
                 return True
 
