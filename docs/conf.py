@@ -119,8 +119,7 @@ autodoc_default_options = {
 }
 
 # sphinx-autodoc-typehints
-autodoc_typehints = "description"  # show type hints in doc body instead of signature
-simplify_optional_unions = True
+autodoc_typehints = "signature"
 
 # sphinx.ext.napoleon
 napoleon_google_docstring = True
