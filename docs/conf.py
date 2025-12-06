@@ -118,14 +118,15 @@ autodoc_default_options = {
     "member-order": "bysource",
 }
 
+# Automatically extract typehints when specified and place them in
+# descriptions of the relevant function/method.
+autodoc_typehints = "description"
+# Don't show class signature with the class' name.
+autodoc_class_signature = "separated"
+
 # sphinx-autodoc-typehints
-autodoc_typehints = "signature"
-# When autodoc_typehints = "signature", disable parameter type injection
-# to prevent RST indentation conflicts with Napoleon-processed docstrings
-always_document_param_types = False
-# Disable return type injection in docstrings (types shown in signature only)
-typehints_document_rtype = False
-# Suppress cosmetic warnings for forward references in TYPE_CHECKING blocks
+# Suppress warnings for forward references that can't be resolved
+# (types in TYPE_CHECKING blocks used for circular import avoidance)
 suppress_warnings = [
     "sphinx_autodoc_typehints.forward_reference",
 ]
