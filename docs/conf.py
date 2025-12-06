@@ -118,9 +118,18 @@ autodoc_default_options = {
     "member-order": "bysource",
 }
 
+# Automatically extract typehints when specified and place them in
+# descriptions of the relevant function/method.
+autodoc_typehints = "description"
+# Don't show class signature with the class' name.
+autodoc_class_signature = "separated"
+
 # sphinx-autodoc-typehints
-autodoc_typehints = "description"  # show type hints in doc body instead of signature
-simplify_optional_unions = True
+# Suppress warnings for forward references that can't be resolved
+# (types in TYPE_CHECKING blocks used for circular import avoidance)
+suppress_warnings = [
+    "sphinx_autodoc_typehints.forward_reference",
+]
 
 # sphinx.ext.napoleon
 napoleon_google_docstring = True

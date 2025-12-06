@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import copy
 import logging
 import pathlib
@@ -19,9 +20,6 @@ from vcspull.config import (
     normalize_workspace_roots,
     save_config_yaml,
 )
-
-if t.TYPE_CHECKING:
-    import argparse
 
 log = logging.getLogger(__name__)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import logging
 import os
@@ -15,15 +16,11 @@ from time import perf_counter
 
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
 from ._workspaces import filter_by_workspace
-
-if t.TYPE_CHECKING:
-    import argparse
-
-    from vcspull.types import ConfigDict
 
 log = logging.getLogger(__name__)
 
