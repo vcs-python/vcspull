@@ -7,12 +7,8 @@ import typing as t
 
 import yaml
 
-if t.TYPE_CHECKING:
-    from typing import Literal, TypeAlias
-
-    FormatLiteral = Literal["json", "yaml"]
-
-    RawConfigData: TypeAlias = dict[t.Any, t.Any]
+FormatLiteral = t.Literal["json", "yaml"]
+RawConfigData: t.TypeAlias = dict[t.Any, t.Any]
 
 
 class ConfigReader:
