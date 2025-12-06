@@ -31,6 +31,15 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Documentation
+
+#### Fix Sphinx autodoc indentation errors (#490)
+
+- Configure `sphinx-autodoc-typehints` to prevent RST parsing conflicts with
+  Napoleon-processed docstrings by disabling type injection into docstring
+  bodies (`always_document_param_types`, `typehints_document_rtype`).
+- Suppress cosmetic forward reference warnings from TYPE_CHECKING imports.
+
 _Upcoming changes will be written here._
 
 ## vcspull v1.48.0 (2025-11-30)
