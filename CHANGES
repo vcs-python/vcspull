@@ -31,6 +31,10 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Breaking changes
+
+- Bump minimum libvcs from v0.38.0 -> v0.38.1 (#491)
+
 ### Documentation
 
 #### Fix Sphinx autodoc indentation errors (#490)
