@@ -125,6 +125,10 @@ autodoc_typehints = "signature"
 always_document_param_types = False
 # Disable return type injection in docstrings (types shown in signature only)
 typehints_document_rtype = False
+# Suppress cosmetic warnings for forward references in TYPE_CHECKING blocks
+suppress_warnings = [
+    "sphinx_autodoc_typehints.forward_reference",
+]
 
 # sphinx.ext.napoleon
 napoleon_google_docstring = True
