@@ -123,6 +123,8 @@ autodoc_typehints = "signature"
 # When autodoc_typehints = "signature", disable parameter type injection
 # to prevent RST indentation conflicts with Napoleon-processed docstrings
 always_document_param_types = False
+# Disable return type injection in docstrings (types shown in signature only)
+typehints_document_rtype = False
 
 # sphinx.ext.napoleon
 napoleon_google_docstring = True
