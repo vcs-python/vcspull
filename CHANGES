@@ -31,6 +31,10 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### CI
+
+- Migrate to PyPI Trusted Publisher (#492)
+
 ## vcspull v1.48.1 (2025-12-06)
 
 ### Breaking changes
