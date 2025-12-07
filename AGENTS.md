@@ -126,8 +126,7 @@ Example format:
 
 ### Imports
 
-**For standard library modules:**
-- Use namespace imports: `import enum` instead of `from enum import Enum`
+- Use namespace imports for stdlib: `import enum` instead of `from enum import Enum`; third-party packages may use `from X import Y`
 - For typing, use `import typing as t` and access via namespace: `t.NamedTuple`, etc.
 
 **For third-party packages:** Use idiomatic import styles for each library (e.g., `from pygments.token import Token` is fine).
