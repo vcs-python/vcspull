@@ -31,6 +31,10 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Packaging / CI
+
+- Migrate to PyPI Trusted Publisher (#492)
+
 ### Documentation
 
 #### Replace sphinx-argparse with internal extension (#499)
