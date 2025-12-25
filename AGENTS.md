@@ -169,6 +169,18 @@ def test_vcspull_sync(git_repo):
     # git_repo is already a GitSync instance with a clean repository
     # Use it directly in your tests
 ```
+For multi-line commits, use heredoc to preserve formatting:
+```bash
+git commit -m "$(cat <<'EOF'
+feat(Component[method]) add feature description
+
+why: Explanation of the change.
+what:
+- First change
+- Second change
+EOF
+)"
+```
 
 #### Test Structure
 
