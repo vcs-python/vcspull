@@ -42,7 +42,7 @@ uv run pytest tests/test_cli.py::test_sync
 # Watch mode for tests (auto re-run on file changes)
 uv run ptw .
 # or
-make start
+just start
 
 # Run tests with coverage
 uv run py.test --cov -v
@@ -54,31 +54,31 @@ uv run py.test --cov -v
 # Format code with ruff
 uv run ruff format .
 # or
-make ruff_format
+just ruff-format
 
 # Run ruff linting with auto-fixes
 uv run ruff check . --fix --show-fixes
 # or
-make ruff
+just ruff
 
 # Run mypy type checking
 uv run mypy
 # or
-make mypy
+just mypy
 
 # Watch mode for linting (using entr)
-make watch_ruff
-make watch_mypy
+just watch-ruff
+just watch-mypy
 ```
 
 #### Documentation
 
 ```bash
 # Build documentation
-make build_docs
+just build-docs
 
 # Start documentation server (auto-reload)
-make start_docs
+just start-docs
 ```
 
 ## Development Process
