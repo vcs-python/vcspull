@@ -31,6 +31,10 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Documentation
+
+- Migrate docs deployment to AWS OIDC authentication and AWS CLI
+
 ## vcspull v1.48.1 (2025-12-06)
 
 ### Breaking changes
