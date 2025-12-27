@@ -41,13 +41,13 @@ $ uv sync --all-extras --dev
 via [pytest-watcher] (works out of the box):
 
 ```console
-$ make start
+$ just start
 ```
 
 via [entr(1)] (requires installation):
 
 ```console
-$ make watch_test
+$ just watch-test
 ```
 
 [pytest-watcher]: https://github.com/olzhasar/pytest-watcher
@@ -61,7 +61,7 @@ $ uv run py.test
 or:
 
 ```console
-$ make test
+$ just test
 ```
 
 #### pytest options
@@ -74,20 +74,20 @@ information read [docs.pytest.com] for the latest documentation.
 Verbose:
 
 ```console
-$ env PYTEST_ADDOPTS="-verbose" make start
+$ env PYTEST_ADDOPTS="-verbose" just start
 ```
 
 Drop into `pdb` on first error:
 
 ```console
-$ env PYTEST_ADDOPTS="-x -s --pdb" make start
+$ env PYTEST_ADDOPTS="-x -s --pdb" just start
 ```
 
 If you have [ipython] installed:
 
 ```console
 $ env PYTEST_ADDOPTS="--pdbcls=IPython.terminal.debugger:TerminalPdb" \
-    make start
+    just start
 ```
 
 [ipython]: https://ipython.org/
@@ -112,13 +112,13 @@ $ cd docs
 ```
 
 ```console
-$ make start
+$ just start
 ```
 
 If doing css adjustments:
 
 ```console
-$ make design
+$ just design
 ```
 
 [sphinx-autobuild]: https://github.com/executablebooks/sphinx-autobuild
@@ -130,17 +130,17 @@ $ cd docs
 ```
 
 ```console
-$ make dev
+$ just dev
 ```
 
-If not GNU Make / no -J support, use two terminals:
+Use two terminals if needed:
 
 ```console
-$ make watch
+$ just watch
 ```
 
 ```console
-$ make serve
+$ just serve
 ```
 
 #### Manual (just the command, please)
@@ -152,13 +152,13 @@ $ cd docs
 Build:
 
 ```console
-$ make html
+$ just html
 ```
 
 Launch server:
 
 ```console
-$ make serve
+$ just serve
 ```
 
 ## Linting
@@ -183,10 +183,10 @@ $ ruff check .
 
 ````
 
-````{tab} make
+````{tab} just
 
 ```console
-$ make ruff
+$ just ruff
 ```
 
 ````
@@ -194,7 +194,7 @@ $ make ruff
 ````{tab} Watch
 
 ```console
-$ make watch_ruff
+$ just watch-ruff
 ```
 
 requires [`entr(1)`].
@@ -237,10 +237,10 @@ $ ruff format .
 
 ````
 
-````{tab} make
+````{tab} just
 
 ```console
-$ make ruff_format
+$ just ruff-format
 ```
 
 ````
@@ -265,10 +265,10 @@ $ mypy .
 
 ````
 
-````{tab} make
+````{tab} just
 
 ```console
-$ make mypy
+$ just mypy
 ```
 
 ````
@@ -276,7 +276,7 @@ $ make mypy
 ````{tab} Watch
 
 ```console
-$ make watch_mypy
+$ just watch-mypy
 ```
 
 requires [`entr(1)`].
