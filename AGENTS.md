@@ -153,6 +153,39 @@ type
 """
 ```
 
+### Doctests
+
+**All functions and methods MUST have working doctests.** Doctests serve as both documentation and tests.
+
+**CRITICAL RULES:**
+- Doctests MUST actually execute - never comment out function calls or similar
+- Doctests MUST NOT be converted to `.. code-block::` as a workaround (code-blocks don't run)
+- If you cannot create a working doctest, **STOP and ask for help**
+
+**Available tools for doctests:**
+- `doctest_namespace` fixtures (inherited from libvcs): `tmp_path`, `create_git_remote_repo`, `create_hg_remote_repo`, `create_svn_remote_repo`
+- Ellipsis for variable output: `# doctest: +ELLIPSIS`
+- Update `conftest.py` to add new fixtures to `doctest_namespace`
+
+**`# doctest: +SKIP` is NOT permitted** - it's just another workaround that doesn't test anything. If a VCS binary might not be installed, pytest already handles skipping via `skip_if_binaries_missing`. Use the fixtures properly.
+
+**Using fixtures in doctests:**
+```python
+>>> from vcspull.config import extract_repos
+>>> config = {'~/code/': {'myrepo': 'git+https://github.com/user/repo'}}
+>>> repos = extract_repos(config)  # doctest: +ELLIPSIS
+>>> len(repos)
+1
+```
+
+**When output varies, use ellipsis:**
+```python
+>>> repo_dir = tmp_path / 'repo'  # tmp_path from doctest_namespace
+>>> repo_dir.mkdir()
+>>> repo_dir  # doctest: +ELLIPSIS
+PosixPath('.../repo')
+```
+
 ### Testing
 
 #### Using libvcs Fixtures
