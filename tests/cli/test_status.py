@@ -25,7 +25,10 @@ if t.TYPE_CHECKING:
     from vcspull.types import ConfigDict
 
 
-def create_test_config(config_path: pathlib.Path, repos: dict[str, t.Any]) -> None:
+ConfigData: t.TypeAlias = dict[str, dict[str, dict[str, str]]]
+
+
+def create_test_config(config_path: pathlib.Path, repos: ConfigData) -> None:
     """Create a test config file."""
     with config_path.open("w", encoding="utf-8") as f:
         yaml.dump(repos, f)

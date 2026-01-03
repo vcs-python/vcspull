@@ -8,6 +8,7 @@ import typing as t
 from contextlib import redirect_stdout
 
 import pytest
+import typing_extensions as te
 
 from vcspull.cli._colors import ColorMode, Colors
 from vcspull.cli._output import (
@@ -21,12 +22,32 @@ from vcspull.cli._output import (
 from vcspull.cli.sync import PlanProgressPrinter
 
 
+class PlanEntryKwargs(t.TypedDict):
+    """Typed kwargs for PlanEntry construction in tests."""
+
+    name: str
+    path: str
+    workspace_root: str
+    action: PlanAction
+    detail: te.NotRequired[str]
+    url: te.NotRequired[str]
+    branch: te.NotRequired[str]
+    remote_branch: te.NotRequired[str]
+    current_rev: te.NotRequired[str]
+    target_rev: te.NotRequired[str]
+    ahead: te.NotRequired[int]
+    behind: te.NotRequired[int]
+    dirty: te.NotRequired[bool]
+    error: te.NotRequired[str]
+    diagnostics: te.NotRequired[list[str]]
+
+
 class PlanEntryPayloadFixture(t.NamedTuple):
     """Fixture for PlanEntry payload serialization."""
 
     test_id: str
-    kwargs: dict[str, t.Any]
-    expected_keys: dict[str, t.Any]
+    kwargs: PlanEntryKwargs
+    expected_keys: dict[str, object]
     unexpected_keys: set[str]
 
 
@@ -86,14 +107,14 @@ PLAN_ENTRY_PAYLOAD_FIXTURES: list[PlanEntryPayloadFixture] = [
 )
 def test_plan_entry_to_payload(
     test_id: str,
-    kwargs: dict[str, t.Any],
-    expected_keys: dict[str, t.Any],
+    kwargs: PlanEntryKwargs,
+    expected_keys: dict[str, object],
     unexpected_keys: set[str],
 ) -> None:
     """Ensure PlanEntry serialises optional fields correctly."""
     entry = PlanEntry(**kwargs)
     payload = entry.to_payload()
-    payload_map = t.cast(dict[str, t.Any], payload)
+    payload_map = t.cast(dict[str, object], payload)
 
     for key, value in expected_keys.items():
         assert payload_map[key] == value
