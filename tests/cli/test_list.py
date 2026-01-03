@@ -131,7 +131,7 @@ def test_list_repos(
     expected_repo_names: list[str],
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test listing repositories."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -175,7 +175,7 @@ def test_list_repos(
 def test_list_repos_tree_mode(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test listing repositories in tree mode."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -214,7 +214,7 @@ def test_list_repos_tree_mode(
 def test_list_repos_empty_config(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test listing with empty config shows appropriate message."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -240,7 +240,7 @@ def test_list_repos_empty_config(
 def test_list_repos_pattern_no_match(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test listing with pattern that matches nothing."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -314,7 +314,7 @@ def test_list_repos_path_contraction(
     tree: bool,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that JSON/NDJSON output contracts home directory paths."""
     monkeypatch.setenv("HOME", str(tmp_path))

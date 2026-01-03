@@ -235,7 +235,7 @@ def test_check_repo_status(
 def test_status_repos_all(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test checking status of all repositories."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -281,7 +281,7 @@ def test_status_repos_all(
 def test_status_repos_json_output(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test status output in JSON format."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -334,7 +334,7 @@ def test_status_repos_json_output(
 def test_status_repos_detailed(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test detailed status output."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -372,7 +372,7 @@ def test_status_repos_detailed(
 def test_status_repos_pattern_filter(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test status with pattern filtering."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -418,7 +418,7 @@ def test_status_repos_workspace_filter_and_ndjson(
     expected_names: list[str],
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test status workspace filtering and NDJSON output."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -488,7 +488,7 @@ def test_status_repos_detailed_metrics(
     expected_behind: int,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Detailed output includes branch and ahead/behind counters."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -670,7 +670,7 @@ async def test_check_repos_status_async_concurrency_limit(
 def test_status_repos_concurrent_mode(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test status_repos with concurrent mode enabled."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -713,7 +713,7 @@ def test_status_repos_concurrent_mode(
 def test_status_repos_sequential_mode(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test status_repos with sequential mode (no concurrency)."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -752,7 +752,7 @@ def test_status_repos_sequential_mode(
 def test_status_repos_concurrent_json_output(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that concurrent mode produces correct JSON output."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -804,7 +804,7 @@ def test_status_repos_concurrent_json_output(
 def test_status_repos_concurrent_max_concurrent_limit(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that max_concurrent parameter is respected."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -888,7 +888,7 @@ def test_status_repos_path_contraction(
     detailed: bool,
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test that status JSON/NDJSON output contracts home directory paths."""
     monkeypatch.setenv("HOME", str(tmp_path))
