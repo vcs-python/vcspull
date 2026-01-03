@@ -78,7 +78,7 @@ def extract_repos(
     for directory, repos in config.items():
         assert isinstance(repos, dict)
         for repo, repo_data in repos.items():
-            conf: dict[str, t.Any] = {}
+            conf: dict[str, object] = {}
 
             """
             repo_name: http://myrepo.com/repo.git
@@ -93,7 +93,10 @@ def extract_repos(
             if isinstance(repo_data, (str, pathlib.Path)):
                 conf["url"] = str(repo_data)
             else:
-                conf = update_dict(conf, repo_data)
+                conf = update_dict(
+                    conf,
+                    t.cast("dict[str, object]", repo_data),
+                )
 
             if "repo" in conf:
                 if "url" not in conf:
@@ -108,9 +111,9 @@ def extract_repos(
                 conf["workspace_root"] = directory
 
             if "path" not in conf:
+                name = t.cast("str", conf["name"])
                 conf["path"] = expand_dir(
-                    pathlib.Path(expand_dir(pathlib.Path(directory), cwd=cwd))
-                    / conf["name"],
+                    pathlib.Path(expand_dir(pathlib.Path(directory), cwd=cwd)) / name,
                     cwd,
                 )
 
@@ -133,7 +136,7 @@ def extract_repos(
                             **url,
                         )
 
-            def is_valid_config_dict(val: t.Any) -> t.TypeGuard[ConfigDict]:
+            def is_valid_config_dict(val: object) -> t.TypeGuard[ConfigDict]:
                 assert isinstance(val, dict)
                 return True
 
@@ -460,7 +463,10 @@ def is_config_file(
     return any(filename.endswith(e) for e in extensions)
 
 
-def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
+def save_config_yaml(
+    config_file_path: pathlib.Path,
+    data: t.Mapping[str, object],
+) -> None:
     """Save configuration data to a YAML file.
 
     Parameters
@@ -472,7 +478,7 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
     """
     yaml_content = ConfigReader._dump(
         fmt="yaml",
-        content=data,
+        content=t.cast("dict[str, object]", data),
         indent=2,
     )
     config_file_path.write_text(yaml_content, encoding="utf-8")
@@ -480,7 +486,7 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
 
 def save_config_yaml_with_items(
     config_file_path: pathlib.Path,
-    items: list[tuple[str, t.Any]],
+    items: list[tuple[str, object]],
 ) -> None:
     """Persist configuration data while preserving duplicate top-level sections."""
     documents: list[str] = []
@@ -488,7 +494,7 @@ def save_config_yaml_with_items(
     for label, section in items:
         dumped = ConfigReader._dump(
             fmt="yaml",
-            content={label: section},
+            content=t.cast("dict[str, object]", {label: section}),
             indent=2,
         ).rstrip()
         if dumped:
@@ -503,8 +509,8 @@ def save_config_yaml_with_items(
 
 def merge_duplicate_workspace_root_entries(
     label: str,
-    occurrences: list[t.Any],
-) -> tuple[t.Any, list[str], int]:
+    occurrences: list[object],
+) -> tuple[object, list[str], int]:
     """Merge duplicate entries for a single workspace root."""
     conflicts: list[str] = []
     change_count = max(len(occurrences) - 1, 0)
@@ -521,7 +527,7 @@ def merge_duplicate_workspace_root_entries(
         )
         return occurrences[-1], conflicts, change_count
 
-    merged: dict[str, t.Any] = {}
+    merged: dict[str, object] = {}
 
     for entry in occurrences:
         assert isinstance(entry, dict)
@@ -540,9 +546,9 @@ def merge_duplicate_workspace_root_entries(
 
 
 def merge_duplicate_workspace_roots(
-    config_data: dict[str, t.Any],
-    duplicate_roots: dict[str, list[t.Any]],
-) -> tuple[dict[str, t.Any], list[str], int, list[tuple[str, int]]]:
+    config_data: dict[str, object],
+    duplicate_roots: dict[str, list[object]],
+) -> tuple[dict[str, object], list[str], int, list[tuple[str, int]]]:
     """Merge duplicate workspace root sections captured during load."""
     if not duplicate_roots:
         return copy.deepcopy(config_data), [], 0, []
@@ -610,17 +616,17 @@ def workspace_root_label(
 
 
 def normalize_workspace_roots(
-    config_data: dict[str, t.Any],
+    config_data: t.Mapping[str, object],
     *,
     cwd: pathlib.Path | None = None,
     home: pathlib.Path | None = None,
     preserve_cwd_label: bool = True,
-) -> tuple[dict[str, t.Any], dict[pathlib.Path, str], list[str], int]:
+) -> tuple[dict[str, object], dict[pathlib.Path, str], list[str], int]:
     """Normalize workspace root labels and merge duplicate sections."""
     cwd = cwd or pathlib.Path.cwd()
     home = home or pathlib.Path.home()
 
-    normalized: dict[str, t.Any] = {}
+    normalized: dict[str, object] = {}
     path_to_label: dict[pathlib.Path, str] = {}
     conflicts: list[str] = []
     change_count = 0
