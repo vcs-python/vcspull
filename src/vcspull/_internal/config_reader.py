@@ -8,7 +8,7 @@ import typing as t
 import yaml
 
 FormatLiteral = t.Literal["json", "yaml"]
-RawConfigData: t.TypeAlias = dict[t.Any, t.Any]
+RawConfigData: t.TypeAlias = dict[str, t.Any]
 
 
 class ConfigReader:

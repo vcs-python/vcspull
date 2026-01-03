@@ -90,8 +90,8 @@ def extract_repos(
             also assures the repo is a :py:class:`dict`.
             """
 
-            if isinstance(repo_data, str):
-                conf["url"] = repo_data
+            if isinstance(repo_data, (str, pathlib.Path)):
+                conf["url"] = str(repo_data)
             else:
                 conf = update_dict(conf, repo_data)
 

@@ -123,7 +123,7 @@ EXTRACT_WORKSPACE_FIXTURES: list[ExtractWorkspaceFixture] = [
 )
 def test_extract_repos_injects_workspace_root(
     test_id: str,
-    raw_config: dict[str, dict[str, str | dict[str, str]]],
+    raw_config: RawConfigDict,
     expected_roots: dict[str, str],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -134,8 +134,7 @@ def test_extract_repos_injects_workspace_root(
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
 
-    typed_raw_config = t.cast("RawConfigDict", raw_config)
-    repos = config.extract_repos(typed_raw_config, cwd=tmp_path)
+    repos = config.extract_repos(raw_config, cwd=tmp_path)
 
     assert len(repos) == len(expected_roots)
 
