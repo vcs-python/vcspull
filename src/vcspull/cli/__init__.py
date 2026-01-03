@@ -28,6 +28,20 @@ from .worktree import create_worktree_subparser, handle_worktree_command
 log = logging.getLogger(__name__)
 
 
+SubparserTuple: t.TypeAlias = tuple[
+    argparse.ArgumentParser,  # sync
+    argparse.ArgumentParser,  # list
+    argparse.ArgumentParser,  # status
+    argparse.ArgumentParser,  # search
+    argparse.ArgumentParser,  # add
+    argparse.ArgumentParser,  # discover
+    argparse.ArgumentParser,  # fmt
+    argparse.ArgumentParser,  # migrate
+    argparse.ArgumentParser,  # import
+    argparse.ArgumentParser,  # worktree
+]
+
+
 def build_description(
     intro: str,
     example_blocks: t.Sequence[tuple[str | None, t.Sequence[str]]],
@@ -323,7 +337,7 @@ WORKTREE_DESCRIPTION = build_description(
 @t.overload
 def create_parser(
     return_subparsers: t.Literal[True],
-) -> tuple[argparse.ArgumentParser, t.Any]: ...
+) -> tuple[argparse.ArgumentParser, SubparserTuple]: ...
 
 
 @t.overload
@@ -332,7 +346,7 @@ def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParse
 
 def create_parser(
     return_subparsers: bool = False,
-) -> argparse.ArgumentParser | tuple[argparse.ArgumentParser, t.Any]:
+) -> argparse.ArgumentParser | tuple[argparse.ArgumentParser, SubparserTuple]:
     """Create CLI argument parser for vcspull."""
     parser = argparse.ArgumentParser(
         prog="vcspull",
