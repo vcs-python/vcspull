@@ -34,7 +34,11 @@ class PrivatePath(PrivatePathBase):
     '~/notes.txt'
     """
 
-    def __new__(cls, *args: t.Any, **kwargs: t.Any) -> PrivatePath:
+    def __new__(
+        cls,
+        *args: str | os.PathLike[str],
+        **kwargs: object,
+    ) -> PrivatePath:
         return super().__new__(cls, *args, **kwargs)
 
     @classmethod
