@@ -15,6 +15,7 @@ OPTIONS_EXPECTING_VALUE = {
     "--log-level",
     "--path",
     "--color",
+    "--field",
 }
 
 OPTIONS_FLAG_ONLY = {
@@ -32,6 +33,16 @@ OPTIONS_FLAG_ONLY = {
     "--ndjson",
     "--tree",
     "--detailed",
+    "-i",
+    "--ignore-case",
+    "-S",
+    "--smart-case",
+    "-F",
+    "--fixed-strings",
+    "--word-regexp",
+    "-v",
+    "--invert-match",
+    "--any",
 }
 
 
