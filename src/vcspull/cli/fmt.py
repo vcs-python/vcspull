@@ -64,7 +64,7 @@ def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
     parser.set_defaults(merge_roots=True)
 
 
-def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
+def normalize_repo_config(repo_data: object) -> dict[str, object]:
     """Normalize repository configuration to verbose format.
 
     Parameters
@@ -111,9 +111,9 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
             normalized["repo"] = normalized.pop("url")
             return normalized
         # Already in correct format or has other fields
-        return repo_data
+        return t.cast("dict[str, object]", repo_data)
     # Return as-is for other types
-    return t.cast("dict[str, t.Any]", repo_data)
+    return t.cast("dict[str, object]", repo_data)
 
 
 def _classify_fmt_action(repo_data: t.Any) -> tuple[FmtAction, t.Any]:
@@ -181,7 +181,9 @@ def _classify_fmt_action(repo_data: t.Any) -> tuple[FmtAction, t.Any]:
     return FmtAction.NO_CHANGE, repo_data
 
 
-def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]:
+def format_config(
+    config_data: t.Mapping[str, object],
+) -> tuple[dict[str, object], int]:
     """Format vcspull configuration for consistency.
 
     Parameters
@@ -195,7 +197,7 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
         Formatted configuration and count of changes made
     """
     changes = 0
-    formatted: dict[str, t.Any] = {}
+    formatted: dict[str, object] = {}
 
     for directory in sorted(config_data.keys()):
         repos = config_data[directory]
@@ -204,10 +206,11 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
             formatted[directory] = repos
             continue
 
-        formatted_dir: dict[str, t.Any] = {}
+        repos_map = t.cast("dict[str, object]", repos)
+        formatted_dir: dict[str, object] = {}
 
-        for repo_name in sorted(repos.keys()):
-            repo_data = repos[repo_name]
+        for repo_name in sorted(repos_map.keys()):
+            repo_data = repos_map[repo_name]
             action, result = _classify_fmt_action(repo_data)
             if action == FmtAction.SKIP_PINNED:
                 formatted_dir[repo_name] = copy.deepcopy(result)
