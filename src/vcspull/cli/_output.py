@@ -8,6 +8,72 @@ import typing as t
 from dataclasses import dataclass, field
 from enum import Enum
 
+JsonPrimitive: t.TypeAlias = str | int | float | bool | None
+JsonValue: t.TypeAlias = JsonPrimitive | dict[str, "JsonValue"] | list["JsonValue"]
+JsonObject: t.TypeAlias = t.Mapping[str, JsonValue]
+OutputPayload: t.TypeAlias = "JsonObject | PlanEntryPayload | PlanSummaryPayload"
+
+
+class _PlanEntryPayloadRequired(t.TypedDict):
+    """Required keys for a plan-entry JSON payload."""
+
+    format_version: str
+    type: str
+    name: str
+    path: str
+    workspace_root: str
+    action: str
+
+
+class PlanEntryPayload(_PlanEntryPayloadRequired, total=False):
+    """Typed JSON payload for a plan entry (optional keys omitted when unset)."""
+
+    detail: str
+    url: str
+    branch: str
+    remote_branch: str
+    current_rev: str
+    target_rev: str
+    ahead: int
+    behind: int
+    dirty: bool
+    error: str
+    diagnostics: list[str]
+
+
+class _PlanSummaryPayloadRequired(t.TypedDict):
+    """Required keys for a plan-summary JSON payload."""
+
+    format_version: str
+    type: str
+    clone: int
+    update: int
+    unchanged: int
+    blocked: int
+    errors: int
+    total: int
+
+
+class PlanSummaryPayload(_PlanSummaryPayloadRequired, total=False):
+    """Typed JSON payload for a plan summary (optional keys omitted when unset)."""
+
+    duration_ms: int
+
+
+class PlanWorkspacePayload(t.TypedDict):
+    """Typed JSON payload for a workspace grouping."""
+
+    path: str
+    operations: list[PlanEntryPayload]
+
+
+class PlanResultPayload(t.TypedDict):
+    """Typed JSON payload for a plan result."""
+
+    format_version: str
+    workspaces: list[PlanWorkspacePayload]
+    summary: PlanSummaryPayload
+
 
 class OutputMode(Enum):
     """Output format modes."""
@@ -47,7 +113,7 @@ class PlanEntry:
     error: str | None = None
     diagnostics: list[str] = field(default_factory=list)
 
-    def to_payload(self) -> dict[str, t.Any]:
+    def to_payload(self) -> PlanEntryPayload:
         """Convert the plan entry into a serialisable payload.
 
         Examples
@@ -67,7 +133,7 @@ class PlanEntry:
         >>> payload["format_version"]
         '1'
         """
-        payload: dict[str, t.Any] = {
+        payload: PlanEntryPayload = {
             "format_version": "1",
             "type": "operation",
             "name": self.name,
@@ -122,7 +188,7 @@ class PlanSummary:
         """
         return self.clone + self.update + self.unchanged + self.blocked + self.errors
 
-    def to_payload(self) -> dict[str, t.Any]:
+    def to_payload(self) -> PlanSummaryPayload:
         """Convert the summary to a serialisable payload.
 
         Examples
@@ -134,7 +200,7 @@ class PlanSummary:
         >>> payload["total"]
         3
         """
-        payload: dict[str, t.Any] = {
+        payload: PlanSummaryPayload = {
             "format_version": "1",
             "type": "summary",
             "clone": self.clone,
@@ -167,6 +233,29 @@ class PlanResult:
     entries: list[PlanEntry]
     summary: PlanSummary
 
+    def to_workspace_mapping(self) -> dict[str, list[PlanEntry]]:
+        """Group plan entries by workspace root."""
+        grouped: dict[str, list[PlanEntry]] = {}
+        for entry in self.entries:
+            grouped.setdefault(entry.workspace_root, []).append(entry)
+        return grouped
+
+    def to_json_object(self) -> PlanResultPayload:
+        """Return the JSON structure for ``--json`` output."""
+        workspaces: list[PlanWorkspacePayload] = []
+        for workspace_root, entries in self.to_workspace_mapping().items():
+            workspaces.append(
+                {
+                    "path": workspace_root,
+                    "operations": [entry.to_payload() for entry in entries],
+                },
+            )
+        return {
+            "format_version": "1",
+            "workspaces": workspaces,
+            "summary": self.summary.to_payload(),
+        }
+
 
 class OutputFormatter:
     """Manages output formatting for different modes (human, JSON, NDJSON)."""
@@ -186,17 +275,18 @@ class OutputFormatter:
         <OutputMode.JSON: 'json'>
         """
         self.mode = mode
-        self._json_buffer: list[dict[str, t.Any]] = []
+        self._json_buffer: list[OutputPayload] = []
 
-    def emit(self, data: dict[str, t.Any] | PlanEntry | PlanSummary) -> None:
+    def emit(self, data: OutputPayload | PlanEntry | PlanSummary) -> None:
         """Emit a data event.
 
         Parameters
         ----------
-        data : dict | PlanEntry | PlanSummary
+        data : OutputPayload | PlanEntry | PlanSummary
             Event data to emit. PlanEntry and PlanSummary instances are serialised
             automatically.
         """
+        payload: OutputPayload
         if isinstance(data, (PlanEntry, PlanSummary)):
             payload = data.to_payload()
         else:

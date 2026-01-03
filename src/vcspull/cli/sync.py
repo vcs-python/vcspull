@@ -42,6 +42,7 @@ from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
 from ._output import (
+    JsonObject,
     OutputFormatter,
     OutputMode,
     PlanAction,

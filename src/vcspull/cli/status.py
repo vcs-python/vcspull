@@ -19,7 +19,7 @@ from vcspull.config import filter_repos, find_config_files, load_configs
 from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
-from ._output import OutputFormatter, get_output_mode
+from ._output import JsonObject, OutputFormatter, get_output_mode
 from ._workspaces import filter_by_workspace
 
 log = logging.getLogger(__name__)
@@ -451,25 +451,28 @@ def status_repos(
             summary["missing"] += 1
 
         # Emit status
-        formatter.emit(
+        status_payload = t.cast(
+            "JsonObject",
             {
                 "reason": "status",
                 **status,
             },
         )
+        formatter.emit(status_payload)
 
         # Human output
         _format_status_line(status, formatter, colors, detailed)
 
     # Emit summary
-    summary_data: dict[str, t.Any] = {
-        "reason": "summary",
-        **summary,
-    }
-    if duration_ms is not None:
-        summary_data["duration_ms"] = duration_ms
-
-    formatter.emit(summary_data)
+    summary_payload = t.cast(
+        "JsonObject",
+        {
+            "reason": "summary",
+            **summary,
+            **({"duration_ms": duration_ms} if duration_ms is not None else {}),
+        },
+    )
+    formatter.emit(summary_payload)
 
     # Human summary
     formatter.emit_text(
