@@ -261,8 +261,8 @@ def discover_repos(
     config_scope = _classify_config_scope(config_file_path, cwd=cwd, home=home)
     allow_relative_workspace = config_scope == "project"
 
-    raw_config: dict[str, t.Any]
-    duplicate_root_occurrences: dict[str, list[t.Any]]
+    raw_config: dict[str, object]
+    duplicate_root_occurrences: dict[str, list[object]]
     if config_file_path.exists() and config_file_path.is_file():
         try:
             (
@@ -595,9 +595,11 @@ def discover_repos(
             )
             workspace_map[workspace_path] = workspace_label
 
-        if workspace_label not in raw_config:
-            raw_config[workspace_label] = {}
-        elif not isinstance(raw_config[workspace_label], dict):
+        section = raw_config.get(workspace_label)
+        if section is None:
+            section = {}
+            raw_config[workspace_label] = section
+        elif not isinstance(section, dict):
             log.warning(
                 "Workspace root '%s' in config is not a dictionary. Skipping repo %s.",
                 workspace_label,
@@ -605,8 +607,9 @@ def discover_repos(
             )
             continue
 
-        if repo_name not in raw_config[workspace_label]:
-            raw_config[workspace_label][repo_name] = {"repo": repo_url}
+        workspace_section = t.cast("dict[str, object]", section)
+        if repo_name not in workspace_section:
+            workspace_section[repo_name] = {"repo": repo_url}
             log.info(
                 "%s+%s Importing %s'%s'%s (%s%s%s) under '%s%s%s'.",
                 Fore.GREEN,
