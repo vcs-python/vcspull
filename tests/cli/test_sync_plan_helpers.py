@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import collections.abc as cabc
 import os
 import subprocess
 import typing as t
@@ -18,6 +19,13 @@ if t.TYPE_CHECKING:
 
 
 StatusOverride: t.TypeAlias = dict[str, bool | int | None]
+CompletedProcessArgs: t.TypeAlias = (
+    str
+    | bytes
+    | os.PathLike[str]
+    | os.PathLike[bytes]
+    | cabc.Sequence[str | bytes | os.PathLike[str] | os.PathLike[bytes]]
+)
 
 
 def _build_status(overrides: StatusOverride) -> StatusResult:
@@ -142,8 +150,8 @@ def test_maybe_fetch_behaviour(
     if subprocess_behavior:
 
         def _patched_run(
-            *args: t.Any,
-            **kwargs: t.Any,
+            args: CompletedProcessArgs,
+            **kwargs: object,
         ) -> subprocess.CompletedProcess[str]:
             if subprocess_behavior == "file-not-found":
                 error_message = "git executable not found"
@@ -152,16 +160,16 @@ def test_maybe_fetch_behaviour(
                 error_message = "Permission denied"
                 raise OSError(error_message)
             if subprocess_behavior == "timeout":
-                raise subprocess.TimeoutExpired(cmd=args[0], timeout=120)
+                raise subprocess.TimeoutExpired(cmd=args, timeout=120)
             if subprocess_behavior == "non-zero":
                 return subprocess.CompletedProcess(
-                    args=args[0],
+                    args=args,
                     returncode=1,
                     stdout="",
                     stderr="remote rejected",
                 )
             return subprocess.CompletedProcess(
-                args=args[0],
+                args=args,
                 returncode=0,
                 stdout="",
                 stderr="",
