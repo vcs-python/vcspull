@@ -43,6 +43,7 @@ from vcspull.types import ConfigDict
 from ._colors import Colors, get_color_mode
 from ._output import (
     JsonObject,
+    JsonValue,
     OutputFormatter,
     OutputMode,
     PlanAction,
@@ -1768,7 +1769,7 @@ def _run_sync_loop(
         summary["total"] += 1
         indicator.heartbeat()
 
-        event: dict[str, t.Any] = {
+        event: dict[str, JsonValue] = {
             "reason": "sync",
             "name": repo_name,
             "path": display_repo_path,
@@ -1967,7 +1968,7 @@ def _emit_summary(
     summary: dict[str, int],
 ) -> None:
     """Emit the structured summary event and optional human-readable text."""
-    formatter.emit({"reason": "summary", **summary})
+    formatter.emit(t.cast("JsonObject", {"reason": "summary", **summary}))
     if formatter.mode == OutputMode.HUMAN:
         previewed = summary.get("previewed", 0)
         unmatched = summary.get("unmatched", 0)
