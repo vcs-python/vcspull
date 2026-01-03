@@ -24,7 +24,7 @@ pytest_plugins = ["pytester"]
 @pytest.fixture(autouse=True)
 def add_doctest_fixtures(
     request: pytest.FixtureRequest,
-    doctest_namespace: dict[str, t.Any],
+    doctest_namespace: dict[str, object],
 ) -> None:
     """Harness pytest fixtures to doctests namespace."""
     from _pytest.doctest import DoctestItem
