@@ -8,7 +8,7 @@ import typing as t
 import yaml
 
 FormatLiteral = t.Literal["json", "yaml"]
-RawConfigData: t.TypeAlias = dict[str, t.Any]
+RawConfigData: t.TypeAlias = dict[str, object]
 
 
 class ConfigReader:
@@ -25,7 +25,7 @@ class ConfigReader:
         self.content = content
 
     @staticmethod
-    def _load(fmt: FormatLiteral, content: str) -> dict[str, t.Any]:
+    def _load(fmt: FormatLiteral, content: str) -> dict[str, object]:
         """Load raw config data and directly return it.
 
         >>> ConfigReader._load("json", '{ "session_name": "my session" }')
@@ -36,14 +36,14 @@ class ConfigReader:
         """
         if fmt == "yaml":
             return t.cast(
-                "dict[str, t.Any]",
+                "dict[str, object]",
                 yaml.load(
                     content,
                     Loader=yaml.SafeLoader,
                 ),
             )
         if fmt == "json":
-            return t.cast("dict[str, t.Any]", json.loads(content))
+            return t.cast("dict[str, object]", json.loads(content))
         msg = f"{fmt} not supported in configuration"
         raise NotImplementedError(msg)
 
@@ -71,7 +71,7 @@ class ConfigReader:
         )
 
     @classmethod
-    def _from_file(cls, path: pathlib.Path) -> dict[str, t.Any]:
+    def _from_file(cls, path: pathlib.Path) -> dict[str, object]:
         r"""Load data from file path directly to dictionary.
 
         **YAML file**
@@ -175,7 +175,7 @@ class ConfigReader:
         fmt: FormatLiteral,
         content: RawConfigData,
         indent: int = 2,
-        **kwargs: t.Any,
+        **kwargs: object,
     ) -> str:
         r"""Dump directly.
 
@@ -200,7 +200,7 @@ class ConfigReader:
         msg = f"{fmt} not supported in config"
         raise NotImplementedError(msg)
 
-    def dump(self, fmt: FormatLiteral, indent: int = 2, **kwargs: t.Any) -> str:
+    def dump(self, fmt: FormatLiteral, indent: int = 2, **kwargs: object) -> str:
         r"""Dump via ConfigReader instance.
 
         >>> cfg = ConfigReader({ "session_name": "my session" })
@@ -222,23 +222,23 @@ class _DuplicateTrackingSafeLoader(yaml.SafeLoader):
 
     def __init__(self, stream: str) -> None:
         super().__init__(stream)
-        self.top_level_key_values: dict[t.Any, list[t.Any]] = {}
+        self.top_level_key_values: dict[object, list[object]] = {}
         self._mapping_depth = 0
-        self.top_level_items: list[tuple[t.Any, t.Any]] = []
+        self.top_level_items: list[tuple[object, object]] = []
 
 
 def _duplicate_tracking_construct_mapping(
     loader: _DuplicateTrackingSafeLoader,
     node: yaml.nodes.MappingNode,
     deep: bool = False,
-) -> dict[t.Any, t.Any]:
+) -> dict[object, object]:
     loader._mapping_depth += 1
     loader.flatten_mapping(node)
-    mapping: dict[t.Any, t.Any] = {}
+    mapping: dict[object, object] = {}
 
     for key_node, value_node in node.value:
         construct = t.cast(
-            "t.Callable[[yaml.nodes.Node], t.Any]",
+            "t.Callable[[yaml.nodes.Node], object]",
             loader.construct_object,
         )
         key = construct(key_node)
@@ -268,20 +268,20 @@ class DuplicateAwareConfigReader(ConfigReader):
         self,
         content: RawConfigData,
         *,
-        duplicate_sections: dict[str, list[t.Any]] | None = None,
-        top_level_items: list[tuple[str, t.Any]] | None = None,
+        duplicate_sections: dict[str, list[object]] | None = None,
+        top_level_items: list[tuple[str, object]] | None = None,
     ) -> None:
         super().__init__(content)
         self._duplicate_sections = duplicate_sections or {}
         self._top_level_items = top_level_items or []
 
     @property
-    def duplicate_sections(self) -> dict[str, list[t.Any]]:
+    def duplicate_sections(self) -> dict[str, list[object]]:
         """Mapping of top-level keys to the list of duplicated values."""
         return self._duplicate_sections
 
     @property
-    def top_level_items(self) -> list[tuple[str, t.Any]]:
+    def top_level_items(self) -> list[tuple[str, object]]:
         """Ordered list of top-level items, including duplicates."""
         return copy.deepcopy(self._top_level_items)
 
@@ -289,7 +289,7 @@ class DuplicateAwareConfigReader(ConfigReader):
     def _load_yaml_with_duplicates(
         cls,
         content: str,
-    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]], list[tuple[str, t.Any]]]:
+    ) -> tuple[dict[str, object], dict[str, list[object]], list[tuple[str, object]]]:
         loader = _DuplicateTrackingSafeLoader(content)
 
         try:
@@ -299,12 +299,12 @@ class DuplicateAwareConfigReader(ConfigReader):
             dispose()
 
         if data is None:
-            loaded: dict[str, t.Any] = {}
+            loaded: dict[str, object] = {}
         else:
             if not isinstance(data, dict):
                 msg = "Loaded configuration is not a mapping"
                 raise TypeError(msg)
-            loaded = t.cast("dict[str, t.Any]", data)
+            loaded = t.cast("dict[str, object]", data)
 
         duplicate_sections = {
             t.cast("str", key): values
@@ -323,7 +323,7 @@ class DuplicateAwareConfigReader(ConfigReader):
     def _load_from_path(
         cls,
         path: pathlib.Path,
-    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]], list[tuple[str, t.Any]]]:
+    ) -> tuple[dict[str, object], dict[str, list[object]], list[tuple[str, object]]]:
         if path.suffix.lower() in {".yaml", ".yml"}:
             content = path.read_text(encoding="utf-8")
             return cls._load_yaml_with_duplicates(content)
@@ -340,7 +340,7 @@ class DuplicateAwareConfigReader(ConfigReader):
         )
 
     @classmethod
-    def _from_file(cls, path: pathlib.Path) -> dict[str, t.Any]:
+    def _from_file(cls, path: pathlib.Path) -> dict[str, object]:
         content, _, _ = cls._load_from_path(path)
         return content
 
@@ -348,6 +348,6 @@ class DuplicateAwareConfigReader(ConfigReader):
     def load_with_duplicates(
         cls,
         path: pathlib.Path,
-    ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]], list[tuple[str, t.Any]]]:
+    ) -> tuple[dict[str, object], dict[str, list[object]], list[tuple[str, object]]]:
         reader = cls.from_file(path)
         return reader.content, reader.duplicate_sections, reader.top_level_items
