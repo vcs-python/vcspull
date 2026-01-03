@@ -19,6 +19,7 @@ from .add import add_repo, create_add_subparser, handle_add_command
 from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
 from .list import create_list_subparser, list_repos
+from .search import create_search_subparser, search_repos
 from .status import create_status_subparser, status_repos
 from .sync import create_sync_subparser, sync
 
@@ -68,6 +69,15 @@ CLI_DESCRIPTION = build_description(
                 'vcspull list "django-*"',
                 "vcspull list --tree",
                 "vcspull list --json",
+            ],
+        ),
+        (
+            "search",
+            [
+                "vcspull search django",
+                "vcspull search name:django url:github",
+                "vcspull search --fixed-strings 'git+https://github.com/org/repo.git'",
+                "vcspull search --ignore-case --any django flask",
             ],
         ),
         (
@@ -128,6 +138,26 @@ LIST_DESCRIPTION = build_description(
                 'vcspull list "django-*"',
                 "vcspull list --tree",
                 "vcspull list --json",
+            ],
+        ),
+    ),
+)
+
+SEARCH_DESCRIPTION = build_description(
+    """
+    Search configured repositories.
+
+    Query terms use regex by default, with optional field prefixes like
+    name:, path:, url:, or workspace:.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull search django",
+                "vcspull search name:django url:github",
+                "vcspull search --fixed-strings 'git+https://github.com/org/repo.git'",
+                "vcspull search --ignore-case --any django flask",
             ],
         ),
     ),
@@ -267,6 +297,15 @@ def create_parser(
     )
     create_status_subparser(status_parser)
 
+    # Search command
+    search_parser = subparsers.add_parser(
+        "search",
+        help="search configured repositories",
+        formatter_class=VcspullHelpFormatter,
+        description=SEARCH_DESCRIPTION,
+    )
+    create_search_subparser(search_parser)
+
     # Add command
     add_parser = subparsers.add_parser(
         "add",
@@ -300,6 +339,7 @@ def create_parser(
             sync_parser,
             list_parser,
             status_parser,
+            search_parser,
             add_parser,
             discover_parser,
             fmt_parser,
@@ -314,6 +354,7 @@ def cli(_args: list[str] | None = None) -> None:
         sync_parser,
         _list_parser,
         _status_parser,
+        _search_parser,
         _add_parser,
         _discover_parser,
         _fmt_parser,
@@ -366,6 +407,22 @@ def cli(_args: list[str] | None = None) -> None:
             color=args.color,
             concurrent=not getattr(args, "no_concurrent", False),
             max_concurrent=getattr(args, "max_concurrent", None),
+        )
+    elif args.subparser_name == "search":
+        search_repos(
+            query_terms=args.query_terms,
+            config_path=pathlib.Path(args.config) if args.config else None,
+            workspace_root=getattr(args, "workspace_root", None),
+            output_json=args.output_json,
+            output_ndjson=args.output_ndjson,
+            color=args.color,
+            fields=getattr(args, "fields", None),
+            ignore_case=getattr(args, "ignore_case", False),
+            smart_case=getattr(args, "smart_case", False),
+            fixed_strings=getattr(args, "fixed_strings", False),
+            word_regexp=getattr(args, "word_regexp", False),
+            invert_match=getattr(args, "invert_match", False),
+            match_any=getattr(args, "match_any", False),
         )
     elif args.subparser_name == "add":
         handle_add_command(args)

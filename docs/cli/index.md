@@ -10,6 +10,7 @@ sync
 add
 discover
 list
+search
 status
 fmt
 ```
@@ -36,5 +37,5 @@ completion
     :nodescription:
 
     subparser_name : @replace
-        See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-status`, :ref:`cli-fmt`
+        See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-search`, :ref:`cli-status`, :ref:`cli-fmt`
 ```

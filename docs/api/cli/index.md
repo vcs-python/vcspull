@@ -12,6 +12,7 @@ sync
 add
 discover
 list
+search
 status
 fmt
 ```

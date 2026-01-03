@@ -31,6 +31,73 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### New features
+
+#### New command: `vcspull search` (#494)
+
+Search across all configured repositories using ripgrep-inspired syntax with field-scoped queries, regex patterns, and flexible output formats.
+
+**Basic usage:**
+
+Search for a term across all fields:
+
+```console
+$ vcspull search django
+```
+
+Search by repository name:
+
+```console
+$ vcspull search "name:flask"
+```
+
+Search by URL:
+
+```console
+$ vcspull search "url:github.com"
+```
+
+**Key features:**
+
+- **Field-scoped queries**: Target specific fields with `name:`, `url:`, `path:`, or `vcs:` prefixes
+- **Regex patterns**: Full regex support with `-i/--ignore-case`, `-S/--smart-case`, `-F/--fixed-strings`, and `--word-regexp`
+- **Boolean logic**: AND (default), OR (`--any`), and inverted matching (`-v/--invert-match`)
+- **Context display**: Show matching fields with `--field` filtering
+- **Output formats**: Human-readable (default), `--json`, or `--ndjson` for automation
+- **Color control**: `--color {auto,always,never}` with `NO_COLOR` support
+
+**Advanced examples:**
+
+Case-insensitive search across all fields:
+
+```console
+$ vcspull search -i DJANGO
+```
+
+Find repos by VCS type:
+
+```console
+$ vcspull search "vcs:git"
+```
+
+Match any term (OR logic):
+
+```console
+$ vcspull search --any flask django requests
+```
+
+Invert match (exclude repos):
+
+```console
+$ vcspull search -v "url:gitlab"
+```
+
+JSON output for scripting:
+
+```console
+$ vcspull search --json "name:lib"
+```
+
 ### Development
 
 #### Makefile -> Justfile (#493)
