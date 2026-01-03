@@ -27,9 +27,11 @@ $ uv add vcspull --prerelease allow
 $ uvx --from 'vcspull' --prerelease allow vcspull
 ```
 
-## vcspull v1.49.x (unreleased)
+## vcspull v1.50.x (unreleased)
 
 <!-- Maintainers, insert changes / features for the next release here -->
+
+## vcspull v1.49.0 (2026-01-03)
 
 ### New features
 
