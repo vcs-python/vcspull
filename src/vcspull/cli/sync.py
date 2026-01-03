@@ -33,6 +33,7 @@ from vcspull.types import ConfigDict
 from ._colors import Colors, get_color_mode
 from ._output import (
     JsonObject,
+    JsonValue,
     OutputFormatter,
     OutputMode,
     PlanAction,
@@ -719,7 +720,7 @@ def sync(
 
         summary["total"] += 1
 
-        event: dict[str, t.Any] = {
+        event: dict[str, JsonValue] = {
             "reason": "sync",
             "name": repo_name,
             "path": display_repo_path,
