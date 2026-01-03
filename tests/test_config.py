@@ -24,7 +24,7 @@ class LoadYAMLFn(t.Protocol):
         content: str,
         path: str = "randomdir",
         filename: str = "randomfilename.yaml",
-    ) -> tuple[pathlib.Path, list[t.Any | pathlib.Path], list[ConfigDict]]:
+    ) -> tuple[pathlib.Path, list[pathlib.Path], list[ConfigDict]]:
         """Callable function type signature for load_yaml pytest fixture."""
         ...
 

@@ -16,10 +16,21 @@ import yaml
 from vcspull.__about__ import __version__
 from vcspull._internal.private_path import PrivatePath
 from vcspull.cli import cli
-from vcspull.cli._output import PlanAction, PlanEntry, PlanResult, PlanSummary
+from vcspull.cli._output import (
+    JsonValue,
+    PlanAction,
+    PlanEntry,
+    PlanResult,
+    PlanSummary,
+)
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
 
 sync_module = importlib.import_module("vcspull.cli.sync")
+
+RepoConfig: t.TypeAlias = dict[str, str | dict[str, str]]
+ConfigData: t.TypeAlias = dict[str, dict[str, RepoConfig]]
+OperationSubset: t.TypeAlias = dict[str, JsonValue]
+RepoRecord: t.TypeAlias = dict[str, str]
 
 if t.TYPE_CHECKING:
     from typing import TypeAlias
@@ -652,7 +663,7 @@ def test_sync_dry_run_plan_human(
     if set_no_color:
         monkeypatch.setenv("NO_COLOR", "1")
 
-    config: dict[str, dict[str, dict[str, t.Any]]] = {"~/github_projects/": {}}
+    config: ConfigData = {"~/github_projects/": {}}
     for name in repository_names:
         config["~/github_projects/"][name] = {
             "url": f"git+file://{git_repo.path}",
@@ -697,7 +708,7 @@ def test_sync_dry_run_plan_human(
                 errors=sum(entry.action is PlanAction.ERROR for entry in plan_entries),
             )
 
-        async def _fake_plan(*args: t.Any, **kwargs: t.Any) -> PlanResult:
+        async def _fake_plan(*args: object, **kwargs: object) -> PlanResult:
             return PlanResult(entries=plan_entries, summary=computed_summary)
 
         monkeypatch.setattr(sync_module, "_build_plan_result_async", _fake_plan)
@@ -728,7 +739,7 @@ class DryRunPlanMachineFixture(t.NamedTuple):
     pre_sync: bool = True
     plan_entries: list[PlanEntry] | None = None
     plan_summary: PlanSummary | None = None
-    expected_operation_subset: dict[str, t.Any] | None = None
+    expected_operation_subset: OperationSubset | None = None
 
 
 DRY_RUN_PLAN_MACHINE_FIXTURES: list[DryRunPlanMachineFixture] = [
@@ -835,7 +846,7 @@ def test_sync_dry_run_plan_machine(
     pre_sync: bool,
     plan_entries: list[PlanEntry] | None,
     plan_summary: PlanSummary | None,
-    expected_operation_subset: dict[str, t.Any] | None,
+    expected_operation_subset: OperationSubset | None,
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
@@ -846,7 +857,7 @@ def test_sync_dry_run_plan_machine(
     """Validate machine-readable plan parity."""
     monkeypatch.setenv("NO_COLOR", "1")
 
-    config: dict[str, dict[str, dict[str, t.Any]]] = {"~/github_projects/": {}}
+    config: ConfigData = {"~/github_projects/": {}}
     for name in repository_names:
         config["~/github_projects/"][name] = {
             "url": f"git+file://{git_repo.path}",
@@ -889,7 +900,7 @@ def test_sync_dry_run_plan_machine(
                 errors=sum(entry.action is PlanAction.ERROR for entry in plan_entries),
             )
 
-        async def _fake_plan(*args: t.Any, **kwargs: t.Any) -> PlanResult:
+        async def _fake_plan(*args: object, **kwargs: object) -> PlanResult:
             return PlanResult(entries=plan_entries, summary=computed_summary)
 
         monkeypatch.setattr(sync_module, "_build_plan_result_async", _fake_plan)
@@ -924,7 +935,7 @@ def test_sync_dry_run_plan_machine(
     assert summary["errors"] == expected_summary["errors"]
 
     if mode == "json" and expected_operation_subset:
-        operations: list[dict[str, t.Any]] = []
+        operations: list[dict[str, JsonValue]] = []
         for workspace in payload["workspaces"]:
             operations.extend(workspace["operations"])
         assert operations, "Expected at least one operation payload"
@@ -1005,12 +1016,12 @@ def test_sync_human_output_redacts_repo_paths(
     )
 
     def _fake_filter_repos(
-        _configs: list[dict[str, t.Any]],
+        _configs: list[RepoRecord],
         *,
         path: str | None = None,
         vcs_url: str | None = None,
         name: str | None = None,
-    ) -> list[dict[str, t.Any]]:
+    ) -> list[RepoRecord]:
         if name and name != repo_config["name"]:
             return []
         if path and path != repo_config["path"]:
