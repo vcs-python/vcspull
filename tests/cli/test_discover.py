@@ -359,7 +359,7 @@ def test_discover_repos(
     preexisting_yaml: str | None,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
 ) -> None:
     """Test discovering repositories from filesystem."""
@@ -522,7 +522,7 @@ def test_discover_config_load_edges(
     expected_log_fragment: str,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Ensure discover handles configuration loading edge cases gracefully."""
     import logging
@@ -584,7 +584,7 @@ def test_discover_config_load_edges(
 def test_discover_skips_repos_without_remote(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test that discover skips git repos without a remote."""
     import logging
@@ -620,7 +620,7 @@ def test_discover_skips_repos_without_remote(
 def test_discover_shows_existing_repos(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test that discover shows which repos already exist in config."""
     import logging
@@ -714,7 +714,7 @@ def test_discover_existing_summary_branches(
     expected_log_fragment: str,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Ensure existing repository summaries cover both detailed and aggregate forms."""
     import logging
@@ -764,7 +764,7 @@ def test_discover_normalization_only_save(
     expected_workspace_label: str,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Normalization-only changes should still trigger a save."""
     import logging
@@ -846,7 +846,7 @@ def test_discover_logs_redact_scan_and_repo_paths(
 def test_discover_user_config_prefers_absolute_workspace_label(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """User-level configs default to tilde-prefixed workspace labels."""
     import logging
@@ -954,7 +954,7 @@ def test_discover_skips_non_dict_workspace(
     expected_warning: str,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Repos targeting non-dict workspaces should be skipped without saving."""
     import logging

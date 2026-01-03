@@ -174,7 +174,7 @@ def test_add_repo(
     expected_log_messages: list[str],
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test adding a repository to the config."""
     # Set logging level to capture INFO messages
@@ -248,7 +248,7 @@ def test_add_repo(
 def test_add_repo_duplicate_warning(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test that adding a duplicate repository shows a warning."""
     import logging
@@ -386,7 +386,7 @@ def test_add_repo_duplicate_merge_behavior(
     expected_warning: str | None,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
 ) -> None:
     """Duplicate workspace roots log appropriately based on merge toggle."""
@@ -691,7 +691,7 @@ def test_handle_add_command_path_mode(
     preserve_config_path_in_log: bool,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
     snapshot: SnapshotAssertion,
 ) -> None:
     """CLI path mode prompts and adds repositories appropriately."""
@@ -812,7 +812,7 @@ def test_handle_add_command_path_mode(
 def test_add_repo_dry_run_contracts_config_path(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Dry-run logging shows tilde-shortened config file paths."""
     caplog.set_level(logging.INFO)
@@ -837,7 +837,7 @@ def test_add_repo_dry_run_contracts_config_path(
 def test_handle_add_command_abort_uses_private_path(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Aborted add command logs repo path with home collapsed."""
     caplog.set_level(logging.INFO)
@@ -1001,7 +1001,7 @@ def test_add_repo_no_merge_preserves_duplicate_sections(
 def test_handle_add_command_workspace_label_from_workspace_root(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """CLI add should label workspace roots with their tilde path even from root cwd."""
     caplog.set_level(logging.INFO)
@@ -1045,7 +1045,7 @@ def test_handle_add_command_workspace_label_variants(
     merge_duplicates: bool,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Path-first adds should keep tilde workspaces regardless of merge flag."""
     caplog.set_level(logging.INFO)
@@ -1089,7 +1089,7 @@ def test_handle_add_command_workspace_label_variants(
 def test_handle_add_command_preserves_existing_dot_workspace_section(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
-    caplog: t.Any,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Existing './' sections should be preserved when they match the workspace."""
     caplog.set_level(logging.INFO)
