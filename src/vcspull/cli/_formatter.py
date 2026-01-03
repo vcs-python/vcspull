@@ -35,11 +35,21 @@ OPTIONS_FLAG_ONLY = {
 }
 
 
+class _HelpTheme(t.Protocol):
+    heading: str
+    reset: str
+    label: str
+    long_option: str
+    short_option: str
+    prog: str
+    action: str
+
+
 class VcspullHelpFormatter(argparse.RawDescriptionHelpFormatter):
     """Render description blocks while colorizing example sections when possible."""
 
     def _fill_text(self, text: str, width: int, indent: str) -> str:
-        theme = getattr(self, "_theme", None)
+        theme = t.cast("_HelpTheme | None", getattr(self, "_theme", None))
         if not text or theme is None:
             return super()._fill_text(text, width, indent)
 
@@ -93,7 +103,7 @@ class VcspullHelpFormatter(argparse.RawDescriptionHelpFormatter):
         self,
         content: str,
         *,
-        theme: t.Any,
+        theme: _HelpTheme,
         expect_value: bool,
     ) -> _ColorizedLine:
         parts: list[str] = []
