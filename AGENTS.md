@@ -280,6 +280,40 @@ what:
 - Add tests for the new functionality
 ```
 
+## Documentation Standards
+
+### Code Blocks in Documentation
+
+When writing documentation (README, CHANGES, docs/), follow these rules for code blocks:
+
+**One command per code block.** This makes commands individually copyable.
+
+**Put explanations outside the code block**, not as comments inside.
+
+Good:
+
+Search for a term across all fields:
+
+```console
+$ vcspull search django
+```
+
+Search by repository name:
+
+```console
+$ vcspull search "name:flask"
+```
+
+Bad:
+
+```console
+# Search for a term across all fields
+$ vcspull search django
+
+# Search by repository name
+$ vcspull search "name:flask"
+```
+
 ## Debugging Tips
 
 When stuck in debugging loops:
