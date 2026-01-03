@@ -23,6 +23,8 @@ from libvcs._internal.run import ProgressCallbackProtocol
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitSync
+from libvcs.sync.hg import HgSync
+from libvcs.sync.svn import SvnSync
 from libvcs.url import registry as url_tools
 
 from vcspull import exc
@@ -874,7 +876,7 @@ def update_repo(
     repo_dict: ConfigDict,
     progress_callback: ProgressCallback | None = None,
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
-) -> GitSync:
+) -> GitSync | HgSync | SvnSync:
     """Synchronize a single repository."""
     repo_payload = t.cast("dict[str, object]", deepcopy(repo_dict))
     if "pip_url" not in repo_payload:
@@ -896,14 +898,14 @@ def update_repo(
 
     assert repo_vcs is not None
 
+    r: GitSync | HgSync | SvnSync
     if repo_vcs == "git":
         r = create_project(**t.cast("GitRepoPayload", repo_payload))
     elif repo_vcs == "svn":
-        r = t.cast("GitSync", create_project(**t.cast("SvnRepoPayload", repo_payload)))
+        r = create_project(**t.cast("SvnRepoPayload", repo_payload))
     else:
-        r = t.cast("GitSync", create_project(**t.cast("HgRepoPayload", repo_payload)))
+        r = create_project(**t.cast("HgRepoPayload", repo_payload))
 
     r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
 
-    # TODO: Fix this
     return r
