@@ -8,7 +8,7 @@ import typing as t
 from dataclasses import dataclass, field
 from enum import Enum
 
-from typing_extensions import NotRequired
+import typing_extensions
 
 JsonPrimitive: t.TypeAlias = str | int | float | bool | None
 JsonValue: t.TypeAlias = JsonPrimitive | dict[str, "JsonValue"] | list["JsonValue"]
@@ -25,17 +25,17 @@ class PlanEntryPayload(t.TypedDict):
     path: str
     workspace_root: str
     action: str
-    detail: NotRequired[str]
-    url: NotRequired[str]
-    branch: NotRequired[str]
-    remote_branch: NotRequired[str]
-    current_rev: NotRequired[str]
-    target_rev: NotRequired[str]
-    ahead: NotRequired[int]
-    behind: NotRequired[int]
-    dirty: NotRequired[bool]
-    error: NotRequired[str]
-    diagnostics: NotRequired[list[str]]
+    detail: typing_extensions.NotRequired[str]
+    url: typing_extensions.NotRequired[str]
+    branch: typing_extensions.NotRequired[str]
+    remote_branch: typing_extensions.NotRequired[str]
+    current_rev: typing_extensions.NotRequired[str]
+    target_rev: typing_extensions.NotRequired[str]
+    ahead: typing_extensions.NotRequired[int]
+    behind: typing_extensions.NotRequired[int]
+    dirty: typing_extensions.NotRequired[bool]
+    error: typing_extensions.NotRequired[str]
+    diagnostics: typing_extensions.NotRequired[list[str]]
 
 
 class PlanSummaryPayload(t.TypedDict):
@@ -49,7 +49,7 @@ class PlanSummaryPayload(t.TypedDict):
     blocked: int
     errors: int
     total: int
-    duration_ms: NotRequired[int]
+    duration_ms: typing_extensions.NotRequired[int]
 
 
 class PlanWorkspacePayload(t.TypedDict):

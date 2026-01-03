@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import typing as t
 
-from typing_extensions import Self
+import typing_extensions
 
 from vcspull._internal.config_reader import ConfigReader
 
@@ -40,7 +40,7 @@ class EnvironmentVarGuard:
             self._reset[envvar] = self._environ[envvar]
             del self._environ[envvar]
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> typing_extensions.Self:
         """Context manager entry for setting and resetting environmental variable."""
         return self
 

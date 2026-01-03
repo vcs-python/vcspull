@@ -33,7 +33,7 @@ import pathlib
 import typing as t
 from typing import TypeAlias
 
-from typing_extensions import NotRequired, TypedDict
+import typing_extensions
 
 if t.TYPE_CHECKING:
     from libvcs._internal.types import VCSLiteral
@@ -50,7 +50,7 @@ RawConfigDir: TypeAlias = RawWorkspaceConfig
 RawConfig: TypeAlias = RawConfigDict
 
 
-class ConfigDict(TypedDict):
+class ConfigDict(typing_extensions.TypedDict):
     """Configuration map for vcspull after shorthands and variables resolved."""
 
     vcs: VCSLiteral | None
@@ -58,8 +58,8 @@ class ConfigDict(TypedDict):
     path: pathlib.Path
     url: str
     workspace_root: str
-    remotes: NotRequired[GitSyncRemoteDict | None]
-    shell_command_after: NotRequired[list[str] | None]
+    remotes: typing_extensions.NotRequired[GitSyncRemoteDict | None]
+    shell_command_after: typing_extensions.NotRequired[list[str] | None]
 
 
 ConfigDir = dict[str, ConfigDict]
