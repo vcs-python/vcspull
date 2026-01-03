@@ -825,7 +825,7 @@ def guess_vcs(url: str) -> VCSLiteral | None:
 class CouldNotGuessVCSFromURL(exc.VCSPullException):
     """Raised when no VCS could be guessed from a URL."""
 
-    def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
+    def __init__(self, repo_url: str) -> None:
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
