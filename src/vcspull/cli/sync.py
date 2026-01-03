@@ -32,6 +32,7 @@ from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
 from ._output import (
+    JsonObject,
     OutputFormatter,
     OutputMode,
     PlanAction,
@@ -763,12 +764,14 @@ def sync(
                 f"{colors.error(str(e))}",
             )
             if exit_on_error:
-                formatter.emit(
+                summary_payload = t.cast(
+                    "JsonObject",
                     {
                         "reason": "summary",
                         **summary,
                     },
                 )
+                formatter.emit(summary_payload)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
@@ -783,12 +786,14 @@ def sync(
             f"{colors.muted('→')} {display_repo_path}",
         )
 
-    formatter.emit(
+    summary_payload = t.cast(
+        "JsonObject",
         {
             "reason": "summary",
             **summary,
         },
     )
+    formatter.emit(summary_payload)
 
     if formatter.mode == OutputMode.HUMAN:
         formatter.emit_text(

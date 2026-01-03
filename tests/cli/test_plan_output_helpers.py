@@ -93,12 +93,13 @@ def test_plan_entry_to_payload(
     """Ensure PlanEntry serialises optional fields correctly."""
     entry = PlanEntry(**kwargs)
     payload = entry.to_payload()
+    payload_map = t.cast(dict[str, t.Any], payload)
 
     for key, value in expected_keys.items():
-        assert payload[key] == value
+        assert payload_map[key] == value
 
     for key in unexpected_keys:
-        assert key not in payload
+        assert key not in payload_map
 
     assert payload["format_version"] == "1"
     assert payload["type"] == "operation"
