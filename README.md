@@ -136,6 +136,14 @@ $ vcspull list --json | jq '.[].name'
 `--json` emits a single JSON array, while `--ndjson` streams newline-delimited
 objects that are easy to consume from shell pipelines.
 
+Search across repositories with an rg-like query syntax:
+
+```console
+$ vcspull search django
+$ vcspull search name:django url:github
+$ vcspull search --fixed-strings 'git+https://github.com/org/repo.git'
+```
+
 ### Check repository status
 
 Get a quick health check for all configured workspaces:
