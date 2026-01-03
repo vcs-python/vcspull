@@ -28,6 +28,20 @@ DEFAULT_STATUS_CONCURRENCY = max(1, min(32, (os.cpu_count() or 4) * 2))
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
+class StatusResult(t.TypedDict):
+    """Typed status payload for a single repository."""
+
+    name: str
+    path: str
+    workspace_root: str
+    exists: bool
+    is_git: bool
+    clean: bool | None
+    branch: str | None
+    ahead: int | None
+    behind: int | None
+
+
 @dataclass
 class StatusCheckConfig:
     """Configuration options for status checking."""
@@ -174,7 +188,7 @@ async def _check_repos_status_async(
     *,
     config: StatusCheckConfig,
     progress: StatusProgressPrinter | None,
-) -> list[dict[str, t.Any]]:
+) -> list[StatusResult]:
     """Check repository status concurrently using asyncio.
 
     Parameters
@@ -188,18 +202,18 @@ async def _check_repos_status_async(
 
     Returns
     -------
-    list[dict[str, t.Any]]
+    list[StatusResult]
         List of status dictionaries in completion order
     """
     if not repos:
         return []
 
     semaphore = asyncio.Semaphore(min(config.max_concurrent, len(repos)))
-    results: list[dict[str, t.Any]] = []
+    results: list[StatusResult] = []
     exists_count = 0
     missing_count = 0
 
-    async def check_with_limit(repo: ConfigDict) -> dict[str, t.Any]:
+    async def check_with_limit(repo: ConfigDict) -> StatusResult:
         async with semaphore:
             return await asyncio.to_thread(
                 check_repo_status,
@@ -214,7 +228,7 @@ async def _check_repos_status_async(
         results.append(status)
 
         # Update counts for progress
-        if status.get("exists"):
+        if status["exists"]:
             exists_count += 1
         else:
             missing_count += 1
@@ -242,7 +256,7 @@ def _run_git_command(
         return None
 
 
-def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.Any]:
+def check_repo_status(repo: ConfigDict, detailed: bool = False) -> StatusResult:
     """Check the status of a single repository.
 
     Parameters
@@ -261,7 +275,7 @@ def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.A
     repo_name = repo.get("name", "unknown")
     workspace_root = repo.get("workspace_root", "")
 
-    status: dict[str, t.Any] = {
+    status: StatusResult = {
         "name": repo_name,
         "path": str(PrivatePath(repo_path)),
         "workspace_root": workspace_root,
@@ -485,7 +499,7 @@ def status_repos(
 
 
 def _format_status_line(
-    status: dict[str, t.Any],
+    status: StatusResult,
     formatter: OutputFormatter,
     colors: Colors,
     detailed: bool,

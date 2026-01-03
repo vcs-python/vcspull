@@ -13,6 +13,28 @@ from vcspull.cli.sync import SyncPlanConfig, _determine_plan_action, _maybe_fetc
 if t.TYPE_CHECKING:
     import pathlib
 
+    from vcspull.cli.status import StatusResult
+
+
+StatusOverride: t.TypeAlias = dict[str, bool | int | None]
+
+
+def _build_status(overrides: StatusOverride) -> StatusResult:
+    """Build a StatusResult with defaults for required keys."""
+    base: dict[str, object] = {
+        "name": "repo",
+        "path": "/tmp/repo",
+        "workspace_root": "/tmp",
+        "exists": False,
+        "is_git": False,
+        "clean": None,
+        "branch": None,
+        "ahead": None,
+        "behind": None,
+    }
+    base.update(overrides)
+    return t.cast("StatusResult", base)
+
 
 class MaybeFetchFixture(t.NamedTuple):
     """Fixture for _maybe_fetch behaviours."""
@@ -147,7 +169,7 @@ class DeterminePlanActionFixture(t.NamedTuple):
     """Fixture for _determine_plan_action outcomes."""
 
     test_id: str
-    status: dict[str, t.Any]
+    status: StatusOverride
     config: SyncPlanConfig
     expected_action: PlanAction
     expected_detail: str
@@ -239,12 +261,15 @@ DETERMINE_PLAN_ACTION_FIXTURES: list[DeterminePlanActionFixture] = [
 )
 def test_determine_plan_action(
     test_id: str,
-    status: dict[str, t.Any],
+    status: StatusOverride,
     config: SyncPlanConfig,
     expected_action: PlanAction,
     expected_detail: str,
 ) -> None:
     """Verify _determine_plan_action handles edge cases."""
-    action, detail = _determine_plan_action(status, config=config)
+    action, detail = _determine_plan_action(
+        _build_status(status),
+        config=config,
+    )
     assert action is expected_action
     assert detail == expected_detail

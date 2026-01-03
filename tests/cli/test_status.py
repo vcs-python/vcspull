@@ -11,6 +11,7 @@ import yaml
 
 from vcspull.cli.status import (
     StatusCheckConfig,
+    StatusResult,
     _check_repos_status_async,
     check_repo_status,
     status_repos,
@@ -223,7 +224,16 @@ def test_check_repo_status(
         else:
             repo_path.mkdir(parents=True)
 
-    repo_dict: t.Any = {"name": "test-repo", "path": str(repo_path)}
+    repo_dict = t.cast(
+        "ConfigDict",
+        {
+            "vcs": None,
+            "name": "test-repo",
+            "path": repo_path,
+            "url": str(repo_path),
+            "workspace_root": str(tmp_path),
+        },
+    )
 
     status = check_repo_status(repo_dict, detailed=False)
 
@@ -630,13 +640,24 @@ async def test_check_repos_status_async_concurrency_limit(
 ) -> None:
     """Test that semaphore limits concurrent operations."""
     # Create multiple repos
-    repos_list = []
+    repos_list: list[ConfigDict] = []
     for i in range(10):
         repo_path = tmp_path / f"repo{i}"
         init_git_repo(repo_path)
-        repos_list.append({"name": f"repo{i}", "path": str(repo_path)})
+        repos_list.append(
+            t.cast(
+                "ConfigDict",
+                {
+                    "vcs": None,
+                    "name": f"repo{i}",
+                    "path": repo_path,
+                    "url": str(repo_path),
+                    "workspace_root": str(tmp_path),
+                },
+            ),
+        )
 
-    repos = t.cast("list[ConfigDict]", repos_list)
+    repos = repos_list
 
     # Track concurrent calls
     concurrent_calls = []
@@ -644,7 +665,7 @@ async def test_check_repos_status_async_concurrency_limit(
 
     original_check = check_repo_status
 
-    def tracked_check(repo: t.Any, detailed: bool = False) -> dict[str, t.Any]:
+    def tracked_check(repo: ConfigDict, detailed: bool = False) -> StatusResult:
         concurrent_calls.append(1)
         nonlocal max_concurrent_seen
         current = len(concurrent_calls)

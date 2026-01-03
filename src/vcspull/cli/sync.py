@@ -43,7 +43,7 @@ from ._output import (
     get_output_mode,
 )
 from ._workspaces import filter_by_workspace
-from .status import check_repo_status
+from .status import StatusResult, check_repo_status
 
 log = logging.getLogger(__name__)
 
@@ -188,7 +188,7 @@ def _maybe_fetch(
 
 
 def _determine_plan_action(
-    status: dict[str, t.Any],
+    status: StatusResult,
     *,
     config: SyncPlanConfig,
 ) -> tuple[PlanAction, str | None]:
