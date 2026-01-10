@@ -188,6 +188,8 @@ PosixPath('.../repo')
 
 ### Testing
 
+**Use functional tests only**: Write tests as standalone functions (`test_*`), not classes. Avoid `class TestFoo:` groupings - use descriptive function names and file organization instead. This applies to pytest tests, not doctests.
+
 #### Using libvcs Fixtures
 
 When writing tests, leverage libvcs's pytest plugin fixtures:
