@@ -57,7 +57,7 @@ class VcspullOutputLexer(RegexLexer):
             (r"(~?/[-a-zA-Z0-9_.~/+]+/)(?=\s*$|\s*\n)", Generic.Subheading),
             # Success symbol with repo name (green) - for sync output like "✓ repo"
             (
-                r"(✓)(\s+)([a-zA-Z][-a-zA-Z0-9_.]+)(?=\s+[~/]|\s*$)",
+                r"(✓)(\s+)([a-zA-Z][-a-zA-Z0-9_.]+)(?=\s+[~/]|:|\s*$)",
                 bygroups(Generic.Inserted, Whitespace, Name.Function),  # type: ignore[no-untyped-call]
             ),
             # Success symbol standalone (green)
@@ -104,11 +104,15 @@ class VcspullOutputLexer(RegexLexer):
             (r"(?<=: )missing\b", Generic.Error),  # "missing" after colon
             (r"\berror\b", Generic.Error),
             (r"\bfailed\b", Generic.Error),
-            # Labels (muted)
+            # Labels (muted) - common vcspull output labels
             (
-                r"(Summary:|Progress:|Path:|Branch:|url:|workspace:|Ahead/Behind:)",
+                r"(Summary:|Progress:|Path:|Branch:|url:|workspace:|Ahead/Behind:|"
+                r"Remote:|Repository:|Note:|Usage:)",
                 Generic.Heading,
             ),
+            # vcspull command and subcommands (for pretty docs)
+            (r"\bvcspull\b", Name.Builtin),
+            (r"\b(sync|list|add|status|search|discover|fmt)\b(?=\s|$)", Name.Builtin),
             # Git URLs (with git+ prefix)
             (r"git\+https?://[^\s]+", Name.Tag),
             # Plain HTTPS/HTTP URLs (without git+ prefix)
@@ -119,16 +123,15 @@ class VcspullOutputLexer(RegexLexer):
             (r"\?", Generic.Prompt),
             # Paths with ~/ - include + for c++ directories
             (r"~?/[-a-zA-Z0-9_.~/+]+(?![\w/+])", Name.Variable),
-            # Repository names (identifiers followed by colon or arrow or space+path)
-            # This is tricky - we want to highlight names in context
+            # Repository names followed by arrow (muted arrow)
+            # Only match repo name when followed by arrow - avoids false positives
             (
                 r"([a-zA-Z][-a-zA-Z0-9_.]+)(\s*)(→)",
                 bygroups(Name.Function, Whitespace, Comment),  # type: ignore[no-untyped-call]
             ),
-            (
-                r"([a-zA-Z][-a-zA-Z0-9_.]+)(:)",
-                bygroups(Name.Function, Punctuation),  # type: ignore[no-untyped-call]
-            ),
+            # Note: Removed generic "name:" pattern as it caused false positives
+            # (matching "add:" in "Would add:", "complete:" in "Dry run complete:")
+            # Repo names are matched via symbol-prefixed patterns (✓, ✗, ⚠, etc.)
             # Count labels in summaries
             (
                 r"(\d+)(\s+)(repositories|repos|exist|missing|synced|failed|blocked|errors)",

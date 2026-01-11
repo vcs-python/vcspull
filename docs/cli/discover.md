@@ -87,7 +87,7 @@ $ vcspull discover ~/code --dry-run
 
 Output shows:
 
-```vcspull-console
+```vcspull-output
 Would add: vcspull (~/code/)
   Remote: git+https://github.com/vcs-python/vcspull.git
 
