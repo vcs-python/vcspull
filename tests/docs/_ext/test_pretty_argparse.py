@@ -386,6 +386,28 @@ def test_make_section_id(
     assert make_section_id(term_text, counter, is_subsection=is_subsection) == expected
 
 
+def test_make_section_id_with_page_prefix() -> None:
+    """Test section ID generation with page_prefix for cross-page uniqueness."""
+    # Base "examples:" with page_prefix becomes "sync-examples"
+    assert make_section_id("examples:", page_prefix="sync") == "sync-examples"
+    assert make_section_id("examples:", page_prefix="add") == "add-examples"
+
+    # Prefixed examples already unique - page_prefix not added
+    assert (
+        make_section_id("Machine-readable output examples:", page_prefix="sync")
+        == "machine-readable-output-examples"
+    )
+
+    # Subsection with page_prefix
+    result = make_section_id(
+        "Field-scoped examples:", is_subsection=True, page_prefix="sync"
+    )
+    assert result == "field-scoped"
+
+    # Empty page_prefix behaves like before
+    assert make_section_id("examples:", page_prefix="") == "examples"
+
+
 # --- make_section_title tests ---
 
 
