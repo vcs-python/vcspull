@@ -352,3 +352,49 @@ def test_tokenize_output_empty() -> None:
     # Should only have a trailing newline token
     assert len(result) == 1
     assert result[0][0] == "Token.Text.Whitespace"
+
+
+# --- URL and prompt tests ---
+
+
+def test_url_in_parentheses() -> None:
+    """Test plain HTTPS URLs in parentheses are tokenized correctly."""
+    text = "  + pytest-docker (https://github.com/avast/pytest-docker)"
+    lexer = VcspullOutputLexer()
+    tokens = [(t, v) for t, v in lexer.get_tokens(text) if v.strip()]
+
+    assert (Token.Generic.Inserted, "+") in tokens
+    assert (Token.Name.Function, "pytest-docker") in tokens
+    assert (Token.Punctuation, "(") in tokens
+    assert (Token.Name.Tag, "https://github.com/avast/pytest-docker") in tokens
+    assert (Token.Punctuation, ")") in tokens
+
+
+def test_interactive_prompt() -> None:
+    """Test interactive prompt [y/N] patterns."""
+    text = "? Import this repository? [y/N]: y"
+    lexer = VcspullOutputLexer()
+    tokens = [(t, v) for t, v in lexer.get_tokens(text) if v.strip()]
+
+    assert (Token.Generic.Prompt, "?") in tokens
+    assert (Token.Comment, "[y/N]") in tokens
+
+
+def test_vcspull_add_output() -> None:
+    """Test full vcspull add output with all patterns."""
+    text = """Found new repository to import:
+  + pytest-docker (https://github.com/avast/pytest-docker)
+  • workspace: ~/study/python/
+? Import this repository? [y/N]: y"""
+
+    lexer = VcspullOutputLexer()
+    tokens = [(t, v) for t, v in lexer.get_tokens(text) if v.strip()]
+
+    # Check key tokens
+    assert (Token.Generic.Inserted, "+") in tokens
+    assert (Token.Name.Function, "pytest-docker") in tokens
+    assert (Token.Name.Tag, "https://github.com/avast/pytest-docker") in tokens
+    assert (Token.Comment, "•") in tokens
+    assert (Token.Generic.Heading, "workspace:") in tokens
+    assert (Token.Generic.Prompt, "?") in tokens
+    assert (Token.Comment, "[y/N]") in tokens
