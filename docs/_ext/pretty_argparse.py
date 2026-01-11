@@ -732,4 +732,11 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
 
     app.add_lexer("vcspull-output", VcspullOutputLexer)
 
+    # Register vcspull console lexer for session highlighting
+    from vcspull_console_lexer import (  # type: ignore[import-not-found]
+        VcspullConsoleLexer,
+    )
+
+    app.add_lexer("vcspull-console", VcspullConsoleLexer)
+
     return {"version": "2.0", "parallel_read_safe": True}
