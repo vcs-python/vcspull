@@ -20,7 +20,7 @@ scope to specific fields, and can emit structured JSON for automation.
 
 Search all fields (name, path, url, workspace) with regex:
 
-```console
+```vcspull-console
 $ vcspull search django
 • django → ~/code/django
 ```
@@ -29,7 +29,7 @@ $ vcspull search django
 
 Target specific fields with prefixes:
 
-```console
+```vcspull-console
 $ vcspull search name:django url:github
 • django → ~/code/django
   url: git+https://github.com/django/django.git
