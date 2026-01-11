@@ -19,7 +19,6 @@ place while still showing a warning.
     :func: create_parser
     :prog: vcspull
     :path: fmt
-    :nodescription:
 ```
 
 ## What gets formatted

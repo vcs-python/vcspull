@@ -126,9 +126,13 @@ Example format:
 
 ### Imports
 
+**For standard library modules:**
 - Use namespace imports: `import enum` instead of `from enum import Enum`
 - For typing, use `import typing as t` and access via namespace: `t.NamedTuple`, etc.
-- Use `from __future__ import annotations` at the top of all Python files
+
+**For third-party packages:** Use idiomatic import styles for each library (e.g., `from pygments.token import Token` is fine).
+
+**Always:** Use `from __future__ import annotations` at the top of all Python files.
 
 ### Docstrings
 
