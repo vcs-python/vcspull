@@ -157,6 +157,12 @@ strict = true
 [[tool.mypy.overrides]]
 module = [
   "shtab",
+  "sphinxarg.*",
+  "cli_usage_lexer",
+  "docutils",
+  "docutils.*",
+  "pygments",
+  "pygments.*",
 ]
 ignore_missing_imports = true
 
@@ -239,13 +245,13 @@ required-imports = [
 "*/__init__.py" = ["F401"]
 
 [tool.pytest.ini_options]
-addopts = "--tb=short --no-header --showlocals"
+addopts = "--tb=short --no-header --showlocals --doctest-modules"
+doctest_optionflags = "ELLIPSIS NORMALIZE_WHITESPACE"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = [
   "src/vcspull",
   "tests",
-  "docs",
 ]
 filterwarnings = [
   "ignore:The frontend.Option(Parser)? class.*:DeprecationWarning::",
