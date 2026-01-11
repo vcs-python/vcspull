@@ -109,8 +109,14 @@ class VcspullOutputLexer(RegexLexer):
                 r"(Summary:|Progress:|Path:|Branch:|url:|workspace:|Ahead/Behind:)",
                 Generic.Heading,
             ),
-            # Git URLs
+            # Git URLs (with git+ prefix)
             (r"git\+https?://[^\s]+", Name.Tag),
+            # Plain HTTPS/HTTP URLs (without git+ prefix)
+            (r"https?://[^\s()]+", Name.Tag),
+            # Interactive prompt options like [y/N], [Y/n]
+            (r"\[[yYnN]/[yYnN]\]", Comment),
+            # Question mark prompt indicator
+            (r"\?", Generic.Prompt),
             # Paths with ~/ - include + for c++ directories
             (r"~?/[-a-zA-Z0-9_.~/+]+(?![\w/+])", Name.Variable),
             # Repository names (identifiers followed by colon or arrow or space+path)
