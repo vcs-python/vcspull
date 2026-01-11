@@ -20,7 +20,6 @@ For bulk scanning of existing repositories, see {ref}`cli-discover`.
     :func: create_parser
     :prog: vcspull
     :path: add
-    :nodescription:
 ```
 
 ## Basic usage
