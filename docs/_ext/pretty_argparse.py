@@ -21,8 +21,8 @@ if t.TYPE_CHECKING:
 
 _ANSI_RE = re.compile(r"\033\[[;?0-9]*[a-zA-Z]")
 
-# Match asterisks that would trigger RST emphasis (preceded by delimiter like - or space)
-# but NOT asterisks already escaped or in code/literal contexts
+# Match asterisks that would trigger RST emphasis (preceded by delimiter like
+# - or space) but NOT asterisks already escaped or in code/literal contexts
 _RST_EMPHASIS_RE = re.compile(r"(?<=[^\s\\])-\*(?=[^\s*]|$)")
 
 
@@ -724,5 +724,10 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
     from cli_usage_lexer import CLIUsageLexer
 
     app.add_lexer("cli-usage", CLIUsageLexer)
+
+    # Register vcspull output lexer for command output highlighting
+    from vcspull_output_lexer import VcspullOutputLexer
+
+    app.add_lexer("vcspull-output", VcspullOutputLexer)
 
     return {"version": "2.0", "parallel_read_safe": True}
