@@ -14,7 +14,6 @@ scope to specific fields, and can emit structured JSON for automation.
     :func: create_parser
     :prog: vcspull
     :path: search
-    :nodescription:
 ```
 
 ## Basic usage

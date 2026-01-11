@@ -34,7 +34,6 @@ completion
     :func: create_parser
     :prog: vcspull
     :nosubcommands:
-    :nodescription:
 
     subparser_name : @replace
         See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-search`, :ref:`cli-status`, :ref:`cli-fmt`

@@ -14,7 +14,6 @@ filter repositories by patterns, and export structured data for automation.
     :func: create_parser
     :prog: vcspull
     :path: list
-    :nodescription:
 ```
 
 ## Basic usage

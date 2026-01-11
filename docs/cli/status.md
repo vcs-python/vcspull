@@ -14,7 +14,6 @@ This introspection command helps verify your local workspace matches your config
     :func: create_parser
     :prog: vcspull
     :path: status
-    :nodescription:
 ```
 
 ## Basic usage

@@ -14,7 +14,6 @@ workspaces or migrating from other tools.
     :func: create_parser
     :prog: vcspull
     :path: discover
-    :nodescription:
 ```
 
 ## Basic usage
