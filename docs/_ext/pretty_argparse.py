@@ -726,7 +726,9 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
     app.add_lexer("cli-usage", CLIUsageLexer)
 
     # Register vcspull output lexer for command output highlighting
-    from vcspull_output_lexer import VcspullOutputLexer
+    from vcspull_output_lexer import (  # type: ignore[import-not-found]
+        VcspullOutputLexer,
+    )
 
     app.add_lexer("vcspull-output", VcspullOutputLexer)
 
