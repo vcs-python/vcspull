@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from pygments.lexer import Lexer, do_insertions, line_re
+from pygments.lexer import Lexer, do_insertions, line_re  # type: ignore[attr-defined]
 from pygments.lexers.shell import BashLexer
 from pygments.token import Generic, Text
 from vcspull_output_lexer import (  # type: ignore[import-not-found]
@@ -46,10 +46,10 @@ class VcspullConsoleLexer(Lexer):
     )
     _ps2 = "> "
 
-    def get_tokens_unprocessed(  # type: ignore[override]
+    def get_tokens_unprocessed(  # type: ignore[no-untyped-def]
         self,
         text: str,
-    ) -> list[tuple[int, type, str]]:
+    ):
         """Tokenize text with shell commands and vcspull output.
 
         Parameters
@@ -59,7 +59,7 @@ class VcspullConsoleLexer(Lexer):
 
         Yields
         ------
-        tuple[int, type, str]
+        tuple[int, TokenType, str]
             Tuples of (index, token_type, value).
         """
         innerlexer = BashLexer(**self.options)
@@ -67,7 +67,7 @@ class VcspullConsoleLexer(Lexer):
 
         pos = 0
         curcode = ""
-        insertions: list[tuple[int, list[tuple[int, type, str]]]] = []
+        insertions = []
         backslash_continuation = False
 
         for match in line_re.finditer(text):
