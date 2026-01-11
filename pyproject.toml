@@ -177,6 +177,7 @@ omit = [
   "*/_*",
   "*/_compat.py",
   "docs/conf.py",
+  "docs/_ext/*",
   "tests/*",
 ]
 
