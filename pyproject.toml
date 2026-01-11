@@ -98,6 +98,8 @@ dev = [
   "ruff",
   "mypy",
   # Annotations
+  "types-docutils",
+  "types-Pygments",
   "types-requests",
   "types-PyYAML",
   "types-colorama"
@@ -136,6 +138,8 @@ lint = [
   "mypy",
 ]
 typings = [
+  "types-docutils",
+  "types-Pygments",
   "types-requests",
   "types-PyYAML",
   "types-colorama"
