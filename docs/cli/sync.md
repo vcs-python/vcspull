@@ -16,7 +16,6 @@ synchronized with remote repositories.
     :func: create_parser
     :prog: vcspull
     :path: sync
-    :nodescription:
 ```
 
 ## Dry run mode
