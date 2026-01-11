@@ -20,7 +20,7 @@ This introspection command helps verify your local workspace matches your config
 
 Check the status of all configured repositories:
 
-```console
+```vcspull-console
 $ vcspull status
 ✗ tiktoken: missing
 ✓ flask: up to date
@@ -39,7 +39,7 @@ The command shows:
 
 Filter repositories using fnmatch-style patterns:
 
-```console
+```vcspull-console
 $ vcspull status 'django*'
 • django → ~/code/django (exists, clean)
 • django-extensions → ~/code/django-extensions (missing)
@@ -55,7 +55,7 @@ $ vcspull status django flask requests
 
 Show additional information with `--detailed` or `-d`:
 
-```console
+```vcspull-console
 $ vcspull status --detailed
 ✓ flask: up to date
   Path: ~/code/flask

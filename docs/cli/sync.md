@@ -22,7 +22,7 @@ synchronized with remote repositories.
 
 Preview what would be synchronized without making changes:
 
-```console
+```vcspull-console
 $ vcspull sync --dry-run '*'
 Would sync flask at ~/code/flask
 Would sync django at ~/code/django
@@ -168,17 +168,17 @@ $ vcspull sync 'django-anymail' 'django-guardian'
 As of 1.13.x, if you enter a repo term (or terms) that aren't found throughout
 your configurations, it will show a warning:
 
-```console
+```vcspull-console
 $ vcspull sync non_existent_repo
 No repo found in config(s) for "non_existent_repo"
 ```
 
-```console
+```vcspull-console
 $ vcspull sync non_existent_repo existing_repo
 No repo found in config(s) for "non_existent_repo"
 ```
 
-```console
+```vcspull-console
 $ vcspull sync non_existent_repo existing_repo another_repo_not_in_config
 No repo found in config(s) for "non_existent_repo"
 No repo found in config(s) for "another_repo_not_in_config"
