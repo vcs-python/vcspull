@@ -136,7 +136,11 @@ def is_base_examples_term(term_text: str) -> bool:
 
 
 def make_section_id(
-    term_text: str, counter: int = 0, *, is_subsection: bool = False
+    term_text: str,
+    counter: int = 0,
+    *,
+    is_subsection: bool = False,
+    page_prefix: str = "",
 ) -> str:
     """Generate a section ID from an examples term.
 
@@ -148,6 +152,9 @@ def make_section_id(
         Counter for uniqueness if multiple examples sections exist.
     is_subsection : bool
         If True, omit "-examples" suffix for cleaner nested IDs.
+    page_prefix : str
+        Optional prefix from the page name (e.g., "sync", "add") to ensure
+        uniqueness across different documentation pages.
 
     Returns
     -------
@@ -158,6 +165,8 @@ def make_section_id(
     --------
     >>> make_section_id("examples:")
     'examples'
+    >>> make_section_id("examples:", page_prefix="sync")
+    'sync-examples'
     >>> make_section_id("Machine-readable output examples:")
     'machine-readable-output-examples'
     >>> make_section_id("Field-scoped examples:", is_subsection=True)
@@ -179,7 +188,8 @@ def make_section_id(
             else:
                 section_id = f"{normalized_prefix}-examples"
         else:
-            section_id = "examples"
+            # Plain "examples" - add page prefix if provided for uniqueness
+            section_id = f"{page_prefix}-examples" if page_prefix else "examples"
     else:
         section_id = "examples"
 
@@ -246,6 +256,7 @@ def _create_example_section(
     def_node: nodes.definition,
     *,
     is_subsection: bool = False,
+    page_prefix: str = "",
 ) -> nodes.section:
     """Create a section node for an examples item.
 
@@ -257,13 +268,17 @@ def _create_example_section(
         The definition node containing example commands.
     is_subsection : bool
         If True, create a subsection with simpler title/id.
+    page_prefix : str
+        Optional prefix from the page name for unique section IDs.
 
     Returns
     -------
     nodes.section
         A section node with title and code blocks.
     """
-    section_id = make_section_id(term_text, is_subsection=is_subsection)
+    section_id = make_section_id(
+        term_text, is_subsection=is_subsection, page_prefix=page_prefix
+    )
     section_title = make_section_title(term_text, is_subsection=is_subsection)
 
     section = nodes.section()
@@ -288,7 +303,9 @@ def _create_example_section(
     return section
 
 
-def transform_definition_list(dl_node: nodes.definition_list) -> list[nodes.Node]:
+def transform_definition_list(
+    dl_node: nodes.definition_list, *, page_prefix: str = ""
+) -> list[nodes.Node]:
     """Transform a definition list, converting examples items to code blocks.
 
     If there's a base "examples:" item followed by category-specific examples
@@ -299,6 +316,8 @@ def transform_definition_list(dl_node: nodes.definition_list) -> list[nodes.Node
     ----------
     dl_node : nodes.definition_list
         A definition list node.
+    page_prefix : str
+        Optional prefix from the page name for unique section IDs.
 
     Returns
     -------
@@ -353,7 +372,7 @@ def transform_definition_list(dl_node: nodes.definition_list) -> list[nodes.Node
         # Create parent "Examples" section
         base_term, base_def = example_items[base_examples_index]
         parent_section = _create_example_section(
-            base_term, base_def, is_subsection=False
+            base_term, base_def, is_subsection=False, page_prefix=page_prefix
         )
 
         # Add other examples as nested subsections
@@ -361,7 +380,7 @@ def transform_definition_list(dl_node: nodes.definition_list) -> list[nodes.Node
             if i == base_examples_index:
                 continue  # Skip the base (already used as parent)
             subsection = _create_example_section(
-                term_text, def_node, is_subsection=True
+                term_text, def_node, is_subsection=True, page_prefix=page_prefix
             )
             parent_section += subsection
 
@@ -369,19 +388,25 @@ def transform_definition_list(dl_node: nodes.definition_list) -> list[nodes.Node
     else:
         # No nesting - create flat sections (backwards compatible)
         for term_text, def_node in example_items:
-            section = _create_example_section(term_text, def_node, is_subsection=False)
+            section = _create_example_section(
+                term_text, def_node, is_subsection=False, page_prefix=page_prefix
+            )
             result_nodes.append(section)
 
     return result_nodes
 
 
-def process_node(node: nodes.Node) -> nodes.Node | list[nodes.Node]:
+def process_node(
+    node: nodes.Node, *, page_prefix: str = ""
+) -> nodes.Node | list[nodes.Node]:
     """Process a node: strip ANSI codes and transform examples.
 
     Parameters
     ----------
     node : nodes.Node
         A docutils node to process.
+    page_prefix : str
+        Optional prefix from the page name for unique section IDs.
 
     Returns
     -------
@@ -411,7 +436,7 @@ def process_node(node: nodes.Node) -> nodes.Node | list[nodes.Node]:
                 break
 
         if has_examples:
-            return transform_definition_list(node)
+            return transform_definition_list(node, page_prefix=page_prefix)
 
     # Handle literal_block nodes - strip ANSI and apply usage highlighting
     if isinstance(node, nodes.literal_block):
@@ -449,7 +474,7 @@ def process_node(node: nodes.Node) -> nodes.Node | list[nodes.Node]:
                 else:
                     processed_children.append(child)
             else:
-                result = process_node(child)
+                result = process_node(child, page_prefix=page_prefix)
                 if isinstance(result, list):
                     processed_children.extend(result)
                     changed = True
@@ -504,7 +529,7 @@ def process_node(node: nodes.Node) -> nodes.Node | list[nodes.Node]:
         new_children: list[nodes.Node] = []
         children_changed = False
         for child in node.children:
-            result = process_node(child)
+            result = process_node(child, page_prefix=page_prefix)
             if isinstance(result, list):
                 new_children.extend(result)
                 children_changed = True
@@ -692,9 +717,18 @@ class CleanArgParseDirective(ArgParseDirective):  # type: ignore[misc]
         """Run the directive, clean output, format examples, and reorder."""
         result = super().run()
 
+        # Extract page name for unique section IDs across different CLI pages
+        page_prefix = ""
+        if hasattr(self.state, "document"):
+            settings = self.state.document.settings
+            if hasattr(settings, "env") and hasattr(settings.env, "docname"):
+                # docname is like "cli/sync" - extract "sync"
+                docname = settings.env.docname
+                page_prefix = docname.split("/")[-1]
+
         processed: list[nodes.Node] = []
         for node in result:
-            processed_node = process_node(node)
+            processed_node = process_node(node, page_prefix=page_prefix)
             if isinstance(processed_node, list):
                 processed.extend(processed_node)
             else:
