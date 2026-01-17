@@ -1,6 +1,6 @@
-"""Enhanced sphinx-argparse output formatting.
+"""Enhanced sphinx_argparse_neo output formatting.
 
-This extension wraps sphinx-argparse's directive to:
+This extension wraps sphinx_argparse_neo's directive to:
 1. Remove ANSI escape codes that may be present when FORCE_COLOR is set
 2. Convert "examples:" definition lists into proper documentation sections
 3. Nest category-specific examples under a parent Examples section
@@ -14,7 +14,7 @@ import re
 import typing as t
 
 from docutils import nodes
-from sphinxarg.ext import ArgParseDirective
+from sphinx_argparse_neo.directive import ArgparseDirective
 
 if t.TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -700,18 +700,8 @@ def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
     )
 
 
-class CleanArgParseDirective(ArgParseDirective):  # type: ignore[misc]
+class CleanArgParseDirective(ArgparseDirective):
     """ArgParse directive that strips ANSI codes and formats examples."""
-
-    def _nested_parse_paragraph(self, text: str) -> nodes.Node:
-        """Parse text as RST, escaping problematic characters first.
-
-        Overrides the parent class to escape asterisks in patterns like
-        ``django-*`` that would otherwise trigger RST emphasis warnings.
-        """
-        escaped_text = escape_rst_emphasis(text)
-        result: nodes.Node = super()._nested_parse_paragraph(escaped_text)
-        return result
 
     def run(self) -> list[nodes.Node]:
         """Run the directive, clean output, format examples, and reorder."""
@@ -751,7 +741,11 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
     dict
         Extension metadata.
     """
-    # Override the default argparse directive
+    # Load the base sphinx_argparse_neo extension first
+
+    app.setup_extension("sphinx_argparse_neo")
+
+    # Override the argparse directive with our enhanced version
     app.add_directive("argparse", CleanArgParseDirective, override=True)
 
     # Register CLI usage lexer for usage block highlighting
@@ -773,4 +767,4 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
 
     app.add_lexer("vcspull-console", VcspullConsoleLexer)
 
-    return {"version": "2.0", "parallel_read_safe": True}
+    return {"version": "3.0", "parallel_read_safe": True}
