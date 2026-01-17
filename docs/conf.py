@@ -153,7 +153,7 @@ ogp_site_name = about["__title__"]
 
 intersphinx_mapping = {
     "py": ("https://docs.python.org/", None),
-    "libvcs": ("http://libvcs.git-pull.com/", None),
+    "libvcs": ("https://libvcs.git-pull.com/", None),
 }
 
 
