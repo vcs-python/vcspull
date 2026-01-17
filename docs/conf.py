@@ -134,7 +134,7 @@ suppress_warnings = [
 
 # sphinx.ext.napoleon
 napoleon_google_docstring = True
-napoleon_include_init_with_doc = True
+napoleon_include_init_with_doc = False
 
 # sphinx-copybutton
 copybutton_prompt_text = (
