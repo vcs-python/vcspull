@@ -79,7 +79,6 @@ dev = [
   "sphinxext-opengraph",
   "sphinx-copybutton",
   "sphinxext-rediraffe",
-  "sphinx-argparse",
   "myst-parser",
   "linkify-it-py",
   # Testing
@@ -115,7 +114,6 @@ docs = [
   "sphinxext-opengraph",
   "sphinx-copybutton",
   "sphinxext-rediraffe",
-  "sphinx-argparse",
   "myst-parser",
   "linkify-it-py",
 ]
