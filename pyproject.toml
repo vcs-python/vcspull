@@ -159,7 +159,8 @@ strict = true
 [[tool.mypy.overrides]]
 module = [
   "shtab",
-  "sphinxarg.*",
+  "sphinx_argparse_neo",
+  "sphinx_argparse_neo.*",
   "cli_usage_lexer",
   "docutils",
   "docutils.*",
