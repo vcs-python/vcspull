@@ -123,6 +123,7 @@ autodoc_default_options = {
 autodoc_typehints = "description"
 # Don't show class signature with the class' name.
 autodoc_class_signature = "separated"
+autodoc_preserve_defaults = True
 
 # sphinx-autodoc-typehints
 # Suppress warnings for forward references that can't be resolved
