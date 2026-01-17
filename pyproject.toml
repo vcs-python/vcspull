@@ -70,7 +70,7 @@ vcspull = "vcspull:cli.cli"
 [dependency-groups]
 dev = [
   # Docs
-  "sphinx",
+  "sphinx<9",
   "furo",
   "gp-libs",
   "sphinx-autobuild",
@@ -104,7 +104,7 @@ dev = [
 ]
 
 docs = [
-  "sphinx",
+  "sphinx<9",
   "furo",
   "gp-libs",
   "sphinx-autobuild",
