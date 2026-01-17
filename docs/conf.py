@@ -156,6 +156,7 @@ intersphinx_mapping = {
     "py": ("https://docs.python.org/", None),
     "libvcs": ("https://libvcs.git-pull.com/", None),
 }
+intersphinx_cache_limit = 5  # Cache inventories for 5 days
 
 
 def linkcode_resolve(domain: str, info: dict[str, str]) -> None | str:
