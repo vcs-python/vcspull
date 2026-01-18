@@ -93,8 +93,8 @@ class ArgparseUsageLexer(RegexLexer):
             (r"\|", Operator),
             # UPPERCASE meta-variables (COMMAND, FILE, PATH)
             (r"\b[A-Z][A-Z0-9_]*\b", Name.Variable),
-            # Subcommand/positional names (green, not purple like program name)
-            (r"\b[a-z][-a-z0-9]*\b", Name.Constant),
+            # Subcommand/positional names (Name.Function for distinct styling)
+            (r"\b[a-z][-a-z0-9]*\b", Name.Function),
             # Catch-all for any other text
             (r"[^\s\[\]|(){},]+", Text),
         ],
@@ -258,8 +258,8 @@ class ArgparseHelpLexer(RegexLexer):
             (r"\|", Operator),
             # UPPERCASE metavars
             (r"\b[A-Z][A-Z0-9_]*\b", Name.Variable),
-            # Subcommand/positional names (green, after program name seen)
-            (r"\b[a-z][-a-z0-9]*\b", Name.Constant),
+            # Subcommand/positional names (Name.Function for distinct styling)
+            (r"\b[a-z][-a-z0-9]*\b", Name.Function),
             # Other text
             (r"[^\s\[\]|(){},\n]+", Text),
         ],

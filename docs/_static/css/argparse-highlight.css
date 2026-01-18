@@ -141,7 +141,15 @@
     font-weight: bold;
 }
 
-/* Choice values and subcommands - green */
+/* Subcommands - bold green */
+.highlight-argparse .nf,
+.highlight-argparse-usage .nf,
+.highlight-argparse-help .nf {
+    color: #98C379;
+    font-weight: bold;
+}
+
+/* Choice values - green */
 .highlight-argparse .no,
 .highlight-argparse-usage .no,
 .highlight-argparse-help .no,
@@ -206,6 +214,11 @@
 
 .argparse-usage .nl {
     color: #C678DD;
+    font-weight: bold;
+}
+
+.argparse-usage .nf {
+    color: #98C379;
     font-weight: bold;
 }
 
