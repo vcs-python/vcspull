@@ -142,7 +142,7 @@ class ArgparseRenderer:
         - section#options (h3)
 
         The "examples:" definition list in descriptions is left for
-        pretty_argparse.py to transform into a proper Examples section.
+        argparse_exemplar.py to transform into a proper Examples section.
         """
         result: list[nodes.Node] = []
 
@@ -151,7 +151,7 @@ class ArgparseRenderer:
         program_node["prog"] = parser_info.prog
 
         # Add description (may contain "examples:" definition list for later
-        # transformation by pretty_argparse.py)
+        # transformation by argparse_exemplar.py)
         if parser_info.description:
             desc_nodes = self._parse_text(parser_info.description)
             program_node.extend(desc_nodes)
