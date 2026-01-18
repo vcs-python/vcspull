@@ -13,6 +13,172 @@ from docutils import nodes
 if t.TYPE_CHECKING:
     from sphinx.writers.html5 import HTML5Translator
 
+# Import the lexer - use absolute import from parent package
+import sys
+from pathlib import Path
+
+# Add parent directory to path for lexer import
+_ext_dir = Path(__file__).parent.parent
+if str(_ext_dir) not in sys.path:
+    sys.path.insert(0, str(_ext_dir))
+
+from argparse_lexer import ArgparseUsageLexer  # noqa: E402
+
+
+def _token_to_css_class(token_type: t.Any) -> str:
+    """Map a Pygments token type to its CSS class abbreviation.
+
+    Pygments uses hierarchical token names like Token.Name.Attribute.
+    These map to CSS classes using abbreviations of the last two parts:
+    - Token.Name.Attribute → 'na' (Name.Attribute)
+    - Token.Generic.Heading → 'gh' (Generic.Heading)
+    - Token.Punctuation → 'p' (just Punctuation)
+
+    Parameters
+    ----------
+    token_type : Any
+        A Pygments token type (from pygments.token).
+
+    Returns
+    -------
+    str
+        CSS class abbreviation, or empty string if not mappable.
+
+    Examples
+    --------
+    >>> from pygments.token import Token
+    >>> _token_to_css_class(Token.Name.Attribute)
+    'na'
+    >>> _token_to_css_class(Token.Generic.Heading)
+    'gh'
+    >>> _token_to_css_class(Token.Punctuation)
+    'p'
+    >>> _token_to_css_class(Token.Text.Whitespace)
+    'tw'
+    """
+    type_str = str(token_type)
+    # Token string looks like "Token.Name.Attribute" or "Token.Punctuation"
+    parts = type_str.split(".")
+
+    if len(parts) >= 3:
+        # Token.Name.Attribute -> "na" (first char of each of last two parts)
+        return parts[-2][0].lower() + parts[-1][0].lower()
+    elif len(parts) == 2:
+        # Token.Punctuation -> "p" (first char of last part)
+        return parts[-1][0].lower()
+    return ""
+
+
+def _highlight_usage(usage_text: str, encode: t.Callable[[str], str]) -> str:
+    """Tokenize usage text and wrap tokens in highlighted span elements.
+
+    Uses ArgparseUsageLexer to tokenize the usage string, then wraps each
+    token in a <span> with the appropriate CSS class for styling.
+
+    Parameters
+    ----------
+    usage_text : str
+        The usage string to highlight (should include "usage: " prefix).
+    encode : Callable[[str], str]
+        HTML encoding function (typically translator.encode).
+
+    Returns
+    -------
+    str
+        HTML string with tokens wrapped in styled <span> elements.
+
+    Examples
+    --------
+    >>> def mock_encode(s: str) -> str:
+    ...     return s.replace("&", "&amp;").replace("<", "&lt;")
+    >>> html = _highlight_usage("usage: cmd [-h]", mock_encode)
+    >>> '<span class="gh">usage:</span>' in html
+    True
+    >>> '<span class="nl">cmd</span>' in html
+    True
+    >>> '<span class="na">-h</span>' in html
+    True
+    """
+    lexer = ArgparseUsageLexer()
+    parts: list[str] = []
+
+    for tok_type, tok_value in lexer.get_tokens(usage_text):
+        if not tok_value:
+            continue
+
+        css_class = _token_to_css_class(tok_type)
+        escaped = encode(tok_value)
+        type_str = str(tok_type).lower()
+
+        # Skip wrapping for whitespace and plain text tokens
+        if css_class and "whitespace" not in type_str and "text" not in type_str:
+            parts.append(f'<span class="{css_class}">{escaped}</span>')
+        else:
+            parts.append(escaped)
+
+    return "".join(parts)
+
+
+def _highlight_argument_names(
+    names: list[str], metavar: str | None, encode: t.Callable[[str], str]
+) -> str:
+    """Highlight argument names and metavar with appropriate CSS classes.
+
+    Short options (-h) get class 'na' (Name.Attribute).
+    Long options (--help) get class 'nt' (Name.Tag).
+    Positional arguments get class 'nl' (Name.Label).
+    Metavars get class 'nv' (Name.Variable).
+
+    Parameters
+    ----------
+    names : list[str]
+        List of argument names (e.g., ["-v", "--verbose"]).
+    metavar : str | None
+        Optional metavar (e.g., "FILE", "PATH").
+    encode : Callable[[str], str]
+        HTML encoding function.
+
+    Returns
+    -------
+    str
+        HTML string with highlighted argument signature.
+
+    Examples
+    --------
+    >>> def mock_encode(s: str) -> str:
+    ...     return s
+    >>> html = _highlight_argument_names(["-h", "--help"], None, mock_encode)
+    >>> '<span class="na">-h</span>' in html
+    True
+    >>> '<span class="nt">--help</span>' in html
+    True
+    >>> html = _highlight_argument_names(["--output"], "FILE", mock_encode)
+    >>> '<span class="nv">FILE</span>' in html
+    True
+    >>> html = _highlight_argument_names(["sync"], None, mock_encode)
+    >>> '<span class="nl">sync</span>' in html
+    True
+    """
+    sig_parts: list[str] = []
+
+    for name in names:
+        escaped = encode(name)
+        if name.startswith("--"):
+            sig_parts.append(f'<span class="nt">{escaped}</span>')
+        elif name.startswith("-"):
+            sig_parts.append(f'<span class="na">{escaped}</span>')
+        else:
+            # Positional argument or subcommand
+            sig_parts.append(f'<span class="nl">{escaped}</span>')
+
+    result = ", ".join(sig_parts)
+
+    if metavar:
+        escaped_metavar = encode(metavar)
+        result = f'{result} <span class="nv">{escaped_metavar}</span>'
+
+    return result
+
 
 class argparse_program(nodes.General, nodes.Element):
     """Root node for an argparse program documentation block.
@@ -168,7 +334,11 @@ def depart_argparse_program_html(self: HTML5Translator, node: argparse_program) 
 
 
 def visit_argparse_usage_html(self: HTML5Translator, node: argparse_usage) -> None:
-    """Visit argparse_usage node - render usage block.
+    """Visit argparse_usage node - render usage block with syntax highlighting.
+
+    The usage text is tokenized using ArgparseUsageLexer and wrapped in
+    styled <span> elements for semantic highlighting of options, metavars,
+    commands, and punctuation.
 
     Parameters
     ----------
@@ -178,8 +348,11 @@ def visit_argparse_usage_html(self: HTML5Translator, node: argparse_usage) -> No
         The usage node being visited.
     """
     usage = node.get("usage", "")
-    self.body.append('<pre class="argparse-usage">')
-    self.body.append(f"usage: {self.encode(usage)}")
+    # Add both argparse-usage class and highlight class for CSS targeting
+    self.body.append('<pre class="argparse-usage highlight-argparse-usage">')
+    # Prepend "usage: " and highlight the full usage string
+    highlighted = _highlight_usage(f"usage: {usage}", self.encode)
+    self.body.append(highlighted)
 
 
 def depart_argparse_usage_html(self: HTML5Translator, node: argparse_usage) -> None:
@@ -235,7 +408,13 @@ def depart_argparse_group_html(self: HTML5Translator, node: argparse_group) -> N
 def visit_argparse_argument_html(
     self: HTML5Translator, node: argparse_argument
 ) -> None:
-    """Visit argparse_argument node - render argument entry.
+    """Visit argparse_argument node - render argument entry with highlighting.
+
+    Argument names are highlighted with semantic CSS classes:
+    - Short options (-h) get class 'na' (Name.Attribute)
+    - Long options (--help) get class 'nt' (Name.Tag)
+    - Positional arguments get class 'nl' (Name.Label)
+    - Metavars get class 'nv' (Name.Variable)
 
     Parameters
     ----------
@@ -245,17 +424,12 @@ def visit_argparse_argument_html(
         The argument node being visited.
     """
     names = node.get("names", [])
-    names_str = ", ".join(names)
     metavar = node.get("metavar")
 
-    # Build the argument signature
-    signature = names_str
-    if metavar:
-        signature = f"{names_str} {metavar}"
+    # Build the argument signature with syntax highlighting
+    highlighted_sig = _highlight_argument_names(names, metavar, self.encode)
 
-    self.body.append(
-        f'<dt class="argparse-argument-name">{self.encode(signature)}</dt>\n'
-    )
+    self.body.append(f'<dt class="argparse-argument-name">{highlighted_sig}</dt>\n')
     self.body.append('<dd class="argparse-argument-help">')
 
     # Add help text
