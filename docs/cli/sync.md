@@ -16,14 +16,13 @@ synchronized with remote repositories.
     :func: create_parser
     :prog: vcspull
     :path: sync
-    :nodescription:
 ```
 
 ## Dry run mode
 
 Preview what would be synchronized without making changes:
 
-```console
+```vcspull-console
 $ vcspull sync --dry-run '*'
 Would sync flask at ~/code/flask
 Would sync django at ~/code/django
@@ -110,10 +109,15 @@ This syncs only repositories in the specified workspace root,  useful for:
 - Multi-workspace setups
 - Targeted sync operations
 
-All three flag names work identically:
+All three flag names work identically. Using `--workspace`:
 
 ```console
 $ vcspull sync --workspace ~/code/ '*'
+```
+
+Or using `--workspace-root`:
+
+```console
 $ vcspull sync --workspace-root ~/code/ '*'
 ```
 
@@ -169,17 +173,17 @@ $ vcspull sync 'django-anymail' 'django-guardian'
 As of 1.13.x, if you enter a repo term (or terms) that aren't found throughout
 your configurations, it will show a warning:
 
-```console
+```vcspull-console
 $ vcspull sync non_existent_repo
 No repo found in config(s) for "non_existent_repo"
 ```
 
-```console
+```vcspull-console
 $ vcspull sync non_existent_repo existing_repo
 No repo found in config(s) for "non_existent_repo"
 ```
 
-```console
+```vcspull-console
 $ vcspull sync non_existent_repo existing_repo another_repo_not_in_config
 No repo found in config(s) for "non_existent_repo"
 No repo found in config(s) for "another_repo_not_in_config"

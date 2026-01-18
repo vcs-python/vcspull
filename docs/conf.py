@@ -34,7 +34,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.napoleon",
     "sphinx.ext.linkcode",
-    "sphinxarg.ext",  # sphinx-argparse
+    "argparse_exemplar",  # Transforms argparse epilog examples into doc sections
     "sphinx_inline_tabs",
     "sphinx_copybutton",
     "sphinxext.opengraph",
@@ -123,6 +123,7 @@ autodoc_default_options = {
 autodoc_typehints = "description"
 # Don't show class signature with the class' name.
 autodoc_class_signature = "separated"
+autodoc_preserve_defaults = True
 
 # sphinx-autodoc-typehints
 # Suppress warnings for forward references that can't be resolved
@@ -133,7 +134,7 @@ suppress_warnings = [
 
 # sphinx.ext.napoleon
 napoleon_google_docstring = True
-napoleon_include_init_with_doc = True
+napoleon_include_init_with_doc = False
 
 # sphinx-copybutton
 copybutton_prompt_text = (
@@ -153,7 +154,7 @@ ogp_site_name = about["__title__"]
 
 intersphinx_mapping = {
     "py": ("https://docs.python.org/", None),
-    "libvcs": ("http://libvcs.git-pull.com/", None),
+    "libvcs": ("https://libvcs.git-pull.com/", None),
 }
 
 
@@ -237,3 +238,18 @@ def remove_tabs_js(app: Sphinx, exc: Exception) -> None:
 def setup(app: Sphinx) -> None:
     """Sphinx setup hook."""
     app.connect("build-finished", remove_tabs_js)
+
+    # Register vcspull-specific lexers
+    # These are project-specific and not part of the generic argparse_exemplar extension
+    from vcspull_console_lexer import (  # type: ignore[import-not-found]
+        VcspullConsoleLexer,
+    )
+    from vcspull_output_lexer import (  # type: ignore[import-not-found]
+        VcspullOutputLexer,
+    )
+
+    app.add_lexer("vcspull-output", VcspullOutputLexer)
+    app.add_lexer("vcspull-console", VcspullConsoleLexer)
+
+    # Add CSS file for argparse highlighting styles
+    app.add_css_file("css/argparse-highlight.css")

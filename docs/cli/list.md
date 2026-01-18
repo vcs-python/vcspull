@@ -14,14 +14,13 @@ filter repositories by patterns, and export structured data for automation.
     :func: create_parser
     :prog: vcspull
     :path: list
-    :nodescription:
 ```
 
 ## Basic usage
 
 List all configured repositories:
 
-```console
+```vcspull-console
 $ vcspull list
 • tiktoken → ~/study/ai/tiktoken
 • GeographicLib → ~/study/c++/GeographicLib
@@ -32,7 +31,7 @@ $ vcspull list
 
 Filter repositories using fnmatch-style patterns:
 
-```console
+```vcspull-console
 $ vcspull list 'flask*'
 • flask → ~/code/flask
 • flask-sqlalchemy → ~/code/flask-sqlalchemy
@@ -48,7 +47,7 @@ $ vcspull list django flask
 
 Group repositories by workspace root with `--tree`:
 
-```console
+```vcspull-console
 $ vcspull list --tree
 
 ~/study/ai/
@@ -132,7 +131,7 @@ $ vcspull list -f ~/projects/.vcspull.yaml
 
 Filter repositories by workspace root with `-w/--workspace/--workspace-root`:
 
-```console
+```vcspull-console
 $ vcspull list -w ~/code/
 • flask → ~/code/flask
 • requests → ~/code/requests

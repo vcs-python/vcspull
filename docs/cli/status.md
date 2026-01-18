@@ -14,14 +14,13 @@ This introspection command helps verify your local workspace matches your config
     :func: create_parser
     :prog: vcspull
     :path: status
-    :nodescription:
 ```
 
 ## Basic usage
 
 Check the status of all configured repositories:
 
-```console
+```vcspull-console
 $ vcspull status
 ✗ tiktoken: missing
 ✓ flask: up to date
@@ -40,7 +39,7 @@ The command shows:
 
 Filter repositories using fnmatch-style patterns:
 
-```console
+```vcspull-console
 $ vcspull status 'django*'
 • django → ~/code/django (exists, clean)
 • django-extensions → ~/code/django-extensions (missing)
@@ -56,7 +55,7 @@ $ vcspull status django flask requests
 
 Show additional information with `--detailed` or `-d`:
 
-```console
+```vcspull-console
 $ vcspull status --detailed
 ✓ flask: up to date
   Path: ~/code/flask
@@ -127,10 +126,15 @@ Each status entry includes:
 - `branch`: Current branch (when detailed information is available)
 - `ahead`, `behind`: Divergence counts relative to the upstream branch
 
-Filter with [jq]:
+Filter with [jq] to find missing repositories:
 
 ```console
 $ vcspull status --json | jq '.[] | select(.reason == "status" and .exists == false)'
+```
+
+Or extract just the summary:
+
+```console
 $ vcspull status --json | jq '.[] | select(.reason == "summary")'
 ```
 

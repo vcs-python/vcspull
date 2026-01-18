@@ -20,14 +20,13 @@ For bulk scanning of existing repositories, see {ref}`cli-discover`.
     :func: create_parser
     :prog: vcspull
     :path: add
-    :nodescription:
 ```
 
 ## Basic usage
 
 Point to an existing checkout to add it under its parent workspace:
 
-```console
+```vcspull-console
 $ vcspull add ~/study/python/pytest-docker
 Found new repository to import:
   + pytest-docker (https://github.com/avast/pytest-docker)

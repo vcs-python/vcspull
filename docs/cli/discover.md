@@ -14,14 +14,13 @@ workspaces or migrating from other tools.
     :func: create_parser
     :prog: vcspull
     :path: discover
-    :nodescription:
 ```
 
 ## Basic usage
 
 Scan a directory for Git repositories:
 
-```console
+```vcspull-console
 $ vcspull discover ~/code
 Found 2 repositories in ~/code
 
@@ -67,7 +66,7 @@ This scans all subdirectories for Git repositories, making it ideal for:
 
 Skip prompts and add all repositories with `--yes` or `-y`:
 
-```console
+```vcspull-console
 $ vcspull discover ~/code --recursive --yes
 Found 15 repositories in ~/code
 Added 15 repositories to ~/.vcspull.yaml
@@ -88,7 +87,7 @@ $ vcspull discover ~/code --dry-run
 
 Output shows:
 
-```console
+```vcspull-output
 Would add: vcspull (~/code/)
   Remote: git+https://github.com/vcs-python/vcspull.git
 
@@ -149,7 +148,7 @@ For each repository found:
 
 Repositories without an `origin` remote are detected but logged as a warning:
 
-```console
+```vcspull-console
 $ vcspull discover ~/code
 WARNING: Could not determine remote URL for ~/code/local-project (no origin remote)
 Skipping local-project
@@ -211,7 +210,7 @@ After discovering repositories, consider:
 
 If a repository already exists in your configuration, vcspull will detect it:
 
-```console
+```vcspull-console
 Repository: flask
   Path: ~/code/flask
   Remote: git+https://github.com/pallets/flask.git
@@ -243,15 +242,29 @@ Changes:
 
 **Initial workspace setup:**
 
+Discover all repositories:
+
 ```console
 $ vcspull discover ~/code --recursive --yes
+```
+
+Then format and sort the configuration:
+
+```console
 $ vcspull fmt --write
 ```
 
 **Migrate from another tool:**
 
+Preview what would be discovered:
+
 ```console
 $ vcspull discover ~/projects --recursive --dry-run
+```
+
+Then apply the changes:
+
+```console
 $ vcspull discover ~/projects --recursive --yes
 ```
 

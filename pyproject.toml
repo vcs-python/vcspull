@@ -79,7 +79,6 @@ dev = [
   "sphinxext-opengraph",
   "sphinx-copybutton",
   "sphinxext-rediraffe",
-  "sphinx-argparse",
   "myst-parser",
   "linkify-it-py",
   # Testing
@@ -98,6 +97,8 @@ dev = [
   "ruff",
   "mypy",
   # Annotations
+  "types-docutils",
+  "types-Pygments",
   "types-requests",
   "types-PyYAML",
   "types-colorama"
@@ -113,7 +114,6 @@ docs = [
   "sphinxext-opengraph",
   "sphinx-copybutton",
   "sphinxext-rediraffe",
-  "sphinx-argparse",
   "myst-parser",
   "linkify-it-py",
 ]
@@ -136,6 +136,8 @@ lint = [
   "mypy",
 ]
 typings = [
+  "types-docutils",
+  "types-Pygments",
   "types-requests",
   "types-PyYAML",
   "types-colorama"
@@ -157,6 +159,15 @@ strict = true
 [[tool.mypy.overrides]]
 module = [
   "shtab",
+  "sphinx_argparse_neo",
+  "sphinx_argparse_neo.*",
+  "cli_usage_lexer",
+  "argparse_lexer",
+  "argparse_roles",
+  "docutils",
+  "docutils.*",
+  "pygments",
+  "pygments.*",
 ]
 ignore_missing_imports = true
 
@@ -167,6 +178,7 @@ omit = [
   "*/_*",
   "*/_compat.py",
   "docs/conf.py",
+  "docs/_ext/*",
   "tests/*",
 ]
 
@@ -239,13 +251,14 @@ required-imports = [
 "*/__init__.py" = ["F401"]
 
 [tool.pytest.ini_options]
-addopts = "--tb=short --no-header --showlocals"
+addopts = "--tb=short --no-header --showlocals --doctest-modules"
+doctest_optionflags = "ELLIPSIS NORMALIZE_WHITESPACE"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = [
   "src/vcspull",
   "tests",
-  "docs",
+  "docs/_ext",
 ]
 filterwarnings = [
   "ignore:The frontend.Option(Parser)? class.*:DeprecationWarning::",
