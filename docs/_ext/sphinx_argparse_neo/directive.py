@@ -79,7 +79,6 @@ class ArgparseDirective(SphinxDirective):
         # sphinx-argparse compatibility options
         "nosubcommands": directives.flag,
         "nodefault": directives.flag,
-        "nodefaultconst": directives.flag,
         "noepilog": directives.flag,
         "nodescription": directives.flag,
     }
