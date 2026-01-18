@@ -180,7 +180,7 @@ def test_render_groups_contain_arguments(
     ]
 
     # Collect all arguments from groups inside sections
-    all_args = []
+    all_args: list[argparse_argument] = []
     for section in group_sections:
         for child in section.children:
             if isinstance(child, argparse_group):
@@ -220,7 +220,7 @@ def test_render_with_subcommands(
 def _collect_args_from_rendered_nodes(
     rendered_nodes: list[nodes.Node],
 ) -> list[argparse_argument]:
-    """Helper to collect all argparse_argument nodes from rendered output."""
+    """Collect all argparse_argument nodes from rendered output."""
     all_args: list[argparse_argument] = []
     for node in rendered_nodes:
         if isinstance(node, nodes.section):
