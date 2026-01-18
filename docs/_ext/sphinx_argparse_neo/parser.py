@@ -323,7 +323,7 @@ def _extract_argument(action: argparse.Action) -> ArgumentInfo:
     required = action.required if hasattr(action, "required") else False
     # Positional arguments are required by default (unless nargs makes them optional)
     if not action.option_strings:
-        required = action.nargs not in ("?", "*")
+        required = action.nargs not in ("?", "*", argparse.REMAINDER)
 
     # Format metavar
     metavar = action.metavar
