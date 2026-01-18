@@ -22,12 +22,12 @@ Format your argparse epilog with definition lists where terms end with "examples
     parser = argparse.ArgumentParser(
         epilog=textwrap.dedent('''
             examples:
-                vcspull sync
-                vcspull sync myrepo
+                myapp sync
+                myapp sync myrepo
 
             Machine-readable output examples:
-                vcspull sync --json
-                vcspull sync -F json myrepo
+                myapp sync --json
+                myapp sync -F json myrepo
         '''),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -836,7 +836,7 @@ def _is_usage_block(node: nodes.Node, *, config: ExemplarConfig | None = None) -
     >>> from docutils import nodes
     >>> _is_usage_block(nodes.literal_block(text="usage: cmd [-h]"))
     True
-    >>> _is_usage_block(nodes.literal_block(text="Usage: vcspull sync"))
+    >>> _is_usage_block(nodes.literal_block(text="Usage: myapp sync"))
     True
     >>> _is_usage_block(nodes.literal_block(text="  usage: cmd"))
     True

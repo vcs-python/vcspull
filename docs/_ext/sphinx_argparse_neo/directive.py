@@ -60,11 +60,11 @@ class ArgparseDirective(SphinxDirective):
     In RST documentation::
 
         .. argparse::
-           :module: vcspull.cli
+           :module: myapp.cli
            :func: create_parser
-           :prog: vcspull
+           :prog: myapp
 
-           :path: sync
+           :path: subcommand
            :use-rubric:
     """
 

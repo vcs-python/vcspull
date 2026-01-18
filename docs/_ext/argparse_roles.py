@@ -221,7 +221,7 @@ def cli_command_role(
     'sync'
 
     >>> node_list, messages = cli_command_role(
-    ...     "cli-command", ":cli-command:`vcspull`", "vcspull",
+    ...     "cli-command", ":cli-command:`myapp`", "myapp",
     ...     1, None
     ... )
     >>> "cli-command" in node_list[0]["classes"]
