@@ -151,3 +151,84 @@
 .highlight-argparse-help .p {
     color: var(--color-foreground-muted);
 }
+
+/* ==========================================================================
+   Argparse Directive Highlighting (.. argparse:: output)
+   ========================================================================== */
+
+/*
+ * These styles apply to the argparse directive output which uses custom
+ * nodes rendered by sphinx_argparse_neo. The directive adds highlight spans
+ * directly to the HTML output.
+ */
+
+/*
+ * Usage Block (.argparse-usage)
+ *
+ * The usage block now has both .argparse-usage and .highlight-argparse-usage
+ * classes. The .highlight-argparse-usage selectors above already handle the
+ * token highlighting. These selectors provide fallback and ensure consistent
+ * styling.
+ */
+.argparse-usage .gh {
+    color: var(--color-foreground-secondary);
+    font-weight: bold;
+}
+
+.argparse-usage .nt {
+    color: var(--color-link);
+    font-weight: bold;
+}
+
+.argparse-usage .na {
+    color: var(--color-inline-code-text);
+    font-weight: bold;
+}
+
+.argparse-usage .nv {
+    color: var(--color-foreground-secondary);
+    font-style: italic;
+}
+
+.argparse-usage .nl {
+    color: var(--color-brand-primary);
+}
+
+.argparse-usage .no {
+    color: var(--color-problematic);
+}
+
+.argparse-usage .o {
+    color: var(--color-foreground-muted);
+    font-weight: bold;
+}
+
+.argparse-usage .p {
+    color: var(--color-foreground-muted);
+}
+
+/*
+ * Argument Name (<dt class="argparse-argument-name">)
+ *
+ * The argument names in the dl/dt structure are highlighted with
+ * semantic spans for options and metavars.
+ */
+.argparse-argument-name .nt {
+    color: var(--color-link);
+    font-weight: bold;
+}
+
+.argparse-argument-name .na {
+    color: var(--color-inline-code-text);
+    font-weight: bold;
+}
+
+.argparse-argument-name .nv {
+    color: var(--color-foreground-secondary);
+    font-style: italic;
+}
+
+.argparse-argument-name .nl {
+    color: var(--color-brand-primary);
+    font-weight: 600;
+}
