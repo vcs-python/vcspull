@@ -6,7 +6,7 @@ A Sphinx extension for documenting argparse-based CLI tools that:
 - Provides configurable output (rubrics vs sections, flattened subcommands)
 - Supports extensibility via renderer classes
 - Optional MyST markdown support in help text
-- Text processing utilities (ANSI stripping, RST emphasis escaping)
+- Text processing utilities (ANSI stripping)
 """
 
 from __future__ import annotations
@@ -34,11 +34,10 @@ from sphinx_argparse_neo.nodes import (
     visit_argparse_subcommands_html,
     visit_argparse_usage_html,
 )
-from sphinx_argparse_neo.utils import escape_rst_emphasis, strip_ansi
+from sphinx_argparse_neo.utils import strip_ansi
 
 __all__ = [
     "ArgparseDirective",
-    "escape_rst_emphasis",
     "strip_ansi",
 ]
 
@@ -75,10 +74,6 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
     app.add_config_value("argparse_hide_suppressed", True, "html")
     app.add_config_value("argparse_help_format", "rst", "html")
     app.add_config_value("argparse_usage_style", "literal", "html")
-
-    # Text processing options (for handling argparse output quirks)
-    app.add_config_value("argparse_strip_ansi", True, "html")
-    app.add_config_value("argparse_escape_rst_emphasis", True, "html")
 
     # Register custom nodes
     app.add_node(

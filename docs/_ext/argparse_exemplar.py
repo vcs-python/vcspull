@@ -49,14 +49,6 @@ Configuration
 -------------
 Configure via conf.py. All options have sensible defaults.
 
-**Inherited from sphinx_argparse_neo:**
-
-``argparse_strip_ansi`` : bool (default: True)
-    Remove ANSI escape codes from argparse output.
-
-``argparse_escape_rst_emphasis`` : bool (default: True)
-    Escape asterisks that would trigger RST warnings (e.g., "django-*").
-
 **Term Detection:**
 
 ``argparse_examples_term_suffix`` : str (default: "examples")
@@ -117,7 +109,7 @@ import typing as t
 
 from docutils import nodes
 from sphinx_argparse_neo.directive import ArgparseDirective
-from sphinx_argparse_neo.utils import escape_rst_emphasis, strip_ansi
+from sphinx_argparse_neo.utils import strip_ansi
 
 if t.TYPE_CHECKING:
     import sphinx.config
@@ -257,7 +249,6 @@ class ExemplarConfig:
 __all__ = [
     "CleanArgParseDirective",
     "ExemplarConfig",
-    "escape_rst_emphasis",
     "is_base_examples_term",
     "is_examples_term",
     "make_section_id",

@@ -241,8 +241,12 @@ def setup(app: Sphinx) -> None:
 
     # Register vcspull-specific lexers
     # These are project-specific and not part of the generic argparse_exemplar extension
-    from vcspull_console_lexer import VcspullConsoleLexer  # type: ignore[import-not-found]
-    from vcspull_output_lexer import VcspullOutputLexer  # type: ignore[import-not-found]
+    from vcspull_console_lexer import (  # type: ignore[import-not-found]
+        VcspullConsoleLexer,
+    )
+    from vcspull_output_lexer import (  # type: ignore[import-not-found]
+        VcspullOutputLexer,
+    )
 
     app.add_lexer("vcspull-output", VcspullOutputLexer)
     app.add_lexer("vcspull-console", VcspullConsoleLexer)
