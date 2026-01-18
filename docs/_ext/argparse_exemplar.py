@@ -572,6 +572,18 @@ def transform_definition_list(
     -------
     list[nodes.Node]
         Transformed nodes - code blocks for examples, original for others.
+
+    Note
+    ----
+    **Intentional reordering behavior:** This function always emits non-example
+    items (preamble text, descriptions, etc.) before example sections, regardless
+    of their original position in the definition list. This "flush first" approach
+    groups conceptually related content: introductory material appears before
+    examples, even if the source document interleaves them. This produces cleaner
+    documentation structure where descriptions introduce their examples.
+
+    If you need to preserve the original interleaved order, you would need to
+    modify this function to track item positions during the first pass.
     """
     config = config or ExemplarConfig()
 
@@ -609,7 +621,7 @@ def transform_definition_list(
     # Build result nodes
     result_nodes: list[nodes.Node] = []
 
-    # Flush non-example items first (if any appeared before examples)
+    # Emit non-example items first (see docstring Note on reordering behavior)
     if non_example_items:
         new_dl = nodes.definition_list()
         new_dl.extend(non_example_items)
