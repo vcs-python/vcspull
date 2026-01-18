@@ -2,7 +2,17 @@
  * Argparse/CLI Highlighting Styles
  *
  * Styles for CLI inline roles and argparse help output highlighting.
- * Uses Furo CSS variables for automatic light/dark theme compatibility.
+ * Uses "One Dark" inspired color palette (Python 3.14 argparse style).
+ *
+ * Color Palette:
+ *   Background:    #282C34
+ *   Default text:  #CCCED4
+ *   Usage label:   #61AFEF (bold)
+ *   Program name:  #C678DD (bold)
+ *   Options:       #56B6C2 (teal)
+ *   Metavars:      #CCCED4 (italic)
+ *   Choices:       #98C379 (green)
+ *   Punctuation:   #CCCED4
  */
 
 /* ==========================================================================
@@ -12,30 +22,29 @@
 /*
  * CLI Options
  *
- * Long options (--verbose) and short options (-h) have distinct styling.
+ * Long options (--verbose) and short options (-h) both use teal color.
  */
 .cli-option {
     font-family: var(--font-stack--monospace);
-    font-weight: 600;
 }
 
 .cli-option-long {
-    color: var(--color-link);
+    color: #56B6C2;
 }
 
 .cli-option-short {
-    color: var(--color-inline-code-text);
+    color: #56B6C2;
 }
 
 /*
  * CLI Metavars
  *
  * Placeholder values like FILE, PATH, DIRECTORY.
- * Styled with italic and muted color to indicate "replace me".
+ * Styled with italic and neutral color to indicate "replace me".
  */
 .cli-metavar {
     font-family: var(--font-stack--monospace);
-    color: var(--color-foreground-secondary);
+    color: #CCCED4;
     font-style: italic;
 }
 
@@ -43,12 +52,12 @@
  * CLI Commands
  *
  * Subcommand names like sync, add, list.
- * Uses brand color for emphasis.
+ * Uses purple for emphasis.
  */
 .cli-command {
     font-family: var(--font-stack--monospace);
-    color: var(--color-brand-primary);
-    font-weight: 600;
+    color: #C678DD;
+    font-weight: bold;
 }
 
 /*
@@ -59,7 +68,7 @@
  */
 .cli-default {
     font-family: var(--font-stack--monospace);
-    color: var(--color-foreground-muted);
+    color: #CCCED4;
     font-style: italic;
 }
 
@@ -67,11 +76,11 @@
  * CLI Choice Values
  *
  * Choice enumeration values like json, yaml, table.
- * Distinct color to show they are valid literal values.
+ * Green color to show they are valid literal values.
  */
 .cli-choice {
     font-family: var(--font-stack--monospace);
-    color: var(--color-problematic);
+    color: #98C379;
 }
 
 /* ==========================================================================
@@ -83,73 +92,74 @@
  * argparse, argparse-usage, or argparse-help lexers.
  */
 
-/* Usage heading "usage:" */
+/* Usage heading "usage:" - bold blue */
 .highlight-argparse .gh,
 .highlight-argparse-usage .gh,
 .highlight-argparse-help .gh {
-    color: var(--color-foreground-secondary);
+    color: #61AFEF;
     font-weight: bold;
 }
 
 /* Section headers like "positional arguments:", "options:" */
 .highlight-argparse .gs,
 .highlight-argparse-help .gs {
-    color: var(--color-foreground-secondary);
+    color: #61AFEF;
     font-weight: bold;
     text-decoration: underline;
 }
 
-/* Long options --foo */
+/* Long options --foo - teal */
 .highlight-argparse .nt,
 .highlight-argparse-usage .nt,
 .highlight-argparse-help .nt {
-    color: var(--color-link);
-    font-weight: bold;
+    color: #56B6C2;
+    font-weight: normal;
 }
 
-/* Short options -h */
+/* Short options -h - teal (same as long) */
 .highlight-argparse .na,
 .highlight-argparse-usage .na,
 .highlight-argparse-help .na {
-    color: var(--color-inline-code-text);
-    font-weight: bold;
+    color: #56B6C2;
+    font-weight: normal;
 }
 
-/* Metavar placeholders FILE, PATH */
+/* Metavar placeholders FILE, PATH - neutral gray italic */
 .highlight-argparse .nv,
 .highlight-argparse-usage .nv,
 .highlight-argparse-help .nv {
-    color: var(--color-foreground-secondary);
+    color: #CCCED4;
     font-style: italic;
 }
 
-/* Command/positional names */
+/* Command/program names - purple bold */
 .highlight-argparse .nl,
 .highlight-argparse-usage .nl,
 .highlight-argparse-help .nl {
-    color: var(--color-brand-primary);
-}
-
-/* Choice values in braces {json,yaml} */
-.highlight-argparse .no,
-.highlight-argparse-usage .no,
-.highlight-argparse-help .no {
-    color: var(--color-problematic);
-}
-
-/* Operators like | for mutex groups */
-.highlight-argparse .o,
-.highlight-argparse-usage .o,
-.highlight-argparse-help .o {
-    color: var(--color-foreground-muted);
+    color: #C678DD;
     font-weight: bold;
 }
 
-/* Punctuation [], {}, () */
+/* Choice values in braces {json,yaml} - green */
+.highlight-argparse .no,
+.highlight-argparse-usage .no,
+.highlight-argparse-help .no {
+    color: #98C379;
+}
+
+/* Punctuation [], {}, () - neutral gray */
 .highlight-argparse .p,
 .highlight-argparse-usage .p,
 .highlight-argparse-help .p {
-    color: var(--color-foreground-muted);
+    color: #CCCED4;
+}
+
+/* Operators like | - neutral gray */
+.highlight-argparse .o,
+.highlight-argparse-usage .o,
+.highlight-argparse-help .o {
+    color: #CCCED4;
+    font-weight: normal;
 }
 
 /* ==========================================================================
@@ -171,40 +181,41 @@
  * styling.
  */
 .argparse-usage .gh {
-    color: var(--color-foreground-secondary);
+    color: #61AFEF;
     font-weight: bold;
 }
 
 .argparse-usage .nt {
-    color: var(--color-link);
-    font-weight: bold;
+    color: #56B6C2;
+    font-weight: normal;
 }
 
 .argparse-usage .na {
-    color: var(--color-inline-code-text);
-    font-weight: bold;
+    color: #56B6C2;
+    font-weight: normal;
 }
 
 .argparse-usage .nv {
-    color: var(--color-foreground-secondary);
+    color: #CCCED4;
     font-style: italic;
 }
 
 .argparse-usage .nl {
-    color: var(--color-brand-primary);
-}
-
-.argparse-usage .no {
-    color: var(--color-problematic);
-}
-
-.argparse-usage .o {
-    color: var(--color-foreground-muted);
+    color: #C678DD;
     font-weight: bold;
 }
 
+.argparse-usage .no {
+    color: #98C379;
+}
+
+.argparse-usage .o {
+    color: #CCCED4;
+    font-weight: normal;
+}
+
 .argparse-usage .p {
-    color: var(--color-foreground-muted);
+    color: #CCCED4;
 }
 
 /*
@@ -214,21 +225,21 @@
  * semantic spans for options and metavars.
  */
 .argparse-argument-name .nt {
-    color: var(--color-link);
-    font-weight: bold;
+    color: #56B6C2;
+    font-weight: normal;
 }
 
 .argparse-argument-name .na {
-    color: var(--color-inline-code-text);
-    font-weight: bold;
+    color: #56B6C2;
+    font-weight: normal;
 }
 
 .argparse-argument-name .nv {
-    color: var(--color-foreground-secondary);
+    color: #CCCED4;
     font-style: italic;
 }
 
 .argparse-argument-name .nl {
-    color: var(--color-brand-primary);
-    font-weight: 600;
+    color: #C678DD;
+    font-weight: bold;
 }
