@@ -3,9 +3,9 @@
 This tests the examples transformation functionality that converts argparse
 epilog definition lists into proper documentation sections.
 
-Note: Tests for strip_ansi and escape_rst_emphasis have moved to
-tests/docs/_ext/sphinx_argparse_neo/test_utils.py since those utilities
-now live in sphinx_argparse_neo.utils.
+Note: Tests for strip_ansi have moved to
+tests/docs/_ext/sphinx_argparse_neo/test_utils.py since that utility
+now lives in sphinx_argparse_neo.utils.
 """
 
 from __future__ import annotations
