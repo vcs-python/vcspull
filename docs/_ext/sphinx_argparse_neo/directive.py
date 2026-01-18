@@ -40,12 +40,6 @@ class ArgparseDirective(SphinxDirective):
         Override the program name (optional).
     :path:
         Navigate to a specific subparser by path (e.g., "sync pull").
-    :heading-level:
-        Base heading level for sections (default: 2).
-    :use-rubric:
-        Use rubric instead of section titles (flag).
-    :flatten-subcommands:
-        Don't nest subcommands under "Sub-commands" heading (flag).
     :no-defaults:
         Don't show default values (flag).
     :no-description:
@@ -65,7 +59,6 @@ class ArgparseDirective(SphinxDirective):
            :prog: myapp
 
            :path: subcommand
-           :use-rubric:
     """
 
     has_content = True
@@ -77,9 +70,6 @@ class ArgparseDirective(SphinxDirective):
         "func": directives.unchanged_required,
         "prog": directives.unchanged,
         "path": directives.unchanged,
-        "heading-level": directives.nonnegative_int,
-        "use-rubric": directives.flag,
-        "flatten-subcommands": directives.flag,
         "no-defaults": directives.flag,
         "no-description": directives.flag,
         "no-epilog": directives.flag,
@@ -200,12 +190,6 @@ class ArgparseDirective(SphinxDirective):
         config = RenderConfig.from_sphinx_config(self.config)
 
         # Override with directive options
-        if "heading-level" in self.options:
-            config.heading_level = self.options["heading-level"]
-        if "use-rubric" in self.options:
-            config.use_rubric = True
-        if "flatten-subcommands" in self.options:
-            config.flatten_subcommands = True
         # Handle both new-style and sphinx-argparse compatibility options
         if "no-defaults" in self.options or "nodefault" in self.options:
             config.show_defaults = False
