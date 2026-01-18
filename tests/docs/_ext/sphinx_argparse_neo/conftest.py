@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import pathlib
 import sys
-from pathlib import Path
 
 import pytest
 
 # Add docs/_ext to path so we can import the extension module
-docs_ext_path = Path(__file__).parent.parent.parent.parent.parent / "docs" / "_ext"
+docs_ext_path = (
+    pathlib.Path(__file__).parent.parent.parent.parent.parent / "docs" / "_ext"
+)
 if str(docs_ext_path) not in sys.path:
     sys.path.insert(0, str(docs_ext_path))
 
@@ -161,7 +163,7 @@ def parser_with_types() -> argparse.ArgumentParser:
 
     parser.add_argument("--count", type=int, help="Integer argument")
     parser.add_argument("--ratio", type=float, help="Float argument")
-    parser.add_argument("--path", type=Path, help="Path argument")
+    parser.add_argument("--path", type=pathlib.Path, help="Path argument")
     parser.add_argument("--choice", type=str, choices=["a", "b", "c"], help="Choices")
 
     return parser

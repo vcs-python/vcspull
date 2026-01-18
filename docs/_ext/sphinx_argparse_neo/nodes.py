@@ -14,11 +14,11 @@ if t.TYPE_CHECKING:
     from sphinx.writers.html5 import HTML5Translator
 
 # Import the lexer - use absolute import from parent package
+import pathlib
 import sys
-from pathlib import Path
 
 # Add parent directory to path for lexer import
-_ext_dir = Path(__file__).parent.parent
+_ext_dir = pathlib.Path(__file__).parent.parent
 if str(_ext_dir) not in sys.path:
     sys.path.insert(0, str(_ext_dir))
 
