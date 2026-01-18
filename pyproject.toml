@@ -258,6 +258,7 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = [
   "src/vcspull",
   "tests",
+  "docs/_ext",
 ]
 filterwarnings = [
   "ignore:The frontend.Option(Parser)? class.*:DeprecationWarning::",
