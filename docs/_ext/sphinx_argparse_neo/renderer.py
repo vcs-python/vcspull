@@ -142,38 +142,57 @@ class ArgparseRenderer:
         -------
         list[nodes.Node]
             List of docutils nodes representing the documentation.
+
+        Note
+        ----
+        Sections for Usage and argument groups are emitted as siblings of
+        argparse_program rather than children. This allows Sphinx's
+        TocTreeCollector to discover them for inclusion in the table of
+        contents.
+
+        The rendered structure is:
+
+        - argparse_program (description only, no "examples:" part)
+        - section#usage (h3 "Usage" with usage block)
+        - section#positional-arguments (h3)
+        - section#options (h3)
+
+        The "examples:" definition list in descriptions is left for
+        pretty_argparse.py to transform into a proper Examples section.
         """
         result: list[nodes.Node] = []
 
-        # Create program container
+        # Create program container for description only
         program_node = argparse_program()
         program_node["prog"] = parser_info.prog
 
-        # Add description
+        # Add description (may contain "examples:" definition list for later
+        # transformation by pretty_argparse.py)
         if parser_info.description:
             desc_nodes = self._parse_text(parser_info.description)
             program_node.extend(desc_nodes)
 
-        # Add usage
-        usage_node = self.render_usage(parser_info)
-        program_node.append(usage_node)
+        result.append(program_node)
 
-        # Add argument groups
+        # Add Usage section as sibling (for TOC visibility)
+        usage_section = self.render_usage_section(parser_info)
+        result.append(usage_section)
+
+        # Add argument groups as sibling sections (for TOC visibility)
         for group in parser_info.argument_groups:
-            group_node = self.render_group(group)
-            program_node.append(group_node)
+            group_section = self.render_group_section(group)
+            result.append(group_section)
 
         # Add subcommands
         if parser_info.subcommands:
             subcommands_node = self.render_subcommands(parser_info.subcommands)
-            program_node.append(subcommands_node)
+            result.append(subcommands_node)
 
         # Add epilog
         if parser_info.epilog:
             epilog_nodes = self._parse_text(parser_info.epilog)
-            program_node.extend(epilog_nodes)
+            result.extend(epilog_nodes)
 
-        result.append(program_node)
         return self.post_process(result)
 
     def render_usage(self, parser_info: ParserInfo) -> argparse_usage:
@@ -193,8 +212,60 @@ class ArgparseRenderer:
         usage_node["usage"] = parser_info.bare_usage
         return usage_node
 
-    def render_group(self, group: ArgumentGroup) -> argparse_group:
-        """Render an argument group.
+    def render_usage_section(self, parser_info: ParserInfo) -> nodes.section:
+        """Render usage as a section with heading for TOC visibility.
+
+        Creates a proper section node with "Usage" heading containing the
+        usage block. This structure allows Sphinx's TocTreeCollector to
+        discover it for the table of contents.
+
+        Parameters
+        ----------
+        parser_info : ParserInfo
+            The parser information.
+
+        Returns
+        -------
+        nodes.section
+            Section node containing the usage block with a "Usage" heading.
+
+        Examples
+        --------
+        >>> from sphinx_argparse_neo.parser import ParserInfo
+        >>> renderer = ArgparseRenderer()
+        >>> info = ParserInfo(
+        ...     prog="myapp",
+        ...     usage=None,
+        ...     bare_usage="myapp [-h] command",
+        ...     description=None,
+        ...     epilog=None,
+        ...     argument_groups=[],
+        ...     subcommands=None,
+        ...     subcommand_dest=None,
+        ... )
+        >>> section = renderer.render_usage_section(info)
+        >>> section["ids"]
+        ['usage']
+        >>> section.children[0].astext()
+        'Usage'
+        """
+        section = nodes.section()
+        section["ids"] = ["usage"]
+        section["names"] = [nodes.fully_normalize_name("Usage")]
+        section += nodes.title("Usage", "Usage")
+
+        usage_node = argparse_usage()
+        usage_node["usage"] = parser_info.bare_usage
+        section += usage_node
+
+        return section
+
+    def render_group_section(self, group: ArgumentGroup) -> nodes.section:
+        """Render an argument group wrapped in a section for TOC visibility.
+
+        Creates a proper section node with the group title as heading,
+        containing the argparse_group node. This structure allows Sphinx's
+        TocTreeCollector to discover it for the table of contents.
 
         Parameters
         ----------
@@ -203,14 +274,79 @@ class ArgparseRenderer:
 
         Returns
         -------
+        nodes.section
+            Section node containing the group for TOC discovery.
+
+        Examples
+        --------
+        >>> from sphinx_argparse_neo.parser import ArgumentGroup
+        >>> renderer = ArgparseRenderer()
+        >>> group = ArgumentGroup(
+        ...     title="positional arguments",
+        ...     description=None,
+        ...     arguments=[],
+        ...     mutually_exclusive=[],
+        ... )
+        >>> section = renderer.render_group_section(group)
+        >>> section["ids"]
+        ['positional-arguments']
+        >>> section.children[0].astext()
+        'Positional Arguments'
+        """
+        # Title case the group title for proper display
+        raw_title = group.title or "Arguments"
+        title = raw_title.title()  # "positional arguments" -> "Positional Arguments"
+
+        if self.config.group_title_prefix:
+            title = f"{self.config.group_title_prefix}{title}"
+
+        # Generate section ID from title
+        section_id = title.lower().replace(" ", "-")
+
+        # Create section wrapper for TOC discovery
+        section = nodes.section()
+        section["ids"] = [section_id]
+        section["names"] = [nodes.fully_normalize_name(title)]
+
+        # Add title for TOC - Sphinx's TocTreeCollector looks for this
+        section += nodes.title(title, title)
+
+        # Create the styled group container (with empty title - section provides it)
+        group_node = self.render_group(group, include_title=False)
+        section += group_node
+
+        return section
+
+    def render_group(
+        self, group: ArgumentGroup, include_title: bool = True
+    ) -> argparse_group:
+        """Render an argument group.
+
+        Parameters
+        ----------
+        group : ArgumentGroup
+            The argument group to render.
+        include_title : bool
+            Whether to include the title in the group node. When False,
+            the title is assumed to come from a parent section node.
+            Default is True for backwards compatibility.
+
+        Returns
+        -------
         argparse_group
             Group node containing argument nodes.
         """
         group_node = argparse_group()
-        title = group.title
-        if self.config.group_title_prefix:
-            title = f"{self.config.group_title_prefix}{title}"
-        group_node["title"] = title
+
+        if include_title:
+            title = group.title
+            if self.config.group_title_prefix:
+                title = f"{self.config.group_title_prefix}{title}"
+            group_node["title"] = title
+        else:
+            # Title provided by parent section
+            group_node["title"] = ""
+
         group_node["description"] = group.description
 
         # Add individual arguments

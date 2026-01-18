@@ -579,6 +579,43 @@ def _is_usage_block(node: nodes.Node) -> bool:
     return text.lstrip().lower().startswith("usage:")
 
 
+def _is_usage_section(node: nodes.Node) -> bool:
+    """Check if a node is a usage section.
+
+    Parameters
+    ----------
+    node : nodes.Node
+        A docutils node to check.
+
+    Returns
+    -------
+    bool
+        True if this is a section with "usage" in its ID.
+
+    Examples
+    --------
+    >>> from docutils import nodes
+    >>> section = nodes.section()
+    >>> section["ids"] = ["usage"]
+    >>> _is_usage_section(section)
+    True
+    >>> section2 = nodes.section()
+    >>> section2["ids"] = ["sync-usage"]
+    >>> _is_usage_section(section2)
+    True
+    >>> section3 = nodes.section()
+    >>> section3["ids"] = ["options"]
+    >>> _is_usage_section(section3)
+    False
+    >>> _is_usage_section(nodes.paragraph())
+    False
+    """
+    if not isinstance(node, nodes.section):
+        return False
+    ids: list[str] = node.get("ids", [])
+    return any(id_str == "usage" or id_str.endswith("-usage") for id_str in ids)
+
+
 def _is_examples_section(node: nodes.Node) -> bool:
     """Check if a node is an examples section.
 
@@ -619,11 +656,15 @@ def _is_examples_section(node: nodes.Node) -> bool:
 
 
 def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
-    """Reorder nodes so usage blocks appear before examples sections.
+    """Reorder nodes so usage sections/blocks appear before examples sections.
 
     This ensures the CLI usage synopsis appears above examples in the
     documentation, making it easier to understand command syntax before
     seeing example invocations.
+
+    The function handles both:
+    - Usage as literal_block (legacy format from older renderer)
+    - Usage as section#usage (new format with TOC support)
 
     Parameters
     ----------
@@ -670,6 +711,14 @@ def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
 
     >>> _reorder_nodes([])
     []
+
+    Usage sections (with TOC heading) are also handled:
+
+    >>> usage_section = nodes.section()
+    >>> usage_section["ids"] = ["usage"]
+    >>> result = _reorder_nodes([desc, examples, usage_section, args])
+    >>> [n.get("ids", []) for n in result if isinstance(n, nodes.section)]
+    [['usage'], ['examples'], ['arguments']]
     """
     # First pass: check if there are any examples sections
     has_examples = any(_is_examples_section(node) for node in processed)
@@ -677,15 +726,16 @@ def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
         # No examples, preserve original order
         return processed
 
-    usage_blocks: list[nodes.Node] = []
+    usage_nodes: list[nodes.Node] = []
     examples_sections: list[nodes.Node] = []
     other_before_examples: list[nodes.Node] = []
     other_after_examples: list[nodes.Node] = []
 
     seen_examples = False
     for node in processed:
-        if _is_usage_block(node):
-            usage_blocks.append(node)
+        # Check for both usage block (literal_block) and usage section
+        if _is_usage_block(node) or _is_usage_section(node):
+            usage_nodes.append(node)
         elif _is_examples_section(node):
             examples_sections.append(node)
             seen_examples = True
@@ -696,15 +746,81 @@ def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
 
     # Order: before_examples → usage → examples → after_examples
     return (
-        other_before_examples + usage_blocks + examples_sections + other_after_examples
+        other_before_examples + usage_nodes + examples_sections + other_after_examples
     )
+
+
+def _extract_sections_from_container(
+    container: nodes.Node,
+) -> tuple[nodes.Node, list[nodes.section]]:
+    """Extract section nodes from a container, returning modified container.
+
+    This function finds any section nodes that are children of the container
+    (typically argparse_program), removes them from the container, and returns
+    them separately so they can be made siblings.
+
+    This is needed because Sphinx's TocTreeCollector only discovers sections
+    that are direct children of the document or properly nested in the section
+    hierarchy - sections inside arbitrary div containers are invisible to TOC.
+
+    Parameters
+    ----------
+    container : nodes.Node
+        A container node (typically argparse_program) that may contain sections.
+
+    Returns
+    -------
+    tuple[nodes.Node, list[nodes.section]]
+        A tuple of (modified_container, extracted_sections).
+
+    Examples
+    --------
+    >>> from docutils import nodes
+    >>> from sphinx_argparse_neo.nodes import argparse_program
+    >>> container = argparse_program()
+    >>> para = nodes.paragraph(text="Description")
+    >>> examples = nodes.section()
+    >>> examples["ids"] = ["examples"]
+    >>> container += para
+    >>> container += examples
+    >>> modified, extracted = _extract_sections_from_container(container)
+    >>> len(modified.children)
+    1
+    >>> len(extracted)
+    1
+    >>> extracted[0]["ids"]
+    ['examples']
+    """
+    if not hasattr(container, "children"):
+        return container, []
+
+    extracted_sections: list[nodes.section] = []
+    remaining_children: list[nodes.Node] = []
+
+    for child in container.children:
+        if isinstance(child, nodes.section):
+            extracted_sections.append(child)
+        else:
+            remaining_children.append(child)
+
+    # Update container with remaining children only
+    container.children = remaining_children
+
+    return container, extracted_sections
 
 
 class CleanArgParseDirective(ArgparseDirective):  # type: ignore[misc]
     """ArgParse directive that strips ANSI codes and formats examples."""
 
     def run(self) -> list[nodes.Node]:
-        """Run the directive, clean output, format examples, and reorder."""
+        """Run the directive, clean output, format examples, and reorder.
+
+        The processing pipeline:
+        1. Run base directive to get initial nodes
+        2. Process each node (strip ANSI, transform examples definition lists)
+        3. Extract sections from inside argparse_program containers
+        4. Reorder so usage appears before examples
+        """
         result = super().run()
 
         # Extract page name for unique section IDs across different CLI pages
@@ -724,8 +840,22 @@ class CleanArgParseDirective(ArgparseDirective):  # type: ignore[misc]
             else:
                 processed.append(processed_node)
 
-        # Reorder: usage blocks before examples sections
-        return _reorder_nodes(processed)
+        # Extract sections from inside argparse_program containers
+        # This is needed because sections inside divs are invisible to Sphinx TOC
+        flattened: list[nodes.Node] = []
+        for node in processed:
+            # Check if this is an argparse_program (or similar container)
+            # that might have sections inside
+            node_class_name = type(node).__name__
+            if node_class_name == "argparse_program":
+                modified, extracted = _extract_sections_from_container(node)
+                flattened.append(modified)
+                flattened.extend(extracted)
+            else:
+                flattened.append(node)
+
+        # Reorder: usage sections/blocks before examples sections
+        return _reorder_nodes(flattened)
 
 
 def setup(app: Sphinx) -> dict[str, t.Any]:

@@ -540,7 +540,8 @@ USAGE_STRING_FIXTURES: list[UsageStringFixture] = [
         expected_contains=[
             ("Token.Generic.Heading", "usage:"),
             ("Token.Name.Label", "vcspull"),
-            ("Token.Name.Label", "sync"),
+            # Subcommands now use Name.Function per 30ea233
+            ("Token.Name.Function", "sync"),
         ],
     ),
     UsageStringFixture(
@@ -679,7 +680,8 @@ options:
 
     # Check command/positional names
     assert ("Token.Name.Label", "vcspull") in tokens
-    assert ("Token.Name.Label", "sync") in tokens
+    # Subcommands now use Name.Function per 30ea233
+    assert ("Token.Name.Function", "sync") in tokens
 
 
 # --- Real vcspull usage output test ---
@@ -698,7 +700,8 @@ usage: vcspull sync [-h] [-c CONFIG] [-d DIRECTORY]
     expected = [
         ("Token.Generic.Heading", "usage:"),
         ("Token.Name.Label", "vcspull"),
-        ("Token.Name.Label", "sync"),
+        # Subcommands now use Name.Function per 30ea233
+        ("Token.Name.Function", "sync"),
         ("Token.Name.Attribute", "-h"),
         ("Token.Name.Attribute", "-c"),
         ("Token.Name.Variable", "CONFIG"),
@@ -710,8 +713,9 @@ usage: vcspull sync [-h] [-c CONFIG] [-d DIRECTORY]
         ("Token.Name.Tag", "--color"),
         ("Token.Name.Tag", "--no-progress"),
         ("Token.Name.Tag", "--verbose"),
-        ("Token.Name.Label", "repo-name"),
-        ("Token.Name.Label", "path"),
+        # Optional positional args in brackets also use Name.Function per 30ea233
+        ("Token.Name.Function", "repo-name"),
+        ("Token.Name.Function", "path"),
     ]
 
     for expected_type, expected_value in expected:

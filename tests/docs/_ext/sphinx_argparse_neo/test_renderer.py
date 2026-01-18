@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import typing as t
 
+from docutils import nodes
 from sphinx_argparse_neo.nodes import (
     argparse_argument,
     argparse_group,
@@ -98,39 +99,68 @@ def test_create_renderer_with_config() -> None:
 
 
 def test_render_simple_parser(simple_parser: argparse.ArgumentParser) -> None:
-    """Test rendering a simple parser."""
+    """Test rendering a simple parser produces sibling nodes for TOC.
+
+    The renderer now outputs sections as siblings of argparse_program:
+    - argparse_program (description only)
+    - section#usage
+    - section#positional-arguments
+    - section#options
+    """
     parser_info = extract_parser(simple_parser)
     renderer = ArgparseRenderer()
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    assert len(nodes) == 1
-    assert isinstance(nodes[0], argparse_program)
-    assert nodes[0]["prog"] == "myapp"
+    # Should have multiple nodes: program + usage section + group sections
+    assert len(rendered_nodes) >= 3
+
+    # First node is argparse_program
+    assert isinstance(rendered_nodes[0], argparse_program)
+    assert rendered_nodes[0]["prog"] == "myapp"
+
+    # Second node should be usage section
+    assert isinstance(rendered_nodes[1], nodes.section)
+    assert "usage" in rendered_nodes[1]["ids"]
 
 
 def test_render_includes_usage(simple_parser: argparse.ArgumentParser) -> None:
-    """Test that render includes usage node."""
+    """Test that render includes usage as a sibling section."""
     parser_info = extract_parser(simple_parser)
     renderer = ArgparseRenderer()
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    program = nodes[0]
-    usage_nodes = [c for c in program.children if isinstance(c, argparse_usage)]
+    # Find the usage section (sibling of program, not child)
+    usage_sections = [
+        n
+        for n in rendered_nodes
+        if isinstance(n, nodes.section) and "usage" in n.get("ids", [])
+    ]
 
-    assert len(usage_nodes) == 1
-    assert "myapp" in usage_nodes[0]["usage"]
+    assert len(usage_sections) == 1
+
+    # Usage section should contain argparse_usage node
+    usage_section = usage_sections[0]
+    usage_node = [c for c in usage_section.children if isinstance(c, argparse_usage)]
+    assert len(usage_node) == 1
+    assert "myapp" in usage_node[0]["usage"]
 
 
 def test_render_includes_groups(simple_parser: argparse.ArgumentParser) -> None:
-    """Test that render includes argument groups."""
+    """Test that render includes argument groups as sibling sections."""
     parser_info = extract_parser(simple_parser)
     renderer = ArgparseRenderer()
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    program = nodes[0]
-    group_nodes = [c for c in program.children if isinstance(c, argparse_group)]
+    # Groups are now wrapped in sections and are siblings of program
+    # Find sections that contain argparse_group nodes
+    group_sections = [
+        n
+        for n in rendered_nodes
+        if isinstance(n, nodes.section)
+        and any(isinstance(c, argparse_group) for c in n.children)
+    ]
 
-    assert len(group_nodes) >= 1
+    assert len(group_sections) >= 1
 
 
 def test_render_groups_contain_arguments(
@@ -139,18 +169,25 @@ def test_render_groups_contain_arguments(
     """Test that rendered groups contain argument nodes."""
     parser_info = extract_parser(simple_parser)
     renderer = ArgparseRenderer()
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    program = nodes[0]
-    group_nodes = [c for c in program.children if isinstance(c, argparse_group)]
-
-    # At least one group should have arguments
-    all_args = [
-        arg
-        for group in group_nodes
-        for arg in group.children
-        if isinstance(arg, argparse_argument)
+    # Find sections that contain argparse_group nodes
+    group_sections = [
+        n
+        for n in rendered_nodes
+        if isinstance(n, nodes.section)
+        and any(isinstance(c, argparse_group) for c in n.children)
     ]
+
+    # Collect all arguments from groups inside sections
+    all_args = []
+    for section in group_sections:
+        for child in section.children:
+            if isinstance(child, argparse_group):
+                all_args.extend(
+                    arg for arg in child.children if isinstance(arg, argparse_argument)
+                )
+
     assert len(all_args) >= 1
 
 
@@ -160,11 +197,11 @@ def test_render_with_subcommands(
     """Test rendering parser with subcommands."""
     parser_info = extract_parser(parser_with_subcommands)
     renderer = ArgparseRenderer()
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    program = nodes[0]
+    # Subcommands node is a sibling of program
     subcommands_nodes = [
-        c for c in program.children if isinstance(c, argparse_subcommands)
+        n for n in rendered_nodes if isinstance(n, argparse_subcommands)
     ]
 
     assert len(subcommands_nodes) == 1
@@ -180,22 +217,44 @@ def test_render_with_subcommands(
 # --- Config option effect tests ---
 
 
+def _collect_args_from_rendered_nodes(
+    rendered_nodes: list[nodes.Node],
+) -> list[argparse_argument]:
+    """Helper to collect all argparse_argument nodes from rendered output."""
+    all_args: list[argparse_argument] = []
+    for node in rendered_nodes:
+        if isinstance(node, nodes.section):
+            for child in node.children:
+                if isinstance(child, argparse_group):
+                    all_args.extend(
+                        arg
+                        for arg in child.children
+                        if isinstance(arg, argparse_argument)
+                    )
+    return all_args
+
+
 def test_render_group_title_prefix() -> None:
-    """Test that group_title_prefix is applied."""
+    """Test that group_title_prefix is applied to section titles."""
     parser = argparse.ArgumentParser(prog="test")
     parser.add_argument("--opt")
     parser_info = extract_parser(parser)
 
     config = RenderConfig(group_title_prefix="CLI: ")
     renderer = ArgparseRenderer(config=config)
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    program = nodes[0]
-    group_nodes = [c for c in program.children if isinstance(c, argparse_group)]
+    # Find sections that contain argparse_group
+    group_sections = [
+        n
+        for n in rendered_nodes
+        if isinstance(n, nodes.section)
+        and any(isinstance(c, argparse_group) for c in n.children)
+    ]
 
-    # At least one group should have the prefix
-    titles = [g["title"] for g in group_nodes]
-    assert any(t.startswith("CLI: ") for t in titles)
+    # Section IDs should include the prefix (normalized)
+    ids = [section["ids"][0] for section in group_sections if section["ids"]]
+    assert any("cli:" in id_str.lower() for id_str in ids)
 
 
 def test_render_show_defaults_false() -> None:
@@ -206,16 +265,9 @@ def test_render_show_defaults_false() -> None:
 
     config = RenderConfig(show_defaults=False)
     renderer = ArgparseRenderer(config=config)
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    program = nodes[0]
-    group_nodes = [c for c in program.children if isinstance(c, argparse_group)]
-    all_args = [
-        arg
-        for group in group_nodes
-        for arg in group.children
-        if isinstance(arg, argparse_argument)
-    ]
+    all_args = _collect_args_from_rendered_nodes(rendered_nodes)
 
     # Default string should not be set
     for arg in all_args:
@@ -230,16 +282,9 @@ def test_render_show_choices_false() -> None:
 
     config = RenderConfig(show_choices=False)
     renderer = ArgparseRenderer(config=config)
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    program = nodes[0]
-    group_nodes = [c for c in program.children if isinstance(c, argparse_group)]
-    all_args = [
-        arg
-        for group in group_nodes
-        for arg in group.children
-        if isinstance(arg, argparse_argument)
-    ]
+    all_args = _collect_args_from_rendered_nodes(rendered_nodes)
 
     # Choices should not be set
     for arg in all_args:
@@ -254,16 +299,9 @@ def test_render_show_types_false() -> None:
 
     config = RenderConfig(show_types=False)
     renderer = ArgparseRenderer(config=config)
-    nodes = renderer.render(parser_info)
+    rendered_nodes = renderer.render(parser_info)
 
-    program = nodes[0]
-    group_nodes = [c for c in program.children if isinstance(c, argparse_group)]
-    all_args = [
-        arg
-        for group in group_nodes
-        for arg in group.children
-        if isinstance(arg, argparse_argument)
-    ]
+    all_args = _collect_args_from_rendered_nodes(rendered_nodes)
 
     # Type name should not be set
     for arg in all_args:

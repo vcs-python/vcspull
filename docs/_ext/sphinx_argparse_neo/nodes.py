@@ -371,6 +371,9 @@ def depart_argparse_usage_html(self: HTML5Translator, node: argparse_usage) -> N
 def visit_argparse_group_html(self: HTML5Translator, node: argparse_group) -> None:
     """Visit argparse_group node - start argument group.
 
+    The title is now rendered by the parent section node, so this visitor
+    only handles the group container and description.
+
     Parameters
     ----------
     self : HTML5Translator
@@ -379,10 +382,9 @@ def visit_argparse_group_html(self: HTML5Translator, node: argparse_group) -> No
         The group node being visited.
     """
     title = node.get("title", "")
-    group_id = title.lower().replace(" ", "-")
+    group_id = title.lower().replace(" ", "-") if title else "arguments"
     self.body.append(f'<div class="argparse-group" data-group="{group_id}">\n')
-    if title:
-        self.body.append(f'<p class="argparse-group-title">{self.encode(title)}</p>\n')
+    # Title rendering removed - parent section now provides the heading
     description = node.get("description")
     if description:
         self.body.append(
