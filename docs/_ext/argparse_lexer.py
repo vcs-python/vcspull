@@ -42,11 +42,61 @@ class ArgparseUsageLexer(RegexLexer):
 
     tokens = {  # noqa: RUF012
         "root": [
-            # "usage:" at start of line
-            (r"^(usage:)(\s+)", bygroups(Generic.Heading, Whitespace)),  # type: ignore[no-untyped-call]
+            # "usage:" at start of line - then look for program name
+            (
+                r"^(usage:)(\s+)",
+                bygroups(Generic.Heading, Whitespace),  # type: ignore[no-untyped-call]
+                "after_usage",
+            ),
             # Continuation lines (leading whitespace for wrapped usage)
             (r"^(\s+)(?=\S)", Whitespace),
             include("inline"),
+        ],
+        "after_usage": [
+            # Whitespace
+            (r"\s+", Whitespace),
+            # Program name (first lowercase word after usage:)
+            (r"\b[a-z][-a-z0-9]*\b", Name.Label, "usage_body"),
+            # Fallback to inline if something unexpected
+            include("inline"),
+        ],
+        "usage_body": [
+            # Whitespace
+            (r"\s+", Whitespace),
+            # Ellipsis for variadic args (before other patterns)
+            (r"\.\.\.", Punctuation),
+            # Long options with = value (e.g., --log-level=VALUE)
+            (
+                r"(--[a-zA-Z0-9][-a-zA-Z0-9]*)(=)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9]*)",
+                bygroups(Name.Tag, Operator, Name.Variable),  # type: ignore[no-untyped-call]
+            ),
+            # Long options standalone
+            (r"--[a-zA-Z0-9][-a-zA-Z0-9]*", Name.Tag),
+            # Short options with space-separated value (e.g., -S socket-path)
+            (
+                r"(-[a-zA-Z0-9])(\s+)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9]*)",
+                bygroups(Name.Attribute, Whitespace, Name.Variable),  # type: ignore[no-untyped-call]
+            ),
+            # Short options standalone
+            (r"-[a-zA-Z0-9]", Name.Attribute),
+            # Opening brace - enter choices state
+            (r"\{", Punctuation, "choices"),
+            # Opening bracket - enter optional state
+            (r"\[", Punctuation, "optional"),
+            # Closing bracket (fallback for unmatched)
+            (r"\]", Punctuation),
+            # Opening paren - enter required mutex state
+            (r"\(", Punctuation, "required"),
+            # Closing paren (fallback for unmatched)
+            (r"\)", Punctuation),
+            # Choice separator (pipe) for mutex groups
+            (r"\|", Operator),
+            # UPPERCASE meta-variables (COMMAND, FILE, PATH)
+            (r"\b[A-Z][A-Z0-9_]*\b", Name.Variable),
+            # Subcommand/positional names (green, not purple like program name)
+            (r"\b[a-z][-a-z0-9]*\b", Name.Constant),
+            # Catch-all for any other text
+            (r"[^\s\[\]|(){},]+", Text),
         ],
         "inline": [
             # Whitespace
@@ -91,16 +141,16 @@ class ArgparseUsageLexer(RegexLexer):
             (r"\[", Punctuation, "#push"),
             # End optional
             (r"\]", Punctuation, "#pop"),
-            # Contents use inline rules
-            include("inline"),
+            # Contents use usage_body rules (subcommands are green)
+            include("usage_body"),
         ],
         "required": [
             # Nested required paren
             (r"\(", Punctuation, "#push"),
             # End required
             (r"\)", Punctuation, "#pop"),
-            # Contents use inline rules
-            include("inline"),
+            # Contents use usage_body rules (subcommands are green)
+            include("usage_body"),
         ],
         "choices": [
             # Choice values (comma-separated inside braces)
@@ -143,8 +193,12 @@ class ArgparseHelpLexer(RegexLexer):
 
     tokens = {  # noqa: RUF012
         "root": [
-            # "usage:" line - switch to usage mode
-            (r"^(usage:)(\s+)", bygroups(Generic.Heading, Whitespace), "usage"),  # type: ignore[no-untyped-call]
+            # "usage:" line - switch to after_usage to find program name
+            (
+                r"^(usage:)(\s+)",
+                bygroups(Generic.Heading, Whitespace),  # type: ignore[no-untyped-call]
+                "after_usage",
+            ),
             # Section headers (e.g., "positional arguments:", "options:")
             (r"^([a-zA-Z][-a-zA-Z0-9_ ]*:)\s*$", Generic.Subheading),
             # Option entry lines (indented with spaces/tabs, not just newlines)
@@ -156,11 +210,19 @@ class ArgparseHelpLexer(RegexLexer):
             # Standalone newlines
             (r"\n", Whitespace),
         ],
+        "after_usage": [
+            # Whitespace
+            (r"\s+", Whitespace),
+            # Program name (first lowercase word after usage:)
+            (r"\b[a-z][-a-z0-9]*\b", Name.Label, "usage"),
+            # Fallback to usage if something unexpected
+            include("usage_inline"),
+        ],
         "usage": [
             # End of usage on blank line or section header
-            (r"\n(?=[a-zA-Z][-a-zA-Z0-9_ ]*:\s*$)", Text, "#pop"),
-            (r"\n(?=\n)", Text, "#pop"),
-            # Usage content - use ArgparseUsageLexer inline rules
+            (r"\n(?=[a-zA-Z][-a-zA-Z0-9_ ]*:\s*$)", Text, "#pop:2"),
+            (r"\n(?=\n)", Text, "#pop:2"),
+            # Usage content - use usage_inline rules (subcommands are green)
             include("usage_inline"),
             # Line continuation
             (r"\n", Text),
@@ -196,8 +258,8 @@ class ArgparseHelpLexer(RegexLexer):
             (r"\|", Operator),
             # UPPERCASE metavars
             (r"\b[A-Z][A-Z0-9_]*\b", Name.Variable),
-            # Command/positional names
-            (r"\b[a-z][-a-z0-9]*\b", Name.Label),
+            # Subcommand/positional names (green, after program name seen)
+            (r"\b[a-z][-a-z0-9]*\b", Name.Constant),
             # Other text
             (r"[^\s\[\]|(){},\n]+", Text),
         ],

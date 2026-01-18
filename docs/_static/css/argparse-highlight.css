@@ -141,10 +141,13 @@
     font-weight: bold;
 }
 
-/* Choice values in braces {json,yaml} - green */
+/* Choice values and subcommands - green */
 .highlight-argparse .no,
 .highlight-argparse-usage .no,
-.highlight-argparse-help .no {
+.highlight-argparse-help .no,
+.highlight-argparse .nc,
+.highlight-argparse-usage .nc,
+.highlight-argparse-help .nc {
     color: #98C379;
 }
 
@@ -206,7 +209,8 @@
     font-weight: bold;
 }
 
-.argparse-usage .no {
+.argparse-usage .no,
+.argparse-usage .nc {
     color: #98C379;
 }
 
