@@ -191,10 +191,13 @@ def get_parser_from_module(
 
     Examples
     --------
-    >>> import argparse
-    >>> def make_parser():
-    ...     return argparse.ArgumentParser(prog="test")
-    >>> # In practice, this would import from a module file
+    Load vcspull's parser factory:
+
+    >>> parser = get_parser_from_module("vcspull.cli", "create_parser")
+    >>> parser.prog
+    'vcspull'
+    >>> hasattr(parser, 'parse_args')
+    True
     """
     ctx = mock_imports(mock_modules) if mock_modules else contextlib.nullcontext()
 
@@ -247,7 +250,18 @@ def get_parser_from_entry_point(
 
     Examples
     --------
-    >>> # get_parser_from_entry_point("myapp.cli:create_parser")
+    Load vcspull's parser using entry point syntax:
+
+    >>> parser = get_parser_from_entry_point("vcspull.cli:create_parser")
+    >>> parser.prog
+    'vcspull'
+
+    Invalid format raises ValueError:
+
+    >>> get_parser_from_entry_point("no_colon")
+    Traceback (most recent call last):
+        ...
+    ValueError: Invalid entry point format: 'no_colon'. Expected 'module:function'
     """
     if ":" not in entry_point:
         msg = f"Invalid entry point format: {entry_point!r}. Expected 'module:function'"

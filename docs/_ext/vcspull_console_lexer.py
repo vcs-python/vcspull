@@ -66,6 +66,11 @@ class VcspullConsoleLexer(Lexer):
         ------
         tuple[int, TokenType, str]
             Tuples of (index, token_type, value).
+
+        Note
+        ----
+        Use the inherited ``get_tokens()`` method for simpler (token, value) tuples.
+        This method yields (index, token_type, value) for Pygments internal use.
         """
         innerlexer = BashLexer(**self.options)
         outputlexer = VcspullOutputLexer(**self.options)
