@@ -209,7 +209,17 @@ def get_parser_from_module(
         # Call the function if it's callable
         parser = obj() if callable(obj) else obj
 
-        return t.cast("argparse.ArgumentParser", parser)
+        # Validate the return type at runtime
+        import argparse as argparse_module
+
+        if not isinstance(parser, argparse_module.ArgumentParser):
+            msg = (
+                f"{module_name}:{func_name} returned {type(parser).__name__}, "
+                f"expected ArgumentParser"
+            )
+            raise TypeError(msg)
+
+        return parser
 
 
 def get_parser_from_entry_point(
