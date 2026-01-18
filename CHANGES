@@ -31,6 +31,32 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Documentation
+
+#### Replace sphinx-argparse with internal extension (#499)
+
+sphinx-argparse broke with Sphinx 9.x due to internal API changes. This release
+replaces it with `sphinx_argparse_neo`, a local extension with better architecture.
+
+**Changes:**
+
+- Remove `sphinx-argparse` dependency
+- Uncap `sphinx` version (now `>=8` instead of `<9`)
+- Add custom Pygments lexers for CLI output highlighting
+- Add syntax highlighting to argparse directive HTML output
+
+**Directive options:**
+
+- `:no-defaults:`, `:no-description:`, `:no-epilog:`, `:no-choices:`, `:no-types:`
+- sphinx-argparse compatibility: `nosubcommands`, `nodefault`, `nodescription`, `noepilog`
+- `:path:` for subparser navigation
+- `:mock-modules:` for mocking imports during introspection
+
+### Development
+
+- Add `types-docutils` and `types-Pygments` for type checking
+- Clarify CLAUDE.md import style guidelines (stdlib vs third-party)
+
 ## vcspull v1.49.0 (2026-01-03)
 
 ### New features
