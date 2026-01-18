@@ -14,6 +14,7 @@ import typing as t
 
 import pytest
 from argparse_exemplar import (  # type: ignore[import-not-found]
+    ExemplarConfig,
     _is_examples_section,
     _is_usage_block,
     _reorder_nodes,
@@ -816,3 +817,203 @@ def test_reorder_nodes_preserves_non_examples_after() -> None:
     assert isinstance(result[1], nodes.literal_block)
     assert isinstance(result[2], nodes.section)
     assert result[3].astext() == "Epilog"
+
+
+# --- ExemplarConfig tests ---
+
+
+def test_exemplar_config_defaults() -> None:
+    """ExemplarConfig has sensible defaults."""
+    config = ExemplarConfig()
+
+    assert config.examples_term_suffix == "examples"
+    assert config.examples_base_term == "examples"
+    assert config.examples_section_title == "Examples"
+    assert config.usage_pattern == "usage:"
+    assert config.command_prefix == "$ "
+    assert config.code_language == "console"
+    assert config.code_classes == ("highlight-console",)
+    assert config.usage_code_language == "cli-usage"
+    assert config.reorder_usage_before_examples is True
+
+
+def test_exemplar_config_custom_values() -> None:
+    """ExemplarConfig accepts custom values."""
+    config = ExemplarConfig(
+        examples_term_suffix="demos",
+        examples_base_term="demos",
+        examples_section_title="Demos",
+        usage_pattern="synopsis:",
+        command_prefix="> ",
+        code_language="bash",
+        code_classes=("highlight-bash",),
+        usage_code_language="cli-synopsis",
+        reorder_usage_before_examples=False,
+    )
+
+    assert config.examples_term_suffix == "demos"
+    assert config.examples_base_term == "demos"
+    assert config.examples_section_title == "Demos"
+    assert config.usage_pattern == "synopsis:"
+    assert config.command_prefix == "> "
+    assert config.code_language == "bash"
+    assert config.code_classes == ("highlight-bash",)
+    assert config.usage_code_language == "cli-synopsis"
+    assert config.reorder_usage_before_examples is False
+
+
+# --- Config integration tests ---
+
+
+def test_is_examples_term_with_custom_config() -> None:
+    """is_examples_term respects custom config."""
+    config = ExemplarConfig(examples_term_suffix="demos")
+
+    # Custom term should match
+    assert is_examples_term("demos:", config=config) is True
+    assert is_examples_term("Machine-readable output demos:", config=config) is True
+
+    # Default term should not match
+    assert is_examples_term("examples:", config=config) is False
+
+
+def test_is_base_examples_term_with_custom_config() -> None:
+    """is_base_examples_term respects custom config."""
+    config = ExemplarConfig(examples_base_term="demos")
+
+    # Custom term should match
+    assert is_base_examples_term("demos:", config=config) is True
+    assert is_base_examples_term("Demos", config=config) is True
+
+    # Default term should not match
+    assert is_base_examples_term("examples:", config=config) is False
+
+    # Prefixed term should not match (not base)
+    assert is_base_examples_term("Output demos:", config=config) is False
+
+
+def test_make_section_id_with_custom_config() -> None:
+    """make_section_id respects custom config."""
+    config = ExemplarConfig(examples_term_suffix="demos")
+
+    assert make_section_id("demos:", config=config) == "demos"
+    assert (
+        make_section_id("Machine-readable output demos:", config=config)
+        == "machine-readable-output-demos"
+    )
+    assert (
+        make_section_id("Field-scoped demos:", is_subsection=True, config=config)
+        == "field-scoped"
+    )
+
+
+def test_make_section_title_with_custom_config() -> None:
+    """make_section_title respects custom config."""
+    config = ExemplarConfig(
+        examples_base_term="demos",
+        examples_term_suffix="demos",
+        examples_section_title="Demos",
+    )
+
+    assert make_section_title("demos:", config=config) == "Demos"
+    assert (
+        make_section_title("Machine-readable output demos:", config=config)
+        == "Machine-Readable Output Demos"
+    )
+    assert (
+        make_section_title("Field-scoped demos:", is_subsection=True, config=config)
+        == "Field-Scoped"
+    )
+
+
+def test_is_usage_block_with_custom_config() -> None:
+    """_is_usage_block respects custom config."""
+    config = ExemplarConfig(usage_pattern="synopsis:")
+
+    # Custom pattern should match
+    assert (
+        _is_usage_block(nodes.literal_block(text="synopsis: cmd [-h]"), config=config)
+        is True
+    )
+    assert (
+        _is_usage_block(nodes.literal_block(text="Synopsis: cmd"), config=config)
+        is True
+    )
+
+    # Default pattern should not match
+    assert (
+        _is_usage_block(nodes.literal_block(text="usage: cmd [-h]"), config=config)
+        is False
+    )
+
+
+def test_is_examples_section_with_custom_config() -> None:
+    """_is_examples_section respects custom config."""
+    config = ExemplarConfig(examples_term_suffix="demos")
+
+    # Custom term should match
+    demos_section = nodes.section()
+    demos_section["ids"] = ["demos"]
+    assert _is_examples_section(demos_section, config=config) is True
+
+    prefixed_demos = nodes.section()
+    prefixed_demos["ids"] = ["output-demos"]
+    assert _is_examples_section(prefixed_demos, config=config) is True
+
+    # Default term should not match
+    examples_section = nodes.section()
+    examples_section["ids"] = ["examples"]
+    assert _is_examples_section(examples_section, config=config) is False
+
+
+def test_reorder_nodes_disabled_via_config() -> None:
+    """Reordering can be disabled via config."""
+    config = ExemplarConfig(reorder_usage_before_examples=False)
+
+    desc = nodes.paragraph(text="Description")
+    examples = _make_examples_section()
+    usage = _make_usage_node()
+
+    # Original order: desc, examples, usage
+    result = _reorder_nodes([desc, examples, usage], config=config)
+
+    # Order should be preserved (not reordered)
+    assert len(result) == 3
+    assert isinstance(result[0], nodes.paragraph)
+    assert isinstance(result[1], nodes.section)  # examples still in position 1
+    assert isinstance(result[2], nodes.literal_block)  # usage still at end
+
+
+def test_transform_definition_list_with_custom_config() -> None:
+    """transform_definition_list respects custom config."""
+    config = ExemplarConfig(
+        examples_term_suffix="demos",
+        examples_base_term="demos",
+        examples_section_title="Demos",
+        command_prefix="> ",
+        code_language="bash",
+        code_classes=("highlight-bash",),
+    )
+
+    dl = nodes.definition_list()
+    dl += _make_dl_item("demos:", "cmd1")
+
+    result = transform_definition_list(dl, config=config)
+
+    # Should create a section with "demos" id
+    assert len(result) == 1
+    section = result[0]
+    assert isinstance(section, nodes.section)
+    assert section["ids"] == ["demos"]
+
+    # Find the title
+    titles = [c for c in section.children if isinstance(c, nodes.title)]
+    assert len(titles) == 1
+    assert titles[0].astext() == "Demos"
+
+    # Find code blocks
+    code_blocks = [c for c in section.children if isinstance(c, nodes.literal_block)]
+    assert len(code_blocks) == 1
+    assert code_blocks[0].astext() == "> cmd1"  # Custom prefix
+    assert code_blocks[0]["language"] == "bash"
+    assert "highlight-bash" in code_blocks[0]["classes"]

@@ -238,3 +238,14 @@ def remove_tabs_js(app: Sphinx, exc: Exception) -> None:
 def setup(app: Sphinx) -> None:
     """Sphinx setup hook."""
     app.connect("build-finished", remove_tabs_js)
+
+    # Register vcspull-specific lexers
+    # These are project-specific and not part of the generic argparse_exemplar extension
+    from vcspull_console_lexer import VcspullConsoleLexer  # type: ignore[import-not-found]
+    from vcspull_output_lexer import VcspullOutputLexer  # type: ignore[import-not-found]
+
+    app.add_lexer("vcspull-output", VcspullOutputLexer)
+    app.add_lexer("vcspull-console", VcspullConsoleLexer)
+
+    # Add CSS file for argparse highlighting styles
+    app.add_css_file("css/argparse-highlight.css")

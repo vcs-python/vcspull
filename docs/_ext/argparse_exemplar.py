@@ -4,6 +4,9 @@ This Sphinx extension post-processes sphinx_argparse_neo output to convert
 specially-formatted "examples:" definition lists in argparse epilogs into
 proper documentation sections with syntax-highlighted code blocks.
 
+The extension is designed to be generic and reusable across different projects.
+All behavior can be customized via Sphinx configuration options.
+
 Purpose
 -------
 When documenting CLI tools with argparse, it's useful to include examples in
@@ -44,7 +47,9 @@ The extension transforms these into proper sections:
 
 Configuration
 -------------
-Configure via conf.py (these inherit from sphinx_argparse_neo):
+Configure via conf.py. All options have sensible defaults.
+
+**Inherited from sphinx_argparse_neo:**
 
 ``argparse_strip_ansi`` : bool (default: True)
     Remove ANSI escape codes from argparse output.
@@ -52,16 +57,62 @@ Configure via conf.py (these inherit from sphinx_argparse_neo):
 ``argparse_escape_rst_emphasis`` : bool (default: True)
     Escape asterisks that would trigger RST warnings (e.g., "django-*").
 
+**Term Detection:**
+
+``argparse_examples_term_suffix`` : str (default: "examples")
+    Term must end with this string to be treated as an examples header.
+
+``argparse_examples_base_term`` : str (default: "examples")
+    Exact match for the base examples section (case-insensitive).
+
+``argparse_examples_section_title`` : str (default: "Examples")
+    Title used for the base examples section.
+
+**Usage Detection:**
+
+``argparse_usage_pattern`` : str (default: "usage:")
+    Text must start with this to be treated as a usage block (case-insensitive).
+
+**Code Block Formatting:**
+
+``argparse_examples_command_prefix`` : str (default: "$ ")
+    Prefix added to each command line in examples code blocks.
+
+``argparse_examples_code_language`` : str (default: "console")
+    Language identifier for examples code blocks.
+
+``argparse_examples_code_classes`` : list[str] (default: ["highlight-console"])
+    CSS classes added to examples code blocks.
+
+``argparse_usage_code_language`` : str (default: "cli-usage")
+    Language identifier for usage blocks.
+
+**Behavior:**
+
+``argparse_reorder_usage_before_examples`` : bool (default: True)
+    Whether to reorder nodes so usage appears before examples.
+
 Additional Features
 -------------------
 - Removes ANSI escape codes (useful when FORCE_COLOR is set)
-- Applies cli-usage syntax highlighting to usage blocks
+- Applies syntax highlighting to usage blocks
 - Reorders sections so usage appears before examples in the output
 - Extracts sections from argparse_program containers for TOC visibility
+
+Project-Specific Setup
+----------------------
+Projects using this extension should register their own lexers and CSS in
+their conf.py setup() function. For example::
+
+    def setup(app):
+        from my_lexer import MyLexer
+        app.add_lexer("my-output", MyLexer)
+        app.add_css_file("css/my-highlight.css")
 """
 
 from __future__ import annotations
 
+import dataclasses
 import typing as t
 
 from docutils import nodes
@@ -69,11 +120,143 @@ from sphinx_argparse_neo.directive import ArgparseDirective
 from sphinx_argparse_neo.utils import escape_rst_emphasis, strip_ansi
 
 if t.TYPE_CHECKING:
+    import sphinx.config
     from sphinx.application import Sphinx
+
+
+@dataclasses.dataclass
+class ExemplarConfig:
+    """Configuration for argparse_exemplar transformation.
+
+    This dataclass provides all configurable options for the argparse_exemplar
+    extension. Functions accept an optional config parameter with a factory
+    default, allowing them to work standalone with defaults or accept custom
+    config for full control.
+
+    Attributes
+    ----------
+    examples_term_suffix : str
+        Term must end with this string (case-insensitive) to be treated as an
+        examples header. Default: "examples".
+    examples_base_term : str
+        Exact match (case-insensitive, after stripping ":") for the base
+        examples section. Default: "examples".
+    examples_section_title : str
+        Title used for the base examples section. Default: "Examples".
+    usage_pattern : str
+        Text must start with this string (case-insensitive, after stripping
+        whitespace) to be treated as a usage block. Default: "usage:".
+    command_prefix : str
+        Prefix added to each command line in examples code blocks.
+        Default: "$ ".
+    code_language : str
+        Language identifier for examples code blocks. Default: "console".
+    code_classes : tuple[str, ...]
+        CSS classes added to examples code blocks.
+        Default: ("highlight-console",).
+    usage_code_language : str
+        Language identifier for usage blocks. Default: "cli-usage".
+    reorder_usage_before_examples : bool
+        Whether to reorder nodes so usage appears before examples.
+        Default: True.
+
+    Examples
+    --------
+    Using default configuration:
+
+    >>> config = ExemplarConfig()
+    >>> config.examples_term_suffix
+    'examples'
+    >>> config.command_prefix
+    '$ '
+
+    Custom configuration:
+
+    >>> config = ExemplarConfig(
+    ...     command_prefix="> ",
+    ...     code_language="bash",
+    ... )
+    >>> config.command_prefix
+    '> '
+    >>> config.code_language
+    'bash'
+    """
+
+    # Term detection
+    examples_term_suffix: str = "examples"
+    examples_base_term: str = "examples"
+    examples_section_title: str = "Examples"
+
+    # Usage detection
+    usage_pattern: str = "usage:"
+
+    # Code block formatting
+    command_prefix: str = "$ "
+    code_language: str = "console"
+    code_classes: tuple[str, ...] = ("highlight-console",)
+    usage_code_language: str = "cli-usage"
+
+    # Behavior
+    reorder_usage_before_examples: bool = True
+
+    @classmethod
+    def from_sphinx_config(cls, config: sphinx.config.Config) -> ExemplarConfig:
+        """Create ExemplarConfig from Sphinx configuration.
+
+        Parameters
+        ----------
+        config : sphinx.config.Config
+            The Sphinx configuration object.
+
+        Returns
+        -------
+        ExemplarConfig
+            Configuration populated from Sphinx config values.
+
+        Examples
+        --------
+        This is typically called from a directive's run() method:
+
+        >>> # In CleanArgParseDirective.run():
+        >>> # config = ExemplarConfig.from_sphinx_config(self.env.config)
+        """
+        # Get code_classes as tuple (Sphinx stores lists)
+        code_classes_raw = getattr(
+            config, "argparse_examples_code_classes", ("highlight-console",)
+        )
+        code_classes = (
+            tuple(code_classes_raw)
+            if isinstance(code_classes_raw, list)
+            else code_classes_raw
+        )
+
+        return cls(
+            examples_term_suffix=getattr(
+                config, "argparse_examples_term_suffix", "examples"
+            ),
+            examples_base_term=getattr(
+                config, "argparse_examples_base_term", "examples"
+            ),
+            examples_section_title=getattr(
+                config, "argparse_examples_section_title", "Examples"
+            ),
+            usage_pattern=getattr(config, "argparse_usage_pattern", "usage:"),
+            command_prefix=getattr(config, "argparse_examples_command_prefix", "$ "),
+            code_language=getattr(config, "argparse_examples_code_language", "console"),
+            code_classes=code_classes,
+            usage_code_language=getattr(
+                config, "argparse_usage_code_language", "cli-usage"
+            ),
+            reorder_usage_before_examples=getattr(
+                config, "argparse_reorder_usage_before_examples", True
+            ),
+        )
+
 
 # Re-export for backwards compatibility and public API
 __all__ = [
     "CleanArgParseDirective",
+    "ExemplarConfig",
     "escape_rst_emphasis",
     "is_base_examples_term",
     "is_examples_term",
@@ -85,13 +268,15 @@ __all__ = [
 ]
 
 
-def is_examples_term(term_text: str) -> bool:
+def is_examples_term(term_text: str, *, config: ExemplarConfig | None = None) -> bool:
     """Check if a definition term is an examples header.
 
     Parameters
     ----------
     term_text : str
         The text content of a definition term.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
@@ -106,17 +291,30 @@ def is_examples_term(term_text: str) -> bool:
     True
     >>> is_examples_term("Usage:")
     False
+
+    With custom configuration:
+
+    >>> custom_config = ExemplarConfig(examples_term_suffix="demos")
+    >>> is_examples_term("demos:", config=custom_config)
+    True
+    >>> is_examples_term("examples:", config=custom_config)
+    False
     """
-    return term_text.lower().rstrip(":").endswith("examples")
+    config = config or ExemplarConfig()
+    return term_text.lower().rstrip(":").endswith(config.examples_term_suffix)
 
 
-def is_base_examples_term(term_text: str) -> bool:
+def is_base_examples_term(
+    term_text: str, *, config: ExemplarConfig | None = None
+) -> bool:
     """Check if a definition term is a base "examples:" header (no prefix).
 
     Parameters
     ----------
     term_text : str
         The text content of a definition term.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
@@ -131,8 +329,17 @@ def is_base_examples_term(term_text: str) -> bool:
     True
     >>> is_base_examples_term("Field-scoped examples:")
     False
+
+    With custom configuration:
+
+    >>> custom_config = ExemplarConfig(examples_base_term="demos")
+    >>> is_base_examples_term("demos:", config=custom_config)
+    True
+    >>> is_base_examples_term("examples:", config=custom_config)
+    False
     """
-    return term_text.lower().rstrip(":").strip() == "examples"
+    config = config or ExemplarConfig()
+    return term_text.lower().rstrip(":").strip() == config.examples_base_term
 
 
 def make_section_id(
@@ -141,6 +348,7 @@ def make_section_id(
     *,
     is_subsection: bool = False,
     page_prefix: str = "",
+    config: ExemplarConfig | None = None,
 ) -> str:
     """Generate a section ID from an examples term.
 
@@ -155,6 +363,8 @@ def make_section_id(
     page_prefix : str
         Optional prefix from the page name (e.g., "sync", "add") to ensure
         uniqueness across different documentation pages.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
@@ -173,11 +383,22 @@ def make_section_id(
     'field-scoped'
     >>> make_section_id("examples:", counter=1)
     'examples-1'
+
+    With custom configuration:
+
+    >>> custom_config = ExemplarConfig(examples_term_suffix="demos")
+    >>> make_section_id("demos:", config=custom_config)
+    'demos'
+    >>> make_section_id("Machine-readable output demos:", config=custom_config)
+    'machine-readable-output-demos'
     """
-    # Extract prefix before "examples" (e.g., "Machine-readable output")
+    config = config or ExemplarConfig()
+    term_suffix = config.examples_term_suffix
+
+    # Extract prefix before the term suffix (e.g., "Machine-readable output")
     lower_text = term_text.lower().rstrip(":")
-    if "examples" in lower_text:
-        prefix = lower_text.rsplit("examples", 1)[0].strip()
+    if term_suffix in lower_text:
+        prefix = lower_text.rsplit(term_suffix, 1)[0].strip()
         # Remove trailing colon from prefix (handles ": examples" pattern)
         prefix = prefix.rstrip(":").strip()
         if prefix:
@@ -186,12 +407,12 @@ def make_section_id(
             if is_subsection:
                 section_id = normalized_prefix
             else:
-                section_id = f"{normalized_prefix}-examples"
+                section_id = f"{normalized_prefix}-{term_suffix}"
         else:
             # Plain "examples" - add page prefix if provided for uniqueness
-            section_id = f"{page_prefix}-examples" if page_prefix else "examples"
+            section_id = f"{page_prefix}-{term_suffix}" if page_prefix else term_suffix
     else:
-        section_id = "examples"
+        section_id = term_suffix
 
     # Add counter suffix for uniqueness
     if counter > 0:
@@ -200,7 +421,12 @@ def make_section_id(
     return section_id
 
 
-def make_section_title(term_text: str, *, is_subsection: bool = False) -> str:
+def make_section_title(
+    term_text: str,
+    *,
+    is_subsection: bool = False,
+    config: ExemplarConfig | None = None,
+) -> str:
     """Generate a section title from an examples term.
 
     Parameters
@@ -209,6 +435,8 @@ def make_section_title(term_text: str, *, is_subsection: bool = False) -> str:
         The examples term text (e.g., "Machine-readable output: examples:")
     is_subsection : bool
         If True, omit "Examples" suffix for cleaner nested titles.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
@@ -224,19 +452,38 @@ def make_section_title(term_text: str, *, is_subsection: bool = False) -> str:
     'Machine-Readable Output Examples'
     >>> make_section_title("Field-scoped examples:", is_subsection=True)
     'Field-Scoped'
+
+    With custom configuration:
+
+    >>> custom_config = ExemplarConfig(
+    ...     examples_base_term="demos",
+    ...     examples_term_suffix="demos",
+    ...     examples_section_title="Demos",
+    ... )
+    >>> make_section_title("demos:", config=custom_config)
+    'Demos'
+    >>> make_section_title("Machine-readable output demos:", config=custom_config)
+    'Machine-Readable Output Demos'
     """
+    config = config or ExemplarConfig()
+    base_term = config.examples_base_term
+    term_suffix = config.examples_term_suffix
+    section_title = config.examples_section_title
+
     # Remove trailing colon and normalize
     text = term_text.rstrip(":").strip()
-    # Handle base "examples:" case
-    if text.lower() == "examples":
-        return "Examples"
+    # Handle base term case (e.g., "examples:")
+    if text.lower() == base_term:
+        return section_title
 
-    # Extract the prefix (category name) before "examples"
+    # Extract the prefix (category name) before the term suffix
     lower = text.lower()
-    if lower.endswith(": examples"):
-        prefix = text[: -len(": examples")]
-    elif lower.endswith(" examples"):
-        prefix = text[: -len(" examples")]
+    colon_suffix = f": {term_suffix}"
+    space_suffix = f" {term_suffix}"
+    if lower.endswith(colon_suffix):
+        prefix = text[: -len(colon_suffix)]
+    elif lower.endswith(space_suffix):
+        prefix = text[: -len(space_suffix)]
     else:
         prefix = text
 
@@ -247,8 +494,8 @@ def make_section_title(term_text: str, *, is_subsection: bool = False) -> str:
     if is_subsection:
         return titled_prefix
 
-    # For top-level sections, append "Examples"
-    return f"{titled_prefix} Examples"
+    # For top-level sections, append the section title
+    return f"{titled_prefix} {section_title}"
 
 
 def _create_example_section(
@@ -257,6 +504,7 @@ def _create_example_section(
     *,
     is_subsection: bool = False,
     page_prefix: str = "",
+    config: ExemplarConfig | None = None,
 ) -> nodes.section:
     """Create a section node for an examples item.
 
@@ -270,16 +518,21 @@ def _create_example_section(
         If True, create a subsection with simpler title/id.
     page_prefix : str
         Optional prefix from the page name for unique section IDs.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
     nodes.section
         A section node with title and code blocks.
     """
+    config = config or ExemplarConfig()
     section_id = make_section_id(
-        term_text, is_subsection=is_subsection, page_prefix=page_prefix
+        term_text, is_subsection=is_subsection, page_prefix=page_prefix, config=config
     )
-    section_title = make_section_title(term_text, is_subsection=is_subsection)
+    section_title = make_section_title(
+        term_text, is_subsection=is_subsection, config=config
+    )
 
     section = nodes.section()
     section["ids"] = [section_id]
@@ -294,17 +547,20 @@ def _create_example_section(
         line = line.strip()
         if line:
             code_block = nodes.literal_block(
-                text=f"$ {line}",
-                classes=["highlight-console"],
+                text=f"{config.command_prefix}{line}",
+                classes=list(config.code_classes),
             )
-            code_block["language"] = "console"
+            code_block["language"] = config.code_language
             section += code_block
 
     return section
 
 
 def transform_definition_list(
-    dl_node: nodes.definition_list, *, page_prefix: str = ""
+    dl_node: nodes.definition_list,
+    *,
+    page_prefix: str = "",
+    config: ExemplarConfig | None = None,
 ) -> list[nodes.Node]:
     """Transform a definition list, converting examples items to code blocks.
 
@@ -318,12 +574,16 @@ def transform_definition_list(
         A definition list node.
     page_prefix : str
         Optional prefix from the page name for unique section IDs.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
     list[nodes.Node]
         Transformed nodes - code blocks for examples, original for others.
     """
+    config = config or ExemplarConfig()
+
     # First pass: collect examples and non-examples items separately
     example_items: list[tuple[str, nodes.definition]] = []  # (term_text, def_node)
     non_example_items: list[nodes.Node] = []
@@ -348,8 +608,8 @@ def transform_definition_list(
 
         term_text = strip_ansi(term_node.astext())
 
-        if is_examples_term(term_text):
-            if is_base_examples_term(term_text):
+        if is_examples_term(term_text, config=config):
+            if is_base_examples_term(term_text, config=config):
                 base_examples_index = len(example_items)
             example_items.append((term_text, def_node))
         else:
@@ -372,7 +632,11 @@ def transform_definition_list(
         # Create parent "Examples" section
         base_term, base_def = example_items[base_examples_index]
         parent_section = _create_example_section(
-            base_term, base_def, is_subsection=False, page_prefix=page_prefix
+            base_term,
+            base_def,
+            is_subsection=False,
+            page_prefix=page_prefix,
+            config=config,
         )
 
         # Add other examples as nested subsections
@@ -380,7 +644,11 @@ def transform_definition_list(
             if i == base_examples_index:
                 continue  # Skip the base (already used as parent)
             subsection = _create_example_section(
-                term_text, def_node, is_subsection=True, page_prefix=page_prefix
+                term_text,
+                def_node,
+                is_subsection=True,
+                page_prefix=page_prefix,
+                config=config,
             )
             parent_section += subsection
 
@@ -389,7 +657,11 @@ def transform_definition_list(
         # No nesting - create flat sections (backwards compatible)
         for term_text, def_node in example_items:
             section = _create_example_section(
-                term_text, def_node, is_subsection=False, page_prefix=page_prefix
+                term_text,
+                def_node,
+                is_subsection=False,
+                page_prefix=page_prefix,
+                config=config,
             )
             result_nodes.append(section)
 
@@ -397,7 +669,10 @@ def transform_definition_list(
 
 
 def process_node(
-    node: nodes.Node, *, page_prefix: str = ""
+    node: nodes.Node,
+    *,
+    page_prefix: str = "",
+    config: ExemplarConfig | None = None,
 ) -> nodes.Node | list[nodes.Node]:
     """Process a node: strip ANSI codes and transform examples.
 
@@ -407,12 +682,16 @@ def process_node(
         A docutils node to process.
     page_prefix : str
         Optional prefix from the page name for unique section IDs.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
     nodes.Node | list[nodes.Node]
         The processed node(s).
     """
+    config = config or ExemplarConfig()
+
     # Handle text nodes - strip ANSI
     if isinstance(node, nodes.Text):
         cleaned = strip_ansi(node.astext())
@@ -428,7 +707,7 @@ def process_node(
             if isinstance(item, nodes.definition_list_item):
                 for child in item.children:
                     if isinstance(child, nodes.term) and is_examples_term(
-                        strip_ansi(child.astext())
+                        strip_ansi(child.astext()), config=config
                     ):
                         has_examples = True
                         break
@@ -436,25 +715,27 @@ def process_node(
                 break
 
         if has_examples:
-            return transform_definition_list(node, page_prefix=page_prefix)
+            return transform_definition_list(
+                node, page_prefix=page_prefix, config=config
+            )
 
     # Handle literal_block nodes - strip ANSI and apply usage highlighting
     if isinstance(node, nodes.literal_block):
         text = strip_ansi(node.astext())
         needs_update = text != node.astext()
 
-        # Check if this is a usage block (starts with "usage:")
-        is_usage_block = text.lstrip().lower().startswith("usage:")
+        # Check if this is a usage block (starts with configured pattern)
+        is_usage = text.lstrip().lower().startswith(config.usage_pattern.lower())
 
-        if needs_update or is_usage_block:
+        if needs_update or is_usage:
             new_block = nodes.literal_block(text=text)
             # Preserve attributes
             for attr in ("language", "classes"):
                 if attr in node:
                     new_block[attr] = node[attr]
-            # Apply cli-usage language to usage blocks
-            if is_usage_block:
-                new_block["language"] = "cli-usage"
+            # Apply configured language to usage blocks
+            if is_usage:
+                new_block["language"] = config.usage_code_language
             return new_block
         return node
 
@@ -474,7 +755,7 @@ def process_node(
                 else:
                     processed_children.append(child)
             else:
-                result = process_node(child, page_prefix=page_prefix)
+                result = process_node(child, page_prefix=page_prefix, config=config)
                 if isinstance(result, list):
                     processed_children.extend(result)
                     changed = True
@@ -529,7 +810,7 @@ def process_node(
         new_children: list[nodes.Node] = []
         children_changed = False
         for child in node.children:
-            result = process_node(child, page_prefix=page_prefix)
+            result = process_node(child, page_prefix=page_prefix, config=config)
             if isinstance(result, list):
                 new_children.extend(result)
                 children_changed = True
@@ -544,18 +825,20 @@ def process_node(
     return node
 
 
-def _is_usage_block(node: nodes.Node) -> bool:
+def _is_usage_block(node: nodes.Node, *, config: ExemplarConfig | None = None) -> bool:
     """Check if a node is a usage literal block.
 
     Parameters
     ----------
     node : nodes.Node
         A docutils node to check.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
     bool
-        True if this is a usage block (literal_block starting with "usage:").
+        True if this is a usage block (literal_block starting with usage pattern).
 
     Examples
     --------
@@ -572,11 +855,20 @@ def _is_usage_block(node: nodes.Node) -> bool:
     False
     >>> _is_usage_block(nodes.section())
     False
+
+    With custom configuration:
+
+    >>> custom_config = ExemplarConfig(usage_pattern="synopsis:")
+    >>> _is_usage_block(nodes.literal_block(text="synopsis: cmd"), config=custom_config)
+    True
+    >>> _is_usage_block(nodes.literal_block(text="usage: cmd"), config=custom_config)
+    False
     """
+    config = config or ExemplarConfig()
     if not isinstance(node, nodes.literal_block):
         return False
     text = node.astext()
-    return text.lstrip().lower().startswith("usage:")
+    return text.lstrip().lower().startswith(config.usage_pattern.lower())
 
 
 def _is_usage_section(node: nodes.Node) -> bool:
@@ -616,18 +908,22 @@ def _is_usage_section(node: nodes.Node) -> bool:
     return any(id_str == "usage" or id_str.endswith("-usage") for id_str in ids)
 
 
-def _is_examples_section(node: nodes.Node) -> bool:
+def _is_examples_section(
+    node: nodes.Node, *, config: ExemplarConfig | None = None
+) -> bool:
     """Check if a node is an examples section.
 
     Parameters
     ----------
     node : nodes.Node
         A docutils node to check.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
     bool
-        True if this is an examples section (section with "examples" in its ID).
+        True if this is an examples section (section with term suffix in its ID).
 
     Examples
     --------
@@ -648,14 +944,29 @@ def _is_examples_section(node: nodes.Node) -> bool:
     False
     >>> _is_examples_section(nodes.literal_block(text="examples"))
     False
+
+    With custom configuration:
+
+    >>> custom_config = ExemplarConfig(examples_term_suffix="demos")
+    >>> section = nodes.section()
+    >>> section["ids"] = ["demos"]
+    >>> _is_examples_section(section, config=custom_config)
+    True
+    >>> section2 = nodes.section()
+    >>> section2["ids"] = ["examples"]
+    >>> _is_examples_section(section2, config=custom_config)
+    False
     """
+    config = config or ExemplarConfig()
     if not isinstance(node, nodes.section):
         return False
     ids: list[str] = node.get("ids", [])
-    return any("examples" in id_str.lower() for id_str in ids)
+    return any(config.examples_term_suffix in id_str.lower() for id_str in ids)
 
 
-def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
+def _reorder_nodes(
+    processed: list[nodes.Node], *, config: ExemplarConfig | None = None
+) -> list[nodes.Node]:
     """Reorder nodes so usage sections/blocks appear before examples sections.
 
     This ensures the CLI usage synopsis appears above examples in the
@@ -670,11 +981,13 @@ def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
     ----------
     processed : list[nodes.Node]
         List of processed docutils nodes.
+    config : ExemplarConfig | None
+        Optional configuration. If None, uses default ExemplarConfig().
 
     Returns
     -------
     list[nodes.Node]
-        Reordered nodes with usage before examples.
+        Reordered nodes with usage before examples (if enabled).
 
     Examples
     --------
@@ -719,9 +1032,22 @@ def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
     >>> result = _reorder_nodes([desc, examples, usage_section, args])
     >>> [n.get("ids", []) for n in result if isinstance(n, nodes.section)]
     [['usage'], ['examples'], ['arguments']]
+
+    Reordering can be disabled via config:
+
+    >>> no_reorder_config = ExemplarConfig(reorder_usage_before_examples=False)
+    >>> result = _reorder_nodes([desc, examples, usage, args], config=no_reorder_config)
+    >>> [type(n).__name__ for n in result]
+    ['paragraph', 'section', 'literal_block', 'section']
     """
+    config = config or ExemplarConfig()
+
+    # If reordering is disabled, return as-is
+    if not config.reorder_usage_before_examples:
+        return processed
+
     # First pass: check if there are any examples sections
-    has_examples = any(_is_examples_section(node) for node in processed)
+    has_examples = any(_is_examples_section(node, config=config) for node in processed)
     if not has_examples:
         # No examples, preserve original order
         return processed
@@ -734,9 +1060,9 @@ def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
     seen_examples = False
     for node in processed:
         # Check for both usage block (literal_block) and usage section
-        if _is_usage_block(node) or _is_usage_section(node):
+        if _is_usage_block(node, config=config) or _is_usage_section(node):
             usage_nodes.append(node)
-        elif _is_examples_section(node):
+        elif _is_examples_section(node, config=config):
             examples_sections.append(node)
             seen_examples = True
         elif not seen_examples:
@@ -817,11 +1143,15 @@ class CleanArgParseDirective(ArgparseDirective):  # type: ignore[misc]
 
         The processing pipeline:
         1. Run base directive to get initial nodes
-        2. Process each node (strip ANSI, transform examples definition lists)
-        3. Extract sections from inside argparse_program containers
-        4. Reorder so usage appears before examples
+        2. Load configuration from Sphinx config
+        3. Process each node (strip ANSI, transform examples definition lists)
+        4. Extract sections from inside argparse_program containers
+        5. Reorder so usage appears before examples (if enabled)
         """
         result = super().run()
+
+        # Load configuration from Sphinx
+        config = ExemplarConfig.from_sphinx_config(self.env.config)
 
         # Extract page name for unique section IDs across different CLI pages
         page_prefix = ""
@@ -834,7 +1164,7 @@ class CleanArgParseDirective(ArgparseDirective):  # type: ignore[misc]
 
         processed: list[nodes.Node] = []
         for node in result:
-            processed_node = process_node(node, page_prefix=page_prefix)
+            processed_node = process_node(node, page_prefix=page_prefix, config=config)
             if isinstance(processed_node, list):
                 processed.extend(processed_node)
             else:
@@ -855,11 +1185,42 @@ class CleanArgParseDirective(ArgparseDirective):  # type: ignore[misc]
                 flattened.append(node)
 
         # Reorder: usage sections/blocks before examples sections
-        return _reorder_nodes(flattened)
+        return _reorder_nodes(flattened, config=config)
 
 
 def setup(app: Sphinx) -> dict[str, t.Any]:
     """Register the clean argparse directive, lexers, and CLI roles.
+
+    Configuration Options
+    ---------------------
+    The following configuration options can be set in conf.py:
+
+    ``argparse_examples_term_suffix`` : str (default: "examples")
+        Term must end with this string to be treated as examples header.
+
+    ``argparse_examples_base_term`` : str (default: "examples")
+        Exact match for the base examples section.
+
+    ``argparse_examples_section_title`` : str (default: "Examples")
+        Title used for the base examples section.
+
+    ``argparse_usage_pattern`` : str (default: "usage:")
+        Text must start with this to be treated as a usage block.
+
+    ``argparse_examples_command_prefix`` : str (default: "$ ")
+        Prefix added to each command line in examples code blocks.
+
+    ``argparse_examples_code_language`` : str (default: "console")
+        Language identifier for examples code blocks.
+
+    ``argparse_examples_code_classes`` : list[str] (default: ["highlight-console"])
+        CSS classes added to examples code blocks.
+
+    ``argparse_usage_code_language`` : str (default: "cli-usage")
+        Language identifier for usage blocks.
+
+    ``argparse_reorder_usage_before_examples`` : bool (default: True)
+        Whether to reorder nodes so usage appears before examples.
 
     Parameters
     ----------
@@ -872,8 +1233,20 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
         Extension metadata.
     """
     # Load the base sphinx_argparse_neo extension first
-
     app.setup_extension("sphinx_argparse_neo")
+
+    # Register configuration options
+    app.add_config_value("argparse_examples_term_suffix", "examples", "html")
+    app.add_config_value("argparse_examples_base_term", "examples", "html")
+    app.add_config_value("argparse_examples_section_title", "Examples", "html")
+    app.add_config_value("argparse_usage_pattern", "usage:", "html")
+    app.add_config_value("argparse_examples_command_prefix", "$ ", "html")
+    app.add_config_value("argparse_examples_code_language", "console", "html")
+    app.add_config_value(
+        "argparse_examples_code_classes", ["highlight-console"], "html"
+    )
+    app.add_config_value("argparse_usage_code_language", "cli-usage", "html")
+    app.add_config_value("argparse_reorder_usage_before_examples", True, "html")
 
     # Override the argparse directive with our enhanced version
     app.add_directive("argparse", CleanArgParseDirective, override=True)
@@ -899,21 +1272,4 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
 
     register_roles()
 
-    # Register vcspull output lexer for command output highlighting
-    from vcspull_output_lexer import (  # type: ignore[import-not-found]
-        VcspullOutputLexer,
-    )
-
-    app.add_lexer("vcspull-output", VcspullOutputLexer)
-
-    # Register vcspull console lexer for session highlighting
-    from vcspull_console_lexer import (  # type: ignore[import-not-found]
-        VcspullConsoleLexer,
-    )
-
-    app.add_lexer("vcspull-console", VcspullConsoleLexer)
-
-    # Add CSS file for argparse highlighting styles
-    app.add_css_file("css/argparse-highlight.css")
-
-    return {"version": "3.0", "parallel_read_safe": True}
+    return {"version": "4.0", "parallel_read_safe": True}
