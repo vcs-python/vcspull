@@ -26,6 +26,16 @@ from .sync import create_sync_subparser, sync
 log = logging.getLogger(__name__)
 
 
+SubparserTuple: t.TypeAlias = tuple[
+    argparse.ArgumentParser,
+    argparse.ArgumentParser,
+    argparse.ArgumentParser,
+    argparse.ArgumentParser,
+    argparse.ArgumentParser,
+    argparse.ArgumentParser,
+]
+
+
 def build_description(
     intro: str,
     example_blocks: t.Sequence[tuple[str | None, t.Sequence[str]]],
@@ -238,7 +248,7 @@ FMT_DESCRIPTION = build_description(
 @overload
 def create_parser(
     return_subparsers: t.Literal[True],
-) -> tuple[argparse.ArgumentParser, t.Any]: ...
+) -> tuple[argparse.ArgumentParser, SubparserTuple]: ...
 
 
 @overload
@@ -247,7 +257,7 @@ def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParse
 
 def create_parser(
     return_subparsers: bool = False,
-) -> argparse.ArgumentParser | tuple[argparse.ArgumentParser, t.Any]:
+) -> argparse.ArgumentParser | tuple[argparse.ArgumentParser, SubparserTuple]:
     """Create CLI argument parser for vcspull."""
     parser = argparse.ArgumentParser(
         prog="vcspull",

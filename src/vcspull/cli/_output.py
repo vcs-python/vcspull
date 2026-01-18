@@ -8,6 +8,64 @@ import typing as t
 from dataclasses import dataclass, field
 from enum import Enum
 
+import typing_extensions
+
+JsonPrimitive: t.TypeAlias = str | int | float | bool | None
+JsonValue: t.TypeAlias = JsonPrimitive | dict[str, "JsonValue"] | list["JsonValue"]
+JsonObject: t.TypeAlias = t.Mapping[str, JsonValue]
+OutputPayload: t.TypeAlias = JsonObject | "PlanEntryPayload" | "PlanSummaryPayload"
+
+
+class PlanEntryPayload(t.TypedDict):
+    """Typed JSON payload for a plan entry."""
+
+    format_version: str
+    type: str
+    name: str
+    path: str
+    workspace_root: str
+    action: str
+    detail: typing_extensions.NotRequired[str]
+    url: typing_extensions.NotRequired[str]
+    branch: typing_extensions.NotRequired[str]
+    remote_branch: typing_extensions.NotRequired[str]
+    current_rev: typing_extensions.NotRequired[str]
+    target_rev: typing_extensions.NotRequired[str]
+    ahead: typing_extensions.NotRequired[int]
+    behind: typing_extensions.NotRequired[int]
+    dirty: typing_extensions.NotRequired[bool]
+    error: typing_extensions.NotRequired[str]
+    diagnostics: typing_extensions.NotRequired[list[str]]
+
+
+class PlanSummaryPayload(t.TypedDict):
+    """Typed JSON payload for a plan summary."""
+
+    format_version: str
+    type: str
+    clone: int
+    update: int
+    unchanged: int
+    blocked: int
+    errors: int
+    total: int
+    duration_ms: typing_extensions.NotRequired[int]
+
+
+class PlanWorkspacePayload(t.TypedDict):
+    """Typed JSON payload for a workspace grouping."""
+
+    path: str
+    operations: list[PlanEntryPayload]
+
+
+class PlanResultPayload(t.TypedDict):
+    """Typed JSON payload for a plan result."""
+
+    format_version: str
+    workspaces: list[PlanWorkspacePayload]
+    summary: PlanSummaryPayload
+
 
 class OutputMode(Enum):
     """Output format modes."""
@@ -47,9 +105,9 @@ class PlanEntry:
     error: str | None = None
     diagnostics: list[str] = field(default_factory=list)
 
-    def to_payload(self) -> dict[str, t.Any]:
+    def to_payload(self) -> PlanEntryPayload:
         """Convert the plan entry into a serialisable payload."""
-        payload: dict[str, t.Any] = {
+        payload: PlanEntryPayload = {
             "format_version": "1",
             "type": "operation",
             "name": self.name,
@@ -97,9 +155,9 @@ class PlanSummary:
         """Return the total number of repositories accounted for."""
         return self.clone + self.update + self.unchanged + self.blocked + self.errors
 
-    def to_payload(self) -> dict[str, t.Any]:
+    def to_payload(self) -> PlanSummaryPayload:
         """Convert the summary to a serialisable payload."""
-        payload: dict[str, t.Any] = {
+        payload: PlanSummaryPayload = {
             "format_version": "1",
             "type": "summary",
             "clone": self.clone,
@@ -139,9 +197,9 @@ class PlanResult:
             grouped.setdefault(entry.workspace_root, []).append(entry)
         return grouped
 
-    def to_json_object(self) -> dict[str, t.Any]:
+    def to_json_object(self) -> PlanResultPayload:
         """Return the JSON structure for ``--json`` output."""
-        workspaces: list[dict[str, t.Any]] = []
+        workspaces: list[PlanWorkspacePayload] = []
         for workspace_root, entries in self.to_workspace_mapping().items():
             workspaces.append(
                 {
@@ -168,17 +226,18 @@ class OutputFormatter:
             The output mode to use (human, json, ndjson)
         """
         self.mode = mode
-        self._json_buffer: list[dict[str, t.Any]] = []
+        self._json_buffer: list[OutputPayload] = []
 
-    def emit(self, data: dict[str, t.Any] | PlanEntry | PlanSummary) -> None:
+    def emit(self, data: OutputPayload | PlanEntry | PlanSummary) -> None:
         """Emit a data event.
 
         Parameters
         ----------
-        data : dict | PlanEntry | PlanSummary
+        data : OutputPayload | PlanEntry | PlanSummary
             Event data to emit. PlanEntry and PlanSummary instances are serialised
             automatically.
         """
+        payload: OutputPayload
         if isinstance(data, (PlanEntry, PlanSummary)):
             payload = data.to_payload()
         else:

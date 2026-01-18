@@ -28,7 +28,7 @@ class WorkspaceRootFixture(t.NamedTuple):
     """Fixture for workspace root normalization cases."""
 
     test_id: str
-    config_factory: t.Callable[[pathlib.Path], dict[str, t.Any]]
+    config_factory: t.Callable[[pathlib.Path], dict[str, object]]
 
 
 WORKSPACE_ROOT_FIXTURES: list[WorkspaceRootFixture] = [
@@ -81,7 +81,7 @@ WORKSPACE_ROOT_FIXTURES: list[WorkspaceRootFixture] = [
 )
 def test_workspace_root_normalization(
     test_id: str,
-    config_factory: t.Callable[[pathlib.Path], dict[str, t.Any]],
+    config_factory: t.Callable[[pathlib.Path], dict[str, object]],
     snapshot_json: SnapshotAssertion,
 ) -> None:
     """Ensure format_config merges duplicate workspace roots."""

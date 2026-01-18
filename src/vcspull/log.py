@@ -175,8 +175,23 @@ class LogFormatter(logging.Formatter):
 
         return "".join(reset + levelname + asctime + name + reset)
 
-    def __init__(self, color: bool = True, **kwargs: t.Any) -> None:
-        logging.Formatter.__init__(self, **kwargs)
+    def __init__(
+        self,
+        color: bool = True,
+        fmt: str | None = None,
+        datefmt: str | None = None,
+        style: t.Literal["%", "{", "$"] = "%",
+        validate: bool = True,
+        defaults: t.Mapping[str, object] | None = None,
+    ) -> None:
+        logging.Formatter.__init__(
+            self,
+            fmt=fmt,
+            datefmt=datefmt,
+            style=style,
+            validate=validate,
+            defaults=defaults,
+        )
 
     def format(self, record: logging.LogRecord) -> str:
         """Format log record."""

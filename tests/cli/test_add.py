@@ -22,6 +22,9 @@ if t.TYPE_CHECKING:
     from syrupy.assertion import SnapshotAssertion
 
 
+ConfigData: t.TypeAlias = dict[str, dict[str, dict[str, str]]]
+
+
 class AddRepoFixture(t.NamedTuple):
     """Fixture for add repo test cases."""
 
@@ -32,8 +35,8 @@ class AddRepoFixture(t.NamedTuple):
     path_relative: str | None
     dry_run: bool
     use_default_config: bool
-    preexisting_config: dict[str, t.Any] | None
-    expected_in_config: dict[str, t.Any]
+    preexisting_config: ConfigData | None
+    expected_in_config: ConfigData
     expected_log_messages: list[str]
 
 
@@ -169,8 +172,8 @@ def test_add_repo(
     path_relative: str | None,
     dry_run: bool,
     use_default_config: bool,
-    preexisting_config: dict[str, t.Any] | None,
-    expected_in_config: dict[str, t.Any],
+    preexisting_config: ConfigData | None,
+    expected_in_config: ConfigData,
     expected_log_messages: list[str],
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
