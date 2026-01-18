@@ -6,6 +6,7 @@ structured parser information into docutils nodes for documentation.
 
 from __future__ import annotations
 
+import dataclasses
 import typing as t
 
 from docutils import nodes
@@ -27,11 +28,11 @@ from sphinx_argparse_neo.parser import (
 )
 
 if t.TYPE_CHECKING:
-    from docutils.parsers.rst.states import RSTStateMachine
+    from docutils.parsers.rst.states import RSTState
     from sphinx.config import Config
 
 
-@t.dataclass_transform()
+@dataclasses.dataclass
 class RenderConfig:
     """Configuration for the renderer.
 
@@ -56,35 +57,6 @@ class RenderConfig:
     show_types: bool = True
     help_format: str = "rst"
     usage_style: str = "literal"
-
-    def __init__(
-        self,
-        heading_level: int = 2,
-        use_rubric: bool = False,
-        group_title_prefix: str = "",
-        include_in_toc: bool = True,
-        toc_depth: int = 2,
-        flatten_subcommands: bool = False,
-        subcommand_style: str = "nested",
-        show_defaults: bool = True,
-        show_choices: bool = True,
-        show_types: bool = True,
-        help_format: str = "rst",
-        usage_style: str = "literal",
-    ) -> None:
-        """Initialize render configuration."""
-        self.heading_level = heading_level
-        self.use_rubric = use_rubric
-        self.group_title_prefix = group_title_prefix
-        self.include_in_toc = include_in_toc
-        self.toc_depth = toc_depth
-        self.flatten_subcommands = flatten_subcommands
-        self.subcommand_style = subcommand_style
-        self.show_defaults = show_defaults
-        self.show_choices = show_choices
-        self.show_types = show_types
-        self.help_format = help_format
-        self.usage_style = usage_style
 
     @classmethod
     def from_sphinx_config(cls, config: Config) -> RenderConfig:
@@ -126,8 +98,8 @@ class ArgparseRenderer:
     ----------
     config : RenderConfig
         Rendering configuration.
-    state : RSTStateMachine | None
-        RST state machine for parsing nested RST content.
+    state : RSTState | None
+        RST state for parsing nested RST content.
 
     Examples
     --------
@@ -152,7 +124,7 @@ class ArgparseRenderer:
     def __init__(
         self,
         config: RenderConfig | None = None,
-        state: RSTStateMachine | None = None,
+        state: RSTState | None = None,
     ) -> None:
         """Initialize the renderer."""
         self.config = config or RenderConfig()
@@ -406,7 +378,7 @@ class ArgparseRenderer:
 
 def create_renderer(
     config: RenderConfig | None = None,
-    state: RSTStateMachine | None = None,
+    state: RSTState | None = None,
     renderer_class: type[ArgparseRenderer] | None = None,
 ) -> ArgparseRenderer:
     """Create a renderer instance.
@@ -415,8 +387,8 @@ def create_renderer(
     ----------
     config : RenderConfig | None
         Rendering configuration.
-    state : RSTStateMachine | None
-        RST state machine for parsing.
+    state : RSTState | None
+        RST state for parsing.
     renderer_class : type[ArgparseRenderer] | None
         Custom renderer class to use.
 

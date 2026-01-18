@@ -13,7 +13,7 @@ from docutils import nodes
 from docutils.statemachine import StringList
 
 if t.TYPE_CHECKING:
-    from docutils.parsers.rst.states import RSTStateMachine
+    from docutils.parsers.rst.states import RSTState
 
 
 # Patterns that indicate MyST markdown
@@ -254,7 +254,7 @@ def _parse_inline_myst(text: str, parent: nodes.Element) -> None:
 def parse_help_text(
     text: str,
     help_format: str,
-    state: RSTStateMachine | None = None,
+    state: RSTState | None = None,
 ) -> list[nodes.Node]:
     """Parse help text to docutils nodes.
 
@@ -264,8 +264,8 @@ def parse_help_text(
         The help text to parse.
     help_format : str
         The format: "rst", "myst", or "auto".
-    state : RSTStateMachine | None
-        RST state machine for parsing RST content.
+    state : RSTState | None
+        RST state for parsing RST content.
 
     Returns
     -------

@@ -700,7 +700,7 @@ def _reorder_nodes(processed: list[nodes.Node]) -> list[nodes.Node]:
     )
 
 
-class CleanArgParseDirective(ArgparseDirective):
+class CleanArgParseDirective(ArgparseDirective):  # type: ignore[misc]
     """ArgParse directive that strips ANSI codes and formats examples."""
 
     def run(self) -> list[nodes.Node]:

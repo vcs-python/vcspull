@@ -423,7 +423,7 @@ def visit_argparse_argument_html(
     node : argparse_argument
         The argument node being visited.
     """
-    names = node.get("names", [])
+    names: list[str] = node.get("names", [])
     metavar = node.get("metavar")
 
     # Build the argument signature with syntax highlighting
@@ -526,7 +526,7 @@ def visit_argparse_subcommand_html(
         The subcommand node being visited.
     """
     name = node.get("name", "")
-    aliases = node.get("aliases", [])
+    aliases: list[str] = node.get("aliases", [])
 
     self.body.append(f'<div class="argparse-subcommand" data-name="{name}">\n')
 

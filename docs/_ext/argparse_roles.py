@@ -363,8 +363,8 @@ def register_roles() -> None:
     >>> register_roles()
     >>> # Roles are now available in docutils RST parsing
     """
-    roles.register_local_role("cli-option", cli_option_role)
-    roles.register_local_role("cli-metavar", cli_metavar_role)
-    roles.register_local_role("cli-command", cli_command_role)
-    roles.register_local_role("cli-default", cli_default_role)
-    roles.register_local_role("cli-choice", cli_choice_role)
+    roles.register_local_role("cli-option", cli_option_role)  # type: ignore[arg-type]
+    roles.register_local_role("cli-metavar", cli_metavar_role)  # type: ignore[arg-type]
+    roles.register_local_role("cli-command", cli_command_role)  # type: ignore[arg-type]
+    roles.register_local_role("cli-default", cli_default_role)  # type: ignore[arg-type]
+    roles.register_local_role("cli-choice", cli_choice_role)  # type: ignore[arg-type]

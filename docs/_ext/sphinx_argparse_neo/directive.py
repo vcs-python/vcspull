@@ -186,7 +186,7 @@ class ArgparseDirective(SphinxDirective):
 
         # Render to nodes
         renderer = ArgparseRenderer(config=config, state=self.state)
-        return renderer.render(parser_info)
+        return t.cast(list[nodes.Node], renderer.render(parser_info))
 
     def _build_render_config(self) -> RenderConfig:
         """Build RenderConfig from directive and Sphinx config options.
