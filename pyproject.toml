@@ -162,6 +162,8 @@ module = [
   "sphinx_argparse_neo",
   "sphinx_argparse_neo.*",
   "cli_usage_lexer",
+  "argparse_lexer",
+  "argparse_roles",
   "docutils",
   "docutils.*",
   "pygments",

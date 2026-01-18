@@ -729,7 +729,7 @@ class CleanArgParseDirective(ArgparseDirective):
 
 
 def setup(app: Sphinx) -> dict[str, t.Any]:
-    """Register the clean argparse directive and CLI usage lexer.
+    """Register the clean argparse directive, lexers, and CLI roles.
 
     Parameters
     ----------
@@ -753,6 +753,22 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
 
     app.add_lexer("cli-usage", CLIUsageLexer)
 
+    # Register argparse lexers for help output highlighting
+    from argparse_lexer import (
+        ArgparseHelpLexer,
+        ArgparseLexer,
+        ArgparseUsageLexer,
+    )
+
+    app.add_lexer("argparse", ArgparseLexer)
+    app.add_lexer("argparse-usage", ArgparseUsageLexer)
+    app.add_lexer("argparse-help", ArgparseHelpLexer)
+
+    # Register CLI inline roles for documentation
+    from argparse_roles import register_roles
+
+    register_roles()
+
     # Register vcspull output lexer for command output highlighting
     from vcspull_output_lexer import (  # type: ignore[import-not-found]
         VcspullOutputLexer,
@@ -766,5 +782,8 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
     )
 
     app.add_lexer("vcspull-console", VcspullConsoleLexer)
+
+    # Add CSS file for argparse highlighting styles
+    app.add_css_file("css/argparse-highlight.css")
 
     return {"version": "3.0", "parallel_read_safe": True}
