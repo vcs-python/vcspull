@@ -1,88 +1,88 @@
-"""Enhanced sphinx_argparse_neo output formatting.
+"""Transform argparse epilog "examples:" definition lists into documentation sections.
 
-This extension wraps sphinx_argparse_neo's directive to:
-1. Remove ANSI escape codes that may be present when FORCE_COLOR is set
-2. Convert "examples:" definition lists into proper documentation sections
-3. Nest category-specific examples under a parent Examples section
-4. Apply cli-usage syntax highlighting to usage blocks
-5. Reorder sections so usage appears before examples
+This Sphinx extension post-processes sphinx_argparse_neo output to convert
+specially-formatted "examples:" definition lists in argparse epilogs into
+proper documentation sections with syntax-highlighted code blocks.
+
+Purpose
+-------
+When documenting CLI tools with argparse, it's useful to include examples in
+the epilog. This extension recognizes a specific definition list format and
+transforms it into structured documentation sections that appear in the TOC.
+
+Input Format
+------------
+Format your argparse epilog with definition lists where terms end with "examples:":
+
+.. code-block:: python
+
+    parser = argparse.ArgumentParser(
+        epilog=textwrap.dedent('''
+            examples:
+                vcspull sync
+                vcspull sync myrepo
+
+            Machine-readable output examples:
+                vcspull sync --json
+                vcspull sync -F json myrepo
+        '''),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+The epilog text will be parsed as a definition list by docutils, with:
+- Terms: "examples:", "Machine-readable output examples:", etc.
+- Definitions: The example commands (one per line)
+
+Output
+------
+The extension transforms these into proper sections:
+
+- A base "examples:" term creates an "Examples" section
+- Category-prefixed terms like "Machine-readable output examples:" create
+  subsections nested under the parent Examples section
+- Each command line becomes a syntax-highlighted console code block
+
+Configuration
+-------------
+Configure via conf.py (these inherit from sphinx_argparse_neo):
+
+``argparse_strip_ansi`` : bool (default: True)
+    Remove ANSI escape codes from argparse output.
+
+``argparse_escape_rst_emphasis`` : bool (default: True)
+    Escape asterisks that would trigger RST warnings (e.g., "django-*").
+
+Additional Features
+-------------------
+- Removes ANSI escape codes (useful when FORCE_COLOR is set)
+- Applies cli-usage syntax highlighting to usage blocks
+- Reorders sections so usage appears before examples in the output
+- Extracts sections from argparse_program containers for TOC visibility
 """
 
 from __future__ import annotations
 
-import re
 import typing as t
 
 from docutils import nodes
 from sphinx_argparse_neo.directive import ArgparseDirective
+from sphinx_argparse_neo.utils import escape_rst_emphasis, strip_ansi
 
 if t.TYPE_CHECKING:
     from sphinx.application import Sphinx
 
-_ANSI_RE = re.compile(r"\033\[[;?0-9]*[a-zA-Z]")
-
-# Match asterisks that would trigger RST emphasis (preceded by delimiter like
-# - or space) but NOT asterisks already escaped or in code/literal contexts
-_RST_EMPHASIS_RE = re.compile(r"(?<=[^\s\\])-\*(?=[^\s*]|$)")
-
-
-def escape_rst_emphasis(text: str) -> str:
-    r"""Escape asterisks that would trigger RST inline emphasis.
-
-    In reStructuredText, ``*text*`` creates emphasis. When argparse help text
-    contains patterns like ``django-*``, the dash (a delimiter character) followed
-    by asterisk triggers emphasis detection, causing warnings like:
-    "Inline emphasis start-string without end-string."
-
-    This function escapes such asterisks with a backslash so they render literally.
-
-    Parameters
-    ----------
-    text : str
-        Text potentially containing problematic asterisks.
-
-    Returns
-    -------
-    str
-        Text with asterisks escaped where needed.
-
-    Examples
-    --------
-    >>> escape_rst_emphasis('vcspull list "django-*"')
-    'vcspull list "django-\\*"'
-    >>> escape_rst_emphasis("plain text")
-    'plain text'
-    >>> escape_rst_emphasis("already \\* escaped")
-    'already \\* escaped'
-    >>> escape_rst_emphasis("*emphasis* is ok")
-    '*emphasis* is ok'
-    """
-    return _RST_EMPHASIS_RE.sub(r"-\*", text)
-
-
-def strip_ansi(text: str) -> str:
-    r"""Remove ANSI escape codes from text.
-
-    Parameters
-    ----------
-    text : str
-        Text potentially containing ANSI codes.
-
-    Returns
-    -------
-    str
-        Text with ANSI codes removed.
-
-    Examples
-    --------
-    >>> strip_ansi("plain text")
-    'plain text'
-    >>> strip_ansi("\033[32mgreen\033[0m")
-    'green'
-    >>> strip_ansi("\033[1;34mbold blue\033[0m")
-    'bold blue'
-    """
-    return _ANSI_RE.sub("", text)
+# Re-export for backwards compatibility and public API
+__all__ = [
+    "CleanArgParseDirective",
+    "escape_rst_emphasis",
+    "is_base_examples_term",
+    "is_examples_term",
+    "make_section_id",
+    "make_section_title",
+    "process_node",
+    "strip_ansi",
+    "transform_definition_list",
+]
 
 
 def is_examples_term(term_text: str) -> bool:

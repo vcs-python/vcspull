@@ -34,7 +34,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.napoleon",
     "sphinx.ext.linkcode",
-    "pretty_argparse",  # Uses sphinx_argparse_neo with vcspull enhancements
+    "argparse_exemplar",  # Transforms argparse epilog examples into doc sections
     "sphinx_inline_tabs",
     "sphinx_copybutton",
     "sphinxext.opengraph",
