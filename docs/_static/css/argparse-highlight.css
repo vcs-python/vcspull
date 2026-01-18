@@ -7,11 +7,13 @@
  * Color Palette:
  *   Background:    #282C34
  *   Default text:  #CCCED4
- *   Usage label:   #61AFEF (bold)
- *   Program name:  #C678DD (bold)
+ *   Usage label:   #61AFEF (blue, bold)
+ *   Program name:  #C678DD (purple, bold)
+ *   Subcommands:   #98C379 (green)
  *   Options:       #56B6C2 (teal)
- *   Metavars:      #CCCED4 (italic)
+ *   Metavars:      #E5C07B (yellow, italic)
  *   Choices:       #98C379 (green)
+ *   Headings:      #E5E5E5 (bright, bold)
  *   Punctuation:   #CCCED4
  */
 
@@ -40,11 +42,11 @@
  * CLI Metavars
  *
  * Placeholder values like FILE, PATH, DIRECTORY.
- * Styled with italic and neutral color to indicate "replace me".
+ * Yellow/amber to indicate "replace me" - distinct from flags (teal).
  */
 .cli-metavar {
     font-family: var(--font-stack--monospace);
-    color: #CCCED4;
+    color: #E5C07B;
     font-style: italic;
 }
 
@@ -52,11 +54,11 @@
  * CLI Commands
  *
  * Subcommand names like sync, add, list.
- * Uses purple for emphasis.
+ * Green (same as choices) - they're enumerated command options.
  */
 .cli-command {
     font-family: var(--font-stack--monospace);
-    color: #C678DD;
+    color: #98C379;
     font-weight: bold;
 }
 
@@ -100,12 +102,11 @@
     font-weight: bold;
 }
 
-/* Section headers like "positional arguments:", "options:" */
+/* Section headers like "positional arguments:", "options:" - neutral bright */
 .highlight-argparse .gs,
 .highlight-argparse-help .gs {
-    color: #61AFEF;
+    color: #E5E5E5;
     font-weight: bold;
-    text-decoration: underline;
 }
 
 /* Long options --foo - teal */
@@ -124,11 +125,11 @@
     font-weight: normal;
 }
 
-/* Metavar placeholders FILE, PATH - neutral gray italic */
+/* Metavar placeholders FILE, PATH - yellow/amber italic */
 .highlight-argparse .nv,
 .highlight-argparse-usage .nv,
 .highlight-argparse-help .nv {
-    color: #CCCED4;
+    color: #E5C07B;
     font-style: italic;
 }
 
@@ -196,7 +197,7 @@
 }
 
 .argparse-usage .nv {
-    color: #CCCED4;
+    color: #E5C07B;
     font-style: italic;
 }
 
@@ -235,7 +236,7 @@
 }
 
 .argparse-argument-name .nv {
-    color: #CCCED4;
+    color: #E5C07B;
     font-style: italic;
 }
 
