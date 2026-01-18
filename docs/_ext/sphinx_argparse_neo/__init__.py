@@ -5,7 +5,6 @@ A Sphinx extension for documenting argparse-based CLI tools that:
 - Fixes long-standing sphinx-argparse issues (TOC pollution, heading levels)
 - Provides configurable output (rubrics vs sections, flattened subcommands)
 - Supports extensibility via renderer classes
-- Optional MyST markdown support in help text
 - Text processing utilities (ANSI stripping)
 """
 
@@ -61,19 +60,10 @@ def setup(app: Sphinx) -> dict[str, t.Any]:
         Extension metadata.
     """
     # Configuration options
-    app.add_config_value("argparse_heading_level", 2, "html")
-    app.add_config_value("argparse_use_rubric", False, "html")
     app.add_config_value("argparse_group_title_prefix", "", "html")
-    app.add_config_value("argparse_include_in_toc", True, "html")
-    app.add_config_value("argparse_toc_depth", 2, "html")
-    app.add_config_value("argparse_flatten_subcommands", False, "html")
-    app.add_config_value("argparse_subcommand_style", "nested", "html")
     app.add_config_value("argparse_show_defaults", True, "html")
     app.add_config_value("argparse_show_choices", True, "html")
     app.add_config_value("argparse_show_types", True, "html")
-    app.add_config_value("argparse_hide_suppressed", True, "html")
-    app.add_config_value("argparse_help_format", "rst", "html")
-    app.add_config_value("argparse_usage_style", "literal", "html")
 
     # Register custom nodes
     app.add_node(

@@ -35,11 +35,7 @@ def test_render_config_defaults() -> None:
     """Test RenderConfig default values."""
     config = RenderConfig()
 
-    assert config.heading_level == 2
-    assert config.use_rubric is False
     assert config.group_title_prefix == ""
-    assert config.include_in_toc is True
-    assert config.flatten_subcommands is False
     assert config.show_defaults is True
     assert config.show_choices is True
     assert config.show_types is True
@@ -48,18 +44,16 @@ def test_render_config_defaults() -> None:
 def test_render_config_custom_values() -> None:
     """Test RenderConfig with custom values."""
     config = RenderConfig(
-        heading_level=3,
-        use_rubric=True,
         group_title_prefix="CLI ",
-        flatten_subcommands=True,
         show_defaults=False,
+        show_choices=False,
+        show_types=False,
     )
 
-    assert config.heading_level == 3
-    assert config.use_rubric is True
     assert config.group_title_prefix == "CLI "
-    assert config.flatten_subcommands is True
     assert config.show_defaults is False
+    assert config.show_choices is False
+    assert config.show_types is False
 
 
 # --- ArgparseRenderer basic tests ---
@@ -70,15 +64,15 @@ def test_renderer_creation_default_config() -> None:
     renderer = ArgparseRenderer()
 
     assert renderer.config is not None
-    assert renderer.config.heading_level == 2
+    assert renderer.config.show_defaults is True
 
 
 def test_renderer_creation_custom_config() -> None:
     """Test creating renderer with custom config."""
-    config = RenderConfig(heading_level=4)
+    config = RenderConfig(group_title_prefix="CLI ")
     renderer = ArgparseRenderer(config=config)
 
-    assert renderer.config.heading_level == 4
+    assert renderer.config.group_title_prefix == "CLI "
 
 
 def test_create_renderer_factory() -> None:
@@ -89,10 +83,10 @@ def test_create_renderer_factory() -> None:
 
 def test_create_renderer_with_config() -> None:
     """Test create_renderer with custom config."""
-    config = RenderConfig(use_rubric=True)
+    config = RenderConfig(show_types=False)
     renderer = create_renderer(config=config)
 
-    assert renderer.config.use_rubric is True
+    assert renderer.config.show_types is False
 
 
 # --- Render method tests ---

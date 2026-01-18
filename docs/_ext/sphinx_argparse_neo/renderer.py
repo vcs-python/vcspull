@@ -39,24 +39,16 @@ class RenderConfig:
     Examples
     --------
     >>> config = RenderConfig()
-    >>> config.heading_level
-    2
-    >>> config.use_rubric
-    False
+    >>> config.show_defaults
+    True
+    >>> config.group_title_prefix
+    ''
     """
 
-    heading_level: int = 2
-    use_rubric: bool = False
     group_title_prefix: str = ""
-    include_in_toc: bool = True
-    toc_depth: int = 2
-    flatten_subcommands: bool = False
-    subcommand_style: str = "nested"
     show_defaults: bool = True
     show_choices: bool = True
     show_types: bool = True
-    help_format: str = "rst"
-    usage_style: str = "literal"
 
     @classmethod
     def from_sphinx_config(cls, config: Config) -> RenderConfig:
@@ -73,18 +65,10 @@ class RenderConfig:
             Render configuration based on Sphinx config values.
         """
         return cls(
-            heading_level=getattr(config, "argparse_heading_level", 2),
-            use_rubric=getattr(config, "argparse_use_rubric", False),
             group_title_prefix=getattr(config, "argparse_group_title_prefix", ""),
-            include_in_toc=getattr(config, "argparse_include_in_toc", True),
-            toc_depth=getattr(config, "argparse_toc_depth", 2),
-            flatten_subcommands=getattr(config, "argparse_flatten_subcommands", False),
-            subcommand_style=getattr(config, "argparse_subcommand_style", "nested"),
             show_defaults=getattr(config, "argparse_show_defaults", True),
             show_choices=getattr(config, "argparse_show_choices", True),
             show_types=getattr(config, "argparse_show_types", True),
-            help_format=getattr(config, "argparse_help_format", "rst"),
-            usage_style=getattr(config, "argparse_usage_style", "literal"),
         )
 
 
