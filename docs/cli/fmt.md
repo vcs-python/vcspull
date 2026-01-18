@@ -53,18 +53,27 @@ becomes:
 
 ## Writing changes
 
-Run the formatter in dry-run mode first to preview the adjustments, then add
-`--write` (or `-w`) to persist them back to disk:
+Run the formatter in dry-run mode first to preview the adjustments:
 
 ```console
 $ vcspull fmt --file ~/.vcspull.yaml
+```
+
+Then add `--write` (or `-w`) to persist them back to disk:
+
+```console
 $ vcspull fmt --file ~/.vcspull.yaml --write
 ```
 
-Short form:
+Short form for preview:
 
 ```console
 $ vcspull fmt -f ~/.vcspull.yaml
+```
+
+Short form to apply:
+
+```console
 $ vcspull fmt -f ~/.vcspull.yaml -w
 ```
 

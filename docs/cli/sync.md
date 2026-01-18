@@ -109,10 +109,15 @@ This syncs only repositories in the specified workspace root,  useful for:
 - Multi-workspace setups
 - Targeted sync operations
 
-All three flag names work identically:
+All three flag names work identically. Using `--workspace`:
 
 ```console
 $ vcspull sync --workspace ~/code/ '*'
+```
+
+Or using `--workspace-root`:
+
+```console
 $ vcspull sync --workspace-root ~/code/ '*'
 ```
 

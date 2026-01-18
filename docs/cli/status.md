@@ -126,10 +126,15 @@ Each status entry includes:
 - `branch`: Current branch (when detailed information is available)
 - `ahead`, `behind`: Divergence counts relative to the upstream branch
 
-Filter with [jq]:
+Filter with [jq] to find missing repositories:
 
 ```console
 $ vcspull status --json | jq '.[] | select(.reason == "status" and .exists == false)'
+```
+
+Or extract just the summary:
+
+```console
 $ vcspull status --json | jq '.[] | select(.reason == "summary")'
 ```
 

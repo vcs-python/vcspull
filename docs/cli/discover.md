@@ -242,15 +242,29 @@ Changes:
 
 **Initial workspace setup:**
 
+Discover all repositories:
+
 ```console
 $ vcspull discover ~/code --recursive --yes
+```
+
+Then format and sort the configuration:
+
+```console
 $ vcspull fmt --write
 ```
 
 **Migrate from another tool:**
 
+Preview what would be discovered:
+
 ```console
 $ vcspull discover ~/projects --recursive --dry-run
+```
+
+Then apply the changes:
+
+```console
 $ vcspull discover ~/projects --recursive --yes
 ```
 
