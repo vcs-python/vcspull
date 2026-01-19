@@ -13,16 +13,18 @@ import re
 import subprocess
 import sys
 import typing as t
-from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from io import StringIO
 from time import perf_counter
 
+from libvcs._internal.run import ProgressCallbackProtocol
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitSync
+from libvcs.sync.hg import HgSync
+from libvcs.sync.svn import SvnSync
 from libvcs.url import registry as url_tools
 
 from vcspull import exc
@@ -32,6 +34,8 @@ from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
 from ._output import (
+    JsonObject,
+    JsonValue,
     OutputFormatter,
     OutputMode,
     PlanAction,
@@ -42,11 +46,46 @@ from ._output import (
     get_output_mode,
 )
 from ._workspaces import filter_by_workspace
-from .status import check_repo_status
+from .status import StatusResult, check_repo_status
 
 log = logging.getLogger(__name__)
 
-ProgressCallback = Callable[[str, datetime], None]
+ProgressCallback: t.TypeAlias = ProgressCallbackProtocol
+
+
+class RepoPayloadBase(t.TypedDict):
+    """Keyword arguments used to create a repo via libvcs."""
+
+    url: str
+    path: str | os.PathLike[str]
+    progress_callback: ProgressCallback | None
+
+
+class GitRepoPayload(RepoPayloadBase):
+    """Keyword arguments for git repositories."""
+
+    vcs: t.Literal["git"]
+
+
+class HgRepoPayload(RepoPayloadBase):
+    """Keyword arguments for Mercurial repositories."""
+
+    vcs: t.Literal["hg"]
+
+
+class SvnRepoPayload(RepoPayloadBase):
+    """Keyword arguments for Subversion repositories."""
+
+    vcs: t.Literal["svn"]
+
+
+class RepoPayload(t.TypedDict):
+    """Keyword arguments used to create a repo via libvcs."""
+
+    url: str
+    path: str | os.PathLike[str]
+    vcs: VCSLiteral | None
+    progress_callback: ProgressCallback | None
 
 
 PLAN_SYMBOLS: dict[PlanAction, str] = {
@@ -187,7 +226,7 @@ def _maybe_fetch(
 
 
 def _determine_plan_action(
-    status: dict[str, t.Any],
+    status: StatusResult,
     *,
     config: SyncPlanConfig,
 ) -> tuple[PlanAction, str | None]:
@@ -718,7 +757,7 @@ def sync(
 
         summary["total"] += 1
 
-        event: dict[str, t.Any] = {
+        event: dict[str, JsonValue] = {
             "reason": "sync",
             "name": repo_name,
             "path": display_repo_path,
@@ -763,12 +802,14 @@ def sync(
                 f"{colors.error(str(e))}",
             )
             if exit_on_error:
-                formatter.emit(
+                summary_payload = t.cast(
+                    "JsonObject",
                     {
                         "reason": "summary",
                         **summary,
                     },
                 )
+                formatter.emit(summary_payload)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
@@ -783,12 +824,14 @@ def sync(
             f"{colors.muted('→')} {display_repo_path}",
         )
 
-    formatter.emit(
+    summary_payload = t.cast(
+        "JsonObject",
         {
             "reason": "summary",
             **summary,
         },
     )
+    formatter.emit(summary_payload)
 
     if formatter.mode == OutputMode.HUMAN:
         formatter.emit_text(
@@ -825,33 +868,44 @@ def guess_vcs(url: str) -> VCSLiteral | None:
 class CouldNotGuessVCSFromURL(exc.VCSPullException):
     """Raised when no VCS could be guessed from a URL."""
 
-    def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
+    def __init__(self, repo_url: str) -> None:
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
 def update_repo(
-    repo_dict: t.Any,
+    repo_dict: ConfigDict,
     progress_callback: ProgressCallback | None = None,
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
-) -> GitSync:
+) -> GitSync | HgSync | SvnSync:
     """Synchronize a single repository."""
-    repo_dict = deepcopy(repo_dict)
-    if "pip_url" not in repo_dict:
-        repo_dict["pip_url"] = repo_dict.pop("url")
-    if "url" not in repo_dict:
-        repo_dict["url"] = repo_dict.pop("pip_url")
+    repo_payload = t.cast("dict[str, object]", deepcopy(repo_dict))
+    if "pip_url" not in repo_payload:
+        repo_payload["pip_url"] = repo_payload.pop("url")
+    if "url" not in repo_payload:
+        repo_payload["url"] = repo_payload.pop("pip_url")
 
-    repo_dict["progress_callback"] = progress_callback or progress_cb
+    repo_payload["progress_callback"] = progress_callback or progress_cb
 
-    if repo_dict.get("vcs") is None:
-        vcs = guess_vcs(url=repo_dict["url"])
+    repo_url = t.cast("str", repo_payload["url"])
+    repo_vcs = t.cast("VCSLiteral | None", repo_payload.get("vcs"))
+    if repo_vcs is None:
+        vcs = guess_vcs(url=repo_url)
         if vcs is None:
-            raise CouldNotGuessVCSFromURL(repo_url=repo_dict["url"])
+            raise CouldNotGuessVCSFromURL(repo_url=repo_url)
 
-        repo_dict["vcs"] = vcs
+        repo_payload["vcs"] = vcs
+        repo_vcs = vcs
 
-    r = create_project(**repo_dict)  # Creates the repo object
+    assert repo_vcs is not None
+
+    r: GitSync | HgSync | SvnSync
+    if repo_vcs == "git":
+        r = create_project(**t.cast("GitRepoPayload", repo_payload))
+    elif repo_vcs == "svn":
+        r = create_project(**t.cast("SvnRepoPayload", repo_payload))
+    else:
+        r = create_project(**t.cast("HgRepoPayload", repo_payload))
+
     r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
 
-    # TODO: Fix this
-    return r  # type:ignore
+    return r

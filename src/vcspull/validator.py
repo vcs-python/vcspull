@@ -8,7 +8,7 @@ import typing as t
 from vcspull.types import RawConfigDict
 
 
-def is_valid_config(config: dict[str, t.Any]) -> t.TypeGuard[RawConfigDict]:
+def is_valid_config(config: dict[str, object]) -> t.TypeGuard[RawConfigDict]:
     """Return true and upcast if vcspull configuration file is valid."""
     if not isinstance(config, dict):
         return False
