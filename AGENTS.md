@@ -257,7 +257,7 @@ def test_sync(
 
 Format commit messages as:
 ```
-Component/File(commit-type[Subcomponent/method]): Concise description
+Component/File(commit-type[Subcomponent/method]) Concise description
 
 why: Explanation of necessity or impact.
 what:
@@ -274,15 +274,25 @@ Common commit types:
 - **test**: Test-related updates
 - **style**: Code style and formatting
 
-Example:
+Examples:
 ```
-cli/add(feat[add_repo]): Add support for custom remote URLs
+cli/add(feat[add_repo]) Add support for custom remote URLs
 
 why: Enable users to specify alternative remote URLs for repositories
 what:
 - Add remote_url parameter to add_repo function
 - Update CLI argument parser to accept --remote-url option
 - Add tests for the new functionality
+```
+
+For docs/_ext changes, use `docs` as the top-level component:
+```
+docs(sphinx_argparse_neo[renderer]) Escape asterisks in quoted strings
+
+why: Glob patterns like "django-*" cause RST emphasis issues
+what:
+- Add _escape_glob_asterisks() helper method
+- Call it before RST parsing in _parse_text()
 ```
 
 ## Documentation Standards
