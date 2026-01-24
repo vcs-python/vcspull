@@ -7,6 +7,7 @@ structured parser information into docutils nodes for documentation.
 from __future__ import annotations
 
 import dataclasses
+import re
 import typing as t
 
 from docutils import nodes
@@ -465,6 +466,28 @@ class ArgparseRenderer:
         """
         return result_nodes
 
+    def _escape_glob_asterisks(self, text: str) -> str:
+        """Escape asterisks inside double-quoted strings to prevent RST emphasis.
+
+        Glob patterns like "django-*" contain asterisks that RST interprets as
+        starting emphasis. This escapes them only within quoted content.
+
+        Parameters
+        ----------
+        text : str
+            Text that may contain quoted glob patterns.
+
+        Returns
+        -------
+        str
+            Text with asterisks escaped inside double-quoted strings.
+        """
+        return re.sub(
+            r'"([^"]*)"',
+            lambda m: '"' + m.group(1).replace("*", r"\*") + '"',
+            text,
+        )
+
     def _parse_text(self, text: str) -> list[nodes.Node]:
         """Parse text as RST or MyST content.
 
@@ -480,6 +503,9 @@ class ArgparseRenderer:
         """
         if not text:
             return []
+
+        # Escape asterisks in quoted strings to prevent RST emphasis issues
+        text = self._escape_glob_asterisks(text)
 
         if self.state is None:
             # No state machine available, return as paragraph
