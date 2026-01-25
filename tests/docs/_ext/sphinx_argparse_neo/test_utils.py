@@ -86,8 +86,8 @@ class EscapeRstEmphasisFixture(t.NamedTuple):
 ESCAPE_RST_EMPHASIS_FIXTURES: list[EscapeRstEmphasisFixture] = [
     EscapeRstEmphasisFixture(
         test_id="glob_pattern_quoted",
-        input_text='tmuxp load "my-*"',
-        expected='tmuxp load "my-\\*"',
+        input_text='myapp load "my-*"',
+        expected='myapp load "my-\\*"',
     ),
     EscapeRstEmphasisFixture(
         test_id="glob_pattern_django",

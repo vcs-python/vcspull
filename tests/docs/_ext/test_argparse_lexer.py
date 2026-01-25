@@ -814,7 +814,7 @@ def test_lowercase_metavar_with_underscores() -> None:
     """Test lowercase metavars with underscores are fully captured.
 
     Regression test: previously `socket_name` was tokenized as `socket` + `_name`.
-    Example from tmuxp load usage.
+    Example from CLI usage with underscore metavars.
     """
     usage = "usage: prog [-L socket_name] [-S socket_path] [-f config_file]"
     tokens = get_usage_tokens(usage)
