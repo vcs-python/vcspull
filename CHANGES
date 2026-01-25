@@ -42,7 +42,7 @@ _Notes on upcoming releases will be added here_
 - Refactor syrupy snapshot tests to avoid `name=` parameter which may cause
   matching issues in certain build environments, e.g., Arch Linux packaging (#503).
 
-## vcspull v1.50.1 (unreleased)
+## vcspull v1.50.1 (2026-01-25)
 
 ### Breaking changes
 
