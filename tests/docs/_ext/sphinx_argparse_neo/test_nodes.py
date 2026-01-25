@@ -332,7 +332,9 @@ ARGUMENT_HTML_CASES = [
             r'<span class="na">-L</span>',
             r'<span class="nv">socket-name</span>',
             r'<a class="headerlink" href="#shell-L">¶</a>',
-            r'Default: <span class="nv">None</span>',
+            r'<dl class="argparse-argument-meta">',
+            r'<dt class="argparse-meta-key">Default</dt>',
+            r'<dd class="argparse-meta-value"><span class="nv">None</span></dd>',
             r"</div>",
         ],
     ),
@@ -492,7 +494,8 @@ def test_default_value_styled() -> None:
         id_prefix="",
     )
 
-    assert 'Default: <span class="nv">json</span>' in html
+    assert '<dt class="argparse-meta-key">Default</dt>' in html
+    assert '<dd class="argparse-meta-value"><span class="nv">json</span></dd>' in html
 
 
 def test_wrapper_div_closed() -> None:
