@@ -35,6 +35,13 @@ _Notes on upcoming releases will be added here_
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Bug fixes
+
+#### Improve downstream compatibility in test matrix (#504)
+
+- Refactor syrupy snapshot tests to avoid `name=` parameter which may cause
+  matching issues in certain build environments, e.g., Arch Linux packaging (#503).
+
 ## vcspull v1.50.0 (2026-01-24)
 
 ### Breaking changes
