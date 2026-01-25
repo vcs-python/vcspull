@@ -35,6 +35,21 @@ _Notes on upcoming releases will be added here_
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Documentation
+
+#### CLI reference pages now have linkable arguments (#502)
+
+Each command-line argument (`--help`, `-v`, `--config`, etc.) in the CLI
+reference documentation now has a permalink anchor (¶). You can hover over any
+argument to reveal the link, then share direct URLs to specific options.
+
+- Improved metadata display: Default values, types, and "Required" tags are now
+  styled more clearly
+- Help text containing glob patterns like `django-*` no longer triggers
+  documentation build warnings
+- Multiple CLI commands can now appear on the same documentation page without
+  ID conflicts
+
 ### Bug fixes
 
 #### Improve downstream compatibility in test matrix (#504)
