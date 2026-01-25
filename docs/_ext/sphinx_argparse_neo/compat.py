@@ -191,13 +191,24 @@ def get_parser_from_module(
 
     Examples
     --------
-    Load vcspull's parser factory:
+    Load a parser from a module with a factory function:
 
-    >>> parser = get_parser_from_module("vcspull.cli", "create_parser")
+    >>> import argparse
+    >>> import sys
+    >>> # Create a test module with a parser factory
+    >>> import types
+    >>> test_mod = types.ModuleType("_test_parser_mod")
+    >>> def _create_parser():
+    ...     p = argparse.ArgumentParser(prog="test")
+    ...     return p
+    >>> test_mod.create_parser = _create_parser
+    >>> sys.modules["_test_parser_mod"] = test_mod
+    >>> parser = get_parser_from_module("_test_parser_mod", "create_parser")
     >>> parser.prog
-    'vcspull'
+    'test'
     >>> hasattr(parser, 'parse_args')
     True
+    >>> del sys.modules["_test_parser_mod"]
     """
     ctx = mock_imports(mock_modules) if mock_modules else contextlib.nullcontext()
 
@@ -250,11 +261,20 @@ def get_parser_from_entry_point(
 
     Examples
     --------
-    Load vcspull's parser using entry point syntax:
+    Load a parser using entry point syntax:
 
-    >>> parser = get_parser_from_entry_point("vcspull.cli:create_parser")
+    >>> import argparse
+    >>> import sys
+    >>> import types
+    >>> test_mod = types.ModuleType("_test_ep_mod")
+    >>> def _create_parser():
+    ...     return argparse.ArgumentParser(prog="test-ep")
+    >>> test_mod.create_parser = _create_parser
+    >>> sys.modules["_test_ep_mod"] = test_mod
+    >>> parser = get_parser_from_entry_point("_test_ep_mod:create_parser")
     >>> parser.prog
-    'vcspull'
+    'test-ep'
+    >>> del sys.modules["_test_ep_mod"]
 
     Invalid format raises ValueError:
 

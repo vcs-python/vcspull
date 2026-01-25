@@ -67,14 +67,14 @@ class ArgparseUsageLexer(RegexLexer):
             (r"\.\.\.", Punctuation),
             # Long options with = value (e.g., --log-level=VALUE)
             (
-                r"(--[a-zA-Z0-9][-a-zA-Z0-9]*)(=)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9]*)",
+                r"(--[a-zA-Z0-9][-a-zA-Z0-9]*)(=)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9_]*)",
                 bygroups(Name.Tag, Operator, Name.Variable),  # type: ignore[no-untyped-call]
             ),
             # Long options standalone
             (r"--[a-zA-Z0-9][-a-zA-Z0-9]*", Name.Tag),
             # Short options with space-separated value (e.g., -S socket-path)
             (
-                r"(-[a-zA-Z0-9])(\s+)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9]*)",
+                r"(-[a-zA-Z0-9])(\s+)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9_]*)",
                 bygroups(Name.Attribute, Whitespace, Name.Variable),  # type: ignore[no-untyped-call]
             ),
             # Short options standalone
@@ -94,7 +94,7 @@ class ArgparseUsageLexer(RegexLexer):
             # UPPERCASE meta-variables (COMMAND, FILE, PATH)
             (r"\b[A-Z][A-Z0-9_]*\b", Name.Variable),
             # Subcommand/positional names (Name.Function for distinct styling)
-            (r"\b[a-z][-a-z0-9]*\b", Name.Function),
+            (r"\b[a-z][-a-z0-9_]*\b", Name.Function),
             # Catch-all for any other text
             (r"[^\s\[\]|(){},]+", Text),
         ],
@@ -105,14 +105,14 @@ class ArgparseUsageLexer(RegexLexer):
             (r"\.\.\.", Punctuation),
             # Long options with = value (e.g., --log-level=VALUE)
             (
-                r"(--[a-zA-Z0-9][-a-zA-Z0-9]*)(=)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9]*)",
+                r"(--[a-zA-Z0-9][-a-zA-Z0-9]*)(=)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9_]*)",
                 bygroups(Name.Tag, Operator, Name.Variable),  # type: ignore[no-untyped-call]
             ),
             # Long options standalone
             (r"--[a-zA-Z0-9][-a-zA-Z0-9]*", Name.Tag),
             # Short options with space-separated value (e.g., -S socket-path)
             (
-                r"(-[a-zA-Z0-9])(\s+)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9]*)",
+                r"(-[a-zA-Z0-9])(\s+)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9_]*)",
                 bygroups(Name.Attribute, Whitespace, Name.Variable),  # type: ignore[no-untyped-call]
             ),
             # Short options standalone
@@ -132,7 +132,7 @@ class ArgparseUsageLexer(RegexLexer):
             # UPPERCASE meta-variables (COMMAND, FILE, PATH)
             (r"\b[A-Z][A-Z0-9_]*\b", Name.Variable),
             # Positional/command names (lowercase with dashes)
-            (r"\b[a-z][-a-z0-9]*\b", Name.Label),
+            (r"\b[a-z][-a-z0-9_]*\b", Name.Label),
             # Catch-all for any other text
             (r"[^\s\[\]|(){},]+", Text),
         ],
@@ -234,14 +234,14 @@ class ArgparseHelpLexer(RegexLexer):
             (r"\.\.\.", Punctuation),
             # Long options with = value
             (
-                r"(--[a-zA-Z0-9][-a-zA-Z0-9]*)(=)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9]*)",
+                r"(--[a-zA-Z0-9][-a-zA-Z0-9]*)(=)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9_]*)",
                 bygroups(Name.Tag, Operator, Name.Variable),  # type: ignore[no-untyped-call]
             ),
             # Long options standalone
             (r"--[a-zA-Z0-9][-a-zA-Z0-9]*", Name.Tag),
             # Short options with value
             (
-                r"(-[a-zA-Z0-9])(\s+)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9]*)",
+                r"(-[a-zA-Z0-9])(\s+)([A-Z][A-Z0-9_]*|[a-z][-a-z0-9_]*)",
                 bygroups(Name.Attribute, Whitespace, Name.Variable),  # type: ignore[no-untyped-call]
             ),
             # Short options standalone
@@ -259,7 +259,7 @@ class ArgparseHelpLexer(RegexLexer):
             # UPPERCASE metavars
             (r"\b[A-Z][A-Z0-9_]*\b", Name.Variable),
             # Subcommand/positional names (Name.Function for distinct styling)
-            (r"\b[a-z][-a-z0-9]*\b", Name.Function),
+            (r"\b[a-z][-a-z0-9_]*\b", Name.Function),
             # Other text
             (r"[^\s\[\]|(){},\n]+", Text),
         ],

@@ -23,6 +23,49 @@ if str(_ext_dir) not in sys.path:
     sys.path.insert(0, str(_ext_dir))
 
 from argparse_lexer import ArgparseUsageLexer  # noqa: E402
+from sphinx_argparse_neo.utils import strip_ansi  # noqa: E402
+
+
+def _generate_argument_id(names: list[str], id_prefix: str = "") -> str:
+    """Generate unique ID for an argument based on its names.
+
+    Creates a slug-style ID suitable for HTML anchors by:
+    1. Stripping leading dashes from option names
+    2. Joining multiple names with hyphens
+    3. Prepending optional prefix for namespace isolation
+
+    Parameters
+    ----------
+    names : list[str]
+        List of argument names (e.g., ["-L", "--socket-name"]).
+    id_prefix : str
+        Optional prefix for uniqueness (e.g., "shell" -> "shell-L-socket-name").
+
+    Returns
+    -------
+    str
+        A slug-style ID suitable for HTML anchors.
+
+    Examples
+    --------
+    >>> _generate_argument_id(["-L"])
+    'L'
+    >>> _generate_argument_id(["--help"])
+    'help'
+    >>> _generate_argument_id(["-v", "--verbose"])
+    'v-verbose'
+    >>> _generate_argument_id(["-L"], "shell")
+    'shell-L'
+    >>> _generate_argument_id(["filename"])
+    'filename'
+    >>> _generate_argument_id([])
+    ''
+    """
+    clean_names = [name.lstrip("-") for name in names if name.lstrip("-")]
+    if not clean_names:
+        return ""
+    name_part = "-".join(clean_names)
+    return f"{id_prefix}-{name_part}" if id_prefix else name_part
 
 
 def _token_to_css_class(token_type: t.Any) -> str:
@@ -347,7 +390,7 @@ def visit_argparse_usage_html(self: HTML5Translator, node: argparse_usage) -> No
     node : argparse_usage
         The usage node being visited.
     """
-    usage = node.get("usage", "")
+    usage = strip_ansi(node.get("usage", ""))
     # Add both argparse-usage class and highlight class for CSS targeting
     self.body.append('<pre class="argparse-usage highlight-argparse-usage">')
     # Prepend "usage: " and highlight the full usage string
@@ -418,6 +461,9 @@ def visit_argparse_argument_html(
     - Positional arguments get class 'nl' (Name.Label)
     - Metavars get class 'nv' (Name.Variable)
 
+    The argument is wrapped in a container div with a unique ID for linking.
+    A headerlink anchor (¶) is added for direct navigation.
+
     Parameters
     ----------
     self : HTML5Translator
@@ -427,11 +473,28 @@ def visit_argparse_argument_html(
     """
     names: list[str] = node.get("names", [])
     metavar = node.get("metavar")
+    id_prefix: str = node.get("id_prefix", "")
+
+    # Generate unique ID for this argument
+    arg_id = _generate_argument_id(names, id_prefix)
+
+    # Open wrapper div with ID for linking
+    if arg_id:
+        self.body.append(f'<div class="argparse-argument-wrapper" id="{arg_id}">\n')
+    else:
+        self.body.append('<div class="argparse-argument-wrapper">\n')
 
     # Build the argument signature with syntax highlighting
     highlighted_sig = _highlight_argument_names(names, metavar, self.encode)
 
-    self.body.append(f'<dt class="argparse-argument-name">{highlighted_sig}</dt>\n')
+    # Add headerlink anchor inside dt for navigation
+    headerlink = ""
+    if arg_id:
+        headerlink = f'<a class="headerlink" href="#{arg_id}">¶</a>'
+
+    self.body.append(
+        f'<dt class="argparse-argument-name">{highlighted_sig}{headerlink}</dt>\n'
+    )
     self.body.append('<dd class="argparse-argument-help">')
 
     # Add help text
@@ -446,6 +509,7 @@ def depart_argparse_argument_html(
     """Depart argparse_argument node - close argument entry.
 
     Adds default, choices, and type information if present.
+    Default values are wrapped in ``<span class="nv">`` for styled display.
 
     Parameters
     ----------
@@ -454,31 +518,50 @@ def depart_argparse_argument_html(
     node : argparse_argument
         The argument node being departed.
     """
-    # Add metadata (default, choices, type)
-    metadata: list[str] = []
-
+    # Build metadata as definition list items
     default = node.get("default_string")
-    if default is not None:
-        metadata.append(f"Default: {self.encode(default)}")
-
     choices = node.get("choices")
-    if choices:
-        choices_str = ", ".join(str(c) for c in choices)
-        metadata.append(f"Choices: {self.encode(choices_str)}")
-
     type_name = node.get("type_name")
-    if type_name:
-        metadata.append(f"Type: {self.encode(type_name)}")
-
     required = node.get("required", False)
-    if required:
-        metadata.append("Required")
 
-    if metadata:
-        meta_str = " | ".join(metadata)
-        self.body.append(f'<p class="argparse-argument-meta">{meta_str}</p>')
+    if default is not None or choices or type_name or required:
+        self.body.append('<dl class="argparse-argument-meta">\n')
+
+        if default is not None:
+            self.body.append('<div class="argparse-meta-item">')
+            self.body.append('<dt class="argparse-meta-key">Default</dt>')
+            self.body.append(
+                f'<dd class="argparse-meta-value">'
+                f'<span class="nv">{self.encode(default)}</span></dd>'
+            )
+            self.body.append("</div>\n")
+
+        if type_name:
+            self.body.append('<div class="argparse-meta-item">')
+            self.body.append('<dt class="argparse-meta-key">Type</dt>')
+            self.body.append(
+                f'<dd class="argparse-meta-value">'
+                f'<span class="nv">{self.encode(type_name)}</span></dd>'
+            )
+            self.body.append("</div>\n")
+
+        if choices:
+            choices_str = ", ".join(str(c) for c in choices)
+            self.body.append('<div class="argparse-meta-item">')
+            self.body.append('<dt class="argparse-meta-key">Choices</dt>')
+            self.body.append(
+                f'<dd class="argparse-meta-value">{self.encode(choices_str)}</dd>'
+            )
+            self.body.append("</div>\n")
+
+        if required:
+            self.body.append('<dt class="argparse-meta-tag">Required</dt>\n')
+
+        self.body.append("</dl>\n")
 
     self.body.append("</dd>\n")
+    # Close wrapper div
+    self.body.append("</div>\n")
 
 
 def visit_argparse_subcommands_html(
