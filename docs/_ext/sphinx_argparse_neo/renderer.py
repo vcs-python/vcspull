@@ -122,7 +122,7 @@ class ArgparseRenderer:
         Parameters
         ----------
         prog : str
-            The program name, potentially with subcommand (e.g., "tmuxp load").
+            The program name, potentially with subcommand (e.g., "myapp sub").
 
         Returns
         -------
@@ -131,12 +131,12 @@ class ArgparseRenderer:
 
         Examples
         --------
-        >>> ArgparseRenderer._extract_id_prefix("tmuxp load")
-        'load'
-        >>> ArgparseRenderer._extract_id_prefix("tmuxp")
+        >>> ArgparseRenderer._extract_id_prefix("myapp sub")
+        'sub'
+        >>> ArgparseRenderer._extract_id_prefix("myapp")
         ''
-        >>> ArgparseRenderer._extract_id_prefix("vcspull sync")
-        'sync'
+        >>> ArgparseRenderer._extract_id_prefix("prog cmd")
+        'cmd'
         >>> ArgparseRenderer._extract_id_prefix("myapp sub cmd")
         'sub-cmd'
         """
@@ -191,7 +191,7 @@ class ArgparseRenderer:
         result.append(program_node)
 
         # Extract ID prefix from prog for unique section IDs
-        # e.g., "tmuxp load" -> "load", "myapp" -> ""
+        # e.g., "myapp sub" -> "sub", "myapp" -> ""
         id_prefix = self._extract_id_prefix(parser_info.prog)
 
         # Add Usage section as sibling (for TOC visibility)

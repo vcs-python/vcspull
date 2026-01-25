@@ -68,8 +68,8 @@ def escape_rst_emphasis(text: str) -> str:
 
     Examples
     --------
-    >>> escape_rst_emphasis('tmuxp load "my-*"')
-    'tmuxp load "my-\\*"'
+    >>> escape_rst_emphasis('myapp load "my-*"')
+    'myapp load "my-\\*"'
     >>> escape_rst_emphasis("plain text")
     'plain text'
     >>> escape_rst_emphasis("*emphasis* is ok")
