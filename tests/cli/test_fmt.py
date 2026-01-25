@@ -279,7 +279,7 @@ def test_format_config_file_with_write(
     format_config_file(str(config_file), write=True, format_all=False)
 
     yaml_text = config_file.read_text(encoding="utf-8")
-    assert yaml_text == snapshot_yaml(name="format-config-file-with-write")
+    assert yaml_text == snapshot_yaml
 
 
 def test_format_config_file_invalid_yaml(
@@ -483,7 +483,7 @@ def test_format_config_no_merge_flag_skips_duplicate_merge(
     text = caplog.text
     assert "skipping merge" in text
     yaml_text = config_file.read_text(encoding="utf-8")
-    assert yaml_text == snapshot_yaml(name="format-config-file-no-merge")
+    assert yaml_text == snapshot_yaml
 
 
 def test_format_config_merges_duplicate_roots_when_writing(
@@ -504,7 +504,7 @@ def test_format_config_merges_duplicate_roots_when_writing(
     format_config_file(str(config_file), write=True, format_all=False)
 
     yaml_text = config_file.read_text(encoding="utf-8")
-    assert yaml_text == snapshot_yaml(name="format-config-file-merge")
+    assert yaml_text == snapshot_yaml
 
 
 class FmtIntegrationFixture(t.NamedTuple):
@@ -513,7 +513,6 @@ class FmtIntegrationFixture(t.NamedTuple):
     test_id: str
     cli_args: list[str]
     expected_log_fragment: str
-    snapshot_name: str
 
 
 FMT_CLI_FIXTURES: list[FmtIntegrationFixture] = [
@@ -521,13 +520,11 @@ FMT_CLI_FIXTURES: list[FmtIntegrationFixture] = [
         test_id="merge-default",
         cli_args=["fmt", "-f", "{config}", "--write"],
         expected_log_fragment="Merged",
-        snapshot_name="fmt-cli-merge",
     ),
     FmtIntegrationFixture(
         test_id="no-merge",
         cli_args=["fmt", "-f", "{config}", "--write", "--no-merge"],
         expected_log_fragment="skipping merge",
-        snapshot_name="fmt-cli-no-merge",
     ),
 ]
 
@@ -545,9 +542,9 @@ def test_fmt_cli_integration(
     test_id: str,
     cli_args: list[str],
     expected_log_fragment: str,
-    snapshot_name: str,
 ) -> None:
     """Run vcspull fmt via CLI to ensure duplicate handling respects flags."""
+    del test_id  # Used only for parametrize ID
     config_file = tmp_path / ".vcspull.yaml"
     config_file.write_text(
         """~/study/c/:
@@ -569,5 +566,5 @@ def test_fmt_cli_integration(
         cli(formatted_args)
 
     yaml_text = config_file.read_text(encoding="utf-8")
-    assert yaml_text == snapshot_yaml(name=snapshot_name)
+    assert yaml_text == snapshot_yaml
     assert expected_log_fragment in caplog.text
