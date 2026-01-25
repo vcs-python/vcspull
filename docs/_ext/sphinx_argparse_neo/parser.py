@@ -11,6 +11,8 @@ import argparse
 import dataclasses
 import typing as t
 
+from sphinx_argparse_neo.utils import strip_ansi
+
 # Sentinel for "no default" (distinct from None which is a valid default)
 NO_DEFAULT = object()
 
@@ -364,6 +366,35 @@ def _extract_mutex_groups(
     -------
     dict[int, MutuallyExclusiveGroup]
         Mapping from action id to the MutuallyExclusiveGroup it belongs to.
+
+    Examples
+    --------
+    Extract mutually exclusive groups from a parser with one group:
+
+    >>> parser = argparse.ArgumentParser()
+    >>> group = parser.add_mutually_exclusive_group()
+    >>> _ = group.add_argument("--foo", help="Use foo")
+    >>> _ = group.add_argument("--bar", help="Use bar")
+    >>> mutex_map = _extract_mutex_groups(parser)
+    >>> len(mutex_map)
+    2
+
+    Each action in the group maps to the same MutuallyExclusiveGroup:
+
+    >>> values = list(mutex_map.values())
+    >>> values[0] is values[1]
+    True
+    >>> len(values[0].arguments)
+    2
+    >>> [arg.names[0] for arg in values[0].arguments]
+    ['--foo', '--bar']
+
+    A parser without mutex groups returns an empty mapping:
+
+    >>> parser2 = argparse.ArgumentParser()
+    >>> _ = parser2.add_argument("--verbose")
+    >>> _extract_mutex_groups(parser2)
+    {}
     """
     mutex_map: dict[int, MutuallyExclusiveGroup] = {}
 
@@ -568,7 +599,10 @@ def _generate_usage(parser: argparse.ArgumentParser) -> str:
     formatter.add_usage(
         parser.usage, parser._actions, parser._mutually_exclusive_groups
     )
-    usage = formatter.format_help().strip()
+    usage: str = formatter.format_help().strip()
+
+    # Strip ANSI codes before checking prefix (handles FORCE_COLOR edge case)
+    usage = strip_ansi(usage)
 
     # Remove "usage: " prefix if present
     if usage.lower().startswith("usage:"):

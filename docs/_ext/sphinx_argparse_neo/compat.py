@@ -191,11 +191,11 @@ def get_parser_from_module(
 
     Examples
     --------
-    Load vcspull's parser factory:
+    Load tmuxp's parser factory:
 
-    >>> parser = get_parser_from_module("vcspull.cli", "create_parser")
+    >>> parser = get_parser_from_module("tmuxp.cli", "create_parser")
     >>> parser.prog
-    'vcspull'
+    'tmuxp'
     >>> hasattr(parser, 'parse_args')
     True
     """
@@ -250,11 +250,11 @@ def get_parser_from_entry_point(
 
     Examples
     --------
-    Load vcspull's parser using entry point syntax:
+    Load tmuxp's parser using entry point syntax:
 
-    >>> parser = get_parser_from_entry_point("vcspull.cli:create_parser")
+    >>> parser = get_parser_from_entry_point("tmuxp.cli:create_parser")
     >>> parser.prog
-    'vcspull'
+    'tmuxp'
 
     Invalid format raises ValueError:
 
