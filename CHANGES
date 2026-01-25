@@ -42,6 +42,12 @@ _Notes on upcoming releases will be added here_
 - Refactor syrupy snapshot tests to avoid `name=` parameter which may cause
   matching issues in certain build environments, e.g., Arch Linux packaging (#503).
 
+## vcspull v1.50.1 (unreleased)
+
+### Breaking changes
+
+- Bump minimum libvcs from v0.38.2 -> v0.38.3 (#505)
+
 ## vcspull v1.50.0 (2026-01-24)
 
 ### Breaking changes
