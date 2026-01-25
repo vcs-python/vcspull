@@ -1519,7 +1519,7 @@ typings = [
 [package.metadata]
 requires-dist = [
     { name = "colorama", specifier = ">=0.3.9" },
-    { name = "libvcs", specifier = "~=0.38.2" },
+    { name = "libvcs", specifier = "~=0.38.3" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 
