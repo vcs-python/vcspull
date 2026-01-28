@@ -35,6 +35,10 @@ _Notes on upcoming releases will be added here_
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Breaking changes
+
+- Bump minimum libvcs from v0.38.3 -> v0.38.6 (#506)
+
 ### Documentation
 
 #### CLI reference pages now have linkable arguments (#502)
