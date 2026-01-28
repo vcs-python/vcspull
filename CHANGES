@@ -35,6 +35,8 @@ _Notes on upcoming releases will be added here_
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+## vcspull v1.51.0 (2026-01-27)
+
 ### Breaking changes
 
 - Bump minimum libvcs from v0.38.3 -> v0.38.6 (#506)
