@@ -53,7 +53,7 @@ keywords = [
 ]
 homepage = "https://vcspull.git-pull.com"
 dependencies = [
-  "libvcs~=0.38.3",
+  "libvcs~=0.38.6",
   "colorama>=0.3.9",
   "PyYAML>=6.0"
 ]
