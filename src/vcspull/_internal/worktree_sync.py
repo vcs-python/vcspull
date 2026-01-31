@@ -97,6 +97,20 @@ def _get_ref_type_and_value(
     -------
     tuple[str, str] | None
         Tuple of (ref_type, ref_value) or None if invalid config.
+
+    Examples
+    --------
+    >>> _get_ref_type_and_value({"dir": "../v1", "tag": "v1.0.0"})
+    ('tag', 'v1.0.0')
+    >>> _get_ref_type_and_value({"dir": "../dev", "branch": "develop"})
+    ('branch', 'develop')
+    >>> _get_ref_type_and_value({"dir": "../abc", "commit": "abc123"})
+    ('commit', 'abc123')
+    >>> _get_ref_type_and_value({"dir": "../empty"}) is None
+    True
+    >>> multi = {"dir": "../multi", "tag": "v1", "branch": "main"}
+    >>> _get_ref_type_and_value(multi) is None
+    True
     """
     tag = wt_config.get("tag")
     branch = wt_config.get("branch")
@@ -131,6 +145,19 @@ def validate_worktree_config(wt_config: WorktreeConfigDict) -> None:
     ------
     WorktreeConfigError
         If the configuration is invalid.
+
+    Examples
+    --------
+    >>> validate_worktree_config({"dir": "../v1", "tag": "v1.0.0"})
+    >>> validate_worktree_config({"dir": "../dev", "branch": "develop"})
+    >>> validate_worktree_config({"tag": "v1.0.0"})  # Missing dir
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.WorktreeConfigError: Worktree config missing required 'dir' field
+    >>> validate_worktree_config({"dir": "../proj"})  # No ref
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.WorktreeConfigError: Worktree config must specify one of: ...
     """
     if "dir" not in wt_config or not wt_config["dir"]:
         msg = "Worktree config missing required 'dir' field"
@@ -162,6 +189,12 @@ def _is_worktree_dirty(worktree_path: pathlib.Path) -> bool:
     -------
     bool
         True if the worktree has uncommitted changes.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> _is_worktree_dirty(pathlib.Path("/nonexistent/path"))
+    False
     """
     try:
         result = subprocess.run(
@@ -194,6 +227,14 @@ def _ref_exists(repo_path: pathlib.Path, ref: str, ref_type: str) -> bool:
     -------
     bool
         True if the reference exists.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> _ref_exists(pathlib.Path("/nonexistent/repo"), "v1.0.0", "tag")
+    False
+    >>> _ref_exists(pathlib.Path("/nonexistent/repo"), "main", "branch")
+    False
     """
     try:
         if ref_type == "tag":
@@ -244,6 +285,12 @@ def _get_worktree_head(worktree_path: pathlib.Path) -> str | None:
     -------
     str | None
         The HEAD reference or None if unable to determine.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> _get_worktree_head(pathlib.Path("/nonexistent/worktree")) is None
+    True
     """
     try:
         result = subprocess.run(
@@ -274,6 +321,16 @@ def _worktree_exists(repo_path: pathlib.Path, worktree_path: pathlib.Path) -> bo
     -------
     bool
         True if the worktree exists and is registered.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> _worktree_exists(pathlib.Path("/repo"), pathlib.Path("/nonexistent"))
+    False
+    >>> repo_dir = tmp_path / "repo"
+    >>> repo_dir.mkdir()
+    >>> _worktree_exists(repo_dir, tmp_path / "missing")
+    False
     """
     if not worktree_path.exists():
         return False
@@ -306,6 +363,17 @@ def _resolve_worktree_path(
     -------
     pathlib.Path
         Absolute path for the worktree.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> workspace = pathlib.Path("/home/user/code")
+    >>> wt = {"dir": "../sibling", "tag": "v1.0.0"}
+    >>> _resolve_worktree_path(wt, workspace)
+    PosixPath('/home/user/sibling')
+    >>> wt_abs = {"dir": "/tmp/worktree", "tag": "v1.0.0"}
+    >>> _resolve_worktree_path(wt_abs, workspace)
+    PosixPath('/tmp/worktree')
     """
     dir_path = pathlib.Path(wt_config["dir"])
 
@@ -336,6 +404,19 @@ def plan_worktree_sync(
     -------
     list[WorktreePlanEntry]
         List of planned operations.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> entries = plan_worktree_sync(
+    ...     pathlib.Path("/nonexistent/repo"),
+    ...     [{"dir": "../wt", "tag": "v1.0.0"}],
+    ...     pathlib.Path("/nonexistent"),
+    ... )
+    >>> len(entries)
+    1
+    >>> entries[0].action == WorktreeAction.ERROR
+    True
     """
     entries: list[WorktreePlanEntry] = []
 
@@ -425,6 +506,18 @@ def sync_worktree(
     -------
     WorktreePlanEntry
         Result of the sync operation.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> entry = sync_worktree(
+    ...     pathlib.Path("/nonexistent/repo"),
+    ...     {"dir": "../wt", "tag": "v1.0.0"},
+    ...     pathlib.Path("/nonexistent"),
+    ...     dry_run=True,
+    ... )
+    >>> entry.action == WorktreeAction.ERROR
+    True
     """
     # Plan the operation
     entries = plan_worktree_sync(repo_path, [wt_config], workspace_root)
@@ -489,6 +582,23 @@ def _create_worktree(
         The reference value.
     wt_config : WorktreeConfigDict
         Full worktree configuration.
+
+    Examples
+    --------
+    This function runs ``git worktree add`` and requires a real git repository.
+    See tests/test_worktree.py for integration tests.
+
+    >>> import pathlib
+    >>> try:
+    ...     _create_worktree(
+    ...         pathlib.Path("/nonexistent"),
+    ...         pathlib.Path("/nonexistent/wt"),
+    ...         "tag",
+    ...         "v1.0.0",
+    ...         {"dir": "../wt", "tag": "v1.0.0"},
+    ...     )
+    ... except Exception:
+    ...     pass  # Expected to fail without a real repo
     """
     cmd = ["git", "worktree", "add"]
 
@@ -529,6 +639,17 @@ def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
         Path to the worktree.
     branch : str
         The branch name.
+
+    Examples
+    --------
+    This function runs ``git pull --ff-only`` and requires a real worktree.
+    See tests/test_worktree.py for integration tests.
+
+    >>> import pathlib
+    >>> try:
+    ...     _update_worktree(pathlib.Path("/nonexistent"), "main")
+    ... except Exception:
+    ...     pass  # Expected to fail without a real worktree
     """
     subprocess.run(
         ["git", "pull", "--ff-only"],
@@ -563,6 +684,20 @@ def sync_all_worktrees(
     -------
     WorktreeSyncResult
         Summary of all sync operations.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> result = sync_all_worktrees(
+    ...     pathlib.Path("/nonexistent/repo"),
+    ...     [{"dir": "../wt", "tag": "v1.0.0"}],
+    ...     pathlib.Path("/nonexistent"),
+    ...     dry_run=True,
+    ... )
+    >>> result.errors
+    1
+    >>> len(result.entries)
+    1
     """
     result = WorktreeSyncResult()
 
@@ -601,6 +736,12 @@ def list_existing_worktrees(repo_path: pathlib.Path) -> list[pathlib.Path]:
     -------
     list[pathlib.Path]
         List of worktree paths.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> list_existing_worktrees(pathlib.Path("/nonexistent/repo"))
+    []
     """
     try:
         result = subprocess.run(
@@ -649,6 +790,17 @@ def prune_worktrees(
     -------
     list[pathlib.Path]
         List of worktree paths that were (or would be) pruned.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> prune_worktrees(
+    ...     pathlib.Path("/nonexistent/repo"),
+    ...     [],
+    ...     pathlib.Path("/nonexistent"),
+    ...     dry_run=True,
+    ... )
+    []
     """
     existing = set(list_existing_worktrees(repo_path))
     configured = {_resolve_worktree_path(wt, workspace_root) for wt in config_worktrees}
