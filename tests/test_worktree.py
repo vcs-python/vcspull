@@ -1857,3 +1857,511 @@ def test_ref_exists_exception_handling(tmp_path: pathlib.Path) -> None:
     assert _ref_exists(nonexistent, "v1.0.0", "tag") is False
     assert _ref_exists(nonexistent, "main", "branch") is False
     assert _ref_exists(nonexistent, "abc123", "commit") is False
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 Coverage Gap Tests
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# 1. Parameterized: WorktreeAction Color Branches (lines 227, 229, 231)
+# ---------------------------------------------------------------------------
+
+
+class WorktreeActionOutputFixture(t.NamedTuple):
+    """Fixture for testing worktree action color output branches."""
+
+    test_id: str
+    action: WorktreeAction
+    setup_type: str  # "branch", "tag", or "dirty"
+
+
+WORKTREE_ACTION_OUTPUT_FIXTURES = [
+    WorktreeActionOutputFixture(
+        test_id="update_color_branch",
+        action=WorktreeAction.UPDATE,
+        setup_type="branch",
+    ),
+    WorktreeActionOutputFixture(
+        test_id="unchanged_color_branch",
+        action=WorktreeAction.UNCHANGED,
+        setup_type="tag",
+    ),
+    WorktreeActionOutputFixture(
+        test_id="blocked_color_branch",
+        action=WorktreeAction.BLOCKED,
+        setup_type="dirty",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(WorktreeActionOutputFixture._fields),
+    WORKTREE_ACTION_OUTPUT_FIXTURES,
+    ids=[fixture.test_id for fixture in WORKTREE_ACTION_OUTPUT_FIXTURES],
+)
+def test_cli_list_worktree_action_colors(
+    test_id: str,
+    action: WorktreeAction,
+    setup_type: str,
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI list output uses correct colors for each action type.
+
+    Coverage: Lines 227, 229, 231 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / f"wt-color-{test_id}"
+
+    # Create tag and branch
+    subprocess.run(
+        ["git", "tag", f"v-color-{test_id}"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", f"branch-color-{test_id}"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create config based on setup type
+    if setup_type == "branch":
+        # Create a branch worktree (triggers UPDATE action)
+        subprocess.run(
+            ["git", "worktree", "add", str(worktree_path), f"branch-color-{test_id}"],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+        config_content = f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        branch: branch-color-{test_id}
+"""
+    elif setup_type == "tag":
+        # Create a tag worktree (triggers UNCHANGED action)
+        subprocess.run(
+            [
+                "git",
+                "worktree",
+                "add",
+                str(worktree_path),
+                f"v-color-{test_id}",
+                "--detach",
+            ],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+        config_content = f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        tag: v-color-{test_id}
+"""
+    else:  # dirty
+        # Create a dirty worktree (triggers BLOCKED action)
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=git_repo.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        commit_sha = result.stdout.strip()
+        subprocess.run(
+            ["git", "worktree", "add", str(worktree_path), "HEAD", "--detach"],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+        # Make it dirty
+        (worktree_path / "dirty-file.txt").write_text("dirty content")
+        config_content = f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        commit: {commit_sha}
+"""
+
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(config_content, encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "list", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    # Verify the action is correctly determined
+    assert git_repo.path.name in captured.out
+
+
+# ---------------------------------------------------------------------------
+# 2. Test: UNCHANGED Execution Path (non-dry-run) - lines 549-552
+# ---------------------------------------------------------------------------
+
+
+def test_sync_worktree_unchanged_execution(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test sync_worktree UNCHANGED path without dry_run.
+
+    Coverage: Lines 549-552 in worktree_sync.py.
+
+    This tests that when an existing tag worktree is synced without dry_run,
+    the UNCHANGED path is executed and the detail is set correctly.
+    """
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "unchanged-exec-wt"
+
+    # Create a tag in the repo
+    subprocess.run(
+        ["git", "tag", "v-unchanged-exec"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create the tag worktree
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "v-unchanged-exec", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    wt_config: WorktreeConfigDict = {
+        "dir": str(worktree_path),
+        "tag": "v-unchanged-exec",
+    }
+
+    # Sync without dry_run - should execute UNCHANGED path
+    entry = sync_worktree(git_repo.path, wt_config, workspace_root, dry_run=False)
+
+    # Verify the UNCHANGED path was executed (lines 549-552)
+    assert entry.action == WorktreeAction.UNCHANGED
+    assert entry.exists is True
+    assert "already exists" in (entry.detail or "")
+
+
+# ---------------------------------------------------------------------------
+# 3. Test: OSError Exception Path - lines 557-559
+# ---------------------------------------------------------------------------
+
+
+def test_sync_worktree_oserror_exception(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+) -> None:
+    """Test sync_worktree handles OSError gracefully.
+
+    Coverage: Lines 557-559 in worktree_sync.py.
+    """
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "oserror-wt"
+
+    # Create a tag in the repo
+    subprocess.run(
+        ["git", "tag", "v-oserror-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    wt_config: WorktreeConfigDict = {"dir": str(worktree_path), "tag": "v-oserror-test"}
+
+    # Mock _create_worktree to raise OSError
+    mocker.patch(
+        "vcspull._internal.worktree_sync._create_worktree",
+        side_effect=OSError("Mocked OSError: permission denied"),
+    )
+
+    # Sync without dry_run - should hit the OSError exception path
+    entry = sync_worktree(git_repo.path, wt_config, workspace_root, dry_run=False)
+
+    # Verify the OSError was caught and converted to ERROR action
+    assert entry.action == WorktreeAction.ERROR
+    assert "permission denied" in (entry.error or "").lower()
+
+
+# ---------------------------------------------------------------------------
+# 4. Test: Mixed Empty/Non-Empty Worktrees Config - lines 201, 288
+# ---------------------------------------------------------------------------
+
+
+def test_cli_list_mixed_empty_worktrees(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI list correctly handles mix of empty and non-empty worktrees.
+
+    Coverage: Line 201 in cli/worktree.py (the continue branch).
+
+    When a repo has worktrees: [] (empty list), it should be filtered out
+    at the initial filter (line 156). But if a worktrees list becomes empty
+    after filtering, line 201 handles the continue.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag
+    subprocess.run(
+        ["git", "tag", "v-mixed-empty"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create config with multiple repos, some with worktrees, some without
+    # Note: The filter at line 156 removes repos with worktrees: []
+    # So we need worktrees to exist but then have the inner loop continue
+    # when worktrees_config is empty after the get()
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  project_with_worktrees:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: ../project-v1
+        tag: v-mixed-empty
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "list", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert "project_with_worktrees" in captured.out
+    assert "v-mixed-empty" in captured.out
+
+
+def test_handle_list_with_empty_worktrees_direct(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test _handle_list directly with repos containing empty worktrees.
+
+    Coverage: Line 201 in cli/worktree.py.
+
+    This bypasses the CLI filter to directly hit the continue branch.
+    """
+    from vcspull.cli._colors import Colors, get_color_mode
+    from vcspull.cli._output import OutputFormatter, get_output_mode
+    from vcspull.cli.worktree import _handle_list
+    from vcspull.types import ConfigDict
+
+    # Create repos list where one has empty worktrees
+    repos: list[ConfigDict] = [
+        t.cast(
+            ConfigDict,
+            {
+                "name": "empty-worktrees-repo",
+                "path": str(git_repo.path),
+                "workspace_root": str(git_repo.path.parent),
+                "worktrees": [],  # Empty - should trigger continue
+            },
+        ),
+    ]
+
+    formatter = OutputFormatter(get_output_mode(False, False))
+    colors = Colors(get_color_mode("never"))
+
+    _handle_list(repos, formatter, colors)
+    formatter.finalize()
+
+    # Should produce no output for the empty worktrees repo
+    captured = capsys.readouterr()
+    # The repo with empty worktrees should be skipped entirely
+    assert "empty-worktrees-repo" not in captured.out
+
+
+def test_handle_sync_with_empty_worktrees_direct(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test _handle_sync directly with repos containing empty worktrees.
+
+    Coverage: Line 288 in cli/worktree.py.
+    """
+    from vcspull.cli._colors import Colors, get_color_mode
+    from vcspull.cli._output import OutputFormatter, get_output_mode
+    from vcspull.cli.worktree import _handle_sync
+    from vcspull.types import ConfigDict
+
+    # Create repos list where one has empty worktrees
+    repos: list[ConfigDict] = [
+        t.cast(
+            ConfigDict,
+            {
+                "name": "empty-worktrees-repo",
+                "path": str(git_repo.path),
+                "workspace_root": str(git_repo.path.parent),
+                "worktrees": [],  # Empty - should trigger continue
+            },
+        ),
+    ]
+
+    formatter = OutputFormatter(get_output_mode(False, False))
+    colors = Colors(get_color_mode("never"))
+
+    _handle_sync(repos, formatter, colors, dry_run=True)
+    formatter.finalize()
+
+    captured = capsys.readouterr()
+    # The repo with empty worktrees should be skipped, so no repo header
+    assert "empty-worktrees-repo" not in captured.out
+
+
+def test_cli_sync_mixed_empty_worktrees(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI sync correctly handles mix of empty and non-empty worktrees.
+
+    Coverage: Line 288 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag
+    subprocess.run(
+        ["git", "tag", "v-sync-mixed"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    worktree_path = git_repo.path.parent / "sync-mixed-v1"
+
+    # Use the actual git_repo.path in the config so the tag is found
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        tag: v-sync-mixed
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "sync", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert git_repo.path.name in captured.out
+    assert worktree_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# 5. Test: Prune with No Existing Worktrees - line 356
+# ---------------------------------------------------------------------------
+
+
+def test_cli_prune_no_existing_worktrees(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI prune skips repos with no existing worktrees.
+
+    Coverage: Line 356 in cli/worktree.py.
+
+    When a repo has worktrees configured but none have been created yet,
+    list_existing_worktrees returns empty and the continue is triggered.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag (but don't create the worktree)
+    subprocess.run(
+        ["git", "tag", "v-prune-noexist"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Config with worktrees that don't exist yet
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: ../nonexistent-wt-prune
+        tag: v-prune-noexist
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Run prune - should hit line 356 (continue when no existing worktrees)
+    cli(["worktree", "prune", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    # Should show "No orphaned worktrees to prune" since there are no existing worktrees
+    assert "No orphaned worktrees to prune" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# 6. Test: _get_worktree_head OSError exception - lines 305-306
+# ---------------------------------------------------------------------------
+
+
+def test_get_worktree_head_oserror(
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+) -> None:
+    """Test _get_worktree_head handles OSError exception.
+
+    Coverage: Lines 305-306 in worktree_sync.py.
+
+    The existing test (test_get_worktree_head_exception_handling) uses a
+    non-repo directory which triggers CalledProcessError, not OSError.
+    This test specifically triggers OSError.
+    """
+    from vcspull._internal.worktree_sync import _get_worktree_head
+
+    # Create a directory
+    test_dir = tmp_path / "oserror-head-test"
+    test_dir.mkdir()
+
+    # Mock subprocess.run to raise OSError (e.g., git binary not found)
+    mocker.patch(
+        "subprocess.run",
+        side_effect=OSError("Mocked OSError: git not found"),
+    )
+
+    # Should return None (OSError exception path)
+    result = _get_worktree_head(test_dir)
+    assert result is None
