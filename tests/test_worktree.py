@@ -16,6 +16,7 @@ from vcspull._internal.worktree_sync import (
     list_existing_worktrees,
     plan_worktree_sync,
     prune_worktrees,
+    sync_all_worktrees,
     sync_worktree,
     validate_worktree_config,
 )
@@ -947,6 +948,147 @@ def test_sync_worktree_branch_update(
     assert entries[0].exists is True
 
 
+def test_sync_worktree_executes_update(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test sync_worktree UPDATE action attempts git pull.
+
+    Coverage: Lines 547-559 (UPDATE execution path in sync_worktree).
+
+    Note: Since git_repo is a local-only repo without a remote, git pull fails.
+    This tests that the UPDATE path IS exercised and handles the error correctly.
+    The error path (lines 554-559) converts it to ERROR action.
+    """
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "update-exec-wt"
+
+    # Create a branch
+    subprocess.run(
+        ["git", "branch", "update-exec-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create the worktree
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "update-exec-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    wt_config: WorktreeConfigDict = {
+        "dir": str(worktree_path),
+        "branch": "update-exec-branch",
+    }
+
+    # Sync without dry_run - attempts UPDATE but fails because no tracking info
+    entry = sync_worktree(git_repo.path, wt_config, workspace_root, dry_run=False)
+
+    # The UPDATE path was executed (lines 547-549), but git pull failed (lines 554-559)
+    assert entry.action == WorktreeAction.ERROR
+    assert entry.exists is True
+    assert "no tracking information" in (entry.error or "").lower()
+
+
+def test_sync_all_worktrees_counts_mixed(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test sync_all_worktrees correctly counts each action type.
+
+    Coverage: Lines 713-722 (action counting in sync_all_worktrees).
+
+    Note: This test uses dry_run=True to count planning actions without
+    executing, since git pull fails on local-only repos without remotes.
+    """
+    workspace_root = git_repo.path.parent
+
+    # Create a valid tag
+    subprocess.run(
+        ["git", "tag", "v-count-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create a branch and its worktree (for UPDATE)
+    subprocess.run(
+        ["git", "branch", "count-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+    branch_wt_path = workspace_root / "count-branch-wt"
+    subprocess.run(
+        ["git", "worktree", "add", str(branch_wt_path), "count-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create a tag worktree (for UNCHANGED)
+    tag_wt_path = workspace_root / "count-tag-wt"
+    subprocess.run(
+        ["git", "worktree", "add", str(tag_wt_path), "v-count-test", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create a dirty worktree (for BLOCKED)
+    dirty_wt_path = workspace_root / "count-dirty-wt"
+    subprocess.run(
+        ["git", "worktree", "add", str(dirty_wt_path), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+    # Make it dirty by adding an untracked file
+    (dirty_wt_path / "dirty.txt").write_text("dirty content")
+
+    # Get commit SHA for the dirty worktree config
+    git_result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=git_repo.path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commit_sha = git_result.stdout.strip()
+
+    worktrees_config: list[WorktreeConfigDict] = [
+        # CREATE: new worktree for existing tag
+        {"dir": str(workspace_root / "count-new-wt"), "tag": "v-count-test"},
+        # UPDATE: existing branch worktree
+        {"dir": str(branch_wt_path), "branch": "count-branch"},
+        # UNCHANGED: existing tag worktree
+        {"dir": str(tag_wt_path), "tag": "v-count-test"},
+        # BLOCKED: dirty worktree
+        {"dir": str(dirty_wt_path), "commit": commit_sha},
+        # ERROR: invalid ref
+        {"dir": str(workspace_root / "count-error-wt"), "tag": "v-nonexistent-tag"},
+    ]
+
+    # Use dry_run to test the counting without git pull side effects
+    sync_result = sync_all_worktrees(
+        git_repo.path,
+        worktrees_config,
+        workspace_root,
+        dry_run=True,
+    )
+
+    # Verify counts (all branches through lines 713-722)
+    assert sync_result.created == 1
+    assert sync_result.updated == 1
+    assert sync_result.unchanged == 1
+    assert sync_result.blocked == 1
+    assert sync_result.errors == 1
+    assert len(sync_result.entries) == 5
+
+
 def test_worktree_exists_with_git_dir(tmp_path: pathlib.Path) -> None:
     """Test _worktree_exists returns False for regular git directory."""
     from vcspull._internal.worktree_sync import _worktree_exists
@@ -1025,3 +1167,123 @@ def test_get_worktree_head_with_actual_worktree(
     head = _get_worktree_head(worktree_path)
     assert head is not None
     assert len(head) == 40  # Full SHA
+
+
+# ---------------------------------------------------------------------------
+# CLI Coverage Gap Tests
+# ---------------------------------------------------------------------------
+
+
+def test_cli_worktree_sync_no_repos(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI sync shows message when no repos have worktrees.
+
+    Coverage: Lines 270-273 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Create a config without worktrees key
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        """\
+~/repos/:
+  myproject:
+    repo: git+https://github.com/user/project.git
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    cli(["worktree", "sync", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert "No repositories with worktrees configured" in captured.out
+
+
+def test_cli_worktree_prune_no_repos(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI prune shows message when no repos have worktrees.
+
+    Coverage: Lines 338-341 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Create a config without worktrees key
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        """\
+~/repos/:
+  myproject:
+    repo: git+https://github.com/user/project.git
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    cli(["worktree", "prune", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert "No repositories with worktrees configured" in captured.out
+
+
+def test_cli_worktree_prune_no_orphans(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI prune shows 'No orphaned worktrees' when none exist.
+
+    Coverage: Line 385 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Get commit SHA for config
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=git_repo.path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commit_sha = result.stdout.strip()
+
+    # Create a worktree that IS configured (not orphaned)
+    configured_wt = git_repo.path.parent / "configured-only-wt"
+    subprocess.run(
+        ["git", "worktree", "add", str(configured_wt), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create config where the existing worktree IS listed
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {configured_wt}
+        commit: {commit_sha}
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "prune", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert "No orphaned worktrees to prune" in captured.out
