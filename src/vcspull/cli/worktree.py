@@ -79,7 +79,13 @@ def create_worktree_subparser(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_common_args(parser: argparse.ArgumentParser) -> None:
-    """Add common arguments to worktree subparsers."""
+    """Add common arguments to worktree subparsers.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The subparser to add arguments to.
+    """
     parser.add_argument(
         "-f",
         "--file",
@@ -184,7 +190,21 @@ def _handle_list(
     formatter: OutputFormatter,
     colors: Colors,
 ) -> None:
-    """Handle the worktree list subcommand."""
+    """Handle the worktree list subcommand.
+
+    Parameters
+    ----------
+    repos : list[ConfigDict]
+        List of repository configurations with worktrees.
+    formatter : OutputFormatter
+        Output formatter for JSON/NDJSON/human output.
+    colors : Colors
+        Color manager for terminal output.
+
+    Notes
+    -----
+    See tests/test_worktree.py for integration tests.
+    """
     if not repos:
         formatter.emit_text(
             colors.warning("No repositories with worktrees configured.")
@@ -217,7 +237,17 @@ def _emit_worktree_entry(
     formatter: OutputFormatter,
     colors: Colors,
 ) -> None:
-    """Emit a single worktree entry."""
+    """Emit a single worktree entry to both JSON and human output.
+
+    Parameters
+    ----------
+    entry : WorktreePlanEntry
+        The worktree plan entry to emit.
+    formatter : OutputFormatter
+        Output formatter for JSON/NDJSON/human output.
+    colors : Colors
+        Color manager for terminal output.
+    """
     symbol = WORKTREE_SYMBOLS.get(entry.action, "?")
 
     color_fn: t.Callable[[str], str]
@@ -265,7 +295,23 @@ def _handle_sync(
     *,
     dry_run: bool = False,
 ) -> None:
-    """Handle the worktree sync subcommand."""
+    """Handle the worktree sync subcommand.
+
+    Parameters
+    ----------
+    repos : list[ConfigDict]
+        List of repository configurations with worktrees.
+    formatter : OutputFormatter
+        Output formatter for JSON/NDJSON/human output.
+    colors : Colors
+        Color manager for terminal output.
+    dry_run : bool
+        If True, only preview what would be synced.
+
+    Notes
+    -----
+    See tests/test_worktree.py for integration tests.
+    """
     if not repos:
         formatter.emit_text(
             colors.warning("No repositories with worktrees configured.")
@@ -333,7 +379,23 @@ def _handle_prune(
     *,
     dry_run: bool = False,
 ) -> None:
-    """Handle the worktree prune subcommand."""
+    """Handle the worktree prune subcommand.
+
+    Parameters
+    ----------
+    repos : list[ConfigDict]
+        List of repository configurations with worktrees.
+    formatter : OutputFormatter
+        Output formatter for JSON/NDJSON/human output.
+    colors : Colors
+        Color manager for terminal output.
+    dry_run : bool
+        If True, only preview what would be pruned.
+
+    Notes
+    -----
+    See tests/test_worktree.py for integration tests.
+    """
     if not repos:
         formatter.emit_text(
             colors.warning("No repositories with worktrees configured.")
