@@ -470,7 +470,7 @@ def discover_repos(
                 found_repos.append((repo_name, repo_url, workspace_path))
     else:
         for item in scan_dir.iterdir():
-            if item.is_dir() and (item / ".git").exists():
+            if item.is_dir() and (item / ".git").is_dir():
                 # Skip worktrees unless explicitly included
                 if not include_worktrees and is_git_worktree(item):
                     log.debug(
