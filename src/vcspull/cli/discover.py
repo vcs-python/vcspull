@@ -443,8 +443,10 @@ def discover_repos(
 
     # TODO(#discover-non-git): Also scan for .hg and .svn repositories
     if recursive:
-        for root, dirs, _ in os.walk(scan_dir):
-            if ".git" in dirs:
+        for root, dirs, files in os.walk(scan_dir):
+            # Check for .git as directory (regular repos) or file (worktrees)
+            git_path = pathlib.Path(root) / ".git"
+            if ".git" in dirs or (".git" in files and git_path.is_file()):
                 repo_path = pathlib.Path(root)
 
                 # Skip worktrees unless explicitly included
@@ -470,7 +472,8 @@ def discover_repos(
                 found_repos.append((repo_name, repo_url, workspace_path))
     else:
         for item in scan_dir.iterdir():
-            if item.is_dir() and (item / ".git").is_dir():
+            git_path = item / ".git"
+            if item.is_dir() and (git_path.is_dir() or git_path.is_file()):
                 # Skip worktrees unless explicitly included
                 if not include_worktrees and is_git_worktree(item):
                     log.debug(
