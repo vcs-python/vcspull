@@ -167,6 +167,12 @@ def create_status_subparser(parser: argparse.ArgumentParser) -> None:
             f"maximum concurrent status checks (default: {DEFAULT_STATUS_CONCURRENCY})"
         ),
     )
+    parser.add_argument(
+        "--include-worktrees",
+        action="store_true",
+        dest="include_worktrees",
+        help="include configured worktrees in status checks",
+    )
 
 
 async def _check_repos_status_async(
