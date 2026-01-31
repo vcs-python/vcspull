@@ -563,12 +563,6 @@ def create_search_subparser(parser: argparse.ArgumentParser) -> None:
         default="auto",
         help="when to use colors (default: auto)",
     )
-    parser.add_argument(
-        "--include-worktrees",
-        action="store_true",
-        dest="include_worktrees",
-        help="include configured worktrees in search results",
-    )
 
 
 def search_repos(
