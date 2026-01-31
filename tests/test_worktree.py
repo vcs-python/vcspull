@@ -692,3 +692,336 @@ def test_sync_command_include_worktrees_flag_exists() -> None:
     args = parser.parse_args(["sync", "--include-worktrees", "--dry-run", "*"])
     assert args.include_worktrees is True
     assert args.dry_run is True
+
+
+# ---------------------------------------------------------------------------
+# Additional CLI Tests for Coverage
+# ---------------------------------------------------------------------------
+
+
+def test_cli_worktree_list_with_worktrees(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test vcspull worktree list with actual worktrees configured."""
+    from vcspull.cli import cli
+
+    # Create a tag in the repo
+    subprocess.run(
+        ["git", "tag", "v1.0.0"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create config with worktrees
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: ../{git_repo.path.name}-v1
+        tag: v1.0.0
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "list", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert git_repo.path.name in captured.out
+    assert "v1.0.0" in captured.out
+
+
+def test_cli_worktree_sync_dry_run(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test vcspull worktree sync --dry-run."""
+    from vcspull.cli import cli
+
+    # Create a tag in the repo
+    subprocess.run(
+        ["git", "tag", "v2.0.0"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    worktree_path = git_repo.path.parent / f"{git_repo.path.name}-v2"
+
+    # Create config with worktrees
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        tag: v2.0.0
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "sync", "--dry-run", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert "Would sync" in captured.out or "Summary" in captured.out
+    # Worktree should NOT be created in dry-run
+    assert not worktree_path.exists()
+
+
+def test_cli_worktree_sync_creates_worktree(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test vcspull worktree sync actually creates worktrees."""
+    from vcspull.cli import cli
+
+    # Create a tag in the repo
+    subprocess.run(
+        ["git", "tag", "v3.0.0"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    worktree_path = git_repo.path.parent / f"{git_repo.path.name}-v3"
+
+    # Create config with worktrees
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        tag: v3.0.0
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "sync", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert "Synced" in captured.out or "Summary" in captured.out
+    # Worktree SHOULD be created
+    assert worktree_path.exists()
+    assert (worktree_path / ".git").is_file()
+
+
+def test_cli_worktree_prune_dry_run(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test vcspull worktree prune --dry-run."""
+    from vcspull.cli import cli
+
+    # Create an orphaned worktree (not in config)
+    orphan_path = git_repo.path.parent / "orphaned-wt"
+    subprocess.run(
+        ["git", "worktree", "add", str(orphan_path), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Get commit SHA for config
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=git_repo.path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commit_sha = result.stdout.strip()
+
+    # Create config with no worktrees (so orphan should be pruned)
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {git_repo.path.parent / "configured-wt"}
+        commit: {commit_sha}
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "prune", "--dry-run", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    assert "Would prune" in captured.out
+    # Orphan should still exist because it's dry-run
+    assert orphan_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# Additional worktree_sync.py Edge Case Tests for Coverage
+# ---------------------------------------------------------------------------
+
+
+def test_validate_worktree_config_empty_dir() -> None:
+    """Test validate_worktree_config with empty dir."""
+    from vcspull._internal.worktree_sync import validate_worktree_config
+
+    with pytest.raises(exc.WorktreeConfigError, match="missing required 'dir' field"):
+        validate_worktree_config(t.cast(WorktreeConfigDict, {"dir": "", "tag": "v1"}))
+
+
+def test_plan_worktree_sync_invalid_config_error(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test plan_worktree_sync with invalid config shows ERROR action."""
+    workspace_root = git_repo.path.parent
+
+    # Invalid config: missing dir
+    worktrees_config: list[WorktreeConfigDict] = [
+        t.cast(WorktreeConfigDict, {"tag": "v1.0.0"}),  # Missing "dir"
+    ]
+
+    entries = plan_worktree_sync(git_repo.path, worktrees_config, workspace_root)
+
+    assert len(entries) == 1
+    assert entries[0].action == WorktreeAction.ERROR
+    assert "dir" in (entries[0].error or "").lower()
+
+
+def test_sync_worktree_branch_update(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test sync_worktree with existing branch worktree shows UPDATE action."""
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "branch-update-wt"
+
+    # Create a branch
+    subprocess.run(
+        ["git", "branch", "update-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create the worktree first
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "update-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    wt_config: WorktreeConfigDict = {
+        "dir": str(worktree_path),
+        "branch": "update-branch",
+    }
+
+    # Plan should show UPDATE action
+    entries = plan_worktree_sync(git_repo.path, [wt_config], workspace_root)
+
+    assert len(entries) == 1
+    assert entries[0].action == WorktreeAction.UPDATE
+    assert entries[0].exists is True
+
+
+def test_worktree_exists_with_git_dir(tmp_path: pathlib.Path) -> None:
+    """Test _worktree_exists returns False for regular git directory."""
+    from vcspull._internal.worktree_sync import _worktree_exists
+
+    # Create a directory with .git as a directory (regular repo, not worktree)
+    fake_repo = tmp_path / "fake_repo"
+    fake_repo.mkdir()
+    (fake_repo / ".git").mkdir()
+
+    assert _worktree_exists(tmp_path, fake_repo) is False
+
+
+def test_is_worktree_dirty_with_actual_dirty_state(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test _is_worktree_dirty correctly detects dirty state."""
+    from vcspull._internal.worktree_sync import _is_worktree_dirty
+
+    worktree_path = git_repo.path.parent / "dirty-test-wt"
+
+    # Create a clean worktree
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Should be clean initially
+    assert _is_worktree_dirty(worktree_path) is False
+
+    # Make it dirty
+    (worktree_path / "dirty.txt").write_text("dirty content")
+
+    # Should now be dirty
+    assert _is_worktree_dirty(worktree_path) is True
+
+
+def test_ref_exists_with_commit(
+    git_repo: GitSync,
+) -> None:
+    """Test _ref_exists correctly finds commits."""
+    from vcspull._internal.worktree_sync import _ref_exists
+
+    # Get current commit
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=git_repo.path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commit_sha = result.stdout.strip()
+
+    assert _ref_exists(git_repo.path, commit_sha, "commit") is True
+    assert _ref_exists(git_repo.path, "0000000000", "commit") is False
+
+
+def test_get_worktree_head_with_actual_worktree(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test _get_worktree_head returns commit SHA."""
+    from vcspull._internal.worktree_sync import _get_worktree_head
+
+    worktree_path = git_repo.path.parent / "head-test-wt"
+
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    head = _get_worktree_head(worktree_path)
+    assert head is not None
+    assert len(head) == 40  # Full SHA
