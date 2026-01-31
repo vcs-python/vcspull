@@ -444,6 +444,7 @@ def test_get_cli_logger_names_includes_base() -> None:
         "vcspull.cli.search",
         "vcspull.cli.status",
         "vcspull.cli.sync",
+        "vcspull.cli.worktree",
     ]
     assert names == expected
 

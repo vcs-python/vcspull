@@ -22,6 +22,7 @@ from .list import create_list_subparser, list_repos
 from .search import create_search_subparser, search_repos
 from .status import create_status_subparser, status_repos
 from .sync import create_sync_subparser, sync
+from .worktree import create_worktree_subparser, handle_worktree_command
 
 log = logging.getLogger(__name__)
 
@@ -270,6 +271,26 @@ IMPORT_DESCRIPTION = build_description(
     ),
 )
 
+WORKTREE_DESCRIPTION = build_description(
+    """
+    Manage git worktrees for repositories.
+
+    Worktrees allow checking out multiple branches/tags/commits of a repository
+    simultaneously in separate directories.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull worktree list",
+                "vcspull worktree sync",
+                "vcspull worktree sync --dry-run",
+                "vcspull worktree prune",
+            ],
+        ),
+    ),
+)
+
 
 @t.overload
 def create_parser(
@@ -378,6 +399,15 @@ def create_parser(
     )
     create_import_subparser(import_parser)
 
+    # Worktree command
+    worktree_parser = subparsers.add_parser(
+        "worktree",
+        help="manage git worktrees",
+        formatter_class=VcspullHelpFormatter,
+        description=WORKTREE_DESCRIPTION,
+    )
+    create_worktree_subparser(worktree_parser)
+
     if return_subparsers:
         # Return all parsers needed by cli() function
         return parser, (
@@ -389,6 +419,7 @@ def create_parser(
             discover_parser,
             fmt_parser,
             import_parser,
+            worktree_parser,
         )
     return parser
 
@@ -405,6 +436,7 @@ def cli(_args: list[str] | None = None) -> None:
         discover_parser,
         _fmt_parser,
         _import_parser,
+        _worktree_parser,
     ) = subparsers
     args = parser.parse_args(_args)
 
@@ -433,6 +465,7 @@ def cli(_args: list[str] | None = None) -> None:
             verbosity=getattr(args, "verbosity", 0),
             sync_all=getattr(args, "sync_all", False),
             parser=sync_parser,
+            include_worktrees=getattr(args, "include_worktrees", False),
         )
     elif args.subparser_name == "list":
         list_repos(
@@ -443,6 +476,7 @@ def cli(_args: list[str] | None = None) -> None:
             output_json=args.output_json,
             output_ndjson=args.output_ndjson,
             color=args.color,
+            include_worktrees=getattr(args, "include_worktrees", False),
         )
     elif args.subparser_name == "status":
         status_repos(
@@ -492,6 +526,7 @@ def cli(_args: list[str] | None = None) -> None:
             yes=args.yes,
             dry_run=args.dry_run,
             merge_duplicates=args.merge_duplicates,
+            include_worktrees=getattr(args, "include_worktrees", False),
         )
     elif args.subparser_name == "fmt":
         format_config_file(
@@ -508,3 +543,5 @@ def cli(_args: list[str] | None = None) -> None:
         result = handler(args)
         if result:
             raise SystemExit(result)
+    elif args.subparser_name == "worktree":
+        handle_worktree_command(args)

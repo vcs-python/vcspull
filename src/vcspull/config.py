@@ -18,7 +18,7 @@ from vcspull.validator import is_valid_config
 
 from . import exc
 from ._internal.config_reader import ConfigReader, DuplicateAwareConfigReader
-from .types import ConfigDict, RawConfigDict
+from .types import ConfigDict, RawConfigDict, WorktreeConfigDict
 from .util import get_config_dir, update_dict
 
 log = logging.getLogger(__name__)
@@ -51,6 +51,97 @@ def expand_dir(
         dir_ = pathlib.Path(os.path.normpath(cwd / dir_))
         assert dir_ == pathlib.Path(cwd, dir_).resolve(strict=False)
     return dir_
+
+
+def _validate_worktrees_config(
+    worktrees_raw: t.Any,
+    repo_name: str,
+) -> list[WorktreeConfigDict]:
+    """Validate and normalize worktrees configuration.
+
+    Parameters
+    ----------
+    worktrees_raw : Any
+        Raw worktrees configuration from YAML/JSON.
+    repo_name : str
+        Name of the parent repository (for error messages).
+
+    Returns
+    -------
+    list[WorktreeConfigDict]
+        Validated list of worktree configurations.
+
+    Raises
+    ------
+    VCSPullException
+        If the worktrees configuration is invalid.
+    """
+    if not isinstance(worktrees_raw, list):
+        msg = (
+            f"Repository '{repo_name}': worktrees must be a list, "
+            f"got {type(worktrees_raw).__name__}"
+        )
+        raise exc.VCSPullException(msg)
+
+    validated: list[WorktreeConfigDict] = []
+
+    for idx, wt in enumerate(worktrees_raw):
+        if not isinstance(wt, dict):
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} must be a dict, "
+                f"got {type(wt).__name__}"
+            )
+            raise exc.VCSPullException(msg)
+
+        # Validate required 'dir' field
+        if "dir" not in wt or not wt["dir"]:
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                "missing required 'dir' field"
+            )
+            raise exc.VCSPullException(msg)
+
+        # Validate exactly one ref type
+        tag = wt.get("tag")
+        branch = wt.get("branch")
+        commit = wt.get("commit")
+
+        refs_specified = sum(1 for ref in [tag, branch, commit] if ref is not None)
+
+        if refs_specified == 0:
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                "must specify one of: tag, branch, or commit"
+            )
+            raise exc.VCSPullException(msg)
+        if refs_specified > 1:
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                "cannot specify multiple refs (tag, branch, commit)"
+            )
+            raise exc.VCSPullException(msg)
+
+        # Build validated worktree config
+        wt_config: WorktreeConfigDict = {"dir": wt["dir"]}
+
+        if tag:
+            wt_config["tag"] = tag
+        if branch:
+            wt_config["branch"] = branch
+        if commit:
+            wt_config["commit"] = commit
+
+        # Optional fields
+        if "detach" in wt:
+            wt_config["detach"] = wt["detach"]
+        if "lock" in wt:
+            wt_config["lock"] = wt["lock"]
+        if "lock_reason" in wt:
+            wt_config["lock_reason"] = wt["lock_reason"]
+
+        validated.append(wt_config)
+
+    return validated
 
 
 def extract_repos(
@@ -134,6 +225,17 @@ def extract_repos(
                             name=remote_name,
                             **url,
                         )
+
+            # Process worktrees configuration
+            if "worktrees" in conf:
+                worktrees_raw = conf["worktrees"]
+                if worktrees_raw is not None:
+                    repo_name_for_error = conf.get("name") or repo
+                    validated_worktrees = _validate_worktrees_config(
+                        worktrees_raw,
+                        repo_name=repo_name_for_error,
+                    )
+                    conf["worktrees"] = validated_worktrees
 
             def is_valid_config_dict(val: t.Any) -> t.TypeGuard[ConfigDict]:
                 assert isinstance(val, dict)

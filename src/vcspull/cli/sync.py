@@ -28,7 +28,11 @@ from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
-from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull._internal.worktree_sync import (
+    WorktreeAction,
+    sync_all_worktrees,
+)
+from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
 from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
@@ -599,6 +603,12 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         dest="sync_all",
         help="sync all configured repositories",
     )
+    parser.add_argument(
+        "--include-worktrees",
+        action="store_true",
+        dest="include_worktrees",
+        help="also sync configured worktrees for each repository",
+    )
 
     try:
         import shtab
@@ -628,6 +638,7 @@ def sync(
     sync_all: bool = False,
     parser: argparse.ArgumentParser
     | None = None,  # optional so sync can be unit tested
+    include_worktrees: bool = False,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Show help if no patterns and --all not specified
@@ -842,6 +853,49 @@ def sync(
             f"{colors.success('✓')} Synced {colors.info(repo_name)} "
             f"{colors.muted('→')} {display_repo_path}",
         )
+
+        # Sync worktrees if enabled and configured
+        worktrees_config = repo.get("worktrees")
+        if include_worktrees and worktrees_config:
+            workspace_path = expand_dir(pathlib.Path(str(workspace_label)))
+            repo_path_obj = pathlib.Path(str(repo_path))
+
+            wt_result = sync_all_worktrees(
+                repo_path_obj,
+                worktrees_config,
+                workspace_path,
+                dry_run=False,
+            )
+
+            for entry in wt_result.entries:
+                ref_display = f"{entry.ref_type}:{entry.ref_value}"
+                wt_path_display = str(PrivatePath(entry.worktree_path))
+
+                if entry.action == WorktreeAction.CREATE:
+                    sym = colors.success("+")
+                    ref = colors.info(ref_display)
+                    arrow = colors.muted("→")
+                    formatter.emit_text(
+                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
+                    )
+                elif entry.action == WorktreeAction.UPDATE:
+                    sym = colors.warning("~")
+                    ref = colors.info(ref_display)
+                    arrow = colors.muted("→")
+                    formatter.emit_text(
+                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
+                    )
+                elif entry.action == WorktreeAction.BLOCKED:
+                    sym = colors.warning("⚠")
+                    ref = colors.info(ref_display)
+                    formatter.emit_text(
+                        f"    {sym} worktree {ref} blocked: {entry.detail}",
+                    )
+                elif entry.action == WorktreeAction.ERROR:
+                    formatter.emit_text(
+                        f"    {colors.error('✗')} worktree {colors.info(ref_display)} "
+                        f"error: {entry.error}",
+                    )
 
     _emit_summary(formatter, colors, summary)
 

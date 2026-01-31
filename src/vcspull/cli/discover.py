@@ -86,6 +86,46 @@ def _classify_config_scope(
     return "project"
 
 
+def is_git_worktree(path: pathlib.Path) -> bool:
+    """Check if a directory is a git worktree (not a main repository).
+
+    Git worktrees have a `.git` file (not directory) that points to
+    the main repository's git directory.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Path to check
+
+    Returns
+    -------
+    bool
+        True if the path is a git worktree, False otherwise
+
+    Examples
+    --------
+    >>> import tempfile
+    >>> import pathlib
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     tmp_path = pathlib.Path(tmp)
+    ...     # A directory with no .git is not a worktree
+    ...     is_git_worktree(tmp_path)
+    False
+    """
+    git_path = path / ".git"
+
+    # Worktrees have a .git file, not a directory
+    if git_path.is_file():
+        try:
+            content = git_path.read_text().strip()
+            # The file should contain "gitdir: /path/to/main/.git/worktrees/name"
+            return content.startswith("gitdir:")
+        except (OSError, PermissionError):
+            return False
+
+    return False
+
+
 def get_git_origin_url(repo_path: pathlib.Path) -> str | None:
     """Get the origin URL from a git repository.
 
@@ -171,6 +211,12 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
         action="store_false",
         help="Skip merging duplicate workspace roots before writing",
     )
+    parser.add_argument(
+        "--include-worktrees",
+        action="store_true",
+        dest="include_worktrees",
+        help="include git worktrees in discovery (excluded by default)",
+    )
     parser.set_defaults(merge_duplicates=True)
 
 
@@ -212,6 +258,7 @@ def discover_repos(
     dry_run: bool,
     *,
     merge_duplicates: bool = True,
+    include_worktrees: bool = False,
 ) -> None:
     """Scan filesystem for git repositories and add to vcspull config.
 
@@ -398,6 +445,15 @@ def discover_repos(
         for root, dirs, _ in os.walk(scan_dir):
             if ".git" in dirs:
                 repo_path = pathlib.Path(root)
+
+                # Skip worktrees unless explicitly included
+                if not include_worktrees and is_git_worktree(repo_path):
+                    log.debug(
+                        "Skipping git worktree at %s",
+                        PrivatePath(repo_path),
+                    )
+                    continue
+
                 repo_name = repo_path.name
                 repo_url = get_git_origin_url(repo_path)
 
@@ -413,7 +469,15 @@ def discover_repos(
                 found_repos.append((repo_name, repo_url, workspace_path))
     else:
         for item in scan_dir.iterdir():
-            if item.is_dir() and (item / ".git").is_dir():
+            if item.is_dir() and (item / ".git").exists():
+                # Skip worktrees unless explicitly included
+                if not include_worktrees and is_git_worktree(item):
+                    log.debug(
+                        "Skipping git worktree at %s",
+                        PrivatePath(item),
+                    )
+                    continue
+
                 repo_name = item.name
                 repo_url = get_git_origin_url(item)
 

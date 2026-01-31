@@ -40,6 +40,51 @@ if t.TYPE_CHECKING:
     from libvcs.sync.git import GitSyncRemoteDict
 
 
+class WorktreeConfigDict(TypedDict):
+    """Configuration for a single git worktree.
+
+    Worktrees allow checking out multiple branches/tags/commits of a repository
+    simultaneously in separate directories.
+
+    Exactly one of ``tag``, ``branch``, or ``commit`` must be specified.
+
+    Examples
+    --------
+    Tag worktree (immutable, detached HEAD)::
+
+        {"dir": "../myproject-v1.0", "tag": "v1.0.0"}
+
+    Branch worktree (updatable)::
+
+        {"dir": "../myproject-dev", "branch": "develop"}
+
+    Commit worktree (immutable, detached HEAD)::
+
+        {"dir": "../myproject-abc", "commit": "abc123"}
+    """
+
+    dir: str
+    """Path for the worktree (relative to workspace root or absolute)."""
+
+    tag: NotRequired[str | None]
+    """Tag to checkout (creates detached HEAD)."""
+
+    branch: NotRequired[str | None]
+    """Branch to checkout (can be updated/pulled)."""
+
+    commit: NotRequired[str | None]
+    """Commit SHA to checkout (creates detached HEAD)."""
+
+    detach: NotRequired[bool | None]
+    """Force detached HEAD. Default: True for tag/commit, False for branch."""
+
+    lock: NotRequired[bool | None]
+    """Lock the worktree to prevent accidental removal."""
+
+    lock_reason: NotRequired[str | None]
+    """Reason for locking (requires lock=True)."""
+
+
 class RawConfigDict(t.TypedDict):
     """Configuration dictionary without any type marshalling or variable resolution."""
 
@@ -64,6 +109,7 @@ class ConfigDict(TypedDict):
     workspace_root: str
     remotes: NotRequired[GitSyncRemoteDict | None]
     shell_command_after: NotRequired[list[str] | None]
+    worktrees: NotRequired[list[WorktreeConfigDict] | None]
 
 
 ConfigDir = dict[str, ConfigDict]
