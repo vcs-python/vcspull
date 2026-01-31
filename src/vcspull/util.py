@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import pathlib
 import typing as t
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 
 LEGACY_CONFIG_DIR = pathlib.Path("~/.vcspull/").expanduser()  # remove dupes of this
 
@@ -42,12 +42,12 @@ def get_config_dir() -> pathlib.Path:
     return path
 
 
-T = t.TypeVar("T", bound=dict[str, t.Any])
+T = t.TypeVar("T", bound=MutableMapping[str, object])
 
 
 def update_dict(
     d: T,
-    u: T,
+    u: Mapping[str, object],
 ) -> T:
     """Return updated dict.
 
@@ -67,7 +67,13 @@ def update_dict(
     """
     for k, v in u.items():
         if isinstance(v, Mapping):
-            r = update_dict(d.get(k, {}), v)
+            current = d.get(k)
+            if isinstance(current, MutableMapping):
+                r = update_dict(current, t.cast("Mapping[str, object]", v))
+            elif isinstance(current, Mapping):
+                r = update_dict(dict(current), t.cast("Mapping[str, object]", v))
+            else:
+                r = update_dict({}, t.cast("Mapping[str, object]", v))
             d[k] = r
         else:
             d[k] = v

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import collections.abc as cabc
+import os
 import subprocess
 import typing as t
 
@@ -12,6 +14,35 @@ from vcspull.cli.sync import SyncPlanConfig, _determine_plan_action, _maybe_fetc
 
 if t.TYPE_CHECKING:
     import pathlib
+
+    from vcspull.cli.status import StatusResult
+
+
+StatusOverride: t.TypeAlias = dict[str, bool | int | None]
+CompletedProcessArgs: t.TypeAlias = (
+    str
+    | bytes
+    | os.PathLike[str]
+    | os.PathLike[bytes]
+    | cabc.Sequence[str | bytes | os.PathLike[str] | os.PathLike[bytes]]
+)
+
+
+def _build_status(overrides: StatusOverride) -> StatusResult:
+    """Build a StatusResult with defaults for required keys."""
+    base: dict[str, object] = {
+        "name": "repo",
+        "path": "/tmp/repo",
+        "workspace_root": "/tmp",
+        "exists": False,
+        "is_git": False,
+        "clean": None,
+        "branch": None,
+        "ahead": None,
+        "behind": None,
+    }
+    base.update(overrides)
+    return t.cast("StatusResult", base)
 
 
 class MaybeFetchFixture(t.NamedTuple):
@@ -110,8 +141,8 @@ def test_maybe_fetch_behaviour(
     if subprocess_behavior:
 
         def _patched_run(
-            *args: t.Any,
-            **kwargs: t.Any,
+            args: CompletedProcessArgs,
+            **kwargs: object,
         ) -> subprocess.CompletedProcess[str]:
             if subprocess_behavior == "file-not-found":
                 error_message = "git executable not found"
@@ -121,13 +152,13 @@ def test_maybe_fetch_behaviour(
                 raise OSError(error_message)
             if subprocess_behavior == "non-zero":
                 return subprocess.CompletedProcess(
-                    args=args[0],
+                    args=args,
                     returncode=1,
                     stdout="",
                     stderr="remote rejected",
                 )
             return subprocess.CompletedProcess(
-                args=args[0],
+                args=args,
                 returncode=0,
                 stdout="",
                 stderr="",
@@ -147,7 +178,7 @@ class DeterminePlanActionFixture(t.NamedTuple):
     """Fixture for _determine_plan_action outcomes."""
 
     test_id: str
-    status: dict[str, t.Any]
+    status: StatusOverride
     config: SyncPlanConfig
     expected_action: PlanAction
     expected_detail: str
@@ -239,12 +270,15 @@ DETERMINE_PLAN_ACTION_FIXTURES: list[DeterminePlanActionFixture] = [
 )
 def test_determine_plan_action(
     test_id: str,
-    status: dict[str, t.Any],
+    status: StatusOverride,
     config: SyncPlanConfig,
     expected_action: PlanAction,
     expected_detail: str,
 ) -> None:
     """Verify _determine_plan_action handles edge cases."""
-    action, detail = _determine_plan_action(status, config=config)
+    action, detail = _determine_plan_action(
+        _build_status(status),
+        config=config,
+    )
     assert action is expected_action
     assert detail == expected_detail

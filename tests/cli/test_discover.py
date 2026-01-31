@@ -41,7 +41,7 @@ class DiscoverFixture(t.NamedTuple):
     yes: bool
     expected_repo_count: int
     config_relpath: str | None
-    preexisting_config: dict[str, t.Any] | None
+    preexisting_config: dict[str, object] | None
     user_input: str | None
     expected_workspace_labels: set[str] | None
     merge_duplicates: bool
@@ -352,7 +352,7 @@ def test_discover_repos(
     yes: bool,
     expected_repo_count: int,
     config_relpath: str | None,
-    preexisting_config: dict[str, t.Any] | None,
+    preexisting_config: dict[str, object] | None,
     user_input: str | None,
     expected_workspace_labels: set[str] | None,
     merge_duplicates: bool,
@@ -785,9 +785,9 @@ def test_discover_normalization_only_save(
     config_file = tmp_path / ".vcspull.yaml"
     config_file.write_text(yaml.dump(preexisting_config), encoding="utf-8")
 
-    save_calls: list[tuple[pathlib.Path, dict[str, t.Any]]] = []
+    save_calls: list[tuple[pathlib.Path, dict[str, object]]] = []
 
-    def _fake_save(path: pathlib.Path, data: dict[str, t.Any]) -> None:
+    def _fake_save(path: pathlib.Path, data: dict[str, object]) -> None:
         save_calls.append((path, data))
 
     monkeypatch.setattr("vcspull.cli.discover.save_config_yaml", _fake_save)
@@ -978,7 +978,7 @@ def test_discover_skips_non_dict_workspace(
         encoding="utf-8",
     )
 
-    def _fail_save(path: pathlib.Path, data: dict[str, t.Any]) -> None:
+    def _fail_save(path: pathlib.Path, data: dict[str, object]) -> None:
         error_message = "save_config_yaml should not be called when skipping repo"
         raise AssertionError(error_message)
 
