@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import dataclasses
 import enum
 import logging
 import pathlib
 import subprocess
-from dataclasses import dataclass, field
 
 from vcspull import exc
 from vcspull.types import WorktreeConfigDict
@@ -33,7 +33,7 @@ class WorktreeAction(enum.Enum):
     """Operation failed (ref not found, permission, etc.)."""
 
 
-@dataclass
+@dataclasses.dataclass
 class WorktreePlanEntry:
     """Planning information for a single worktree operation."""
 
@@ -65,11 +65,11 @@ class WorktreePlanEntry:
     """Current HEAD reference if worktree exists."""
 
 
-@dataclass
+@dataclasses.dataclass
 class WorktreeSyncResult:
     """Result of a worktree sync operation."""
 
-    entries: list[WorktreePlanEntry] = field(default_factory=list)
+    entries: list[WorktreePlanEntry] = dataclasses.field(default_factory=list)
     """List of worktree plan entries."""
 
     created: int = 0
