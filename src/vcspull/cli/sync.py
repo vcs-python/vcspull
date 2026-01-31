@@ -864,7 +864,7 @@ def sync(
                 repo_path_obj,
                 worktrees_config,
                 workspace_path,
-                dry_run=False,
+                dry_run=dry_run,
             )
 
             for entry in wt_result.entries:
