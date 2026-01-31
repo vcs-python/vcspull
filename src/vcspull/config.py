@@ -75,6 +75,71 @@ def _validate_worktrees_config(
     ------
     VCSPullException
         If the worktrees configuration is invalid.
+
+    Examples
+    --------
+    Valid configuration with a tag:
+
+    >>> from vcspull.config import _validate_worktrees_config
+    >>> config = [{"dir": "../v1", "tag": "v1.0.0"}]
+    >>> result = _validate_worktrees_config(config, "myrepo")
+    >>> len(result)
+    1
+    >>> result[0]["dir"]
+    '../v1'
+    >>> result[0]["tag"]
+    'v1.0.0'
+
+    Valid configuration with a branch:
+
+    >>> config = [{"dir": "../dev", "branch": "develop"}]
+    >>> result = _validate_worktrees_config(config, "myrepo")
+    >>> result[0]["branch"]
+    'develop'
+
+    Valid configuration with a commit:
+
+    >>> config = [{"dir": "../fix", "commit": "abc123"}]
+    >>> result = _validate_worktrees_config(config, "myrepo")
+    >>> result[0]["commit"]
+    'abc123'
+
+    Error: worktrees must be a list:
+
+    >>> _validate_worktrees_config("not-a-list", "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...worktrees must be a list, got str
+
+    Error: worktree entry must be a dict:
+
+    >>> _validate_worktrees_config(["not-a-dict"], "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...must be a dict, got str
+
+    Error: missing required 'dir' field:
+
+    >>> _validate_worktrees_config([{"tag": "v1.0.0"}], "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...missing required 'dir' field
+
+    Error: no ref type specified:
+
+    >>> _validate_worktrees_config([{"dir": "../wt"}], "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...must specify one of: tag, branch, or commit
+
+    Error: multiple refs specified:
+
+    >>> _validate_worktrees_config(
+    ...     [{"dir": "../wt", "tag": "v1", "branch": "main"}], "myrepo"
+    ... )
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...cannot specify multiple refs...
     """
     if not isinstance(worktrees_raw, list):
         msg = (
