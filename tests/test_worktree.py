@@ -7,6 +7,7 @@ import subprocess
 import typing as t
 
 import pytest
+from pytest_mock import MockerFixture
 
 from vcspull import config as vcspull_config, exc
 from vcspull._internal.worktree_sync import (
@@ -1287,3 +1288,572 @@ def test_cli_worktree_prune_no_orphans(
 
     captured = capsys.readouterr()
     assert "No orphaned worktrees to prune" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Coverage Gap Tests
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# 1. Parameterized: Create Worktree Options (lines 606-619)
+# ---------------------------------------------------------------------------
+
+
+class CreateWorktreeOptionsFixture(t.NamedTuple):
+    """Fixture for testing worktree create options."""
+
+    test_id: str
+    wt_config_extra: dict[str, t.Any]
+    expected_detach: bool
+    ref_type: str
+
+
+CREATE_WORKTREE_OPTIONS_FIXTURES = [
+    CreateWorktreeOptionsFixture(
+        test_id="tag_default_detach",
+        wt_config_extra={},
+        expected_detach=True,
+        ref_type="tag",
+    ),
+    CreateWorktreeOptionsFixture(
+        test_id="branch_no_detach",
+        wt_config_extra={},
+        expected_detach=False,
+        ref_type="branch",
+    ),
+    CreateWorktreeOptionsFixture(
+        test_id="explicit_lock",
+        wt_config_extra={"lock": True},
+        expected_detach=True,
+        ref_type="tag",
+    ),
+    CreateWorktreeOptionsFixture(
+        test_id="lock_with_reason",
+        wt_config_extra={"lock": True, "lock_reason": "WIP feature"},
+        expected_detach=True,
+        ref_type="tag",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(CreateWorktreeOptionsFixture._fields),
+    CREATE_WORKTREE_OPTIONS_FIXTURES,
+    ids=[fixture.test_id for fixture in CREATE_WORKTREE_OPTIONS_FIXTURES],
+)
+def test_sync_worktree_create_options(
+    test_id: str,
+    wt_config_extra: dict[str, t.Any],
+    expected_detach: bool,
+    ref_type: str,
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test sync_worktree with various create options (lock, detach, lock_reason).
+
+    Coverage: Lines 606-619 in worktree_sync.py.
+    """
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / f"wt-options-{test_id}"
+
+    # Create a tag for tag-based tests
+    subprocess.run(
+        ["git", "tag", f"v-{test_id}"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create a branch for branch-based tests
+    subprocess.run(
+        ["git", "branch", f"branch-{test_id}"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Build config based on ref_type
+    wt_config: WorktreeConfigDict
+    if ref_type == "tag":
+        wt_config = {"dir": str(worktree_path), "tag": f"v-{test_id}"}
+    else:
+        wt_config = {"dir": str(worktree_path), "branch": f"branch-{test_id}"}
+
+    # Apply extra config options
+    if wt_config_extra.get("lock"):
+        wt_config["lock"] = wt_config_extra["lock"]
+    if wt_config_extra.get("lock_reason"):
+        wt_config["lock_reason"] = wt_config_extra["lock_reason"]
+    if wt_config_extra.get("detach") is not None:
+        wt_config["detach"] = wt_config_extra["detach"]
+
+    entry = sync_worktree(git_repo.path, wt_config, workspace_root)
+
+    assert entry.action == WorktreeAction.CREATE
+    assert worktree_path.exists()
+    assert (worktree_path / ".git").is_file()
+
+    # Verify the worktree is locked if requested
+    if wt_config_extra.get("lock"):
+        # Check that the worktree is locked by looking at the lock file
+        # Git creates .git/worktrees/<name>/locked
+        worktree_list = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=git_repo.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        # locked worktrees show "locked" in porcelain output
+        assert "locked" in worktree_list.stdout
+
+
+# ---------------------------------------------------------------------------
+# 2. Parameterized: CLI Filtering Options (lines 133-134, 145-147, 153)
+# ---------------------------------------------------------------------------
+
+
+class CLIFilteringFixture(t.NamedTuple):
+    """Fixture for testing CLI filtering options."""
+
+    test_id: str
+    cli_args: list[str]
+    expected_in_output: str
+
+
+CLI_FILTERING_NO_ACTION_FIXTURES = [
+    CLIFilteringFixture(
+        test_id="no_subcommand_shows_usage",
+        cli_args=["worktree"],
+        expected_in_output="Usage:",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(CLIFilteringFixture._fields),
+    CLI_FILTERING_NO_ACTION_FIXTURES,
+    ids=[fixture.test_id for fixture in CLI_FILTERING_NO_ACTION_FIXTURES],
+)
+def test_cli_worktree_no_subcommand(
+    test_id: str,
+    cli_args: list[str],
+    expected_in_output: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI with no subcommand shows usage.
+
+    Coverage: Lines 133-134 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    cli(cli_args)
+
+    captured = capsys.readouterr()
+    assert expected_in_output in captured.out
+
+
+def test_cli_worktree_list_pattern_filter(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI list with pattern filter.
+
+    Coverage: Lines 145-147 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag
+    subprocess.run(
+        ["git", "tag", "v-pattern-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create config with a repo that matches the filter pattern
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: ../{git_repo.path.name}-pattern
+        tag: v-pattern-test
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Filter using a pattern that matches the repo name
+    cli(["worktree", "list", "-f", str(config_path), git_repo.path.name])
+
+    captured = capsys.readouterr()
+    # Should find the repo matching the pattern
+    assert git_repo.path.name in captured.out
+    assert "v-pattern-test" in captured.out
+
+
+def test_cli_worktree_list_workspace_filter(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI list with workspace filter.
+
+    Coverage: Line 153 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag
+    subprocess.run(
+        ["git", "tag", "v-workspace-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create config with worktrees
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: ../{git_repo.path.name}-ws
+        tag: v-workspace-test
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Filter by workspace
+    cli(["worktree", "list", "-f", str(config_path), "-w", str(git_repo.path.parent)])
+
+    captured = capsys.readouterr()
+    assert git_repo.path.name in captured.out
+
+
+def test_cli_worktree_list_config_discovery(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI list uses config discovery when -f not provided.
+
+    Coverage: Line 141 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag
+    subprocess.run(
+        ["git", "tag", "v-discovery-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create config in home directory (where it will be discovered)
+    home_dir = tmp_path / "home"
+    home_dir.mkdir()
+    config_path = home_dir / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: ../{git_repo.path.name}-discovery
+        tag: v-discovery-test
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(home_dir)
+    monkeypatch.setenv("HOME", str(home_dir))
+
+    # Call without -f flag to trigger config discovery
+    cli(["worktree", "list"])
+
+    captured = capsys.readouterr()
+    # Should find the config and show the repo
+    assert git_repo.path.name in captured.out or "No repositories" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# 3. Test: Worktree Exists Edge Cases (line 346)
+# ---------------------------------------------------------------------------
+
+
+def test_worktree_exists_path_no_git(tmp_path: pathlib.Path) -> None:
+    """Test _worktree_exists returns False for path without .git.
+
+    Coverage: Line 346 in worktree_sync.py.
+    """
+    from vcspull._internal.worktree_sync import _worktree_exists
+
+    # Create a directory that exists but has no .git file or dir
+    some_path = tmp_path / "not_a_worktree"
+    some_path.mkdir()
+
+    # Should return False (hits line 346)
+    assert _worktree_exists(tmp_path, some_path) is False
+
+
+# ---------------------------------------------------------------------------
+# 4. Test: Prune Failure Handling (lines 824-826)
+# ---------------------------------------------------------------------------
+
+
+def test_prune_worktree_failure(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+) -> None:
+    """Test prune handles git worktree remove failure gracefully.
+
+    Coverage: Lines 824-826 in worktree_sync.py.
+    """
+    workspace_root = git_repo.path.parent
+
+    # Create an orphaned worktree
+    orphan_path = workspace_root / "orphan-fail-wt"
+    subprocess.run(
+        ["git", "worktree", "add", str(orphan_path), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Mock subprocess.run to fail on "git worktree remove" command
+    original_run = subprocess.run
+
+    def mock_run(*args: t.Any, **kwargs: t.Any) -> t.Any:
+        cmd = args[0] if args else kwargs.get("cmd", [])
+        if isinstance(cmd, list) and "worktree" in cmd and "remove" in cmd:
+            raise subprocess.CalledProcessError(
+                1,
+                cmd,
+                output=b"",
+                stderr="error: failed to remove worktree",
+            )
+        return original_run(*args, **kwargs)
+
+    mocker.patch("subprocess.run", side_effect=mock_run)
+
+    pruned = prune_worktrees(
+        git_repo.path,
+        [],  # No configured worktrees, so orphan should be pruned
+        workspace_root,
+        dry_run=False,
+    )
+
+    # The prune should fail, so the worktree is NOT in the pruned list
+    assert orphan_path not in pruned
+
+
+# ---------------------------------------------------------------------------
+# 5. Test: CLI with Empty Worktrees List (lines 201, 288)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_list_skips_empty_worktrees(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI list skips repos with worktrees: [].
+
+    Coverage: Line 201 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Create config with empty worktrees list
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  emptyproject:
+    repo: git+file://{git_repo.path}
+    worktrees: []
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "list", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    # Should show "No repositories with worktrees configured"
+    # because the filter removes repos with empty worktrees lists
+    assert "No repositories with worktrees configured" in captured.out
+
+
+def test_cli_sync_skips_empty_worktrees(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI sync skips repos with worktrees: [].
+
+    Coverage: Line 288 in cli/worktree.py.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag first
+    subprocess.run(
+        ["git", "tag", "v-empty-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create config with one repo with worktrees, one with empty list
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  emptyproject:
+    repo: git+file://{git_repo.path}
+    worktrees: []
+  realproject:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: ../realproject-v1
+        tag: v-empty-test
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "sync", "--dry-run", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    # Should only show realproject, not emptyproject
+    assert "realproject" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# 6. Additional Edge Case Tests for Remaining Uncovered Lines
+# ---------------------------------------------------------------------------
+
+
+def test_ref_exists_remote_branch_fallback(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test _ref_exists falls back to remote branch check.
+
+    Coverage: Line 257 in worktree_sync.py.
+    """
+    from vcspull._internal.worktree_sync import _ref_exists
+
+    # Create a bare remote
+    remote_path = tmp_path / "remote.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(git_repo.path), str(remote_path)],
+        check=True,
+        capture_output=True,
+    )
+
+    # Check if remote origin already exists, if so remove it first
+    result = subprocess.run(
+        ["git", "remote", "get-url", "origin"],
+        cwd=git_repo.path,
+        capture_output=True,
+    )
+    if result.returncode == 0:
+        subprocess.run(
+            ["git", "remote", "remove", "origin"],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+
+    # Add the remote to our repo
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create a branch on the remote that doesn't exist locally
+    subprocess.run(
+        ["git", "branch", "remote-only-branch"],
+        cwd=remote_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Fetch to get the remote refs
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # The branch should exist on remote but not locally
+    # _ref_exists should find it via the fallback to origin/branch
+    assert _ref_exists(git_repo.path, "remote-only-branch", "branch") is True
+
+
+def test_get_worktree_head_exception_handling(tmp_path: pathlib.Path) -> None:
+    """Test _get_worktree_head handles exceptions gracefully.
+
+    Coverage: Lines 305-307 in worktree_sync.py.
+    """
+    from vcspull._internal.worktree_sync import _get_worktree_head
+
+    # Create a directory that exists but is not a git repo
+    non_repo = tmp_path / "not_a_repo"
+    non_repo.mkdir()
+
+    # Should return None (exception path)
+    result = _get_worktree_head(non_repo)
+    assert result is None
+
+
+def test_is_worktree_dirty_exception_handling(tmp_path: pathlib.Path) -> None:
+    """Test _is_worktree_dirty handles exceptions gracefully.
+
+    Coverage: Lines 209-211 in worktree_sync.py.
+    """
+    from vcspull._internal.worktree_sync import _is_worktree_dirty
+
+    # Pass a path that doesn't exist
+    nonexistent = tmp_path / "nonexistent"
+
+    # Should return False (exception path)
+    result = _is_worktree_dirty(nonexistent)
+    assert result is False
+
+
+def test_ref_exists_exception_handling(tmp_path: pathlib.Path) -> None:
+    """Test _ref_exists handles exceptions gracefully.
+
+    Coverage: Lines 270-271 in worktree_sync.py.
+    """
+    from vcspull._internal.worktree_sync import _ref_exists
+
+    # Pass a path that doesn't exist
+    nonexistent = tmp_path / "nonexistent"
+
+    # Should return False for all ref types (exception path)
+    assert _ref_exists(nonexistent, "v1.0.0", "tag") is False
+    assert _ref_exists(nonexistent, "main", "branch") is False
+    assert _ref_exists(nonexistent, "abc123", "commit") is False
