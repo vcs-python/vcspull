@@ -105,6 +105,8 @@ def list_repos(
         Output as NDJSON
     color : str
         Color mode (auto, always, never)
+    include_worktrees : bool
+        Include configured worktrees in the listing (default: False)
     """
     # Load configs
     if config_path:
