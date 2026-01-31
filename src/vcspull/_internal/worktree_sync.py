@@ -583,11 +583,29 @@ def _create_worktree(
     wt_config : WorktreeConfigDict
         Full worktree configuration.
 
-    Notes
-    -----
-    This function runs ``git worktree add`` and requires a real git repository.
-    See tests/test_worktree.py for integration tests covering worktree creation
-    with various options (detach, lock, lock_reason).
+    Raises
+    ------
+    subprocess.CalledProcessError
+        If the git command fails (e.g., ref not found).
+    FileNotFoundError
+        If the repository path does not exist.
+
+    Examples
+    --------
+    This function requires a valid git repository. When called with an invalid
+    path, it raises FileNotFoundError:
+
+    >>> import pathlib
+    >>> _create_worktree(
+    ...     pathlib.Path("/nonexistent"),
+    ...     pathlib.Path("/tmp/wt"),
+    ...     "tag",
+    ...     "v1.0.0",
+    ...     {"dir": "../wt", "tag": "v1.0.0"},
+    ... )  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    FileNotFoundError: ...
     """
     cmd = ["git", "worktree", "add"]
 
@@ -629,10 +647,23 @@ def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
     branch : str
         The branch name.
 
-    Notes
-    -----
-    This function runs ``git pull --ff-only`` and requires a real worktree.
-    See tests/test_worktree.py for integration tests covering branch updates.
+    Raises
+    ------
+    subprocess.CalledProcessError
+        If the git command fails.
+    FileNotFoundError
+        If the worktree path does not exist.
+
+    Examples
+    --------
+    This function requires a valid git worktree. When called with an invalid
+    path, it raises FileNotFoundError:
+
+    >>> import pathlib
+    >>> _update_worktree(pathlib.Path("/nonexistent"), "main")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    FileNotFoundError: ...
     """
     subprocess.run(
         ["git", "pull", "--ff-only"],
