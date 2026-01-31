@@ -620,7 +620,7 @@ def list_existing_worktrees(repo_path: pathlib.Path) -> list[pathlib.Path]:
             path = pathlib.Path(path_str)
             # Skip the main worktree (the repo itself)
             if path.resolve() != repo_path.resolve():
-                paths.append(path)
+                paths.append(path.resolve())
 
     return paths
 
