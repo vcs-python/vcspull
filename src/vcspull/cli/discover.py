@@ -118,8 +118,9 @@ def is_git_worktree(path: pathlib.Path) -> bool:
     if git_path.is_file():
         try:
             content = git_path.read_text().strip()
-            # The file should contain "gitdir: /path/to/main/.git/worktrees/name"
-            return content.startswith("gitdir:")
+            # Worktrees point to .git/worktrees/, submodules point to .git/modules/
+            # Both have "gitdir:" prefix, but only worktrees have "/worktrees/" in path
+            return content.startswith("gitdir:") and "/worktrees/" in content
         except (OSError, PermissionError):
             return False
 
