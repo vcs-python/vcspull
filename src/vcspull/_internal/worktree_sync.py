@@ -583,22 +583,11 @@ def _create_worktree(
     wt_config : WorktreeConfigDict
         Full worktree configuration.
 
-    Examples
-    --------
+    Notes
+    -----
     This function runs ``git worktree add`` and requires a real git repository.
-    See tests/test_worktree.py for integration tests.
-
-    >>> import pathlib
-    >>> try:
-    ...     _create_worktree(
-    ...         pathlib.Path("/nonexistent"),
-    ...         pathlib.Path("/nonexistent/wt"),
-    ...         "tag",
-    ...         "v1.0.0",
-    ...         {"dir": "../wt", "tag": "v1.0.0"},
-    ...     )
-    ... except Exception:
-    ...     pass  # Expected to fail without a real repo
+    See tests/test_worktree.py for integration tests covering worktree creation
+    with various options (detach, lock, lock_reason).
     """
     cmd = ["git", "worktree", "add"]
 
@@ -640,16 +629,10 @@ def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
     branch : str
         The branch name.
 
-    Examples
-    --------
+    Notes
+    -----
     This function runs ``git pull --ff-only`` and requires a real worktree.
-    See tests/test_worktree.py for integration tests.
-
-    >>> import pathlib
-    >>> try:
-    ...     _update_worktree(pathlib.Path("/nonexistent"), "main")
-    ... except Exception:
-    ...     pass  # Expected to fail without a real worktree
+    See tests/test_worktree.py for integration tests covering branch updates.
     """
     subprocess.run(
         ["git", "pull", "--ff-only"],
