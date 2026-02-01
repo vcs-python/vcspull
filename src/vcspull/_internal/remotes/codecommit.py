@@ -13,6 +13,7 @@ from .base import (
     DependencyError,
     ImportOptions,
     RemoteRepo,
+    filter_repo,
 )
 
 log = logging.getLogger(__name__)
@@ -235,8 +236,9 @@ class CodeCommitImporter:
                     break
 
                 repo = self._parse_repo(repo_metadata)
-                yield repo
-                count += 1
+                if filter_repo(repo, options):
+                    yield repo
+                    count += 1
 
     def _parse_repo(self, data: dict[str, t.Any]) -> RemoteRepo:
         """Parse CodeCommit repository metadata into RemoteRepo.
