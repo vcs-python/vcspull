@@ -406,14 +406,15 @@ def import_repos(
     display_config_path = str(PrivatePath(config_file_path))
 
     # Fetch repositories
-    log.info(
-        "%s→%s Fetching repositories from %s%s%s...",
-        Fore.CYAN,
-        Style.RESET_ALL,
-        Fore.MAGENTA,
-        importer.service_name,
-        Style.RESET_ALL,
-    )
+    if output_mode.value == "human":
+        log.info(
+            "%s→%s Fetching repositories from %s%s%s...",
+            Fore.CYAN,
+            Style.RESET_ALL,
+            Fore.MAGENTA,
+            importer.service_name,
+            Style.RESET_ALL,
+        )
 
     repos: list[RemoteRepo] = []
     try:
@@ -468,22 +469,24 @@ def import_repos(
         return
 
     if not repos:
-        log.info(
-            "%s!%s No repositories found matching criteria.",
-            Fore.YELLOW,
-            Style.RESET_ALL,
-        )
+        if output_mode.value == "human":
+            log.info(
+                "%s!%s No repositories found matching criteria.",
+                Fore.YELLOW,
+                Style.RESET_ALL,
+            )
         formatter.finalize()
         return
 
-    log.info(
-        "\n%s✓%s Found %s%d%s repositories",
-        Fore.GREEN,
-        Style.RESET_ALL,
-        Fore.CYAN,
-        len(repos),
-        Style.RESET_ALL,
-    )
+    if output_mode.value == "human":
+        log.info(
+            "\n%s✓%s Found %s%d%s repositories",
+            Fore.GREEN,
+            Style.RESET_ALL,
+            Fore.CYAN,
+            len(repos),
+            Style.RESET_ALL,
+        )
 
     # Show preview in human mode
     if output_mode.value == "human":
