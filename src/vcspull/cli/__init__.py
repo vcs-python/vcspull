@@ -111,7 +111,7 @@ CLI_DESCRIPTION = build_description(
             [
                 "vcspull import github torvalds -w ~/repos/linux --mode user",
                 "vcspull import github django -w ~/study/python --mode org",
-                "vcspull import gitlab myuser -w ~/work --dry-run",
+                "vcspull import gitlab gitlab-org/ci-cd -w ~/work --mode org",
                 "vcspull import codeberg user -w ~/oss --json",
             ],
         ),
@@ -250,6 +250,8 @@ IMPORT_DESCRIPTION = build_description(
 
     Fetches repository lists from GitHub, GitLab, Codeberg/Gitea/Forgejo,
     or AWS CodeCommit and adds them to the vcspull configuration.
+
+    For GitLab, you can specify subgroups using slash notation (e.g., parent/child).
     """,
     (
         (
@@ -257,6 +259,7 @@ IMPORT_DESCRIPTION = build_description(
             [
                 "vcspull import github torvalds -w ~/repos/linux --mode user",
                 "vcspull import github django -w ~/study/python --mode org",
+                "vcspull import gitlab gitlab-org/ci-cd -w ~/work --mode org",
                 "vcspull import gitlab myuser -w ~/work --url https://gitlab.company.com",
                 "vcspull import codeberg user -w ~/oss --dry-run",
                 "vcspull import codecommit -w ~/work/aws --region us-east-1",

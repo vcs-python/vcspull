@@ -70,7 +70,10 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
         metavar="TARGET",
         nargs="?",
         default="",
-        help="User, org name, or search query (optional for codecommit)",
+        help=(
+            "User, org name, or search query (optional for codecommit). "
+            "For GitLab, supports subgroups with slash notation (e.g., parent/child)."
+        ),
     )
     parser.add_argument(
         "-w",
