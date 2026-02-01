@@ -108,9 +108,6 @@ class MockHTTPResponse:
         pass
 
 
-@pytest.mark.xfail(
-    reason="Pagination uses inconsistent per_page when client-side filtering is active"
-)
 def test_github_pagination_consistent_per_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -122,19 +119,19 @@ def test_github_pagination_consistent_per_page(
     """
     captured_requests: list[urllib.request.Request] = []
 
-    # Create repos: mix of regular and forked
+    # Create page 1 with exactly DEFAULT_PER_PAGE items to force pagination.
+    # Half regular repos, half forks - forks will be filtered out client-side.
     page1_repos = [
-        _make_github_repo("repo1"),
-        _make_github_repo("repo2"),
-        _make_github_repo("fork1", fork=True),
-        _make_github_repo("fork2", fork=True),
-        _make_github_repo("fork3", fork=True),
+        _make_github_repo(f"repo{i}") for i in range(GITHUB_DEFAULT_PER_PAGE // 2)
     ]
+    page1_repos.extend(
+        _make_github_repo(f"fork{i}", fork=True)
+        for i in range(GITHUB_DEFAULT_PER_PAGE // 2)
+    )
 
+    # Page 2 has more repos
     page2_repos = [
-        _make_github_repo("repo3"),
-        _make_github_repo("repo4"),
-        _make_github_repo("repo5"),
+        _make_github_repo(f"repo{GITHUB_DEFAULT_PER_PAGE // 2 + i}") for i in range(10)
     ]
 
     responses = [
@@ -164,10 +161,12 @@ def test_github_pagination_consistent_per_page(
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitHubImporter()
+    # Request more repos than page 1 provides after filtering (50 regular repos)
+    # This forces pagination to continue to page 2
     options = ImportOptions(
         mode=ImportMode.USER,
         target="testuser",
-        limit=5,
+        limit=60,  # More than 50 regular repos in page 1
         include_forks=False,  # Filter out forks client-side
     )
     list(importer.fetch_repos(options))
@@ -188,9 +187,6 @@ def test_github_pagination_consistent_per_page(
     )
 
 
-@pytest.mark.xfail(
-    reason="Pagination uses inconsistent limit when client-side filtering is active"
-)
 def test_gitea_pagination_consistent_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -202,19 +198,19 @@ def test_gitea_pagination_consistent_limit(
     """
     captured_requests: list[urllib.request.Request] = []
 
-    # Create repos: mix of regular and forked
+    # Create page 1 with exactly DEFAULT_PER_PAGE items to force pagination.
+    # Half regular repos, half forks - forks will be filtered out client-side.
     page1_repos = [
-        _make_gitea_repo("repo1"),
-        _make_gitea_repo("repo2"),
-        _make_gitea_repo("fork1", fork=True),
-        _make_gitea_repo("fork2", fork=True),
-        _make_gitea_repo("fork3", fork=True),
+        _make_gitea_repo(f"repo{i}") for i in range(GITEA_DEFAULT_PER_PAGE // 2)
     ]
+    page1_repos.extend(
+        _make_gitea_repo(f"fork{i}", fork=True)
+        for i in range(GITEA_DEFAULT_PER_PAGE // 2)
+    )
 
+    # Page 2 has more repos
     page2_repos = [
-        _make_gitea_repo("repo3"),
-        _make_gitea_repo("repo4"),
-        _make_gitea_repo("repo5"),
+        _make_gitea_repo(f"repo{GITEA_DEFAULT_PER_PAGE // 2 + i}") for i in range(10)
     ]
 
     responses: list[tuple[bytes, dict[str, str], int]] = [
@@ -236,10 +232,12 @@ def test_gitea_pagination_consistent_limit(
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GiteaImporter(base_url="https://codeberg.org")
+    # Request more repos than page 1 provides after filtering (25 regular repos)
+    # This forces pagination to continue to page 2
     options = ImportOptions(
         mode=ImportMode.USER,
         target="testuser",
-        limit=5,
+        limit=35,  # More than 25 regular repos in page 1
         include_forks=False,  # Filter out forks client-side
     )
     list(importer.fetch_repos(options))
