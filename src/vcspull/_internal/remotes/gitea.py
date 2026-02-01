@@ -168,9 +168,10 @@ class GiteaImporter:
         count = 0
 
         while count < options.limit:
+            page_limit = min(DEFAULT_PER_PAGE, options.limit - count)
             params: dict[str, str | int] = {
                 "q": options.target,
-                "limit": min(DEFAULT_PER_PAGE, options.limit - count),
+                "limit": page_limit,
                 "page": page,
                 "sort": "stars",
                 "order": "desc",
@@ -204,7 +205,7 @@ class GiteaImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(items) < DEFAULT_PER_PAGE:
+            if len(items) < page_limit:
                 break
 
             page += 1
@@ -232,8 +233,9 @@ class GiteaImporter:
         count = 0
 
         while count < options.limit:
+            page_limit = min(DEFAULT_PER_PAGE, options.limit - count)
             params: dict[str, str | int] = {
-                "limit": min(DEFAULT_PER_PAGE, options.limit - count),
+                "limit": page_limit,
                 "page": page,
             }
 
@@ -256,7 +258,7 @@ class GiteaImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(data) < DEFAULT_PER_PAGE:
+            if len(data) < page_limit:
                 break
 
             page += 1
