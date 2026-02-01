@@ -63,6 +63,8 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "service",
         metavar="SERVICE",
+        nargs="?",
+        default=None,
         help="Remote service: github, gitlab, codeberg, gitea, forgejo, codecommit",
     )
     parser.add_argument(
@@ -80,7 +82,7 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
         "--workspace",
         dest="workspace",
         metavar="DIR",
-        required=True,
+        default=None,
         help="Workspace root directory (REQUIRED)",
     )
     parser.add_argument(

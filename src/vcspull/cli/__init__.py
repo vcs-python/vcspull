@@ -499,6 +499,10 @@ def cli(_args: list[str] | None = None) -> None:
             merge_roots=args.merge_roots,
         )
     elif args.subparser_name == "import":
+        # Show help if required arguments are missing
+        if args.service is None or args.workspace is None:
+            _import_parser.print_help()
+            return
         import_repos(
             service=args.service,
             target=args.target,

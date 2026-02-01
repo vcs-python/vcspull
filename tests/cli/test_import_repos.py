@@ -1206,3 +1206,31 @@ def test_import_repos_config_load_error(
     )
 
     assert "Error loading config" in caplog.text
+
+
+def test_import_no_args_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that 'vcspull import' without args shows help (like --help)."""
+    from vcspull.cli import cli
+
+    # Call cli with just "import" - should show help and not error
+    cli(["import"])
+
+    captured = capsys.readouterr()
+    # Verify help is shown (usage line and description)
+    assert "usage: vcspull import" in captured.out
+    assert "Import repositories from remote services" in captured.out
+    assert "positional arguments:" in captured.out
+    assert "SERVICE" in captured.out
+
+
+def test_import_only_service_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that 'vcspull import github' without workspace shows help."""
+    from vcspull.cli import cli
+
+    # Call cli with just "import github" - missing workspace
+    cli(["import", "github"])
+
+    captured = capsys.readouterr()
+    # Verify help is shown
+    assert "usage: vcspull import" in captured.out
+    assert "-w, --workspace DIR" in captured.out
