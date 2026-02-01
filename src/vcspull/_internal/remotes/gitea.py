@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import typing as t
+import urllib.parse
 
 from .base import (
     HTTPClient,
@@ -54,13 +55,17 @@ class GiteaImporter:
         """
         self._base_url = (base_url or CODEBERG_API_URL).rstrip("/")
 
-        # Determine token from environment based on service
+        # Determine token from environment based on service.
+        # Use proper URL parsing to extract hostname to avoid substring attacks.
+        parsed_url = urllib.parse.urlparse(self._base_url.lower())
+        hostname = parsed_url.netloc
+
         self._token: str | None
         if token:
             self._token = token
-        elif "codeberg.org" in self._base_url.lower():
+        elif hostname == "codeberg.org":
             self._token = get_token_from_env("CODEBERG_TOKEN", "GITEA_TOKEN")
-        elif "forgejo" in self._base_url.lower():
+        elif "forgejo" in hostname:
             self._token = get_token_from_env("FORGEJO_TOKEN", "GITEA_TOKEN")
         else:
             self._token = get_token_from_env("GITEA_TOKEN")
