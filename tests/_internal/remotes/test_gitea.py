@@ -95,7 +95,7 @@ def test_gitea_search_with_array_response(
 def test_gitea_importer_defaults_to_codeberg() -> None:
     """Test GiteaImporter defaults to Codeberg URL."""
     importer = GiteaImporter()
-    assert "codeberg.org" in importer._base_url
+    assert importer._base_url == "https://codeberg.org"
 
 
 def test_gitea_importer_service_name() -> None:
