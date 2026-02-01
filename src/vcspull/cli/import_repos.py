@@ -380,7 +380,7 @@ def import_repos(
 
     # Build import options
     import_mode = ImportMode(mode)
-    topic_list = [t.strip() for t in topics.split(",")] if topics else []
+    topic_list = [t.strip() for t in topics.split(",") if t.strip()] if topics else []
 
     options = ImportOptions(
         mode=import_mode,
