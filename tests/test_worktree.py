@@ -1408,6 +1408,56 @@ def test_sync_worktree_create_options(
         # locked worktrees show "locked" in porcelain output
         assert "locked" in worktree_list.stdout
 
+        # Verify lock reason if specified
+        if wt_config_extra.get("lock_reason"):
+            # git worktree list --porcelain shows "locked <reason>"
+            assert wt_config_extra["lock_reason"] in worktree_list.stdout
+
+
+def test_sync_worktree_lock_reason_applied(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test lock_reason is properly applied via separate git worktree lock command.
+
+    Regression test for: git worktree add --lock does not support --reason.
+    The fix applies lock_reason via a separate "git worktree lock --reason" call.
+    """
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "lock-reason-test-wt"
+
+    # Create a tag
+    subprocess.run(
+        ["git", "tag", "v-lock-reason-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    wt_config: WorktreeConfigDict = {
+        "dir": str(worktree_path),
+        "tag": "v-lock-reason-test",
+        "lock": True,
+        "lock_reason": "WIP: Testing lock reason feature",
+    }
+
+    entry = sync_worktree(git_repo.path, wt_config, workspace_root)
+
+    assert entry.action == WorktreeAction.CREATE
+    assert worktree_path.exists()
+
+    # Verify lock reason is present in porcelain output
+    worktree_list = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=git_repo.path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    # Porcelain output shows "locked <reason>" for locked worktrees with a reason
+    assert "locked WIP: Testing lock reason feature" in worktree_list.stdout
+
 
 # ---------------------------------------------------------------------------
 # 2. Parameterized: CLI Filtering Options (lines 133-134, 145-147, 153)

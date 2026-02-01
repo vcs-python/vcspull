@@ -619,11 +619,13 @@ def _create_worktree(
         cmd.append("--detach")
 
     # Handle locking
-    if wt_config.get("lock"):
+    # git worktree add --lock does NOT support --reason, so when lock_reason
+    # is specified, we skip --lock here and use "git worktree lock --reason" after
+    lock_reason = wt_config.get("lock_reason")
+    should_lock = wt_config.get("lock")
+    if should_lock and not lock_reason:
+        # Lock without reason - can use --lock flag directly
         cmd.append("--lock")
-        lock_reason = wt_config.get("lock_reason")
-        if lock_reason:
-            cmd.extend(["--reason", lock_reason])
 
     cmd.append(str(worktree_path))
     cmd.append(ref_value)
@@ -635,6 +637,21 @@ def _create_worktree(
         capture_output=True,
         text=True,
     )
+
+    # Apply lock with reason via separate command
+    # This handles both cases:
+    # 1. lock=True with lock_reason - lock with reason
+    # 2. lock_reason without explicit lock=True - also locks with reason
+    if lock_reason:
+        lock_cmd = ["git", "worktree", "lock", "--reason", lock_reason]
+        lock_cmd.append(str(worktree_path))
+        subprocess.run(
+            lock_cmd,
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
 
 def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
