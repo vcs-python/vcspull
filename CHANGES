@@ -33,6 +33,56 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### New features
+
+#### `vcspull import` command for remote repository discovery (#510)
+
+Import repositories from GitHub, GitLab, Codeberg/Gitea/Forgejo, and AWS
+CodeCommit directly into your vcspull configuration.
+
+Import a user's repositories:
+
+```console
+$ vcspull import github torvalds -w ~/repos/linux --mode user
+```
+
+Import an organization's repositories:
+
+```console
+$ vcspull import github django -w ~/study/python --mode org
+```
+
+Search and import repositories:
+
+```console
+$ vcspull import github "machine learning" -w ~/ml-repos --mode search --min-stars 1000
+```
+
+Use with self-hosted GitLab:
+
+```console
+$ vcspull import gitlab myuser -w ~/work --url https://gitlab.company.com
+```
+
+Preview without writing (dry run):
+
+```console
+$ vcspull import codeberg user -w ~/oss --dry-run
+```
+
+Import from AWS CodeCommit:
+
+```console
+$ vcspull import codecommit -w ~/work/aws --region us-east-1
+```
+
+Features:
+
+- Service aliases: `gh`, `gl`, `cb`, `cc`, `aws`
+- Filtering: `--language`, `--topics`, `--min-stars`, `--archived`, `--forks`
+- Output modes: human-readable (default), `--json`, `--ndjson`
+- No new dependencies (uses stdlib `urllib` for HTTP)
+
 ### Tests
 
 - Fix `pytest-asyncio` deprecation warning in isolated `pytester` runs by
