@@ -30,6 +30,10 @@ from vcspull._internal.remotes.github import (
     DEFAULT_PER_PAGE as GITHUB_DEFAULT_PER_PAGE,
     GitHubImporter,
 )
+from vcspull._internal.remotes.gitlab import (
+    DEFAULT_PER_PAGE as GITLAB_DEFAULT_PER_PAGE,
+    GitLabImporter,
+)
 
 
 def _make_github_repo(
@@ -73,6 +77,28 @@ def _make_gitea_repo(
         "archived": archived,
         "default_branch": "main",
         "owner": {"login": "testuser"},
+    }
+
+
+def _make_gitlab_repo(
+    name: str,
+    *,
+    fork: bool = False,
+    archived: bool = False,
+) -> dict[str, t.Any]:
+    """Create a GitLab API project response object."""
+    return {
+        "path": name,
+        "name": name,
+        "http_url_to_repo": f"https://gitlab.com/testuser/{name}.git",
+        "web_url": f"https://gitlab.com/testuser/{name}",
+        "description": f"Project {name}",
+        "topics": [],
+        "star_count": 10,
+        "forked_from_project": {"id": 123} if fork else None,
+        "archived": archived,
+        "default_branch": "main",
+        "namespace": {"path": "testuser"},
     }
 
 
@@ -254,4 +280,75 @@ def test_gitea_pagination_consistent_limit(
     assert len(limit_values) >= 2, "Expected at least 2 API requests"
     assert all(v == GITEA_DEFAULT_PER_PAGE for v in limit_values), (
         f"Expected all limit values to be {GITEA_DEFAULT_PER_PAGE}, got: {limit_values}"
+    )
+
+
+def test_gitlab_pagination_consistent_per_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that GitLab pagination uses consistent per_page across all requests.
+
+    When client-side filtering removes items, the per_page parameter should NOT
+    be recalculated based on remaining count - it should stay constant to maintain
+    proper pagination offsets.
+    """
+    captured_requests: list[urllib.request.Request] = []
+
+    # Create page 1 with exactly DEFAULT_PER_PAGE items to force pagination.
+    # Half regular repos, half forks - forks will be filtered out client-side.
+    page1_repos = [
+        _make_gitlab_repo(f"repo{i}") for i in range(GITLAB_DEFAULT_PER_PAGE // 2)
+    ]
+    page1_repos.extend(
+        _make_gitlab_repo(f"fork{i}", fork=True)
+        for i in range(GITLAB_DEFAULT_PER_PAGE // 2)
+    )
+
+    # Page 2 has more repos
+    page2_repos = [
+        _make_gitlab_repo(f"repo{GITLAB_DEFAULT_PER_PAGE // 2 + i}") for i in range(10)
+    ]
+
+    responses: list[tuple[bytes, dict[str, str], int]] = [
+        (json.dumps(page1_repos).encode(), {}, 200),
+        (json.dumps(page2_repos).encode(), {}, 200),
+    ]
+    call_count = 0
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        nonlocal call_count
+        captured_requests.append(request)
+        body, headers, status = responses[call_count % len(responses)]
+        call_count += 1
+        return MockHTTPResponse(body, headers, status)
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    # Request more repos than page 1 provides after filtering (50 regular repos)
+    # This forces pagination to continue to page 2
+    options = ImportOptions(
+        mode=ImportMode.ORG,
+        target="testgroup",
+        limit=60,  # More than 50 regular repos in page 1
+        include_forks=False,  # Filter out forks client-side
+    )
+    list(importer.fetch_repos(options))
+
+    # Extract per_page values from all requests
+    per_page_values = []
+    for req in captured_requests:
+        parsed = urllib.parse.urlparse(req.full_url)
+        params = urllib.parse.parse_qs(parsed.query)
+        if "per_page" in params:
+            per_page_values.append(int(params["per_page"][0]))
+
+    # All per_page values should be identical (consistent pagination)
+    assert len(per_page_values) >= 2, "Expected at least 2 API requests"
+    assert all(v == GITLAB_DEFAULT_PER_PAGE for v in per_page_values), (
+        f"Expected all per_page values to be {GITLAB_DEFAULT_PER_PAGE}, "
+        f"got: {per_page_values}"
     )
