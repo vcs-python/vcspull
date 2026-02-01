@@ -168,10 +168,11 @@ class GitLabImporter:
         count = 0
 
         while count < options.limit:
+            per_page = min(DEFAULT_PER_PAGE, options.limit - count)
             params: dict[str, str | int] = {
                 "scope": "projects",
                 "search": options.target,
-                "per_page": min(DEFAULT_PER_PAGE, options.limit - count),
+                "per_page": per_page,
                 "page": page,
             }
 
@@ -194,7 +195,7 @@ class GitLabImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(data) < DEFAULT_PER_PAGE:
+            if len(data) < per_page:
                 break
 
             page += 1
@@ -226,8 +227,9 @@ class GitLabImporter:
         count = 0
 
         while count < options.limit:
+            per_page = min(DEFAULT_PER_PAGE, options.limit - count)
             params: dict[str, str | int] = {
-                "per_page": min(DEFAULT_PER_PAGE, options.limit - count),
+                "per_page": per_page,
                 "page": page,
                 "order_by": "last_activity_at",
                 "sort": "desc",
@@ -260,7 +262,7 @@ class GitLabImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(data) < DEFAULT_PER_PAGE:
+            if len(data) < per_page:
                 break
 
             page += 1
