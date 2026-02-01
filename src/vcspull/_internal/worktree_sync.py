@@ -302,8 +302,10 @@ def _get_worktree_head(worktree_path: pathlib.Path) -> str | None:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except (FileNotFoundError, OSError):
-        pass
+    except (FileNotFoundError, OSError) as e:
+        # Expected when worktree_path doesn't exist or git binary not found.
+        # Return None to indicate HEAD could not be determined.
+        log.debug("Could not get HEAD for %s: %s", worktree_path, e)
     return None
 
 
