@@ -18,6 +18,7 @@ from ._formatter import VcspullHelpFormatter
 from .add import add_repo, create_add_subparser, handle_add_command
 from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
+from .import_repos import create_import_subparser, import_repos
 from .list import create_list_subparser, list_repos
 from .search import create_search_subparser, search_repos
 from .status import create_status_subparser, status_repos
@@ -103,6 +104,15 @@ CLI_DESCRIPTION = build_description(
                 "vcspull fmt -f ./myrepos.yaml",
                 "vcspull fmt --write",
                 "vcspull fmt --all",
+            ],
+        ),
+        (
+            "import",
+            [
+                "vcspull import github torvalds -w ~/repos/linux --mode user",
+                "vcspull import github django -w ~/study/python --mode org",
+                "vcspull import gitlab myuser -w ~/work --dry-run",
+                "vcspull import codeberg user -w ~/oss --json",
             ],
         ),
     ),
@@ -234,6 +244,27 @@ FMT_DESCRIPTION = build_description(
     ),
 )
 
+IMPORT_DESCRIPTION = build_description(
+    """
+    Import repositories from remote services.
+
+    Fetches repository lists from GitHub, GitLab, Codeberg/Gitea/Forgejo,
+    or AWS CodeCommit and adds them to the vcspull configuration.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull import github torvalds -w ~/repos/linux --mode user",
+                "vcspull import github django -w ~/study/python --mode org",
+                "vcspull import gitlab myuser -w ~/work --url https://gitlab.company.com",
+                "vcspull import codeberg user -w ~/oss --dry-run",
+                "vcspull import codecommit -w ~/work/aws --region us-east-1",
+            ],
+        ),
+    ),
+)
+
 
 @overload
 def create_parser(
@@ -333,6 +364,15 @@ def create_parser(
     )
     create_fmt_subparser(fmt_parser)
 
+    # Import command
+    import_parser = subparsers.add_parser(
+        "import",
+        help="import repositories from remote services",
+        formatter_class=VcspullHelpFormatter,
+        description=IMPORT_DESCRIPTION,
+    )
+    create_import_subparser(import_parser)
+
     if return_subparsers:
         # Return all parsers needed by cli() function
         return parser, (
@@ -343,6 +383,7 @@ def create_parser(
             add_parser,
             discover_parser,
             fmt_parser,
+            import_parser,
         )
     return parser
 
@@ -358,6 +399,7 @@ def cli(_args: list[str] | None = None) -> None:
         add_parser,
         discover_parser,
         _fmt_parser,
+        _import_parser,
     ) = subparsers
     args = parser.parse_args(_args)
 
@@ -452,4 +494,27 @@ def cli(_args: list[str] | None = None) -> None:
             args.write,
             args.all,
             merge_roots=args.merge_roots,
+        )
+    elif args.subparser_name == "import":
+        import_repos(
+            service=args.service,
+            target=args.target,
+            workspace=args.workspace,
+            mode=args.mode,
+            base_url=getattr(args, "base_url", None),
+            token=getattr(args, "token", None),
+            region=getattr(args, "region", None),
+            profile=getattr(args, "profile", None),
+            language=getattr(args, "language", None),
+            topics=getattr(args, "topics", None),
+            min_stars=getattr(args, "min_stars", 0),
+            include_archived=getattr(args, "include_archived", False),
+            include_forks=getattr(args, "include_forks", False),
+            limit=getattr(args, "limit", 100),
+            config_path_str=getattr(args, "config", None),
+            dry_run=getattr(args, "dry_run", False),
+            yes=getattr(args, "yes", False),
+            output_json=getattr(args, "output_json", False),
+            output_ndjson=getattr(args, "output_ndjson", False),
+            color=getattr(args, "color", "auto"),
         )
