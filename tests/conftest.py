@@ -15,7 +15,8 @@ if TYPE_CHECKING:
 class YamlSnapshotExtension(SingleFileSnapshotExtension):
     """Snapshot extension that persists plain-text YAML files."""
 
-    file_extension = "yaml"
+    _file_extension = "yaml"  # syrupy 4.x compatibility
+    file_extension = "yaml"  # syrupy 5.x+
     _write_mode = WriteMode.TEXT
 
 
