@@ -168,10 +168,11 @@ class GiteaImporter:
         count = 0
 
         while count < options.limit:
-            page_limit = min(DEFAULT_PER_PAGE, options.limit - count)
+            # Always use DEFAULT_PER_PAGE to maintain consistent pagination offset.
+            # Changing limit between pages causes offset misalignment and duplicates.
             params: dict[str, str | int] = {
                 "q": options.target,
-                "limit": page_limit,
+                "limit": DEFAULT_PER_PAGE,
                 "page": page,
                 "sort": "stars",
                 "order": "desc",
@@ -205,7 +206,7 @@ class GiteaImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(items) < page_limit:
+            if len(items) < DEFAULT_PER_PAGE:
                 break
 
             page += 1
@@ -233,9 +234,10 @@ class GiteaImporter:
         count = 0
 
         while count < options.limit:
-            page_limit = min(DEFAULT_PER_PAGE, options.limit - count)
+            # Always use DEFAULT_PER_PAGE to maintain consistent pagination offset.
+            # Changing limit between pages causes offset misalignment and duplicates.
             params: dict[str, str | int] = {
-                "limit": page_limit,
+                "limit": DEFAULT_PER_PAGE,
                 "page": page,
             }
 
@@ -258,7 +260,7 @@ class GiteaImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(data) < page_limit:
+            if len(data) < DEFAULT_PER_PAGE:
                 break
 
             page += 1
