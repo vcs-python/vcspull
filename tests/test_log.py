@@ -432,6 +432,7 @@ def test_get_cli_logger_names_includes_base() -> None:
         "vcspull.cli.add",
         "vcspull.cli.discover",
         "vcspull.cli.fmt",
+        "vcspull.cli.import_repos",
         "vcspull.cli.list",
         "vcspull.cli.search",
         "vcspull.cli.status",
