@@ -51,8 +51,6 @@ SERVICE_ALIASES: dict[str, str] = {
     "aws": "codecommit",
 }
 
-SERVICES_REQUIRING_URL = {"gitea", "forgejo"}
-
 
 def create_import_subparser(parser: argparse.ArgumentParser) -> None:
     """Create ``vcspull import`` argument subparser.
