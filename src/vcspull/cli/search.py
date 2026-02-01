@@ -479,7 +479,7 @@ def create_search_subparser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "query_terms",
         metavar="query",
-        nargs="+",
+        nargs="*",
         help=(
             "search query terms (regex by default). Use field prefixes like "
             "name:, path:, url:, workspace:."

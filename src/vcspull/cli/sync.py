@@ -596,6 +596,13 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         default=0,
         help="increase plan verbosity (-vv for maximum detail)",
     )
+    parser.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        dest="sync_all",
+        help="sync all configured repositories",
+    )
 
     try:
         import shtab
@@ -622,10 +629,17 @@ def sync(
     fetch: bool,
     offline: bool,
     verbosity: int,
+    sync_all: bool = False,
     parser: argparse.ArgumentParser
     | None = None,  # optional so sync can be unit tested
 ) -> None:
     """Entry point for ``vcspull sync``."""
+    # Show help if no patterns and --all not specified
+    if not repo_patterns and not sync_all:
+        if parser is not None:
+            parser.print_help()
+        return
+
     output_mode = get_output_mode(output_json, output_ndjson)
     formatter = OutputFormatter(output_mode)
     colors = Colors(get_color_mode(color))
@@ -647,26 +661,30 @@ def sync(
     found_repos: list[ConfigDict] = []
     unmatched_count = 0
 
-    for repo_pattern in repo_patterns:
-        path, vcs_url, name = None, None, None
-        if any(repo_pattern.startswith(n) for n in ["./", "/", "~", "$HOME"]):
-            path = repo_pattern
-        elif any(repo_pattern.startswith(n) for n in ["http", "git", "svn", "hg"]):
-            vcs_url = repo_pattern
-        else:
-            name = repo_pattern
+    if sync_all:
+        # Load all repos when --all is specified
+        found_repos = list(configs)
+    else:
+        for repo_pattern in repo_patterns:
+            path, vcs_url, name = None, None, None
+            if any(repo_pattern.startswith(n) for n in ["./", "/", "~", "$HOME"]):
+                path = repo_pattern
+            elif any(repo_pattern.startswith(n) for n in ["http", "git", "svn", "hg"]):
+                vcs_url = repo_pattern
+            else:
+                name = repo_pattern
 
-        found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
-        if not found:
-            search_term = name or path or vcs_url or repo_pattern
-            log.debug(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
-            if not summary_only:
-                formatter.emit_text(
-                    f"{colors.error('✗')} "
-                    f"{NO_REPOS_FOR_TERM_MSG.format(name=search_term)}",
-                )
-            unmatched_count += 1
-        found_repos.extend(found)
+            found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
+            if not found:
+                search_term = name or path or vcs_url or repo_pattern
+                log.debug(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
+                if not summary_only:
+                    formatter.emit_text(
+                        f"{colors.error('✗')} "
+                        f"{NO_REPOS_FOR_TERM_MSG.format(name=search_term)}",
+                    )
+                unmatched_count += 1
+            found_repos.extend(found)
 
     if workspace_root:
         found_repos = filter_by_workspace(found_repos, workspace_root)

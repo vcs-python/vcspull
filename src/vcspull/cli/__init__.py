@@ -55,7 +55,7 @@ CLI_DESCRIPTION = build_description(
         (
             "sync",
             [
-                'vcspull sync "*"',
+                "vcspull sync --all",
                 'vcspull sync "django-*"',
                 'vcspull sync --dry-run "*"',
                 'vcspull sync -f ./myrepos.yaml "*"',
@@ -116,7 +116,7 @@ SYNC_DESCRIPTION = build_description(
         (
             None,
             [
-                'vcspull sync "*"',
+                "vcspull sync --all",
                 'vcspull sync "django-*"',
                 'vcspull sync --dry-run "*"',
                 'vcspull sync -f ./myrepos.yaml "*"',
@@ -354,9 +354,9 @@ def cli(_args: list[str] | None = None) -> None:
         sync_parser,
         _list_parser,
         _status_parser,
-        _search_parser,
-        _add_parser,
-        _discover_parser,
+        search_parser,
+        add_parser,
+        discover_parser,
         _fmt_parser,
     ) = subparsers
     args = parser.parse_args(_args)
@@ -384,6 +384,7 @@ def cli(_args: list[str] | None = None) -> None:
             fetch=getattr(args, "fetch", False),
             offline=getattr(args, "offline", False),
             verbosity=getattr(args, "verbosity", 0),
+            sync_all=getattr(args, "sync_all", False),
             parser=sync_parser,
         )
     elif args.subparser_name == "list":
@@ -409,6 +410,9 @@ def cli(_args: list[str] | None = None) -> None:
             max_concurrent=getattr(args, "max_concurrent", None),
         )
     elif args.subparser_name == "search":
+        if not args.query_terms:
+            search_parser.print_help()
+            return
         search_repos(
             query_terms=args.query_terms,
             config_path=pathlib.Path(args.config) if args.config else None,
@@ -425,8 +429,14 @@ def cli(_args: list[str] | None = None) -> None:
             match_any=getattr(args, "match_any", False),
         )
     elif args.subparser_name == "add":
+        if not args.repo_path:
+            add_parser.print_help()
+            return
         handle_add_command(args)
     elif args.subparser_name == "discover":
+        if not args.scan_dir:
+            discover_parser.print_help()
+            return
         discover_repos(
             scan_dir_str=args.scan_dir,
             config_file_path_str=args.config,

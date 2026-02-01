@@ -232,12 +232,19 @@ SYNC_REPO_FIXTURES: list[SyncFixture] = [
         expected_exit_code=0,
         expected_in_out=["{sync", "positional arguments:"],
     ),
-    # Sync
+    # Sync: No args shows help
     SyncFixture(
         test_id="sync--empty",
         sync_args=["sync"],
         expected_exit_code=0,
-        expected_in_out=["No repositories matched the criteria."],
+        expected_in_out=["--all", "--dry-run", "Synchronize VCS repositories"],
+    ),
+    # Sync: --all syncs all repos
+    SyncFixture(
+        test_id="sync--all",
+        sync_args=["sync", "--all"],
+        expected_exit_code=0,
+        expected_in_out="my_git_repo",
     ),
     # Sync: Help
     SyncFixture(
@@ -260,6 +267,27 @@ SYNC_REPO_FIXTURES: list[SyncFixture] = [
         sync_args=["sync", "my_git_repo"],
         expected_exit_code=0,
         expected_in_out="my_git_repo",
+    ),
+    # Search: No args shows help
+    SyncFixture(
+        test_id="search--empty",
+        sync_args=["search"],
+        expected_exit_code=0,
+        expected_in_out=["search query terms", "--ignore-case"],
+    ),
+    # Add: No args shows help
+    SyncFixture(
+        test_id="add--empty",
+        sync_args=["add"],
+        expected_exit_code=0,
+        expected_in_out=["Filesystem path", "--workspace"],
+    ),
+    # Discover: No args shows help
+    SyncFixture(
+        test_id="discover--empty",
+        sync_args=["discover"],
+        expected_exit_code=0,
+        expected_in_out=["Directory to scan", "--recursive"],
     ),
 ]
 
@@ -328,10 +356,21 @@ def test_sync(
     yaml_config = config_path / ".vcspull.yaml"
     write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
+    # Build CLI args, injecting -f for commands that need explicit config
+    cli_args = list(sync_args)
+    if (
+        cli_args
+        and cli_args[0] == "sync"
+        and "--help" not in cli_args
+        and "-h" not in cli_args
+    ):
+        # Inject config file path for sync commands to ensure test isolation
+        cli_args.extend(["-f", str(yaml_config)])
+
     # CLI can sync
     exit_code = 0
     try:
-        cli(sync_args)
+        cli(cli_args)
     except SystemExit as exc:
         exit_code = exc.code if isinstance(exc.code, int) else 0
 
