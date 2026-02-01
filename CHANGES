@@ -33,6 +33,8 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+## vcspull v1.51.0 (2026-02-01)
+
 ### Tests
 
 - Add syrupy 4.x backwards compatibility for `YamlSnapshotExtension` (#509)
