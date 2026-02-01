@@ -33,7 +33,13 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
-<!-- Maintainers, insert changes / features for the next release here -->
+### Tests
+
+- Add syrupy 4.x backwards compatibility for `YamlSnapshotExtension` (#509)
+
+  The custom snapshot extension now sets both `_file_extension` (syrupy 4.x API)
+  and `file_extension` (syrupy 5.x API) to support both versions. This fixes
+  test failures on systems packaging syrupy 4.6.1, such as Arch Linux (#503).
 
 ## vcspull v1.51.0 (2026-01-27)
 
