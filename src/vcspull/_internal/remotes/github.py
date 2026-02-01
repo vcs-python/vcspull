@@ -160,9 +160,10 @@ class GitHubImporter:
         count = 0
 
         while count < options.limit:
+            per_page = min(DEFAULT_PER_PAGE, options.limit - count)
             params: dict[str, str | int] = {
                 "q": query,
-                "per_page": min(DEFAULT_PER_PAGE, options.limit - count),
+                "per_page": per_page,
                 "page": page,
                 "sort": "stars",
                 "order": "desc",
@@ -190,7 +191,7 @@ class GitHubImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(items) < DEFAULT_PER_PAGE:
+            if len(items) < per_page:
                 break
 
             page += 1
@@ -218,8 +219,9 @@ class GitHubImporter:
         count = 0
 
         while count < options.limit:
+            per_page = min(DEFAULT_PER_PAGE, options.limit - count)
             params: dict[str, str | int] = {
-                "per_page": min(DEFAULT_PER_PAGE, options.limit - count),
+                "per_page": per_page,
                 "page": page,
                 "sort": "updated",
                 "direction": "desc",
@@ -246,7 +248,7 @@ class GitHubImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(data) < DEFAULT_PER_PAGE:
+            if len(data) < per_page:
                 break
 
             page += 1
