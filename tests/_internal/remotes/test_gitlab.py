@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import typing as t
+import urllib.request
 
 import pytest
 
@@ -156,3 +157,120 @@ def test_gitlab_uses_path_not_name(
     repos = list(importer.fetch_repos(options))
     assert len(repos) == 1
     assert repos[0].name == "my-project"  # Uses 'path', not 'name'
+
+
+class MockHTTPResponse:
+    """Mock HTTP response for subgroup test."""
+
+    def __init__(self, body: bytes, headers: dict[str, str] | None = None) -> None:
+        self._body = body
+        self._headers = headers or {}
+        self.status = 200
+        self.code = 200
+
+    def read(self) -> bytes:
+        return self._body
+
+    def getheaders(self) -> list[tuple[str, str]]:
+        return list(self._headers.items())
+
+    def __enter__(self) -> MockHTTPResponse:
+        return self
+
+    def __exit__(self, *args: t.Any) -> None:
+        pass
+
+
+def test_gitlab_subgroup_url_encoding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that GitLab subgroups are URL-encoded correctly.
+
+    Subgroups use slash notation (e.g., parent/child) which must be
+    URL-encoded as %2F in API requests.
+    """
+    captured_urls: list[str] = []
+
+    response_json = [
+        {
+            "path": "subgroup-project",
+            "name": "Subgroup Project",
+            "http_url_to_repo": "https://gitlab.com/parent/child/subgroup-project.git",
+            "web_url": "https://gitlab.com/parent/child/subgroup-project",
+            "description": "Project in subgroup",
+            "topics": [],
+            "star_count": 10,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "parent/child"},
+        }
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.ORG, target="parent/child")
+    repos = list(importer.fetch_repos(options))
+
+    # Verify the URL was encoded correctly
+    assert len(captured_urls) == 1
+    assert "parent%2Fchild" in captured_urls[0], (
+        f"Expected URL-encoded subgroup path 'parent%2Fchild', got: {captured_urls[0]}"
+    )
+    assert "/groups/parent%2Fchild/projects" in captured_urls[0]
+
+    # Verify repos were returned
+    assert len(repos) == 1
+    assert repos[0].name == "subgroup-project"
+
+
+def test_gitlab_deeply_nested_subgroup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that deeply nested subgroups (multiple slashes) work correctly."""
+    captured_urls: list[str] = []
+
+    response_json = [
+        {
+            "path": "deep-project",
+            "name": "Deep Project",
+            "http_url_to_repo": "https://gitlab.com/a/b/c/d/deep-project.git",
+            "web_url": "https://gitlab.com/a/b/c/d/deep-project",
+            "description": "Deeply nested project",
+            "topics": [],
+            "star_count": 5,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "a/b/c/d"},
+        }
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    # Test with 4 levels of nesting: a/b/c/d
+    options = ImportOptions(mode=ImportMode.ORG, target="a/b/c/d")
+    repos = list(importer.fetch_repos(options))
+
+    # Verify URL encoding - each slash should become %2F
+    assert len(captured_urls) == 1
+    assert "a%2Fb%2Fc%2Fd" in captured_urls[0], (
+        f"Expected URL-encoded path 'a%2Fb%2Fc%2Fd', got: {captured_urls[0]}"
+    )
+
+    assert len(repos) == 1
+    assert repos[0].name == "deep-project"
