@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import pathlib
 import subprocess
 import typing as t
@@ -1457,6 +1458,77 @@ def test_sync_worktree_lock_reason_applied(
 
     # Porcelain output shows "locked <reason>" for locked worktrees with a reason
     assert "locked WIP: Testing lock reason feature" in worktree_list.stdout
+
+
+def test_update_worktree_verifies_branch(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test _update_worktree checks out expected branch before pulling.
+
+    Regression test for: branch parameter was unused, could pull wrong branch.
+    The fix verifies the worktree is on the expected branch before pulling.
+    """
+    from vcspull._internal.worktree_sync import _update_worktree
+
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "branch-verify-test-wt"
+
+    # Create two branches
+    subprocess.run(
+        ["git", "branch", "expected-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "other-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create worktree on expected-branch
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "expected-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Manually switch worktree to other-branch
+    subprocess.run(
+        ["git", "checkout", "other-branch"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Verify we're on other-branch
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "other-branch"
+
+    # Call _update_worktree with expected-branch - should checkout first
+    # Note: This will fail at git pull since there's no remote, but that's OK
+    # We're testing that the checkout happens
+    with contextlib.suppress(subprocess.CalledProcessError):
+        _update_worktree(worktree_path, "expected-branch")
+
+    # Verify we're now on expected-branch (the checkout happened)
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "expected-branch"
 
 
 # ---------------------------------------------------------------------------

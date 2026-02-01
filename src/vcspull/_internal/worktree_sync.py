@@ -657,12 +657,15 @@ def _create_worktree(
 def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
     """Update a branch worktree by pulling latest changes.
 
+    Verifies the worktree is on the expected branch before pulling.
+    If the worktree is on a different branch, checks out the expected branch first.
+
     Parameters
     ----------
     worktree_path : pathlib.Path
         Path to the worktree.
     branch : str
-        The branch name.
+        The expected branch name.
 
     Raises
     ------
@@ -682,6 +685,33 @@ def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
         ...
     FileNotFoundError: ...
     """
+    # Get current branch name
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    current_branch = result.stdout.strip() if result.returncode == 0 else None
+
+    # Checkout expected branch if on a different branch
+    if current_branch and current_branch != branch:
+        log.debug(
+            "Worktree %s is on branch %s, checking out %s",
+            worktree_path,
+            current_branch,
+            branch,
+        )
+        subprocess.run(
+            ["git", "checkout", branch],
+            cwd=worktree_path,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
     subprocess.run(
         ["git", "pull", "--ff-only"],
         cwd=worktree_path,
