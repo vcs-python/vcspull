@@ -5,8 +5,6 @@ from __future__ import annotations
 import textwrap
 from typing import TYPE_CHECKING
 
-import pytest
-
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 
 if TYPE_CHECKING:
@@ -135,10 +133,6 @@ def test_duplicate_aware_reader_preserves_top_level_item_order(
     }
 
 
-@pytest.mark.xfail(
-    reason="PyYAML constructs list item mappings after exiting parent mappings",
-    strict=True,
-)
 def test_duplicate_aware_reader_ignores_nested_list_mappings(
     tmp_path: pathlib.Path,
 ) -> None:
