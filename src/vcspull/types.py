@@ -82,7 +82,7 @@ class WorktreeConfigDict(TypedDict):
     """Lock the worktree to prevent accidental removal."""
 
     lock_reason: NotRequired[str | None]
-    """Reason for locking (requires lock=True)."""
+    """Reason for locking. If provided, implies lock=True."""
 
 
 class RawConfigDict(t.TypedDict):
