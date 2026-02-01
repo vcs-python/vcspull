@@ -52,10 +52,15 @@ def test_gitlab_fetch_group(
     assert repos[0].name == "group-project"
 
 
-def test_gitlab_search_requires_auth() -> None:
+def test_gitlab_search_requires_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test GitLab search raises error without authentication."""
     from vcspull._internal.remotes.base import AuthenticationError
 
+    # Clear environment variables that could provide a token
+    monkeypatch.delenv("GITLAB_TOKEN", raising=False)
+    monkeypatch.delenv("GL_TOKEN", raising=False)
     importer = GitLabImporter(token=None)
     options = ImportOptions(mode=ImportMode.SEARCH, target="test")
     with pytest.raises(AuthenticationError, match="requires authentication"):
@@ -88,8 +93,13 @@ def test_gitlab_search_with_auth(
     assert repos[0].name == "search-result"
 
 
-def test_gitlab_importer_is_authenticated_without_token() -> None:
+def test_gitlab_importer_is_authenticated_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test is_authenticated returns False without token."""
+    # Clear environment variables that could provide a token
+    monkeypatch.delenv("GITLAB_TOKEN", raising=False)
+    monkeypatch.delenv("GL_TOKEN", raising=False)
     importer = GitLabImporter(token=None)
     assert importer.is_authenticated is False
 

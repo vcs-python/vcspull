@@ -310,8 +310,13 @@ def test_github_fetch_search(
     assert repos[0].stars == 1000
 
 
-def test_github_importer_is_authenticated_without_token() -> None:
+def test_github_importer_is_authenticated_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test is_authenticated returns False without token."""
+    # Clear environment variables that could provide a token
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
     importer = GitHubImporter(token=None)
     assert importer.is_authenticated is False
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import typing as t
 
+import pytest
+
 from vcspull._internal.remotes.base import ImportMode, ImportOptions
 from vcspull._internal.remotes.gitea import GiteaImporter
 
@@ -104,8 +106,14 @@ def test_gitea_importer_service_name() -> None:
     assert importer.service_name == "Gitea"
 
 
-def test_gitea_importer_is_authenticated_without_token() -> None:
+def test_gitea_importer_is_authenticated_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test is_authenticated returns False without token."""
+    # Clear environment variables that could provide a token
+    monkeypatch.delenv("CODEBERG_TOKEN", raising=False)
+    monkeypatch.delenv("GITEA_TOKEN", raising=False)
+    monkeypatch.delenv("FORGEJO_TOKEN", raising=False)
     importer = GiteaImporter(token=None)
     assert importer.is_authenticated is False
 
