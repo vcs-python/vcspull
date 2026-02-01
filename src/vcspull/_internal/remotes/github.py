@@ -160,10 +160,11 @@ class GitHubImporter:
         count = 0
 
         while count < options.limit:
-            per_page = min(DEFAULT_PER_PAGE, options.limit - count)
+            # Always use DEFAULT_PER_PAGE to maintain consistent pagination offset.
+            # Changing per_page between pages causes offset misalignment and duplicates.
             params: dict[str, str | int] = {
                 "q": query,
-                "per_page": per_page,
+                "per_page": DEFAULT_PER_PAGE,
                 "page": page,
                 "sort": "stars",
                 "order": "desc",
@@ -191,7 +192,7 @@ class GitHubImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(items) < per_page:
+            if len(items) < DEFAULT_PER_PAGE:
                 break
 
             page += 1
@@ -219,9 +220,10 @@ class GitHubImporter:
         count = 0
 
         while count < options.limit:
-            per_page = min(DEFAULT_PER_PAGE, options.limit - count)
+            # Always use DEFAULT_PER_PAGE to maintain consistent pagination offset.
+            # Changing per_page between pages causes offset misalignment and duplicates.
             params: dict[str, str | int] = {
-                "per_page": per_page,
+                "per_page": DEFAULT_PER_PAGE,
                 "page": page,
                 "sort": "updated",
                 "direction": "desc",
@@ -248,7 +250,7 @@ class GitHubImporter:
                     count += 1
 
             # Check if there are more pages
-            if len(data) < per_page:
+            if len(data) < DEFAULT_PER_PAGE:
                 break
 
             page += 1
