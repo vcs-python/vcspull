@@ -33,28 +33,24 @@ import pathlib
 import typing as t
 from typing import TypeAlias
 
-from typing_extensions import NotRequired, TypedDict
+import typing_extensions
 
 if t.TYPE_CHECKING:
-    from libvcs._internal.types import StrPath, VCSLiteral
+    from libvcs._internal.types import VCSLiteral
     from libvcs.sync.git import GitSyncRemoteDict
 
+RawRepoFieldValue: TypeAlias = (
+    str | list[str] | dict[str, str] | dict[str, dict[str, str]] | None
+)
+RawRepoConfigValue: TypeAlias = str | pathlib.Path | dict[str, RawRepoFieldValue]
+RawWorkspaceConfig: TypeAlias = dict[str, RawRepoConfigValue]
+RawConfigDict: TypeAlias = dict[str, RawWorkspaceConfig]
 
-class RawConfigDict(t.TypedDict):
-    """Configuration dictionary without any type marshalling or variable resolution."""
-
-    vcs: VCSLiteral
-    name: str
-    path: StrPath
-    url: str
-    remotes: GitSyncRemoteDict
-
-
-RawConfigDir = dict[str, RawConfigDict]
-RawConfig = dict[str, RawConfigDir]
+RawConfigDir: TypeAlias = RawWorkspaceConfig
+RawConfig: TypeAlias = RawConfigDict
 
 
-class ConfigDict(TypedDict):
+class ConfigDict(typing_extensions.TypedDict):
     """Configuration map for vcspull after shorthands and variables resolved."""
 
     vcs: VCSLiteral | None
@@ -62,8 +58,8 @@ class ConfigDict(TypedDict):
     path: pathlib.Path
     url: str
     workspace_root: str
-    remotes: NotRequired[GitSyncRemoteDict | None]
-    shell_command_after: NotRequired[list[str] | None]
+    remotes: typing_extensions.NotRequired[GitSyncRemoteDict | None]
+    shell_command_after: typing_extensions.NotRequired[list[str] | None]
 
 
 ConfigDir = dict[str, ConfigDict]

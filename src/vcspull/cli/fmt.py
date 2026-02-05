@@ -23,6 +23,8 @@ from vcspull.config import (
 
 log = logging.getLogger(__name__)
 
+RepoConfigData: t.TypeAlias = str | pathlib.Path | t.Mapping[str, object]
+
 
 def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
     """Create ``vcspull fmt`` argument subparser."""
@@ -53,12 +55,12 @@ def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
     parser.set_defaults(merge_roots=True)
 
 
-def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
+def normalize_repo_config(repo_data: RepoConfigData) -> dict[str, object]:
     """Normalize repository configuration to verbose format.
 
     Parameters
     ----------
-    repo_data : Any
+    repo_data : str | pathlib.Path | Mapping[str, object]
         Repository configuration (string URL or dict)
 
     Returns
@@ -69,19 +71,21 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
     if isinstance(repo_data, str):
         # Convert compact format to verbose format
         return {"repo": repo_data}
-    if isinstance(repo_data, dict):
-        # If it has 'url' key but not 'repo', convert to use 'repo'
-        if "url" in repo_data and "repo" not in repo_data:
-            normalized = repo_data.copy()
-            normalized["repo"] = normalized.pop("url")
-            return normalized
-        # Already in correct format or has other fields
-        return repo_data
-    # Return as-is for other types
-    return t.cast("dict[str, t.Any]", repo_data)
+    if isinstance(repo_data, pathlib.Path):
+        return {"repo": str(repo_data)}
+    repo_map = dict(repo_data)
+    # If it has 'url' key but not 'repo', convert to use 'repo'
+    if "url" in repo_map and "repo" not in repo_map:
+        normalized = repo_map.copy()
+        normalized["repo"] = normalized.pop("url")
+        return normalized
+    # Already in correct format or has other fields
+    return repo_map
 
 
-def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]:
+def format_config(
+    config_data: t.Mapping[str, object],
+) -> tuple[dict[str, object], int]:
     """Format vcspull configuration for consistency.
 
     Parameters
@@ -95,7 +99,7 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
         Formatted configuration and count of changes made
     """
     changes = 0
-    formatted: dict[str, t.Any] = {}
+    formatted: dict[str, object] = {}
 
     # Sort directories
     sorted_dirs = sorted(config_data.keys())
@@ -109,11 +113,12 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
             continue
 
         # Sort repositories within each directory
-        sorted_repos = sorted(repos.keys())
-        formatted_dir: dict[str, t.Any] = {}
+        repos_map = t.cast("dict[str, object]", repos)
+        sorted_repos = sorted(repos_map.keys())
+        formatted_dir: dict[str, object] = {}
 
         for repo_name in sorted_repos:
-            repo_data = repos[repo_name]
+            repo_data = t.cast("RepoConfigData", repos_map[repo_name])
             normalized = normalize_repo_config(repo_data)
 
             # Check if normalization changed anything

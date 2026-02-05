@@ -12,7 +12,6 @@ import typing as t
 
 import requests
 import yaml
-from libvcs.sync.git import GitRemote
 
 from vcspull.cli.sync import CouldNotGuessVCSFromURL, guess_vcs
 
@@ -108,11 +107,10 @@ for group in response.json():
         "path": path / reponame,
         "url": f"git+ssh://{url_to_repo}",
         "remotes": {
-            "origin": GitRemote(
-                name="origin",
-                fetch_url=f"ssh://{url_to_repo}",
-                push_url=f"ssh://{url_to_repo}",
-            ),
+            "origin": {
+                "fetch_url": f"ssh://{url_to_repo}",
+                "push_url": f"ssh://{url_to_repo}",
+            },
         },
         "vcs": vcs,
     }

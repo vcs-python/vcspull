@@ -16,7 +16,10 @@ if t.TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
 
 
-def create_test_config(config_path: pathlib.Path, repos: dict[str, t.Any]) -> None:
+ConfigData: t.TypeAlias = dict[str, dict[str, dict[str, str]]]
+
+
+def create_test_config(config_path: pathlib.Path, repos: ConfigData) -> None:
     """Create a test config file."""
     with config_path.open("w", encoding="utf-8") as f:
         yaml.dump(repos, f)
@@ -26,7 +29,7 @@ class ListReposFixture(t.NamedTuple):
     """Fixture for list repos test cases."""
 
     test_id: str
-    config_data: dict[str, t.Any]
+    config_data: ConfigData
     patterns: list[str]
     tree: bool
     output_json: bool
@@ -122,7 +125,7 @@ LIST_REPOS_FIXTURES: list[ListReposFixture] = [
 )
 def test_list_repos(
     test_id: str,
-    config_data: dict[str, t.Any],
+    config_data: ConfigData,
     patterns: list[str],
     tree: bool,
     output_json: bool,
