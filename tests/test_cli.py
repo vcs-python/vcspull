@@ -324,23 +324,41 @@ def test_sync(
     yaml_config.write_text(yaml_config_data, encoding="utf-8")
 
     # CLI can sync
-    with contextlib.suppress(SystemExit):
+    exit_code = 0
+    try:
         cli(sync_args)
+    except SystemExit as exc:
+        exit_code = exc.code if isinstance(exc.code, int) else 0
+
+    assert exit_code == expected_exit_code
 
     result = capsys.readouterr()
-    output = "".join(list(result.out if expected_exit_code == 0 else result.err))
+    out = result.out
+    err = result.err
 
     if expected_in_out is not None:
         if isinstance(expected_in_out, str):
             expected_in_out = [expected_in_out]
         for needle in expected_in_out:
-            assert needle in output
+            assert needle in out
 
     if expected_not_in_out is not None:
         if isinstance(expected_not_in_out, str):
             expected_not_in_out = [expected_not_in_out]
         for needle in expected_not_in_out:
-            assert needle not in output
+            assert needle not in out
+
+    if expected_in_err is not None:
+        if isinstance(expected_in_err, str):
+            expected_in_err = [expected_in_err]
+        for needle in expected_in_err:
+            assert needle in err
+
+    if expected_not_in_err is not None:
+        if isinstance(expected_not_in_err, str):
+            expected_not_in_err = [expected_not_in_err]
+        for needle in expected_not_in_err:
+            assert needle not in err
 
 
 class SyncBrokenFixture(t.NamedTuple):
