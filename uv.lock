@@ -485,13 +485,9 @@ wheels = [
 [[package]]
 name = "libvcs"
 version = "0.38.6"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/vcs-python/libvcs?branch=errored-sync-behavior#373770aea2720685c09b6d5da94cb7c467193d67" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/8a/e001455955548d67e06cb0e43843efc5ee1872ff83a8b398cfd4edd69ca8/libvcs-0.38.6.tar.gz", hash = "sha256:fc3615c6e24ce71cd59b62e979c56d1aac26d98c4a3644203be24bdc52512b24", size = 592861, upload-time = "2026-01-27T23:54:59.575Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5c/51/3c4fdd21885bfce67fa5ffad205b3be627d6199f5cda8804b735126b22d7/libvcs-0.38.6-py3-none-any.whl", hash = "sha256:d7c44fc8edfba3ca7b5bc6d2c8df799f7c613e37f38ab4a92f12d666f968fd8a", size = 95329, upload-time = "2026-01-27T23:54:58.361Z" },
 ]
 
 [[package]]
@@ -1518,7 +1514,7 @@ typings = [
 [package.metadata]
 requires-dist = [
     { name = "colorama", specifier = ">=0.3.9" },
-    { name = "libvcs", specifier = "~=0.38.6" },
+    { name = "libvcs", git = "https://github.com/vcs-python/libvcs?branch=errored-sync-behavior" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 

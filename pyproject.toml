@@ -143,6 +143,9 @@ typings = [
   "types-colorama"
 ]
 
+[tool.uv.sources]
+libvcs = { git = "https://github.com/vcs-python/libvcs", branch = "errored-sync-behavior" }
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
