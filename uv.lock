@@ -485,7 +485,7 @@ wheels = [
 [[package]]
 name = "libvcs"
 version = "0.38.6"
-source = { git = "https://github.com/vcs-python/libvcs?branch=errored-sync-behavior#34a9ea56e0ae7f0cf6d1ea590e734e68acfa0604" }
+source = { git = "https://github.com/vcs-python/libvcs?branch=errored-sync-behavior#ad647f6494bae61039c699f70cd42b6333afca95" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
