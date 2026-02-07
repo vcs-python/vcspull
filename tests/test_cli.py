@@ -2051,6 +2051,61 @@ def test_sync_unmatched_pattern_counts_in_summary(
     assert "1 synced" in output
 
 
+@pytest.mark.xfail(strict=True)
+def test_sync_unmatched_pattern_no_duplicate_log(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+) -> None:
+    """Unmatched patterns should produce exactly one user-facing message.
+
+    When ``vcspull sync my_git_project not_in_config`` is run, the output
+    currently shows two lines for the unmatched pattern::
+
+        No repo found in config(s) for "not_in_config"
+        ✗ No repo found in config(s) for "not_in_config"
+
+    The first line comes from ``log.info()`` and the second from
+    ``formatter.emit_text()``.  Only the styled ``✗`` line should appear.
+    """
+    config = {
+        "~/github_projects/": {
+            "my_git_project": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"test_remote": f"git+file://{git_repo.path}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "my_git_project", "not_in_config"])
+
+    result = capsys.readouterr()
+    out = result.out
+
+    # Strip ANSI codes for counting
+    import re
+
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", out)
+
+    # The "No repo found" message should appear exactly once (the styled ✗ line)
+    no_repo_msg = 'No repo found in config(s) for "not_in_config"'
+    count = plain.count(no_repo_msg)
+    assert count == 1, (
+        f"expected 'No repo found' message exactly once, got {count} times "
+        f"in output: {plain!r}"
+    )
+
+
 def test_sync_human_output_redacts_repo_paths(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
