@@ -39,6 +39,53 @@ _Notes on upcoming releases will be added here_
 
   Adds `SyncResult` and various other bug fixes to syncing.
 
+### Features
+
+#### cli(sync): Detect and report errored git syncs (#512)
+
+`vcspull sync` now detects git fetch/pull failures via libvcs's `SyncResult`
+and reports them as errors instead of silently succeeding. The sync summary
+shows errored repositories alongside successful and failed counts.
+
+- Only pass `set_remotes=True` for git repositories (not SVN/HG)
+- Include repository identity in sync error messages
+
+#### cli(sync): Exit non-zero on unmatched patterns with `--exit-on-error` (#512)
+
+When `--exit-on-error` is set and sync patterns match no configured
+repositories, `vcspull sync` now exits with a non-zero status code.
+Unmatched patterns are tracked separately from sync failures, giving
+automation scripts a clear signal about config/pattern problems.
+
+#### cli(sync): Improved sync summary output (#512)
+
+- Track and display unmatched patterns separately from repo totals
+- Omit "0 previewed" from non-dry-run summaries
+- Suppress unmatched-pattern lines in `--summary-only` mode
+- Color the total count in summary output
+
+### Bug fixes
+
+- Fix path-based sync patterns showing `"None"` instead of the actual search
+  term (#512)
+
+- Downgrade duplicate user-facing unmatched-pattern log message to debug level,
+  so each pattern is reported only once (#512)
+
+- Emit sync summary even when all patterns are unmatched (#512)
+
+### Tests
+
+- Add errored sync tests: fetch failure, exit-on-error, mixed good/errored,
+  summary lines, all-fail, and cross-VCS scenarios (#512)
+- Add SVN and HG errored sync tests using libvcs factory fixtures (#512)
+- Add rev/branch mismatch and ambiguous branch/directory name regression
+  tests (#512)
+- Add unmatched pattern count, duplicate log, and path-pattern "None" message
+  tests (#512)
+- Refactor `test_cli.py` to use `write_config` helper and assert exit codes
+  consistently (#512)
+
 ## vcspull v1.51.0 (2026-02-01)
 
 ### Tests
