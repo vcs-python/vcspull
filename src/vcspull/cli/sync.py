@@ -855,7 +855,10 @@ def update_repo(
         repo_dict["vcs"] = vcs
 
     r = create_project(**repo_dict)  # Creates the repo object
-    result = r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
+    if repo_dict.get("vcs") == "git":
+        result = r.update_repo(set_remotes=True)
+    else:
+        result = r.update_repo()
 
     if result is not None and not result.ok:
         error_messages = "; ".join(e.message for e in result.errors)

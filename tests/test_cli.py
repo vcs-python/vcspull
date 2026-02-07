@@ -606,6 +606,420 @@ def test_sync_errored_repo(
             assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
 
 
+class SyncRevBranchMismatchFixture(t.NamedTuple):
+    """Tests for vcspull sync when git rev references a non-existent branch."""
+
+    test_id: str
+    sync_args: list[str]
+    expected_in_out: ExpectedOutput = None
+    expected_not_in_out: ExpectedOutput = None
+    expected_in_err: ExpectedOutput = None
+    expected_not_in_err: ExpectedOutput = None
+
+
+SYNC_REV_BRANCH_MISMATCH_FIXTURES: list[SyncRevBranchMismatchFixture] = [
+    SyncRevBranchMismatchFixture(
+        test_id="rev-master-on-main-only-remote",
+        sync_args=["my_repo"],
+        expected_in_out="Failed syncing",
+        expected_not_in_out="Synced my_repo",
+    ),
+    SyncRevBranchMismatchFixture(
+        test_id="rev-master-on-main-only-remote--exit-on-error",
+        sync_args=["my_repo", "--exit-on-error"],
+        expected_in_err=EXIT_ON_ERROR_MSG,
+    ),
+]
+
+
+@pytest.mark.xfail(
+    reason=(
+        "libvcs GitSync.update_repo() calls cmd.checkout() without "
+        "check_returncode=True, so checkout failures are silently ignored"
+    ),
+    strict=False,
+)
+@pytest.mark.parametrize(
+    list(SyncRevBranchMismatchFixture._fields),
+    SYNC_REV_BRANCH_MISMATCH_FIXTURES,
+    ids=[test.test_id for test in SYNC_REV_BRANCH_MISMATCH_FIXTURES],
+)
+def test_sync_rev_branch_mismatch(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    test_id: str,
+    sync_args: list[str],
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
+) -> None:
+    """Tests for syncing when git rev references a branch that doesn't exist.
+
+    Creates a bare remote with only a 'main' branch, then configures vcspull
+    with rev: master. The checkout of 'master' fails because the branch
+    doesn't exist on the remote, exercising the checkout error path in
+    GitSync.update_repo().
+    """
+    from libvcs._internal.run import run as libvcs_run
+
+    # Create a bare remote with only a 'main' branch (no 'master')
+    remote_dir = tmp_path / "main_only_remote"
+    remote_dir.mkdir()
+    libvcs_run(["git", "init", "--bare", "--initial-branch=main"], cwd=remote_dir)
+
+    # Bootstrap the bare remote with a commit via a temporary clone
+    bootstrap_dir = tmp_path / "bootstrap"
+    libvcs_run(["git", "clone", str(remote_dir), str(bootstrap_dir)])
+    (bootstrap_dir / "initial.txt").write_text("init", encoding="utf-8")
+    libvcs_run(["git", "add", "initial.txt"], cwd=bootstrap_dir)
+    libvcs_run(["git", "commit", "-m", "initial commit"], cwd=bootstrap_dir)
+    libvcs_run(["git", "push", "origin", "main"], cwd=bootstrap_dir)
+    shutil.rmtree(bootstrap_dir)
+
+    github_projects = user_path / "github_projects"
+    config: dict[str, dict[str, dict[str, t.Any]]] = {
+        "~/github_projects/": {
+            "my_repo": {
+                "url": f"git+file://{remote_dir}",
+                "remotes": {"origin": f"git+file://{remote_dir}"},
+                "rev": "master",
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Clean up any prior clone
+    repo_dir = github_projects / "my_repo"
+    if repo_dir.exists():
+        shutil.rmtree(repo_dir)
+
+    # Single sync: clone gets 'main', then update_repo() tries
+    # git checkout master → fails (no such branch)
+    with contextlib.suppress(SystemExit):
+        cli(["sync", *sync_args])
+
+    result = capsys.readouterr()
+    out = "".join(list(result.out))
+    err = "".join(list(result.err))
+
+    if expected_in_out is not None:
+        if isinstance(expected_in_out, str):
+            expected_in_out = [expected_in_out]
+        for needle in expected_in_out:
+            assert needle in out, f"Expected {needle!r} in stdout: {out!r}"
+
+    if expected_not_in_out is not None:
+        if isinstance(expected_not_in_out, str):
+            expected_not_in_out = [expected_not_in_out]
+        for needle in expected_not_in_out:
+            assert needle not in out, f"Did not expect {needle!r} in stdout: {out!r}"
+
+    if expected_in_err is not None:
+        if isinstance(expected_in_err, str):
+            expected_in_err = [expected_in_err]
+        for needle in expected_in_err:
+            assert needle in err, f"Expected {needle!r} in stderr: {err!r}"
+
+    if expected_not_in_err is not None:
+        if isinstance(expected_not_in_err, str):
+            expected_not_in_err = [expected_not_in_err]
+        for needle in expected_not_in_err:
+            assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
+
+
+class SyncErroredSvnRepoFixture(t.NamedTuple):
+    """Tests for vcspull sync when an SVN operation fails."""
+
+    test_id: str
+    sync_args: list[str]
+    expected_in_out: ExpectedOutput = None
+    expected_not_in_out: ExpectedOutput = None
+    expected_in_err: ExpectedOutput = None
+    expected_not_in_err: ExpectedOutput = None
+
+
+SYNC_ERRORED_SVN_REPO_FIXTURES: list[SyncErroredSvnRepoFixture] = [
+    SyncErroredSvnRepoFixture(
+        test_id="svn-deleted-remote-shows-failed",
+        sync_args=["my_svn_repo"],
+        expected_in_out="Failed syncing",
+        expected_not_in_out="Synced my_svn_repo",
+    ),
+    SyncErroredSvnRepoFixture(
+        test_id="svn-deleted-remote-exit-on-error",
+        sync_args=["my_svn_repo", "--exit-on-error"],
+        expected_in_err=EXIT_ON_ERROR_MSG,
+    ),
+]
+
+
+@pytest.mark.skipif(not shutil.which("svn"), reason="svn not installed")
+@pytest.mark.skipif(not shutil.which("svnadmin"), reason="svnadmin not installed")
+@pytest.mark.parametrize(
+    list(SyncErroredSvnRepoFixture._fields),
+    SYNC_ERRORED_SVN_REPO_FIXTURES,
+    ids=[test.test_id for test in SYNC_ERRORED_SVN_REPO_FIXTURES],
+)
+def test_sync_errored_svn_repo(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    test_id: str,
+    sync_args: list[str],
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
+) -> None:
+    """Tests for syncing in vcspull when SVN remote becomes unavailable.
+
+    Creates a local SVN repository, syncs (checkout) successfully,
+    then deletes the SVN repository and verifies that the next sync
+    reports the failure instead of silently succeeding.
+    """
+    import subprocess
+
+    # Create an SVN repository
+    svn_remote_dir = tmp_path / "svn_remote"
+    subprocess.run(
+        ["svnadmin", "create", str(svn_remote_dir)],
+        check=True,
+        capture_output=True,
+    )
+
+    # Import initial content into the SVN repo
+    import_dir = tmp_path / "svn_import"
+    import_dir.mkdir()
+    (import_dir / "initial.txt").write_text("init", encoding="utf-8")
+    subprocess.run(
+        [
+            "svn",
+            "import",
+            str(import_dir),
+            f"file://{svn_remote_dir}/trunk",
+            "-m",
+            "initial import",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    shutil.rmtree(import_dir)
+
+    svn_url = f"svn+file://{svn_remote_dir}/trunk"
+
+    github_projects = user_path / "github_projects"
+    config: dict[str, dict[str, dict[str, t.Any]]] = {
+        "~/github_projects/": {
+            "my_svn_repo": {
+                "url": svn_url,
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Clean up any prior checkout
+    repo_dir = github_projects / "my_svn_repo"
+    if repo_dir.exists():
+        shutil.rmtree(repo_dir)
+
+    # First sync: svn checkout succeeds
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "my_svn_repo"])
+    capsys.readouterr()  # Discard initial sync output
+
+    # Delete the SVN remote to cause failure on next sync
+    shutil.rmtree(svn_remote_dir)
+
+    # Second sync: should show failure
+    with contextlib.suppress(SystemExit):
+        cli(["sync", *sync_args])
+
+    result = capsys.readouterr()
+    out = "".join(list(result.out))
+    err = "".join(list(result.err))
+
+    if expected_in_out is not None:
+        if isinstance(expected_in_out, str):
+            expected_in_out = [expected_in_out]
+        for needle in expected_in_out:
+            assert needle in out, f"Expected {needle!r} in stdout: {out!r}"
+
+    if expected_not_in_out is not None:
+        if isinstance(expected_not_in_out, str):
+            expected_not_in_out = [expected_not_in_out]
+        for needle in expected_not_in_out:
+            assert needle not in out, f"Did not expect {needle!r} in stdout: {out!r}"
+
+    if expected_in_err is not None:
+        if isinstance(expected_in_err, str):
+            expected_in_err = [expected_in_err]
+        for needle in expected_in_err:
+            assert needle in err, f"Expected {needle!r} in stderr: {err!r}"
+
+    if expected_not_in_err is not None:
+        if isinstance(expected_not_in_err, str):
+            expected_not_in_err = [expected_not_in_err]
+        for needle in expected_not_in_err:
+            assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
+
+
+class SyncErroredHgRepoFixture(t.NamedTuple):
+    """Tests for vcspull sync when an HG operation fails."""
+
+    test_id: str
+    sync_args: list[str]
+    expected_in_out: ExpectedOutput = None
+    expected_not_in_out: ExpectedOutput = None
+    expected_in_err: ExpectedOutput = None
+    expected_not_in_err: ExpectedOutput = None
+
+
+SYNC_ERRORED_HG_REPO_FIXTURES: list[SyncErroredHgRepoFixture] = [
+    SyncErroredHgRepoFixture(
+        test_id="hg-deleted-remote-shows-failed",
+        sync_args=["my_hg_repo"],
+        expected_in_out="Failed syncing",
+        expected_not_in_out="Synced my_hg_repo",
+    ),
+    SyncErroredHgRepoFixture(
+        test_id="hg-deleted-remote-exit-on-error",
+        sync_args=["my_hg_repo", "--exit-on-error"],
+        expected_in_err=EXIT_ON_ERROR_MSG,
+    ),
+]
+
+
+@pytest.mark.skipif(not shutil.which("hg"), reason="hg not installed")
+@pytest.mark.parametrize(
+    list(SyncErroredHgRepoFixture._fields),
+    SYNC_ERRORED_HG_REPO_FIXTURES,
+    ids=[test.test_id for test in SYNC_ERRORED_HG_REPO_FIXTURES],
+)
+def test_sync_errored_hg_repo(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    test_id: str,
+    sync_args: list[str],
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
+) -> None:
+    """Tests for syncing in vcspull when HG remote becomes unavailable.
+
+    Creates a local Mercurial repository, syncs (clone) successfully,
+    then deletes the repository and verifies that the next sync
+    reports the failure instead of silently succeeding.
+    """
+    import subprocess
+
+    monkeypatch.setenv("HGUSER", "Test User <test@test.com>")
+
+    # Create an HG repository
+    hg_remote_dir = tmp_path / "hg_remote"
+    hg_remote_dir.mkdir()
+    subprocess.run(["hg", "init"], cwd=hg_remote_dir, check=True, capture_output=True)
+
+    # Add initial content
+    (hg_remote_dir / "initial.txt").write_text("init", encoding="utf-8")
+    subprocess.run(
+        ["hg", "add", "initial.txt"],
+        cwd=hg_remote_dir,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["hg", "commit", "-m", "initial commit"],
+        cwd=hg_remote_dir,
+        check=True,
+        capture_output=True,
+    )
+
+    hg_url = f"hg+file://{hg_remote_dir}"
+
+    github_projects = user_path / "github_projects"
+    config: dict[str, dict[str, dict[str, t.Any]]] = {
+        "~/github_projects/": {
+            "my_hg_repo": {
+                "url": hg_url,
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Clean up any prior clone
+    repo_dir = github_projects / "my_hg_repo"
+    if repo_dir.exists():
+        shutil.rmtree(repo_dir)
+
+    # First sync: hg clone succeeds
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "my_hg_repo"])
+    capsys.readouterr()  # Discard initial sync output
+
+    # Delete the HG remote to cause failure on next sync
+    shutil.rmtree(hg_remote_dir)
+
+    # Second sync: should show failure
+    with contextlib.suppress(SystemExit):
+        cli(["sync", *sync_args])
+
+    result = capsys.readouterr()
+    out = "".join(list(result.out))
+    err = "".join(list(result.err))
+
+    if expected_in_out is not None:
+        if isinstance(expected_in_out, str):
+            expected_in_out = [expected_in_out]
+        for needle in expected_in_out:
+            assert needle in out, f"Expected {needle!r} in stdout: {out!r}"
+
+    if expected_not_in_out is not None:
+        if isinstance(expected_not_in_out, str):
+            expected_not_in_out = [expected_not_in_out]
+        for needle in expected_not_in_out:
+            assert needle not in out, f"Did not expect {needle!r} in stdout: {out!r}"
+
+    if expected_in_err is not None:
+        if isinstance(expected_in_err, str):
+            expected_in_err = [expected_in_err]
+        for needle in expected_in_err:
+            assert needle in err, f"Expected {needle!r} in stderr: {err!r}"
+
+    if expected_not_in_err is not None:
+        if isinstance(expected_not_in_err, str):
+            expected_not_in_err = [expected_not_in_err]
+        for needle in expected_not_in_err:
+            assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
+
+
 @pytest.mark.parametrize(
     list(CLINegativeFixture._fields),
     CLI_NEGATIVE_FIXTURES,
