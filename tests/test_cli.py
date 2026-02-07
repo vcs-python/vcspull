@@ -803,10 +803,6 @@ def test_sync_rev_branch_mismatch(
             assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
 
 
-@pytest.mark.xfail(
-    reason="Bug: ambiguous branch/dir name causes fatal error but reports success",
-    strict=True,
-)
 def test_sync_ambiguous_branch_dir_name(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
