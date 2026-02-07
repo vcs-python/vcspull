@@ -478,6 +478,16 @@ SYNC_ERRORED_REPO_FIXTURES: list[SyncErroredRepoFixture] = [
 ]
 
 
+HAS_SYNC_RESULT = hasattr(
+    __import__("libvcs.sync.base", fromlist=["SyncResult"]),
+    "SyncResult",
+)
+
+
+@pytest.mark.skipif(
+    not HAS_SYNC_RESULT,
+    reason="Requires libvcs with SyncResult (unreleased)",
+)
 @pytest.mark.parametrize(
     list(SyncErroredRepoFixture._fields),
     SYNC_ERRORED_REPO_FIXTURES,
