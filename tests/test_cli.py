@@ -475,6 +475,29 @@ SYNC_ERRORED_REPO_FIXTURES: list[SyncErroredRepoFixture] = [
         sync_args=["my_good_repo", "my_errored_repo"],
         expected_in_out=["Synced my_good_repo", "Failed syncing my_errored_repo"],
     ),
+    SyncErroredRepoFixture(
+        test_id="fetch-failure-summary-line",
+        sync_args=["my_errored_repo"],
+        expected_in_out=[
+            "Failed syncing",
+            "Summary:",
+            "1 repos",
+            "0 synced",
+            "1 failed",
+        ],
+    ),
+    SyncErroredRepoFixture(
+        test_id="mixed-good-and-fetch-failure-summary-line",
+        sync_args=["my_good_repo", "my_errored_repo"],
+        expected_in_out=[
+            "Synced my_good_repo",
+            "Failed syncing my_errored_repo",
+            "Summary:",
+            "2 repos",
+            "1 synced",
+            "1 failed",
+        ],
+    ),
 ]
 
 
@@ -981,6 +1004,295 @@ def test_sync_errored_hg_repo(
     shutil.rmtree(hg_remote_dir)
 
     # Second sync: should show failure
+    with contextlib.suppress(SystemExit):
+        cli(["sync", *sync_args])
+
+    result = capsys.readouterr()
+    out = "".join(list(result.out))
+    err = "".join(list(result.err))
+
+    if expected_in_out is not None:
+        if isinstance(expected_in_out, str):
+            expected_in_out = [expected_in_out]
+        for needle in expected_in_out:
+            assert needle in out, f"Expected {needle!r} in stdout: {out!r}"
+
+    if expected_not_in_out is not None:
+        if isinstance(expected_not_in_out, str):
+            expected_not_in_out = [expected_not_in_out]
+        for needle in expected_not_in_out:
+            assert needle not in out, f"Did not expect {needle!r} in stdout: {out!r}"
+
+    if expected_in_err is not None:
+        if isinstance(expected_in_err, str):
+            expected_in_err = [expected_in_err]
+        for needle in expected_in_err:
+            assert needle in err, f"Expected {needle!r} in stderr: {err!r}"
+
+    if expected_not_in_err is not None:
+        if isinstance(expected_not_in_err, str):
+            expected_not_in_err = [expected_not_in_err]
+        for needle in expected_not_in_err:
+            assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
+
+
+SYNC_ALL_FAIL_FIXTURES: list[SyncErroredRepoFixture] = [
+    SyncErroredRepoFixture(
+        test_id="two-git-repos-all-fail",
+        sync_args=["my_errored_repo_a", "my_errored_repo_b"],
+        expected_in_out=[
+            "Failed syncing my_errored_repo_a",
+            "Failed syncing my_errored_repo_b",
+            "0 synced",
+            "2 failed",
+        ],
+        expected_not_in_out="Synced",
+    ),
+    SyncErroredRepoFixture(
+        test_id="two-git-repos-all-fail-exit-on-error",
+        sync_args=["my_errored_repo_a", "my_errored_repo_b", "--exit-on-error"],
+        expected_in_out="Failed syncing my_errored_repo_a",
+        expected_not_in_out="my_errored_repo_b",
+        expected_in_err=EXIT_ON_ERROR_MSG,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(SyncErroredRepoFixture._fields),
+    SYNC_ALL_FAIL_FIXTURES,
+    ids=[test.test_id for test in SYNC_ALL_FAIL_FIXTURES],
+)
+def test_sync_all_repos_fail(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    test_id: str,
+    sync_args: list[str],
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
+) -> None:
+    """Tests for syncing when every repo in a multi-repo sync fails.
+
+    Creates two bare git remotes, clones both successfully, resets both
+    local clones behind, then deletes both remotes so every fetch fails.
+    """
+    from libvcs._internal.run import run as libvcs_run
+
+    github_projects = user_path / "github_projects"
+
+    # Create two bare remotes, each with two commits
+    remote_dirs: dict[str, pathlib.Path] = {}
+    for suffix in ("a", "b"):
+        remote_dir = tmp_path / f"errored_remote_{suffix}"
+        remote_dir.mkdir()
+        libvcs_run(["git", "init", "--bare"], cwd=remote_dir)
+
+        bootstrap_dir = tmp_path / f"bootstrap_{suffix}"
+        libvcs_run(["git", "clone", str(remote_dir), str(bootstrap_dir)])
+        (bootstrap_dir / "initial.txt").write_text("init", encoding="utf-8")
+        libvcs_run(["git", "add", "initial.txt"], cwd=bootstrap_dir)
+        libvcs_run(["git", "commit", "-m", "initial commit"], cwd=bootstrap_dir)
+        libvcs_run(["git", "push", "origin", "master"], cwd=bootstrap_dir)
+
+        (bootstrap_dir / "second.txt").write_text("second", encoding="utf-8")
+        libvcs_run(["git", "add", "second.txt"], cwd=bootstrap_dir)
+        libvcs_run(["git", "commit", "-m", "second commit"], cwd=bootstrap_dir)
+        libvcs_run(["git", "push", "origin", "master"], cwd=bootstrap_dir)
+        shutil.rmtree(bootstrap_dir)
+
+        remote_dirs[suffix] = remote_dir
+
+    config: dict[str, dict[str, dict[str, t.Any]]] = {
+        "~/github_projects/": {
+            "my_errored_repo_a": {
+                "url": f"git+file://{remote_dirs['a']}",
+                "remotes": {"origin": f"git+file://{remote_dirs['a']}"},
+            },
+            "my_errored_repo_b": {
+                "url": f"git+file://{remote_dirs['b']}",
+                "remotes": {"origin": f"git+file://{remote_dirs['b']}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Clean up any prior clones
+    for repo_name in ("my_errored_repo_a", "my_errored_repo_b"):
+        repo_dir = github_projects / repo_name
+        if repo_dir.exists():
+            shutil.rmtree(repo_dir)
+
+    # First sync: clone both repos successfully
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "my_errored_repo_a", "my_errored_repo_b"])
+    capsys.readouterr()  # Discard initial sync output
+
+    # Reset both local clones back one commit to create "behind" state
+    for repo_name in ("my_errored_repo_a", "my_errored_repo_b"):
+        repo_dir = github_projects / repo_name
+        libvcs_run(["git", "reset", "--hard", "HEAD^"], cwd=repo_dir)
+
+    # Delete both remotes to cause fetch failure on next sync
+    for remote_dir in remote_dirs.values():
+        shutil.rmtree(remote_dir)
+
+    # Second sync: both should fail
+    with contextlib.suppress(SystemExit):
+        cli(["sync", *sync_args])
+
+    result = capsys.readouterr()
+    out = "".join(list(result.out))
+    err = "".join(list(result.err))
+
+    if expected_in_out is not None:
+        if isinstance(expected_in_out, str):
+            expected_in_out = [expected_in_out]
+        for needle in expected_in_out:
+            assert needle in out, f"Expected {needle!r} in stdout: {out!r}"
+
+    if expected_not_in_out is not None:
+        if isinstance(expected_not_in_out, str):
+            expected_not_in_out = [expected_not_in_out]
+        for needle in expected_not_in_out:
+            assert needle not in out, f"Did not expect {needle!r} in stdout: {out!r}"
+
+    if expected_in_err is not None:
+        if isinstance(expected_in_err, str):
+            expected_in_err = [expected_in_err]
+        for needle in expected_in_err:
+            assert needle in err, f"Expected {needle!r} in stderr: {err!r}"
+
+    if expected_not_in_err is not None:
+        if isinstance(expected_not_in_err, str):
+            expected_not_in_err = [expected_not_in_err]
+        for needle in expected_not_in_err:
+            assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
+
+
+SYNC_CROSS_VCS_MIXED_FIXTURES: list[SyncErroredRepoFixture] = [
+    SyncErroredRepoFixture(
+        test_id="git-ok-svn-fails",
+        sync_args=["my_git_repo", "my_svn_repo"],
+        expected_in_out=[
+            "Synced my_git_repo",
+            "Failed syncing my_svn_repo",
+            "1 synced",
+            "1 failed",
+        ],
+    ),
+    SyncErroredRepoFixture(
+        test_id="git-ok-svn-fails-exit-on-error",
+        sync_args=["my_svn_repo", "my_git_repo", "--exit-on-error"],
+        expected_in_out="Failed syncing my_svn_repo",
+        expected_not_in_out="Synced my_git_repo",
+        expected_in_err=EXIT_ON_ERROR_MSG,
+    ),
+]
+
+
+@pytest.mark.skipif(not shutil.which("svn"), reason="svn not installed")
+@pytest.mark.skipif(not shutil.which("svnadmin"), reason="svnadmin not installed")
+@pytest.mark.parametrize(
+    list(SyncErroredRepoFixture._fields),
+    SYNC_CROSS_VCS_MIXED_FIXTURES,
+    ids=[test.test_id for test in SYNC_CROSS_VCS_MIXED_FIXTURES],
+)
+def test_sync_cross_vcs_mixed_failure(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+    test_id: str,
+    sync_args: list[str],
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
+) -> None:
+    """Tests for syncing when git succeeds but SVN fails in the same run.
+
+    Uses the libvcs git_repo fixture for the good repo, creates an SVN remote
+    that gets deleted after initial sync to trigger failure.
+    """
+    import subprocess
+
+    github_projects = user_path / "github_projects"
+    good_git_url = f"git+file://{git_repo.path}"
+
+    # Create an SVN repository
+    svn_remote_dir = tmp_path / "svn_remote"
+    subprocess.run(
+        ["svnadmin", "create", str(svn_remote_dir)],
+        check=True,
+        capture_output=True,
+    )
+
+    import_dir = tmp_path / "svn_import"
+    import_dir.mkdir()
+    (import_dir / "initial.txt").write_text("init", encoding="utf-8")
+    subprocess.run(
+        [
+            "svn",
+            "import",
+            str(import_dir),
+            f"file://{svn_remote_dir}/trunk",
+            "-m",
+            "initial import",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    shutil.rmtree(import_dir)
+
+    svn_url = f"svn+file://{svn_remote_dir}/trunk"
+
+    config: dict[str, dict[str, dict[str, t.Any]]] = {
+        "~/github_projects/": {
+            "my_git_repo": {
+                "url": good_git_url,
+                "remotes": {"origin": good_git_url},
+            },
+            "my_svn_repo": {
+                "url": svn_url,
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Clean up any prior checkouts
+    for repo_name in ("my_git_repo", "my_svn_repo"):
+        repo_dir = github_projects / repo_name
+        if repo_dir.exists():
+            shutil.rmtree(repo_dir)
+
+    # First sync: clone both repos successfully
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "my_git_repo", "my_svn_repo"])
+    capsys.readouterr()  # Discard initial sync output
+
+    # Delete the SVN remote to cause failure on next sync
+    shutil.rmtree(svn_remote_dir)
+
+    # Second sync: git succeeds, SVN fails
     with contextlib.suppress(SystemExit):
         cli(["sync", *sync_args])
 
