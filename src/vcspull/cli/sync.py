@@ -704,15 +704,7 @@ def sync(
                 "previewed": 0,
                 "failed": unmatched_count,
             }
-            formatter.emit({"reason": "summary", **summary})
-            if formatter.mode == OutputMode.HUMAN:
-                formatter.emit_text(
-                    f"\n{colors.info('Summary:')} "
-                    f"{summary['total']} repos, "
-                    f"{colors.success(str(summary['synced']))} synced, "
-                    f"{colors.warning(str(summary['previewed']))} previewed, "
-                    f"{colors.error(str(summary['failed']))} failed",
-                )
+            _emit_summary(formatter, colors, summary)
         else:
             formatter.emit_text(
                 colors.warning("No repositories matched the criteria."),
@@ -793,12 +785,7 @@ def sync(
                 f"{colors.error(str(e))}",
             )
             if exit_on_error:
-                formatter.emit(
-                    {
-                        "reason": "summary",
-                        **summary,
-                    },
-                )
+                _emit_summary(formatter, colors, summary)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
@@ -813,13 +800,18 @@ def sync(
             f"{colors.muted('→')} {display_repo_path}",
         )
 
-    formatter.emit(
-        {
-            "reason": "summary",
-            **summary,
-        },
-    )
+    _emit_summary(formatter, colors, summary)
 
+    formatter.finalize()
+
+
+def _emit_summary(
+    formatter: OutputFormatter,
+    colors: Colors,
+    summary: dict[str, int],
+) -> None:
+    """Emit the structured summary event and optional human-readable text."""
+    formatter.emit({"reason": "summary", **summary})
     if formatter.mode == OutputMode.HUMAN:
         formatter.emit_text(
             f"\n{colors.info('Summary:')} "
@@ -828,8 +820,6 @@ def sync(
             f"{colors.warning(str(summary['previewed']))} previewed, "
             f"{colors.error(str(summary['failed']))} failed",
         )
-
-    formatter.finalize()
 
 
 def progress_cb(output: str, timestamp: datetime) -> None:
