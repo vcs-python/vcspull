@@ -35,11 +35,15 @@ def add_doctest_fixtures(
 @pytest.fixture(autouse=True)
 def setup(
     request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
     gitconfig: pathlib.Path,
     set_home: pathlib.Path,
     xdg_config_path: pathlib.Path,
+    git_commit_envvars: dict[str, str],
 ) -> None:
     """Automatically load the pytest fixtures in the parameters."""
+    for key, value in git_commit_envvars.items():
+        monkeypatch.setenv(key, str(value))
 
 
 @pytest.fixture(autouse=True)
