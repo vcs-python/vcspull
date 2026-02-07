@@ -2003,6 +2003,54 @@ def test_sync_dry_run_plan_progress(
     assert "Plan:" in output
 
 
+@pytest.mark.xfail(strict=True, reason="unmatched patterns not yet counted in summary")
+def test_sync_unmatched_pattern_counts_in_summary(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+) -> None:
+    """Unmatched patterns should count as failures in the sync summary.
+
+    When a user runs ``vcspull sync my_git_project not_in_config``, the
+    ``not_in_config`` pattern matches no repository.  Currently a "no repo
+    found" message is logged but the summary says ``0 failed``.  The summary
+    should reflect the unmatched pattern as a failure so the user can see
+    at a glance that something was missed.
+    """
+    config = {
+        "~/github_projects/": {
+            "my_git_project": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"test_remote": f"git+file://{git_repo.path}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    monkeypatch.chdir(tmp_path)
+    caplog.set_level(logging.INFO)
+
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "my_git_project", "not_in_config"])
+
+    captured = capsys.readouterr()
+    output = "".join([*caplog.messages, captured.out, captured.err])
+
+    # The unmatched pattern should appear in the output
+    assert "not_in_config" in output
+
+    # Summary should reflect the unmatched pattern as a failure
+    assert "1 failed" in output
+    assert "1 synced" in output
+
+
 def test_sync_human_output_redacts_repo_paths(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
