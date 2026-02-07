@@ -7,6 +7,7 @@ import typing as t
 
 import pytest
 from libvcs._internal.shortcuts import create_project
+from libvcs.pytest_plugin import git_remote_repo_single_commit_post_init
 from libvcs.sync.git import GitRemote, GitSync
 
 from vcspull._internal.config_reader import ConfigReader
@@ -150,7 +151,9 @@ def test_config_variations(
     remote_list: list[str],
 ) -> None:
     """Test vcspull sync'ing across a variety of configurations."""
-    dummy_repo = create_git_remote_repo()
+    dummy_repo = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
 
     config_file = write_config_remote(
         config_path=tmp_path / "myrepos.yaml",
@@ -255,10 +258,14 @@ def test_updating_remote(
     has_extra_remotes: bool,
 ) -> None:
     """Verify yaml configuration state is applied and reflected to local VCS clone."""
-    dummy_repo = create_git_remote_repo()
+    dummy_repo = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
 
     mirror_name = "mirror_repo"
-    mirror_repo = create_git_remote_repo()
+    mirror_repo = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
 
     repo_parent = tmp_path / "study" / "myrepo"
     repo_parent.mkdir(parents=True)

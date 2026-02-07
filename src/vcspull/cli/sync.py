@@ -645,6 +645,7 @@ def sync(
     else:
         configs = load_configs(find_config_files(include_home=True))
     found_repos: list[ConfigDict] = []
+    unmatched_count = 0
 
     for repo_pattern in repo_patterns:
         path, vcs_url, name = None, None, None
@@ -656,8 +657,15 @@ def sync(
             name = repo_pattern
 
         found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
-        if not found and formatter.mode == OutputMode.HUMAN:
-            log.info(NO_REPOS_FOR_TERM_MSG.format(name=name))
+        if not found:
+            search_term = name or path or vcs_url or repo_pattern
+            log.debug(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
+            if not summary_only:
+                formatter.emit_text(
+                    f"{colors.error('✗')} "
+                    f"{NO_REPOS_FOR_TERM_MSG.format(name=search_term)}",
+                )
+            unmatched_count += 1
         found_repos.extend(found)
 
     if workspace_root:
@@ -691,13 +699,36 @@ def sync(
         return
 
     if total_repos == 0:
-        formatter.emit_text(colors.warning("No repositories matched the criteria."))
+        if unmatched_count > 0:
+            summary = {
+                "total": 0,
+                "synced": 0,
+                "previewed": 0,
+                "failed": 0,
+                "unmatched": unmatched_count,
+            }
+            _emit_summary(formatter, colors, summary)
+            if exit_on_error:
+                formatter.finalize()
+                if parser is not None:
+                    parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+                raise SystemExit(EXIT_ON_ERROR_MSG)
+        else:
+            formatter.emit_text(
+                colors.warning("No repositories matched the criteria."),
+            )
         formatter.finalize()
         return
 
     is_human = formatter.mode == OutputMode.HUMAN
 
-    summary = {"total": 0, "synced": 0, "previewed": 0, "failed": 0}
+    summary = {
+        "total": 0,
+        "synced": 0,
+        "previewed": 0,
+        "failed": 0,
+        "unmatched": unmatched_count,
+    }
 
     progress_callback: ProgressCallback
     if is_human:
@@ -750,7 +781,7 @@ def sync(
                 event["details"] = captured_output.strip()
             formatter.emit(event)
             if is_human:
-                log.info(
+                log.debug(
                     "Failed syncing %s",
                     repo_name,
                 )
@@ -763,12 +794,7 @@ def sync(
                 f"{colors.error(str(e))}",
             )
             if exit_on_error:
-                formatter.emit(
-                    {
-                        "reason": "summary",
-                        **summary,
-                    },
-                )
+                _emit_summary(formatter, colors, summary)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
@@ -783,23 +809,42 @@ def sync(
             f"{colors.muted('→')} {display_repo_path}",
         )
 
-    formatter.emit(
-        {
-            "reason": "summary",
-            **summary,
-        },
-    )
+    _emit_summary(formatter, colors, summary)
 
-    if formatter.mode == OutputMode.HUMAN:
-        formatter.emit_text(
-            f"\n{colors.info('Summary:')} "
-            f"{summary['total']} repos, "
-            f"{colors.success(str(summary['synced']))} synced, "
-            f"{colors.warning(str(summary['previewed']))} previewed, "
-            f"{colors.error(str(summary['failed']))} failed",
-        )
+    if exit_on_error and unmatched_count > 0:
+        formatter.finalize()
+        if parser is not None:
+            parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+        raise SystemExit(EXIT_ON_ERROR_MSG)
 
     formatter.finalize()
+
+
+def _emit_summary(
+    formatter: OutputFormatter,
+    colors: Colors,
+    summary: dict[str, int],
+) -> None:
+    """Emit the structured summary event and optional human-readable text."""
+    formatter.emit({"reason": "summary", **summary})
+    if formatter.mode == OutputMode.HUMAN:
+        previewed = summary.get("previewed", 0)
+        unmatched = summary.get("unmatched", 0)
+        parts = [
+            f"\n{colors.info('Summary:')} "
+            f"{colors.info(str(summary['total']))} repos, "
+            f"{colors.success(str(summary['synced']))} synced, "
+            f"{colors.error(str(summary['failed']))} failed",
+        ]
+        if previewed > 0:
+            parts.append(
+                f", {colors.warning(str(previewed))} previewed",
+            )
+        if unmatched > 0:
+            parts.append(
+                f", {colors.warning(str(unmatched))} unmatched",
+            )
+        formatter.emit_text("".join(parts))
 
 
 def progress_cb(output: str, timestamp: datetime) -> None:
@@ -829,6 +874,24 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
+class SyncFailedError(exc.VCSPullException):
+    """Raised when a sync operation completes but with errors."""
+
+    def __init__(
+        self,
+        repo_name: str,
+        errors: str,
+        *args: object,
+        **kwargs: object,
+    ) -> None:
+        self.repo_name = repo_name
+        self.errors = errors
+        message = f"Sync failed for {repo_name}"
+        if errors:
+            message = f"{message}: {errors}"
+        super().__init__(message)
+
+
 def update_repo(
     repo_dict: t.Any,
     progress_callback: ProgressCallback | None = None,
@@ -851,7 +914,15 @@ def update_repo(
         repo_dict["vcs"] = vcs
 
     r = create_project(**repo_dict)  # Creates the repo object
-    r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
+    if repo_dict.get("vcs") == "git":
+        result = r.update_repo(set_remotes=True)
+    else:
+        result = r.update_repo()
+
+    if result is not None and not result.ok:
+        error_messages = "; ".join(e.message for e in result.errors)
+        repo_name = str(repo_dict.get("name", repo_dict.get("url", "unknown")))
+        raise SyncFailedError(repo_name=repo_name, errors=error_messages)
 
     # TODO: Fix this
     return r  # type:ignore
