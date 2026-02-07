@@ -832,7 +832,7 @@ def _emit_summary(
         unmatched = summary.get("unmatched", 0)
         parts = [
             f"\n{colors.info('Summary:')} "
-            f"{summary['total']} repos, "
+            f"{colors.info(str(summary['total']))} repos, "
             f"{colors.success(str(summary['synced']))} synced, "
             f"{colors.error(str(summary['failed']))} failed",
         ]
