@@ -657,7 +657,8 @@ def sync(
 
         found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
         if not found and formatter.mode == OutputMode.HUMAN:
-            log.info(NO_REPOS_FOR_TERM_MSG.format(name=name))
+            search_term = name or path or vcs_url or repo_pattern
+            log.info(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
         found_repos.extend(found)
 
     if workspace_root:

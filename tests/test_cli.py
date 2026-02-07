@@ -127,10 +127,6 @@ def test_sync_cli_filter_non_existent(
             assert needle not in output
 
 
-@pytest.mark.xfail(
-    reason="Bug: path-like pattern shows 'None' instead of actual search term",
-    strict=True,
-)
 def test_sync_none_message_for_path_pattern(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
