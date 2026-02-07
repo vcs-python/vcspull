@@ -1,5 +1,5 @@
 ---
-description: TDD bug-fix workflow — reproduce a bug as a failing test, find root cause, fix, and verify
+description: TDD bug-fix workflow -- reproduce a bug as a failing test, find root cause, fix, and verify
 argument-hint: Paste or describe the bug to reproduce and fix
 ---
 
@@ -36,7 +36,7 @@ Initial bug report: $ARGUMENTS
 **Goal**: Create a test that reproduces the bug and is expected to fail.
 
 **CRITICAL RULES** (from AGENTS.md):
-- Write **functional tests only** — standalone `test_*` functions, NOT classes
+- Write **functional tests only** -- standalone `test_*` functions, NOT classes
 - Use `typing.NamedTuple` for parameterized tests when appropriate
 - Use `from __future__ import annotations` at top of file
 - Use `import typing as t` namespace style for stdlib
@@ -71,7 +71,7 @@ Initial bug report: $ARGUMENTS
    ```
    tests(feat[<test_file>]) Add xfail test for <bug description>
 
-   why: <Why this test is needed — what behavior is broken>
+   why: <Why this test is needed -- what behavior is broken>
    what:
    - Add test_<name> with @pytest.mark.xfail(strict=True)
    - <What the test sets up and asserts>
@@ -86,14 +86,14 @@ Initial bug report: $ARGUMENTS
 **Actions**:
 1. Read the source code path exercised by the test
 2. Add temporary debug logging if needed (but track it for cleanup)
-3. Identify the root cause — the specific line(s) or logic gap
+3. Identify the root cause -- the specific line(s) or logic gap
 4. If the bug spans two repos (vcspull + libvcs):
    - Note which repo each change belongs to
    - Check that libvcs is installed as editable from local source:
      ```
      uv run python -c "import libvcs; print(libvcs.__file__)"
      ```
-   - If it points to `.venv/lib/.../site-packages/`, the editable install is stale — fix it:
+   - If it points to `.venv/lib/.../site-packages/`, the editable install is stale -- fix it:
      ```
      # In vcspull's pyproject.toml [tool.uv.sources]:
      # Temporarily use: libvcs = { path = "/path/to/libvcs", editable = true }
@@ -108,7 +108,7 @@ Initial bug report: $ARGUMENTS
 **Goal**: Apply the minimal fix that makes the test pass.
 
 **Principles**:
-- Minimal change — only fix what's broken
+- Minimal change -- only fix what's broken
 - Don't refactor surrounding code
 - Don't add features beyond the fix
 - Follow existing code patterns and style
@@ -122,7 +122,7 @@ Initial bug report: $ARGUMENTS
    ```
    uv run pytest <test_file>::<test_name> -xvs
    ```
-   - If it now passes, the xfail decorator will cause it to XPASS (unexpected pass) — this is correct!
+   - If it now passes, the xfail decorator will cause it to XPASS (unexpected pass) -- this is correct!
 4. Run quality checks:
    ```
    uv run ruff format .
@@ -147,7 +147,7 @@ Initial bug report: $ARGUMENTS
 **Actions**:
 1. Remove `@pytest.mark.xfail(strict=True)` from the test
 2. Update the test docstring to describe it as a regression test (not a bug report)
-3. Run the test — it MUST pass:
+3. Run the test -- it MUST pass:
    ```
    uv run pytest <test_file>::<test_name> -xvs
    ```
@@ -165,7 +165,7 @@ Initial bug report: $ARGUMENTS
    ```
    tests(fix[<test_file>]) Remove xfail from <test_name>
 
-   why: Fix verified — <brief description of what was fixed>
+   why: Fix verified -- <brief description of what was fixed>
    what:
    - Remove @pytest.mark.xfail(strict=True)
    - Update docstring to describe as regression test
@@ -180,7 +180,7 @@ Initial bug report: $ARGUMENTS
 **Decision tree**:
 
 ### A. Is the reproduction genuine?
-1. Read the test carefully — does it actually reproduce the reported bug?
+1. Read the test carefully -- does it actually reproduce the reported bug?
 2. Run the test with `-xvs` and examine the output
 3. If the test is testing the wrong thing:
    - Go back to **Phase 2** and rewrite the test
