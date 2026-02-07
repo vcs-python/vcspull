@@ -27,11 +27,13 @@ $ uv add vcspull --prerelease allow
 $ uvx --from 'vcspull' --prerelease allow vcspull
 ```
 
-## vcspull v1.51.x (unreleased)
+## vcspull v1.53.x (unreleased)
 
 <!-- KEEP THIS PLACEHOLDER - DO NOT REMOVE OR MODIFY THIS LINE -->
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
+
+## vcspull v1.52.0 (2026-02-07)
 
 ### Breaking changes
 
@@ -86,7 +88,7 @@ automation scripts a clear signal about config/pattern problems.
 - Refactor `test_cli.py` to use `write_config` helper and assert exit codes
   consistently (#512)
 
-## vcspull v1.51.0 (2026-02-01)
+## vcspull v1.51.1 (2026-02-01)
 
 ### Tests
 
