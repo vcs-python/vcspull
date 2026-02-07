@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import importlib
 import json
+import logging
 import pathlib
 import shutil
 import sys
@@ -124,6 +125,59 @@ def test_sync_cli_filter_non_existent(
             expected_not_in_out = [expected_not_in_out]
         for needle in expected_not_in_out:
             assert needle not in output
+
+
+@pytest.mark.xfail(
+    reason="Bug: path-like pattern shows 'None' instead of actual search term",
+    strict=True,
+)
+def test_sync_none_message_for_path_pattern(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+) -> None:
+    """Path-like patterns that match no repo should show the search term, not 'None'.
+
+    When a user runs ``vcspull sync ~/nonexistent_path/``, the CLI classifies the
+    argument as a *path* (not a name).  The ``name`` variable stays ``None``, but
+    the error message formats with ``name``, producing::
+
+        No repo found in config(s) for "None"
+
+    instead of::
+
+        No repo found in config(s) for "~/nonexistent_path/"
+    """
+    config = {
+        "~/github_projects/": {
+            "my_git_project": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"test_remote": f"git+file://{git_repo.path}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    monkeypatch.chdir(tmp_path)
+    caplog.set_level(logging.INFO)
+
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "~/nonexistent_path/"])
+
+    captured = capsys.readouterr()
+    output = "".join([*caplog.messages, captured.out, captured.err])
+
+    # The actual search term should appear in the message
+    assert "~/nonexistent_path/" in output
+    # The Python None literal should NOT appear
+    assert '"None"' not in output
 
 
 class SyncFixture(t.NamedTuple):
@@ -751,6 +805,108 @@ def test_sync_rev_branch_mismatch(
             expected_not_in_err = [expected_not_in_err]
         for needle in expected_not_in_err:
             assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
+
+
+@pytest.mark.xfail(
+    reason="Bug: ambiguous branch/dir name causes fatal error but reports success",
+    strict=True,
+)
+def test_sync_ambiguous_branch_dir_name(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+) -> None:
+    """Repos with a local branch matching a directory should not false-succeed.
+
+    When a git repo has both a local branch ``notes`` (not a remote-tracking
+    ref) and a directory ``notes/``, ``git rev-list notes --max-count=1``
+    fails with::
+
+        fatal: ambiguous argument 'notes': both revision and filename
+
+    The error is caught in ``GitSync.update_repo()`` but never recorded in
+    ``SyncResult``.  Because ``is_remote_ref`` is False, the code falls
+    through to a checkout that succeeds (already on the branch), so
+    vcspull reports "Synced" despite the fatal error.
+
+    To reproduce, we need ``show-ref`` to NOT find a remote ref, so
+    ``is_remote_ref = False``.  We achieve this by cloning from a remote
+    that only has ``master``, then locally creating a ``notes`` branch
+    and a ``notes/`` directory.
+    """
+    from libvcs._internal.run import run as libvcs_run
+
+    # Create a bare remote with only master
+    remote_dir = tmp_path / "ambiguous_remote"
+    remote_dir.mkdir()
+    libvcs_run(["git", "init", "--bare"], cwd=remote_dir)
+
+    # Bootstrap with a commit that has a notes/ directory
+    bootstrap_dir = tmp_path / "bootstrap"
+    libvcs_run(["git", "clone", str(remote_dir), str(bootstrap_dir)])
+    notes_dir = bootstrap_dir / "notes"
+    notes_dir.mkdir()
+    (notes_dir / "readme.txt").write_text("notes content", encoding="utf-8")
+    libvcs_run(["git", "add", "notes/readme.txt"], cwd=bootstrap_dir)
+    libvcs_run(["git", "commit", "-m", "add notes directory"], cwd=bootstrap_dir)
+    libvcs_run(["git", "push", "origin", "master"], cwd=bootstrap_dir)
+    shutil.rmtree(bootstrap_dir)
+
+    github_projects = user_path / "github_projects"
+    config: dict[str, dict[str, dict[str, t.Any]]] = {
+        "~/github_projects/": {
+            "ambiguous_repo": {
+                "url": f"git+file://{remote_dir}",
+                "remotes": {"origin": f"git+file://{remote_dir}"},
+                "rev": "notes",
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Clean up any prior clone
+    repo_dir = github_projects / "ambiguous_repo"
+    if repo_dir.exists():
+        shutil.rmtree(repo_dir)
+
+    # First sync: clone succeeds (lands on master)
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "ambiguous_repo"])
+    capsys.readouterr()  # Discard initial sync output
+
+    # Manually create a local 'notes' branch (no remote tracking ref)
+    # so that show-ref won't find refs/remotes/origin/notes
+    libvcs_run(["git", "checkout", "-b", "notes"], cwd=repo_dir)
+    # Already have notes/ directory from the clone
+
+    # Second sync: update_repo() hits ambiguity in rev_list
+    # because 'notes' matches both refs/heads/notes and the notes/ directory
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "ambiguous_repo"])
+
+    result = capsys.readouterr()
+    out = result.out
+    err = result.err
+    combined = out + err
+
+    # The contradiction: we should NOT see both a "fatal" error AND a
+    # success message.  If a fatal error occurs, the repo should NOT
+    # be reported as successfully synced.
+    has_fatal = "fatal" in combined.lower()
+    has_synced_success = "Synced ambiguous_repo" in out
+
+    assert not (has_fatal and has_synced_success), (
+        "fatal error occurred but repo was reported as successfully synced; "
+        f"stdout={out!r}, stderr={err!r}"
+    )
 
 
 class SyncErroredSvnRepoFixture(t.NamedTuple):
