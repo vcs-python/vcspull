@@ -660,9 +660,11 @@ def sync(
         if not found:
             search_term = name or path or vcs_url or repo_pattern
             log.debug(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
-            formatter.emit_text(
-                f"{colors.error('✗')} {NO_REPOS_FOR_TERM_MSG.format(name=search_term)}",
-            )
+            if not summary_only:
+                formatter.emit_text(
+                    f"{colors.error('✗')} "
+                    f"{NO_REPOS_FOR_TERM_MSG.format(name=search_term)}",
+                )
             unmatched_count += 1
         found_repos.extend(found)
 
