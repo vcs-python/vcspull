@@ -659,7 +659,7 @@ def sync(
         found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
         if not found:
             search_term = name or path or vcs_url or repo_pattern
-            log.info(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
+            log.debug(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
             formatter.emit_text(
                 f"{colors.error('✗')} {NO_REPOS_FOR_TERM_MSG.format(name=search_term)}",
             )
@@ -761,7 +761,7 @@ def sync(
                 event["details"] = captured_output.strip()
             formatter.emit(event)
             if is_human:
-                log.info(
+                log.debug(
                     "Failed syncing %s",
                     repo_name,
                 )
