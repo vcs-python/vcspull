@@ -33,6 +33,12 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Breaking changes
+
+- Bump minimum libvcs from v0.38.6 -> v0.39.0 (#512)
+
+  Adds `SyncResult` and various other bug fixes to syncing.
+
 ## vcspull v1.51.0 (2026-02-01)
 
 ### Tests
