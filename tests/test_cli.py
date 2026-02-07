@@ -810,23 +810,20 @@ def test_sync_ambiguous_branch_dir_name(
     user_path: pathlib.Path,
     config_path: pathlib.Path,
 ) -> None:
-    """Repos with a local branch matching a directory should not false-succeed.
+    """Regression test: branch name matching a directory must not cause fatal.
 
     When a git repo has both a local branch ``notes`` (not a remote-tracking
-    ref) and a directory ``notes/``, ``git rev-list notes --max-count=1``
-    fails with::
+    ref) and a directory ``notes/``, bare ``git rev-list notes`` would fail::
 
         fatal: ambiguous argument 'notes': both revision and filename
 
-    The error is caught in ``GitSync.update_repo()`` but never recorded in
-    ``SyncResult``.  Because ``is_remote_ref`` is False, the code falls
-    through to a checkout that succeeds (already on the branch), so
-    vcspull reports "Synced" despite the fatal error.
+    The ``refs/heads/`` disambiguation fix in libvcs resolves this by using
+    ``refs/heads/notes`` instead of bare ``notes`` in ``rev_list``.  This
+    test verifies no fatal error appears and the sync succeeds cleanly.
 
-    To reproduce, we need ``show-ref`` to NOT find a remote ref, so
-    ``is_remote_ref = False``.  We achieve this by cloning from a remote
-    that only has ``master``, then locally creating a ``notes`` branch
-    and a ``notes/`` directory.
+    Setup: clone from a remote that only has ``master``, then locally
+    create a ``notes`` branch and a ``notes/`` directory so that
+    ``show-ref`` returns only ``refs/heads/notes`` (no remote ref).
     """
     from libvcs._internal.run import run as libvcs_run
 
@@ -879,26 +876,30 @@ def test_sync_ambiguous_branch_dir_name(
     libvcs_run(["git", "checkout", "-b", "notes"], cwd=repo_dir)
     # Already have notes/ directory from the clone
 
-    # Second sync: update_repo() hits ambiguity in rev_list
-    # because 'notes' matches both refs/heads/notes and the notes/ directory
+    # Second sync: with the refs/heads/ disambiguation fix in libvcs,
+    # rev_list uses refs/heads/notes instead of bare 'notes', avoiding
+    # the ambiguity with the notes/ directory.
     with contextlib.suppress(SystemExit):
         cli(["sync", "ambiguous_repo"])
 
     result = capsys.readouterr()
     out = result.out
-    err = result.err
-    combined = out + err
+    combined = out + result.err
 
-    # The contradiction: we should NOT see both a "fatal" error AND a
-    # success message.  If a fatal error occurs, the repo should NOT
-    # be reported as successfully synced.
-    has_fatal = "fatal" in combined.lower()
-    has_synced_success = "Synced ambiguous_repo" in out
-
-    assert not (has_fatal and has_synced_success), (
-        "fatal error occurred but repo was reported as successfully synced; "
-        f"stdout={out!r}, stderr={err!r}"
+    # With refs/heads/ disambiguation, the ambiguity should be resolved
+    # and no fatal error should occur.
+    assert "fatal" not in combined.lower(), (
+        f"unexpected fatal error in output: {combined!r}"
     )
+
+    # The repo should sync successfully
+    assert "Synced ambiguous_repo" in out, (
+        f"expected successful sync message in output: {out!r}"
+    )
+
+    # Summary should show success with no failures
+    assert "1 synced" in out
+    assert "0 failed" in out
 
 
 class SyncErroredSvnRepoFixture(t.NamedTuple):
