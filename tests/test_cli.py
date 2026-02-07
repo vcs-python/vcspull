@@ -2081,6 +2081,103 @@ def test_sync_all_patterns_unmatched_emits_summary(
     assert "0 synced" in output
 
 
+class SyncUnmatchedExitOnErrorFixture(t.NamedTuple):
+    """Tests for vcspull sync --exit-on-error when patterns don't match."""
+
+    test_id: str
+    sync_args: list[str]
+    expected_exit_code: int
+    expected_in_out: ExpectedOutput = None
+    expected_not_in_out: ExpectedOutput = None
+    expected_in_err: ExpectedOutput = None
+
+
+SYNC_UNMATCHED_EXIT_ON_ERROR_FIXTURES: list[SyncUnmatchedExitOnErrorFixture] = [
+    SyncUnmatchedExitOnErrorFixture(
+        test_id="all-unmatched-exit-on-error",
+        sync_args=["--exit-on-error", "not_in_config1", "not_in_config2"],
+        expected_exit_code=1,
+        expected_in_out="2 unmatched",
+        expected_in_err=EXIT_ON_ERROR_MSG,
+    ),
+    SyncUnmatchedExitOnErrorFixture(
+        test_id="mixed-unmatched-exit-on-error",
+        sync_args=["--exit-on-error", "my_git_project", "not_in_config"],
+        expected_exit_code=1,
+        expected_in_out=["1 synced", "1 unmatched"],
+        expected_in_err=EXIT_ON_ERROR_MSG,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(SyncUnmatchedExitOnErrorFixture._fields),
+    SYNC_UNMATCHED_EXIT_ON_ERROR_FIXTURES,
+    ids=[test.test_id for test in SYNC_UNMATCHED_EXIT_ON_ERROR_FIXTURES],
+)
+def test_sync_unmatched_exit_on_error(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+    test_id: str,
+    sync_args: list[str],
+    expected_exit_code: int,
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+) -> None:
+    """Tests that --exit-on-error causes non-zero exit on unmatched patterns.
+
+    When --exit-on-error is set and patterns don't match any repo, the
+    process should exit non-zero so automation scripts can detect the problem.
+    """
+    config = {
+        "~/github_projects/": {
+            "my_git_project": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"test_remote": f"git+file://{git_repo.path}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
+
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = 0
+    try:
+        cli(["sync", *sync_args])
+    except SystemExit as exc:
+        exit_code = exc.code if isinstance(exc.code, int) else 1
+
+    assert exit_code == expected_exit_code
+
+    result = capsys.readouterr()
+    out = result.out
+    err = result.err
+
+    if expected_in_out is not None:
+        if isinstance(expected_in_out, str):
+            expected_in_out = [expected_in_out]
+        for needle in expected_in_out:
+            assert needle in out, f"Expected {needle!r} in stdout: {out!r}"
+
+    if expected_not_in_out is not None:
+        if isinstance(expected_not_in_out, str):
+            expected_not_in_out = [expected_not_in_out]
+        for needle in expected_not_in_out:
+            assert needle not in out, f"Did not expect {needle!r} in stdout: {out!r}"
+
+    if expected_in_err is not None:
+        if isinstance(expected_in_err, str):
+            expected_in_err = [expected_in_err]
+        for needle in expected_in_err:
+            assert needle in err, f"Expected {needle!r} in stderr: {err!r}"
+
+
 def test_sync_unmatched_pattern_no_duplicate_log(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],

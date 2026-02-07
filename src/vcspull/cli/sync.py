@@ -708,6 +708,11 @@ def sync(
                 "unmatched": unmatched_count,
             }
             _emit_summary(formatter, colors, summary)
+            if exit_on_error:
+                formatter.finalize()
+                if parser is not None:
+                    parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+                raise SystemExit(EXIT_ON_ERROR_MSG)
         else:
             formatter.emit_text(
                 colors.warning("No repositories matched the criteria."),
@@ -805,6 +810,12 @@ def sync(
         )
 
     _emit_summary(formatter, colors, summary)
+
+    if exit_on_error and unmatched_count > 0:
+        formatter.finalize()
+        if parser is not None:
+            parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+        raise SystemExit(EXIT_ON_ERROR_MSG)
 
     formatter.finalize()
 
