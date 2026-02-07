@@ -697,7 +697,26 @@ def sync(
         return
 
     if total_repos == 0:
-        formatter.emit_text(colors.warning("No repositories matched the criteria."))
+        if unmatched_count > 0:
+            summary = {
+                "total": unmatched_count,
+                "synced": 0,
+                "previewed": 0,
+                "failed": unmatched_count,
+            }
+            formatter.emit({"reason": "summary", **summary})
+            if formatter.mode == OutputMode.HUMAN:
+                formatter.emit_text(
+                    f"\n{colors.info('Summary:')} "
+                    f"{summary['total']} repos, "
+                    f"{colors.success(str(summary['synced']))} synced, "
+                    f"{colors.warning(str(summary['previewed']))} previewed, "
+                    f"{colors.error(str(summary['failed']))} failed",
+                )
+        else:
+            formatter.emit_text(
+                colors.warning("No repositories matched the criteria."),
+            )
         formatter.finalize()
         return
 

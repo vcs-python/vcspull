@@ -2052,6 +2052,52 @@ def test_sync_unmatched_pattern_counts_in_summary(
     assert "1 synced" in output
 
 
+def test_sync_all_patterns_unmatched_emits_summary(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+) -> None:
+    """Summary should be emitted even when ALL patterns are unmatched.
+
+    When every pattern fails to match a repo (``total_repos == 0``), the early
+    return must still emit a summary event with the correct failure count so
+    both human-readable and machine-readable consumers see a summary.
+    """
+    config = {
+        "~/github_projects/": {
+            "my_git_project": {
+                "url": f"git+file://{git_repo.path}",
+                "remotes": {"test_remote": f"git+file://{git_repo.path}"},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False), encoding="utf-8"
+    )
+
+    monkeypatch.chdir(tmp_path)
+    caplog.set_level(logging.INFO)
+
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "not_in_config1", "not_in_config2"])
+
+    captured = capsys.readouterr()
+    output = "".join([*caplog.messages, captured.out, captured.err])
+
+    # Both unmatched patterns should appear in the output
+    assert "not_in_config1" in output
+    assert "not_in_config2" in output
+
+    # Summary should reflect both unmatched patterns as failures
+    assert "2 failed" in output
+    assert "0 synced" in output
+
+
 def test_sync_unmatched_pattern_no_duplicate_log(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
