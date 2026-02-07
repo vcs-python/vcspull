@@ -632,13 +632,6 @@ SYNC_REV_BRANCH_MISMATCH_FIXTURES: list[SyncRevBranchMismatchFixture] = [
 ]
 
 
-@pytest.mark.xfail(
-    reason=(
-        "libvcs GitSync.update_repo() calls cmd.checkout() without "
-        "check_returncode=True, so checkout failures are silently ignored"
-    ),
-    strict=False,
-)
 @pytest.mark.parametrize(
     list(SyncRevBranchMismatchFixture._fields),
     SYNC_REV_BRANCH_MISMATCH_FIXTURES,
