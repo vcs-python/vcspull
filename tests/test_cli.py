@@ -2003,7 +2003,6 @@ def test_sync_dry_run_plan_progress(
     assert "Plan:" in output
 
 
-@pytest.mark.xfail(strict=True, reason="unmatched patterns not yet counted in summary")
 def test_sync_unmatched_pattern_counts_in_summary(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],

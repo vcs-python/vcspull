@@ -645,6 +645,7 @@ def sync(
     else:
         configs = load_configs(find_config_files(include_home=True))
     found_repos: list[ConfigDict] = []
+    unmatched_count = 0
 
     for repo_pattern in repo_patterns:
         path, vcs_url, name = None, None, None
@@ -656,9 +657,13 @@ def sync(
             name = repo_pattern
 
         found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
-        if not found and formatter.mode == OutputMode.HUMAN:
+        if not found:
             search_term = name or path or vcs_url or repo_pattern
             log.info(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
+            formatter.emit_text(
+                f"{colors.error('✗')} {NO_REPOS_FOR_TERM_MSG.format(name=search_term)}",
+            )
+            unmatched_count += 1
         found_repos.extend(found)
 
     if workspace_root:
@@ -698,7 +703,12 @@ def sync(
 
     is_human = formatter.mode == OutputMode.HUMAN
 
-    summary = {"total": 0, "synced": 0, "previewed": 0, "failed": 0}
+    summary = {
+        "total": unmatched_count,
+        "synced": 0,
+        "previewed": 0,
+        "failed": unmatched_count,
+    }
 
     progress_callback: ProgressCallback
     if is_human:
