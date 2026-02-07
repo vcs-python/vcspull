@@ -447,6 +447,165 @@ def test_sync_broken(
             assert needle not in err
 
 
+class SyncErroredRepoFixture(t.NamedTuple):
+    """Tests for vcspull sync when a git operation fails silently in libvcs."""
+
+    test_id: str
+    sync_args: list[str]
+    expected_in_out: ExpectedOutput = None
+    expected_not_in_out: ExpectedOutput = None
+    expected_in_err: ExpectedOutput = None
+    expected_not_in_err: ExpectedOutput = None
+
+
+SYNC_ERRORED_REPO_FIXTURES: list[SyncErroredRepoFixture] = [
+    SyncErroredRepoFixture(
+        test_id="fetch-failure-shows-failed",
+        sync_args=["my_errored_repo"],
+        expected_in_out="Failed syncing",
+        expected_not_in_out="Synced my_errored_repo",
+    ),
+    SyncErroredRepoFixture(
+        test_id="fetch-failure-exit-on-error",
+        sync_args=["my_errored_repo", "--exit-on-error"],
+        expected_in_err=EXIT_ON_ERROR_MSG,
+    ),
+    SyncErroredRepoFixture(
+        test_id="mixed-good-and-fetch-failure",
+        sync_args=["my_good_repo", "my_errored_repo"],
+        expected_in_out=["Synced my_good_repo", "Failed syncing my_errored_repo"],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(SyncErroredRepoFixture._fields),
+    SYNC_ERRORED_REPO_FIXTURES,
+    ids=[test.test_id for test in SYNC_ERRORED_REPO_FIXTURES],
+)
+def test_sync_errored_repo(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    user_path: pathlib.Path,
+    config_path: pathlib.Path,
+    git_repo: GitSync,
+    test_id: str,
+    sync_args: list[str],
+    expected_in_out: ExpectedOutput,
+    expected_not_in_out: ExpectedOutput,
+    expected_in_err: ExpectedOutput,
+    expected_not_in_err: ExpectedOutput,
+) -> None:
+    """Tests for syncing in vcspull when git operations fail (e.g. fetch error).
+
+    Unlike test_sync_broken which tests repos that can't be cloned at all,
+    this tests repos that clone successfully but then fail on subsequent sync
+    due to the remote becoming unreachable. Before SyncResult, these failures
+    were silently swallowed and reported as successful syncs.
+    """
+    github_projects = user_path / "github_projects"
+
+    from libvcs._internal.run import run as libvcs_run
+
+    # git_repo comes from libvcs pytest plugin — already has a valid remote
+    good_remote_url = f"git+file://{git_repo.path}"
+
+    # Create a bare remote for the errored repo, with an initial commit
+    # so that the clone + update_repo cycle succeeds on first sync.
+    errored_remote_dir = tmp_path / "errored_remote"
+    errored_remote_dir.mkdir()
+    libvcs_run(["git", "init", "--bare"], cwd=errored_remote_dir)
+
+    # Bootstrap the bare remote with a commit via a temporary clone
+    bootstrap_dir = tmp_path / "bootstrap"
+    libvcs_run(
+        ["git", "clone", str(errored_remote_dir), str(bootstrap_dir)],
+    )
+    (bootstrap_dir / "initial.txt").write_text("init", encoding="utf-8")
+    libvcs_run(["git", "add", "initial.txt"], cwd=bootstrap_dir)
+    libvcs_run(["git", "commit", "-m", "initial commit"], cwd=bootstrap_dir)
+    libvcs_run(["git", "push", "origin", "master"], cwd=bootstrap_dir)
+
+    # Add a second commit and push so we can create a "behind" state
+    (bootstrap_dir / "second.txt").write_text("second", encoding="utf-8")
+    libvcs_run(["git", "add", "second.txt"], cwd=bootstrap_dir)
+    libvcs_run(["git", "commit", "-m", "second commit"], cwd=bootstrap_dir)
+    libvcs_run(["git", "push", "origin", "master"], cwd=bootstrap_dir)
+    shutil.rmtree(bootstrap_dir)
+
+    errored_remote_url = f"git+file://{errored_remote_dir}"
+
+    config: dict[str, dict[str, dict[str, t.Any]]] = {
+        "~/github_projects/": {
+            "my_good_repo": {
+                "url": good_remote_url,
+                "remotes": {"origin": good_remote_url},
+            },
+            "my_errored_repo": {
+                "url": errored_remote_url,
+                "remotes": {"origin": errored_remote_url},
+            },
+        },
+    }
+    yaml_config = config_path / ".vcspull.yaml"
+    yaml_config.write_text(
+        yaml.dump(config, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # First sync: clone both repos successfully
+    for repo_name in ("my_good_repo", "my_errored_repo"):
+        repo_dir = github_projects / repo_name
+        if repo_dir.exists():
+            shutil.rmtree(repo_dir)
+    with contextlib.suppress(SystemExit):
+        cli(["sync", "my_good_repo", "my_errored_repo"])
+    capsys.readouterr()  # Discard initial sync output
+
+    # Reset the errored repo's local clone back one commit to create
+    # a "behind" state that will trigger a fetch on the next sync.
+    errored_repo_dir = github_projects / "my_errored_repo"
+    libvcs_run(["git", "reset", "--hard", "HEAD^"], cwd=errored_repo_dir)
+
+    # Delete the errored remote to cause fetch failure on next sync
+    shutil.rmtree(errored_remote_dir)
+
+    # Second sync: should show failure for errored repo
+    with contextlib.suppress(SystemExit):
+        cli(["sync", *sync_args])
+
+    result = capsys.readouterr()
+    out = "".join(list(result.out))
+    err = "".join(list(result.err))
+
+    if expected_in_out is not None:
+        if isinstance(expected_in_out, str):
+            expected_in_out = [expected_in_out]
+        for needle in expected_in_out:
+            assert needle in out, f"Expected {needle!r} in stdout: {out!r}"
+
+    if expected_not_in_out is not None:
+        if isinstance(expected_not_in_out, str):
+            expected_not_in_out = [expected_not_in_out]
+        for needle in expected_not_in_out:
+            assert needle not in out, f"Did not expect {needle!r} in stdout: {out!r}"
+
+    if expected_in_err is not None:
+        if isinstance(expected_in_err, str):
+            expected_in_err = [expected_in_err]
+        for needle in expected_in_err:
+            assert needle in err, f"Expected {needle!r} in stderr: {err!r}"
+
+    if expected_not_in_err is not None:
+        if isinstance(expected_not_in_err, str):
+            expected_not_in_err = [expected_not_in_err]
+        for needle in expected_not_in_err:
+            assert needle not in err, f"Did not expect {needle!r} in stderr: {err!r}"
+
+
 @pytest.mark.parametrize(
     list(CLINegativeFixture._fields),
     CLI_NEGATIVE_FIXTURES,

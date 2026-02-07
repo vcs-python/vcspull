@@ -829,6 +829,10 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
+class SyncFailedError(exc.VCSPullException):
+    """Raised when a sync operation completes but with errors."""
+
+
 def update_repo(
     repo_dict: t.Any,
     progress_callback: ProgressCallback | None = None,
@@ -851,7 +855,11 @@ def update_repo(
         repo_dict["vcs"] = vcs
 
     r = create_project(**repo_dict)  # Creates the repo object
-    r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
+    result = r.update_repo(set_remotes=True)  # Creates repo if not exists and fetches
+
+    if result is not None and not result.ok:
+        error_messages = "; ".join(e.message for e in result.errors)
+        raise SyncFailedError(error_messages)
 
     # TODO: Fix this
     return r  # type:ignore
