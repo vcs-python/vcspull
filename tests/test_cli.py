@@ -21,6 +21,8 @@ from vcspull.cli import cli
 from vcspull.cli._output import PlanAction, PlanEntry, PlanResult, PlanSummary
 from vcspull.cli.sync import EXIT_ON_ERROR_MSG, NO_REPOS_FOR_TERM_MSG
 
+from .helpers import write_config
+
 sync_module = importlib.import_module("vcspull.cli.sync")
 
 if t.TYPE_CHECKING:
@@ -104,8 +106,7 @@ def test_sync_cli_filter_non_existent(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config_data = yaml.dump(config, default_flow_style=False)
-    yaml_config.write_text(yaml_config_data, encoding="utf-8")
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -158,9 +159,7 @@ def test_sync_none_message_for_path_pattern(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False), encoding="utf-8"
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
     caplog.set_level(logging.INFO)
@@ -320,8 +319,7 @@ def test_sync(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config_data = yaml.dump(config, default_flow_style=False)
-    yaml_config.write_text(yaml_config_data, encoding="utf-8")
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     # CLI can sync
     exit_code = 0
@@ -478,8 +476,7 @@ def test_sync_broken(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config_data = yaml.dump(config, default_flow_style=False)
-    yaml_config.write_text(yaml_config_data, encoding="utf-8")
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     # CLI can sync
     assert isinstance(sync_args, list)
@@ -641,10 +638,7 @@ def test_sync_errored_repo(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -776,10 +770,7 @@ def test_sync_rev_branch_mismatch(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -873,10 +864,7 @@ def test_sync_ambiguous_branch_dir_name(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -1012,10 +1000,7 @@ def test_sync_errored_svn_repo(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -1151,10 +1136,7 @@ def test_sync_errored_hg_repo(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -1288,10 +1270,7 @@ def test_sync_all_repos_fail(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -1439,10 +1418,7 @@ def test_sync_cross_vcs_mixed_failure(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -1535,7 +1511,8 @@ def test_cli_negative_flows(
         (repo_dir / ".git").mkdir()
 
         config_file = tmp_path / "status.yaml"
-        config_file.write_text(
+        write_config(
+            config_file,
             yaml.dump(
                 {
                     "~/workspace/": {
@@ -1546,7 +1523,6 @@ def test_cli_negative_flows(
                     },
                 },
             ),
-            encoding="utf-8",
         )
 
         def _missing_git(
@@ -1706,10 +1682,7 @@ def test_sync_dry_run_plan_human(
         }
 
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -1900,10 +1873,7 @@ def test_sync_dry_run_plan_machine(
         }
 
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
@@ -2000,10 +1970,7 @@ def test_sync_dry_run_plan_progress(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False),
-        encoding="utf-8",
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
@@ -2049,9 +2016,7 @@ def test_sync_unmatched_pattern_counts_in_summary(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False), encoding="utf-8"
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
     caplog.set_level(logging.INFO)
@@ -2095,9 +2060,7 @@ def test_sync_all_patterns_unmatched_emits_summary(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False), encoding="utf-8"
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
     caplog.set_level(logging.INFO)
@@ -2142,9 +2105,7 @@ def test_sync_unmatched_pattern_no_duplicate_log(
         },
     }
     yaml_config = config_path / ".vcspull.yaml"
-    yaml_config.write_text(
-        yaml.dump(config, default_flow_style=False), encoding="utf-8"
-    )
+    write_config(yaml_config, yaml.dump(config, default_flow_style=False))
 
     monkeypatch.chdir(tmp_path)
 
