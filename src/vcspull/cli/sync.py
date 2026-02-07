@@ -699,10 +699,11 @@ def sync(
     if total_repos == 0:
         if unmatched_count > 0:
             summary = {
-                "total": unmatched_count,
+                "total": 0,
                 "synced": 0,
                 "previewed": 0,
-                "failed": unmatched_count,
+                "failed": 0,
+                "unmatched": unmatched_count,
             }
             _emit_summary(formatter, colors, summary)
         else:
@@ -715,10 +716,11 @@ def sync(
     is_human = formatter.mode == OutputMode.HUMAN
 
     summary = {
-        "total": unmatched_count,
+        "total": 0,
         "synced": 0,
         "previewed": 0,
-        "failed": unmatched_count,
+        "failed": 0,
+        "unmatched": unmatched_count,
     }
 
     progress_callback: ProgressCallback
@@ -813,13 +815,19 @@ def _emit_summary(
     """Emit the structured summary event and optional human-readable text."""
     formatter.emit({"reason": "summary", **summary})
     if formatter.mode == OutputMode.HUMAN:
-        formatter.emit_text(
+        parts = [
             f"\n{colors.info('Summary:')} "
             f"{summary['total']} repos, "
             f"{colors.success(str(summary['synced']))} synced, "
             f"{colors.warning(str(summary['previewed']))} previewed, "
             f"{colors.error(str(summary['failed']))} failed",
-        )
+        ]
+        unmatched = summary.get("unmatched", 0)
+        if unmatched > 0:
+            parts.append(
+                f", {colors.warning(str(unmatched))} unmatched",
+            )
+        formatter.emit_text("".join(parts))
 
 
 def progress_cb(output: str, timestamp: datetime) -> None:

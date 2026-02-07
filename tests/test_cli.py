@@ -2047,9 +2047,10 @@ def test_sync_unmatched_pattern_counts_in_summary(
     # The unmatched pattern should appear in the output
     assert "not_in_config" in output
 
-    # Summary should reflect the unmatched pattern as a failure
-    assert "1 failed" in output
+    # Summary should reflect the unmatched pattern separately
+    assert "1 unmatched" in output
     assert "1 synced" in output
+    assert "0 failed" in output
 
 
 def test_sync_all_patterns_unmatched_emits_summary(
@@ -2093,8 +2094,9 @@ def test_sync_all_patterns_unmatched_emits_summary(
     assert "not_in_config1" in output
     assert "not_in_config2" in output
 
-    # Summary should reflect both unmatched patterns as failures
-    assert "2 failed" in output
+    # Summary should reflect unmatched patterns separately
+    assert "2 unmatched" in output
+    assert "0 failed" in output
     assert "0 synced" in output
 
 
