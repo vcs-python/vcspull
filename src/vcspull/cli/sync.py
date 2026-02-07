@@ -860,6 +860,20 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
 class SyncFailedError(exc.VCSPullException):
     """Raised when a sync operation completes but with errors."""
 
+    def __init__(
+        self,
+        repo_name: str,
+        errors: str,
+        *args: object,
+        **kwargs: object,
+    ) -> None:
+        self.repo_name = repo_name
+        self.errors = errors
+        message = f"Sync failed for {repo_name}"
+        if errors:
+            message = f"{message}: {errors}"
+        super().__init__(message)
+
 
 def update_repo(
     repo_dict: t.Any,
@@ -890,7 +904,8 @@ def update_repo(
 
     if result is not None and not result.ok:
         error_messages = "; ".join(e.message for e in result.errors)
-        raise SyncFailedError(error_messages)
+        repo_name = str(repo_dict.get("name", repo_dict.get("url", "unknown")))
+        raise SyncFailedError(repo_name=repo_name, errors=error_messages)
 
     # TODO: Fix this
     return r  # type:ignore
