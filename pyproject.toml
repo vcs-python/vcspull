@@ -53,7 +53,7 @@ keywords = [
 ]
 homepage = "https://vcspull.git-pull.com"
 dependencies = [
-  "libvcs~=0.38.6",
+  "libvcs~=0.39.0",
   "colorama>=0.3.9",
   "PyYAML>=6.0"
 ]
@@ -142,9 +142,6 @@ typings = [
   "types-PyYAML",
   "types-colorama"
 ]
-
-[tool.uv.sources]
-libvcs = { git = "https://github.com/vcs-python/libvcs", branch = "errored-sync-behavior" }
 
 [build-system]
 requires = ["hatchling"]
