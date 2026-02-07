@@ -18,6 +18,8 @@ import pytest
 if t.TYPE_CHECKING:
     import pathlib
 
+pytest_plugins = ["pytester"]
+
 
 @pytest.fixture(autouse=True)
 def add_doctest_fixtures(
