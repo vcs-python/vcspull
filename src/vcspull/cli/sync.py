@@ -817,14 +817,18 @@ def _emit_summary(
     """Emit the structured summary event and optional human-readable text."""
     formatter.emit({"reason": "summary", **summary})
     if formatter.mode == OutputMode.HUMAN:
+        previewed = summary.get("previewed", 0)
+        unmatched = summary.get("unmatched", 0)
         parts = [
             f"\n{colors.info('Summary:')} "
             f"{summary['total']} repos, "
             f"{colors.success(str(summary['synced']))} synced, "
-            f"{colors.warning(str(summary['previewed']))} previewed, "
             f"{colors.error(str(summary['failed']))} failed",
         ]
-        unmatched = summary.get("unmatched", 0)
+        if previewed > 0:
+            parts.append(
+                f", {colors.warning(str(previewed))} previewed",
+            )
         if unmatched > 0:
             parts.append(
                 f", {colors.warning(str(unmatched))} unmatched",
