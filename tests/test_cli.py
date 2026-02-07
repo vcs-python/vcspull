@@ -7,6 +7,7 @@ import importlib
 import json
 import logging
 import pathlib
+import re
 import shutil
 import sys
 import typing as t
@@ -2051,7 +2052,6 @@ def test_sync_unmatched_pattern_counts_in_summary(
     assert "1 synced" in output
 
 
-@pytest.mark.xfail(strict=True)
 def test_sync_unmatched_pattern_no_duplicate_log(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
@@ -2060,16 +2060,12 @@ def test_sync_unmatched_pattern_no_duplicate_log(
     config_path: pathlib.Path,
     git_repo: GitSync,
 ) -> None:
-    """Unmatched patterns should produce exactly one user-facing message.
+    """Regression test: unmatched patterns produce exactly one message.
 
-    When ``vcspull sync my_git_project not_in_config`` is run, the output
-    currently shows two lines for the unmatched pattern::
-
-        No repo found in config(s) for "not_in_config"
-        ✗ No repo found in config(s) for "not_in_config"
-
-    The first line comes from ``log.info()`` and the second from
-    ``formatter.emit_text()``.  Only the styled ``✗`` line should appear.
+    Previously the unmatched-pattern path called both ``log.info()`` and
+    ``formatter.emit_text()``, producing duplicate output.  The
+    ``log.info()`` was downgraded to ``log.debug()`` so only the styled
+    ``✗`` line is visible to the user.
     """
     config = {
         "~/github_projects/": {
@@ -2093,8 +2089,6 @@ def test_sync_unmatched_pattern_no_duplicate_log(
     out = result.out
 
     # Strip ANSI codes for counting
-    import re
-
     plain = re.sub(r"\x1b\[[0-9;]*m", "", out)
 
     # The "No repo found" message should appear exactly once (the styled ✗ line)
