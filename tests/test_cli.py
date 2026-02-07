@@ -14,6 +14,10 @@ import typing as t
 
 import pytest
 import yaml
+from libvcs.pytest_plugin import (
+    hg_remote_repo_single_commit_post_init,
+    svn_remote_repo_single_commit_post_init,
+)
 
 from vcspull.__about__ import __version__
 from vcspull._internal.private_path import PrivatePath
@@ -28,6 +32,7 @@ sync_module = importlib.import_module("vcspull.cli.sync")
 if t.TYPE_CHECKING:
     from typing import TypeAlias
 
+    from libvcs.pytest_plugin import CreateRepoPytestFixtureFn
     from libvcs.sync.git import GitSync
 
     ExpectedOutput: TypeAlias = str | list[str] | None
@@ -935,8 +940,6 @@ SYNC_ERRORED_SVN_REPO_FIXTURES: list[SyncErroredSvnRepoFixture] = [
 ]
 
 
-@pytest.mark.skipif(not shutil.which("svn"), reason="svn not installed")
-@pytest.mark.skipif(not shutil.which("svnadmin"), reason="svnadmin not installed")
 @pytest.mark.parametrize(
     list(SyncErroredSvnRepoFixture._fields),
     SYNC_ERRORED_SVN_REPO_FIXTURES,
@@ -948,6 +951,7 @@ def test_sync_errored_svn_repo(
     monkeypatch: pytest.MonkeyPatch,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
+    create_svn_remote_repo: CreateRepoPytestFixtureFn,
     test_id: str,
     sync_args: list[str],
     expected_in_out: ExpectedOutput,
@@ -961,35 +965,11 @@ def test_sync_errored_svn_repo(
     then deletes the SVN repository and verifies that the next sync
     reports the failure instead of silently succeeding.
     """
-    import subprocess
-
-    # Create an SVN repository
-    svn_remote_dir = tmp_path / "svn_remote"
-    subprocess.run(
-        ["svnadmin", "create", str(svn_remote_dir)],
-        check=True,
-        capture_output=True,
+    # Use libvcs factory fixture to create an SVN remote with initial content
+    svn_remote_dir = create_svn_remote_repo(
+        remote_repo_post_init=svn_remote_repo_single_commit_post_init,
     )
-
-    # Import initial content into the SVN repo
-    import_dir = tmp_path / "svn_import"
-    import_dir.mkdir()
-    (import_dir / "initial.txt").write_text("init", encoding="utf-8")
-    subprocess.run(
-        [
-            "svn",
-            "import",
-            str(import_dir),
-            f"file://{svn_remote_dir}/trunk",
-            "-m",
-            "initial import",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    shutil.rmtree(import_dir)
-
-    svn_url = f"svn+file://{svn_remote_dir}/trunk"
+    svn_url = f"svn+file://{svn_remote_dir}"
 
     github_projects = user_path / "github_projects"
     config: dict[str, dict[str, dict[str, t.Any]]] = {
@@ -1076,7 +1056,6 @@ SYNC_ERRORED_HG_REPO_FIXTURES: list[SyncErroredHgRepoFixture] = [
 ]
 
 
-@pytest.mark.skipif(not shutil.which("hg"), reason="hg not installed")
 @pytest.mark.parametrize(
     list(SyncErroredHgRepoFixture._fields),
     SYNC_ERRORED_HG_REPO_FIXTURES,
@@ -1088,6 +1067,7 @@ def test_sync_errored_hg_repo(
     monkeypatch: pytest.MonkeyPatch,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
+    create_hg_remote_repo: CreateRepoPytestFixtureFn,
     test_id: str,
     sync_args: list[str],
     expected_in_out: ExpectedOutput,
@@ -1101,30 +1081,10 @@ def test_sync_errored_hg_repo(
     then deletes the repository and verifies that the next sync
     reports the failure instead of silently succeeding.
     """
-    import subprocess
-
-    monkeypatch.setenv("HGUSER", "Test User <test@test.com>")
-
-    # Create an HG repository
-    hg_remote_dir = tmp_path / "hg_remote"
-    hg_remote_dir.mkdir()
-    subprocess.run(["hg", "init"], cwd=hg_remote_dir, check=True, capture_output=True)
-
-    # Add initial content
-    (hg_remote_dir / "initial.txt").write_text("init", encoding="utf-8")
-    subprocess.run(
-        ["hg", "add", "initial.txt"],
-        cwd=hg_remote_dir,
-        check=True,
-        capture_output=True,
+    # Use libvcs factory fixture to create an HG remote with initial content
+    hg_remote_dir = create_hg_remote_repo(
+        remote_repo_post_init=hg_remote_repo_single_commit_post_init,
     )
-    subprocess.run(
-        ["hg", "commit", "-m", "initial commit"],
-        cwd=hg_remote_dir,
-        check=True,
-        capture_output=True,
-    )
-
     hg_url = f"hg+file://{hg_remote_dir}"
 
     github_projects = user_path / "github_projects"
