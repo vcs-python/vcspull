@@ -183,8 +183,8 @@ def test_sync_none_message_for_path_pattern(
     assert '"None"' not in output
 
 
-class SyncFixture(t.NamedTuple):
-    """Pytest fixture for vcspull sync."""
+class CLIFixture(t.NamedTuple):
+    """Pytest fixture for vcspull CLI subcommands."""
 
     # pytest internal: used for naming test
     test_id: str
@@ -198,70 +198,70 @@ class SyncFixture(t.NamedTuple):
     expected_not_in_err: ExpectedOutput = None
 
 
-SYNC_REPO_FIXTURES: list[SyncFixture] = [
+CLI_FIXTURES: list[CLIFixture] = [
     # Empty (root command)
-    SyncFixture(
+    CLIFixture(
         test_id="empty",
         sync_args=[],
         expected_exit_code=0,
         expected_in_out=["{sync", "positional arguments:"],
     ),
     # Version
-    SyncFixture(
+    CLIFixture(
         test_id="--version",
         sync_args=["--version"],
         expected_exit_code=0,
         expected_in_out=[__version__, ", libvcs"],
     ),
-    SyncFixture(
+    CLIFixture(
         test_id="-V",
         sync_args=["-V"],
         expected_exit_code=0,
         expected_in_out=[__version__, ", libvcs"],
     ),
     # Help
-    SyncFixture(
+    CLIFixture(
         test_id="--help",
         sync_args=["--help"],
         expected_exit_code=0,
         expected_in_out=["{sync", "positional arguments:"],
     ),
-    SyncFixture(
+    CLIFixture(
         test_id="-h",
         sync_args=["-h"],
         expected_exit_code=0,
         expected_in_out=["{sync", "positional arguments:"],
     ),
     # Sync: No args shows help
-    SyncFixture(
+    CLIFixture(
         test_id="sync--empty",
         sync_args=["sync"],
         expected_exit_code=0,
         expected_in_out=["--all", "--dry-run", "Synchronize VCS repositories"],
     ),
     # Sync: --all syncs all repos
-    SyncFixture(
+    CLIFixture(
         test_id="sync--all",
         sync_args=["sync", "--all"],
         expected_exit_code=0,
         expected_in_out="my_git_repo",
     ),
     # Sync: --all with patterns emits warning
-    SyncFixture(
+    CLIFixture(
         test_id="sync--all-with-patterns",
         sync_args=["sync", "--all", "my_git_repo"],
         expected_exit_code=0,
         expected_in_out=["my_git_repo", "--all flag ignores positional patterns"],
     ),
     # Sync: Help
-    SyncFixture(
+    CLIFixture(
         test_id="sync---help",
         sync_args=["sync", "--help"],
         expected_exit_code=0,
         expected_in_out=["filter", "--exit-on-error"],
         expected_not_in_out="--version",
     ),
-    SyncFixture(
+    CLIFixture(
         test_id="sync--h",
         sync_args=["sync", "-h"],
         expected_exit_code=0,
@@ -269,28 +269,28 @@ SYNC_REPO_FIXTURES: list[SyncFixture] = [
         expected_not_in_out="--version",
     ),
     # Sync: Repo terms
-    SyncFixture(
+    CLIFixture(
         test_id="sync--one-repo-term",
         sync_args=["sync", "my_git_repo"],
         expected_exit_code=0,
         expected_in_out="my_git_repo",
     ),
     # Search: No args shows help
-    SyncFixture(
+    CLIFixture(
         test_id="search--empty",
         sync_args=["search"],
         expected_exit_code=0,
         expected_in_out=["search query terms", "--ignore-case"],
     ),
     # Add: No args shows help
-    SyncFixture(
+    CLIFixture(
         test_id="add--empty",
         sync_args=["add"],
         expected_exit_code=0,
         expected_in_out=["Filesystem path", "--workspace"],
     ),
     # Discover: No args shows help
-    SyncFixture(
+    CLIFixture(
         test_id="discover--empty",
         sync_args=["discover"],
         expected_exit_code=0,
@@ -328,11 +328,11 @@ CLI_NEGATIVE_FIXTURES: list[CLINegativeFixture] = [
 
 
 @pytest.mark.parametrize(
-    list(SyncFixture._fields),
-    SYNC_REPO_FIXTURES,
-    ids=[test.test_id for test in SYNC_REPO_FIXTURES],
+    list(CLIFixture._fields),
+    CLI_FIXTURES,
+    ids=[test.test_id for test in CLI_FIXTURES],
 )
-def test_sync(
+def test_cli_subcommands(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
@@ -347,7 +347,7 @@ def test_sync(
     expected_in_err: ExpectedOutput,
     expected_not_in_err: ExpectedOutput,
 ) -> None:
-    """Tests for vcspull sync."""
+    """Tests for vcspull CLI subcommands."""
     config = {
         "~/github_projects/": {
             "my_git_repo": {
