@@ -257,7 +257,19 @@ class CodeCommitImporter:
         account_id = data.get("accountId", "")
 
         # Build console URL
-        region = self._region or "us-east-1"
+        region = self._region
+        if not region:
+            # Extract region from clone URL
+            # (format: https://git-codecommit.{region}.amazonaws.com/...)
+            clone_http = data.get("cloneUrlHttp", "")
+            if "git-codecommit." in clone_http:
+                region = clone_http.split("git-codecommit.")[1].split(".")[0]
+            else:
+                region = "us-east-1"
+                log.debug(
+                    "Could not determine region, defaulting to %s for console URL",
+                    region,
+                )
         html_url = (
             f"https://{region}.console.aws.amazon.com/codesuite/codecommit/"
             f"repositories/{repo_name}/browse"
