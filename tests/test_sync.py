@@ -169,7 +169,8 @@ def test_config_variations(
     assert len(repos) == 1
 
     for repo_dict in repos:
-        repo: GitSync = update_repo(repo_dict)
+        repo = update_repo(repo_dict)
+        assert isinstance(repo, GitSync)
         remotes = repo.remotes() or {}
         remote_names = set(remotes.keys())
         assert set(remote_list).issubset(remote_names) or {"origin"}.issubset(
@@ -288,7 +289,9 @@ def test_updating_remote(
     for repo_dict in filter_repos(
         [initial_config],
     ):
-        local_git_remotes = update_repo(repo_dict).remotes()
+        synced = update_repo(repo_dict)
+        assert isinstance(synced, GitSync)
+        local_git_remotes = synced.remotes()
         assert "origin" in local_git_remotes
 
     expected_remote_url = f"git+file://{mirror_repo}"
@@ -304,6 +307,7 @@ def test_updating_remote(
     repo_dict = filter_repos([expected_config], name="myclone")[0]
     assert isinstance(repo_dict, dict)
     repo = update_repo(repo_dict)
+    assert isinstance(repo, GitSync)
     for remote_name in repo.remotes():
         remote = repo.remote(remote_name)
         if remote is not None:

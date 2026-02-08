@@ -22,6 +22,8 @@ from time import perf_counter
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitSync
+from libvcs.sync.hg import HgSync
+from libvcs.sync.svn import SvnSync
 from libvcs.url import registry as url_tools
 
 from vcspull import exc
@@ -918,7 +920,7 @@ def update_repo(
     repo_dict: t.Any,
     progress_callback: ProgressCallback | None = None,
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
-) -> GitSync:
+) -> GitSync | HgSync | SvnSync:
     """Synchronize a single repository."""
     repo_dict = deepcopy(repo_dict)
     if "pip_url" not in repo_dict:
@@ -935,7 +937,7 @@ def update_repo(
 
         repo_dict["vcs"] = vcs
 
-    r = create_project(**repo_dict)  # Creates the repo object
+    r: GitSync | HgSync | SvnSync = create_project(**repo_dict)
     if repo_dict.get("vcs") == "git":
         result = r.update_repo(set_remotes=True)
     else:
@@ -946,5 +948,4 @@ def update_repo(
         repo_name = str(repo_dict.get("name", repo_dict.get("url", "unknown")))
         raise SyncFailedError(repo_name=repo_name, errors=error_messages)
 
-    # TODO: Fix this
-    return r  # type:ignore
+    return r
