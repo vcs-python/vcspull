@@ -33,6 +33,17 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Breaking changes
+
+#### cli(sync): Route dry-run JSON through OutputFormatter (#514)
+
+JSON dry-run output bypassed `OutputFormatter`, producing a nested
+workspace schema instead of the flat array used by other commands.
+Dry-run JSON and NDJSON now use the same `formatter.emit()` path.
+
+- Dry-run `--json` output is now a flat array of plan entries, matching
+  the schema of `sync --json` and `status --json`
+
 ### What's new
 
 #### cli(_formatter): Add `_HelpTheme` protocol for argparse colorization (#514)
@@ -56,15 +67,6 @@ were counted as dirty in the status summary.
   correctly
 - Use identity checks (`is True` / `is False`) instead of truthiness
   for `clean`, excluding non-git repos from clean/dirty counts
-
-#### cli(sync): Route dry-run JSON through OutputFormatter (#514)
-
-JSON dry-run output bypassed `OutputFormatter`, producing a nested
-workspace schema instead of the flat array used by other commands.
-Dry-run JSON and NDJSON now use the same `formatter.emit()` path.
-
-- Dry-run `--json` output is now a flat array of plan entries, matching
-  the schema of `sync --json` and `status --json`
 
 #### cli(sync): Deduplicate repos matched by multiple patterns (#514)
 
