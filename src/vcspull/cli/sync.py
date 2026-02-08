@@ -638,6 +638,10 @@ def sync(
     if not repo_patterns and not sync_all:
         if parser is not None:
             parser.print_help()
+        else:
+            log.warning(
+                "sync() called with no repo patterns and no --all flag; nothing to do",
+            )
         return
 
     output_mode = get_output_mode(output_json, output_ndjson)

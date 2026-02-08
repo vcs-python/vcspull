@@ -412,6 +412,36 @@ def test_sync(
             assert needle not in err
 
 
+def test_sync_no_patterns_no_parser_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Calling sync() programmatically with no patterns/--all/parser should warn."""
+    from vcspull.cli.sync import sync
+
+    with caplog.at_level(logging.WARNING, logger="vcspull.cli.sync"):
+        sync(
+            repo_patterns=[],
+            config=None,
+            workspace_root=None,
+            dry_run=False,
+            output_json=False,
+            output_ndjson=False,
+            color="never",
+            exit_on_error=False,
+            show_unchanged=False,
+            summary_only=False,
+            long_view=False,
+            relative_paths=False,
+            fetch=False,
+            offline=False,
+            verbosity=0,
+            sync_all=False,
+            parser=None,
+        )
+
+    assert any("nothing to do" in record.message for record in caplog.records)
+
+
 class SyncBrokenFixture(t.NamedTuple):
     """Tests for vcspull  sync when something breaks."""
 
