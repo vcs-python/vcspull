@@ -289,7 +289,7 @@ class GiteaImporter:
             html_url=data.get("html_url", ""),
             description=data.get("description"),
             language=data.get("language"),
-            topics=tuple(data.get("topics", [])),
+            topics=tuple(data.get("topics") or []),
             stars=data.get("stars_count", 0),  # Note: Gitea uses stars_count
             is_fork=data.get("fork", False),
             is_archived=data.get("archived", False),

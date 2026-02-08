@@ -278,7 +278,7 @@ class GitHubImporter:
             html_url=data["html_url"],
             description=data.get("description"),
             language=data.get("language"),
-            topics=tuple(data.get("topics", [])),
+            topics=tuple(data.get("topics") or []),
             stars=data.get("stargazers_count", 0),
             is_fork=data.get("fork", False),
             is_archived=data.get("archived", False),

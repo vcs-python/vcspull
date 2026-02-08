@@ -271,6 +271,38 @@ def test_gitlab_deeply_nested_subgroup(
     assert repos[0].name == "deep-project"
 
 
+def test_gitlab_handles_null_topics(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test GitLab handles null topics in API response.
+
+    GitLab API can return "topics": null instead of an empty array.
+    dict.get("topics", []) returns None when the key exists with null value,
+    causing tuple(None) to crash with TypeError.
+    """
+    response_json = [
+        {
+            "path": "null-topics-project",
+            "name": "Null Topics Project",
+            "http_url_to_repo": "https://gitlab.com/user/null-topics-project.git",
+            "ssh_url_to_repo": "git@gitlab.com:user/null-topics-project.git",
+            "web_url": "https://gitlab.com/user/null-topics-project",
+            "description": "Project with null topics",
+            "topics": None,
+            "star_count": 10,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "user"},
+        }
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="user")
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 1
+    assert repos[0].topics == ()
+
+
 def test_gitlab_archived_param_omitted_when_including(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -154,6 +154,39 @@ def test_gitea_uses_stars_count_field(
     assert repos[0].stars == 500
 
 
+def test_gitea_handles_null_topics(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test Gitea handles null topics in API response.
+
+    Gitea API can return "topics": null instead of an empty array.
+    dict.get("topics", []) returns None when the key exists with null value,
+    causing tuple(None) to crash with TypeError.
+    """
+    response_json = [
+        {
+            "name": "null-topics-repo",
+            "clone_url": "https://codeberg.org/user/null-topics-repo.git",
+            "ssh_url": "git@codeberg.org:user/null-topics-repo.git",
+            "html_url": "https://codeberg.org/user/null-topics-repo",
+            "description": "Repo with null topics",
+            "language": "Python",
+            "topics": None,
+            "stars_count": 10,
+            "fork": False,
+            "archived": False,
+            "default_branch": "main",
+            "owner": {"login": "user"},
+        }
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+    importer = GiteaImporter(base_url="https://codeberg.org")
+    options = ImportOptions(mode=ImportMode.USER, target="user")
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 1
+    assert repos[0].topics == ()
+
+
 def test_gitea_filters_by_language(
     mock_urlopen: t.Callable[..., None],
 ) -> None:

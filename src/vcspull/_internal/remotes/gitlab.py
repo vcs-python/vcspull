@@ -300,7 +300,7 @@ class GitLabImporter:
             html_url=data.get("web_url", ""),
             description=data.get("description"),
             language=None,  # GitLab doesn't return language in list endpoints
-            topics=tuple(data.get("topics", data.get("tag_list", []))),
+            topics=tuple(data.get("topics") or data.get("tag_list") or []),
             stars=data.get("star_count", 0),
             is_fork=is_fork,
             is_archived=data.get("archived", False),
