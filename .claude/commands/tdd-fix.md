@@ -5,7 +5,7 @@ argument-hint: Paste or describe the bug to reproduce and fix
 
 # TDD Bug-Fix Workflow
 
-You are an expert test engineer performing a disciplined TDD bug-fix loop on the vcspull project (and its dependency libvcs when needed). Follow this workflow precisely for every bug.
+You are an expert test engineer performing a disciplined TDD bug-fix loop on this project. Follow this workflow precisely for every bug.
 
 Initial bug report: $ARGUMENTS
 
@@ -23,7 +23,7 @@ Initial bug report: $ARGUMENTS
    - **Trigger conditions**: What inputs, configuration, or state reproduce it
    - **Affected component**: Which module/function is involved
 3. Use Explore agents to find the relevant source code and existing tests:
-   - The test file that covers this area (likely `tests/test_cli.py` or a file in the libvcs `tests/` tree)
+   - The test file that covers this area
    - The source file with the suspected bug
    - Any existing fixtures that can help reproduce the scenario
 4. Read the identified files to understand current behavior
@@ -35,13 +35,12 @@ Initial bug report: $ARGUMENTS
 
 **Goal**: Create a test that reproduces the bug and is expected to fail.
 
-**CRITICAL RULES** (from AGENTS.md):
+**CRITICAL RULES** (from AGENTS.md/CLAUDE.md/GEMINI.md):
 - Write **functional tests only** -- standalone `test_*` functions, NOT classes
 - Use `typing.NamedTuple` for parameterized tests when appropriate
 - Use `from __future__ import annotations` at top of file
 - Use `import typing as t` namespace style for stdlib
-- Leverage libvcs fixtures: `create_git_remote_repo`, `git_repo`, `set_home`, etc.
-- Use project helpers like `write_config` or `save_config_yaml` for config files
+- Leverage project-specific fixtures from conftest.py
 - Document every mock with comments explaining WHAT is being mocked and WHY
 
 **Actions**:
@@ -87,16 +86,16 @@ Initial bug report: $ARGUMENTS
 1. Read the source code path exercised by the test
 2. Add temporary debug logging if needed (but track it for cleanup)
 3. Identify the root cause -- the specific line(s) or logic gap
-4. If the bug spans two repos (vcspull + libvcs):
-   - Note which repo each change belongs to
-   - Check that libvcs is installed as editable from local source:
+4. If the bug spans multiple packages (this project + a dependency):
+   - Note which package each change belongs to
+   - Check that the dependency is installed as editable from local source:
      ```
-     uv run python -c "import libvcs; print(libvcs.__file__)"
+     uv run python -c "import <dep>; print(<dep>.__file__)"
      ```
    - If it points to `.venv/lib/.../site-packages/`, the editable install is stale -- fix it:
      ```
-     # In vcspull's pyproject.toml [tool.uv.sources]:
-     # Temporarily use: libvcs = { path = "/path/to/libvcs", editable = true }
+     # In pyproject.toml [tool.uv.sources]:
+     # Temporarily use: <dep> = { path = "/path/to/<dep>", editable = true }
      # Then: uv lock && uv sync
      ```
 5. Document the root cause clearly
@@ -210,18 +209,18 @@ Initial bug report: $ARGUMENTS
 
 ---
 
-## Cross-Repo Workflow (vcspull + libvcs)
+## Cross-Dependency Workflow
 
-When the bug involves both repos:
+When the bug involves both this project and a dependency:
 
-1. **libvcs changes first**: Fix the underlying library
-2. **Commit in libvcs**: Use the same commit style
-3. **Verify libvcs tests**:
+1. **Dependency changes first**: Fix the underlying library
+2. **Commit in the dependency**: Use the same commit style
+3. **Verify dependency tests**:
    ```
-   cd /path/to/libvcs && uv run pytest tests/ -q
+   cd /path/to/<dep> && uv run pytest tests/ -q
    ```
-4. **Update vcspull's libvcs reference**: Ensure vcspull uses the fixed libvcs
-5. **Then fix/test in vcspull**
+4. **Update this project's dependency reference**: Ensure this project uses the fixed dependency
+5. **Then fix/test in this project**
 
 **IMPORTANT**: `uv run` enforces the lockfile. If `[tool.uv.sources]` points to a git remote, `uv run` will overwrite any local `uv pip install -e`. To develop across repos simultaneously, temporarily change `[tool.uv.sources]` to a local path.
 

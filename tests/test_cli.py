@@ -16,6 +16,8 @@ import pytest
 import yaml
 from libvcs.pytest_plugin import (
     hg_remote_repo_single_commit_post_init,
+    skip_if_hg_missing,
+    skip_if_svn_missing,
     svn_remote_repo_single_commit_post_init,
 )
 
@@ -940,6 +942,7 @@ SYNC_ERRORED_SVN_REPO_FIXTURES: list[SyncErroredSvnRepoFixture] = [
 ]
 
 
+@skip_if_svn_missing
 @pytest.mark.parametrize(
     list(SyncErroredSvnRepoFixture._fields),
     SYNC_ERRORED_SVN_REPO_FIXTURES,
@@ -1056,6 +1059,7 @@ SYNC_ERRORED_HG_REPO_FIXTURES: list[SyncErroredHgRepoFixture] = [
 ]
 
 
+@skip_if_hg_missing
 @pytest.mark.parametrize(
     list(SyncErroredHgRepoFixture._fields),
     SYNC_ERRORED_HG_REPO_FIXTURES,
