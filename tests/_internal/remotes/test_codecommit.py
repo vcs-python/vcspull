@@ -99,7 +99,7 @@ def test_build_aws_command_no_flags(monkeypatch: pytest.MonkeyPatch) -> None:
 
     importer = CodeCommitImporter()
     result = importer._build_aws_command("codecommit", "list-repositories")
-    assert result == ["aws", "codecommit", "list-repositories"]
+    assert result == ["aws", "--output", "json", "codecommit", "list-repositories"]
 
 
 def test_build_aws_command_with_region(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -110,6 +110,8 @@ def test_build_aws_command_with_region(monkeypatch: pytest.MonkeyPatch) -> None:
     result = importer._build_aws_command("codecommit", "list-repositories")
     assert result == [
         "aws",
+        "--output",
+        "json",
         "--region",
         "eu-west-1",
         "codecommit",
@@ -125,6 +127,8 @@ def test_build_aws_command_with_profile(monkeypatch: pytest.MonkeyPatch) -> None
     result = importer._build_aws_command("codecommit", "list-repositories")
     assert result == [
         "aws",
+        "--output",
+        "json",
         "--profile",
         "myprofile",
         "codecommit",
@@ -142,6 +146,8 @@ def test_build_aws_command_with_region_and_profile(
     result = importer._build_aws_command("sts", "get-caller-identity")
     assert result == [
         "aws",
+        "--output",
+        "json",
         "--region",
         "ap-south-1",
         "--profile",

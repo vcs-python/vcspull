@@ -90,7 +90,7 @@ class CodeCommitImporter:
         list[str]
             Complete command list
         """
-        cmd = ["aws"]
+        cmd = ["aws", "--output", "json"]
         if self._region:
             cmd.extend(["--region", self._region])
         if self._profile:
