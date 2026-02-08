@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
-import json
 import logging
 import os
 import pathlib
@@ -491,14 +490,9 @@ def _emit_plan_output(
         show_unchanged=render_options.show_unchanged,
     )
 
-    if formatter.mode == OutputMode.NDJSON:
-        for entry in display_entries:
-            formatter.emit(entry)
-        formatter.emit(plan.summary)
-        return
-    structured = PlanResult(entries=display_entries, summary=plan.summary)
-    sys.stdout.write(json.dumps(structured.to_json_object(), indent=2) + "\n")
-    sys.stdout.flush()
+    for entry in display_entries:
+        formatter.emit(entry)
+    formatter.emit(plan.summary)
 
 
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

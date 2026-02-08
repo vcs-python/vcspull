@@ -1977,36 +1977,31 @@ def test_sync_dry_run_plan_machine(
     captured = capsys.readouterr()
 
     if mode == "json":
-        payload = json.loads(captured.out)
-        summary = payload["summary"]
+        # JSON mode: flat array of entries followed by summary
+        events = json.loads(captured.out)
+        assert isinstance(events, list), "Expected JSON array"
+        summary = events[-1]
     else:
         events = [
             json.loads(line) for line in captured.out.splitlines() if line.strip()
         ]
         assert events, "Expected NDJSON payload"
         summary = events[-1]
-        if expected_operation_subset:
-            operation_payload = next(
-                (event for event in events if event.get("type") == "operation"),
-                None,
-            )
-            assert operation_payload is not None
-            for key, value in expected_operation_subset.items():
-                assert operation_payload[key] == value
+
+    if expected_operation_subset:
+        operation_payload = next(
+            (event for event in events if event.get("type") == "operation"),
+            None,
+        )
+        assert operation_payload is not None
+        for key, value in expected_operation_subset.items():
+            assert operation_payload[key] == value
 
     assert summary["clone"] == expected_summary["clone"]
     assert summary["update"] == expected_summary["update"]
     assert summary["unchanged"] == expected_summary["unchanged"]
     assert summary["blocked"] == expected_summary["blocked"]
     assert summary["errors"] == expected_summary["errors"]
-
-    if mode == "json" and expected_operation_subset:
-        operations: list[dict[str, t.Any]] = []
-        for workspace in payload["workspaces"]:
-            operations.extend(workspace["operations"])
-        assert operations, "Expected at least one operation payload"
-        for key, value in expected_operation_subset.items():
-            assert operations[0][key] == value
 
 
 def test_sync_dry_run_plan_progress(
