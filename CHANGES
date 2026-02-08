@@ -33,6 +33,22 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Tests
+
+#### conftest: Fix test failures in clean build environments (#513)
+
+Tests now pass in environments without a global git identity (e.g. Arch
+Linux nspawn containers with Python 3.14). The autouse `setup` fixture
+sets `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, and
+`GIT_COMMITTER_EMAIL` as environment variables so subprocesses inherit
+git identity regardless of `~/.gitconfig` resolution.
+
+- Add `@skip_if_hg_missing` / `@skip_if_svn_missing` markers directly on
+  test functions where libvcs fixture-level markers don't propagate
+  reliably under `asyncio_mode = "auto"`
+- Add pytester-based harness tests that validate fixture infrastructure
+  in isolated subprocess environments
+
 ## vcspull v1.52.0 (2026-02-07)
 
 ### Breaking changes
