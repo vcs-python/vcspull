@@ -393,6 +393,7 @@ def discover_repos(
             cwd=cwd,
         )
 
+    # TODO(#discover-non-git): Also scan for .hg and .svn repositories
     if recursive:
         for root, dirs, _ in os.walk(scan_dir):
             if ".git" in dirs:
