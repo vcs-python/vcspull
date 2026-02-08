@@ -33,6 +33,76 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### cli(_formatter): Add `_HelpTheme` protocol for argparse colorization (#514)
+
+Add a typed protocol documenting the CPython 3.14+ argparse theme
+attributes consumed by `VcspullHelpFormatter`. The formatter hooks into
+`_theme` to colorize example command blocks in help text, applying
+distinct colors to program names, subcommands, and options.
+
+### Bug fixes
+
+#### cli(status): Fix false "up to date" and phantom dirty counts (#514)
+
+`check_repo_status` initialized `ahead`/`behind` to `0` instead of
+`None` when no upstream is tracked, causing `_determine_plan_action`
+to report repos as "up to date" when the remote state was actually
+unknown. Additionally, non-git directories (where `clean` is `None`)
+were counted as dirty in the status summary.
+
+- Initialize `ahead`/`behind` as `None` so missing upstream propagates
+  correctly
+- Use identity checks (`is True` / `is False`) instead of truthiness
+  for `clean`, excluding non-git repos from clean/dirty counts
+
+#### cli(sync): Route dry-run JSON through OutputFormatter (#514)
+
+JSON dry-run output bypassed `OutputFormatter`, producing a nested
+workspace schema instead of the flat array used by other commands.
+Dry-run JSON and NDJSON now use the same `formatter.emit()` path.
+
+- Dry-run `--json` output is now a flat array of plan entries, matching
+  the schema of `sync --json` and `status --json`
+
+#### cli(sync): Deduplicate repos matched by multiple patterns (#514)
+
+When multiple patterns matched the same repository (e.g. `"myrepo"`
+and `"*"`), the repo was synced multiple times. Repos are now
+deduplicated by path after pattern matching.
+
+#### cli(sync): Report non-git repos as UPDATE in dry-run plan (#514)
+
+`_determine_plan_action` blocked non-git repos in dry-run output even
+though `update_repo` supports SVN and Mercurial via `create_project()`.
+Non-git repos now show `UPDATE` with a "non-git VCS" detail instead of
+`BLOCKED`.
+
+#### cli(sync): Widen `update_repo` return type (#514)
+
+Return type was annotated as `GitSync` but `create_project()` returns
+`GitSync | HgSync | SvnSync`. The annotation now matches the actual
+return type.
+
+#### cli(_formatter): Complete option classification for help colorization (#514)
+
+The help formatter's option sets were missing several flags (`-d`,
+`-x`, `-V`, `--fetch`, `--offline`, `--verbose`, etc.) and
+value-expecting options (`--max-concurrent`, `--name`, `--url`),
+causing tokens following those options to be misclassified in colorized
+help output.
+
+### Documentation
+
+- Update sync examples in README and quickstart to use `--all`, matching
+  the v1.53.0 CLI change (#514)
+
+### Tests
+
+- Add SVN and Mercurial tests for `update_repo` to verify non-git VCS
+  paths (#514)
+
 ## vcspull v1.53.0 (2026-02-08)
 
 ### What's new
