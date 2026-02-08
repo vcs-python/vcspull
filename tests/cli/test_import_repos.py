@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import pathlib
+import subprocess
 import sys
 import typing as t
 
@@ -227,8 +228,18 @@ def test_get_importer(
     profile: str | None,
     expected_type_name: str,
     expected_error: str | None,
+    monkeypatch: MonkeyPatch,
 ) -> None:
     """Test _get_importer creates the correct importer type."""
+    # Mock subprocess.run for CodeCommit tests (aws --version check)
+    if service in ("codecommit", "cc", "aws"):
+        monkeypatch.setattr(
+            "subprocess.run",
+            lambda cmd, **kwargs: subprocess.CompletedProcess(
+                cmd, 0, stdout="aws-cli/2.x", stderr=""
+            ),
+        )
+
     if expected_error:
         with pytest.raises(ValueError, match=expected_error):
             _get_importer(
