@@ -1,9 +1,9 @@
 ---
-description: Process multi-model code review findings — validate, add test coverage, fix, and commit each as atomic changes
+description: Fix multi-model review findings — validate, add test coverage, fix, and commit each as atomic changes
 allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git add:*), Bash(git commit:*), Bash(git checkout:*), Bash(uv run ruff:*), Bash(uv run mypy:*), Bash(uv run py.test:*), Bash(uv run pytest:*), Read, Grep, Glob, Edit, Write, Task
 ---
 
-# Solve Review Findings
+# Fix Review Findings
 
 Process multi-model code review findings from the conversation context. Validate each finding independently against the actual codebase and project conventions, add test coverage where applicable, apply fixes as separate atomic commits, and ensure all quality gates pass before each commit.
 
@@ -15,7 +15,7 @@ Process multi-model code review findings from the conversation context. Validate
 
 **Actions**:
 
-1. **Locate the review report** in the conversation context (output from `/multi-model:review`)
+1. **Locate the review report** in the conversation context (output from `/multi-model:review` or similar)
 
 2. **Extract each finding** into a numbered list with:
    - **Consensus level**: how many reviewers flagged it (3, 2, or 1)
