@@ -80,7 +80,7 @@ class GitLabImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -109,7 +109,7 @@ class GitLabImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -126,7 +126,7 @@ class GitLabImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -146,7 +146,7 @@ class GitLabImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -217,7 +217,7 @@ class GitLabImporter:
         endpoint : str
             API endpoint
         options : ImportOptions
-            Scraping options
+            Import options
         include_subgroups : bool
             Whether to include projects from subgroups
 

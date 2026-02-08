@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 class ImportMode(enum.Enum):
-    """Scraping mode for remote services."""
+    """Import mode for remote services."""
 
     USER = "user"
     ORG = "org"

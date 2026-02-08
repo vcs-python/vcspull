@@ -79,7 +79,7 @@ class GitHubImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -108,7 +108,7 @@ class GitHubImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -125,7 +125,7 @@ class GitHubImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -142,7 +142,7 @@ class GitHubImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -212,7 +212,7 @@ class GitHubImporter:
         endpoint : str
             API endpoint
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------

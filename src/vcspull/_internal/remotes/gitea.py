@@ -95,7 +95,7 @@ class GiteaImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -124,7 +124,7 @@ class GiteaImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -141,7 +141,7 @@ class GiteaImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -158,7 +158,7 @@ class GiteaImporter:
         Parameters
         ----------
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
@@ -225,7 +225,7 @@ class GiteaImporter:
         endpoint : str
             API endpoint
         options : ImportOptions
-            Scraping options
+            Import options
 
         Yields
         ------
