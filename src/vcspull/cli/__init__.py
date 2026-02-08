@@ -57,8 +57,8 @@ CLI_DESCRIPTION = build_description(
             [
                 "vcspull sync --all",
                 'vcspull sync "django-*"',
-                'vcspull sync --dry-run "*"',
-                'vcspull sync -f ./myrepos.yaml "*"',
+                "vcspull sync --dry-run --all",
+                "vcspull sync -f ./myrepos.yaml --all",
                 "vcspull sync -w ~/code myproject",
             ],
         ),
@@ -118,8 +118,8 @@ SYNC_DESCRIPTION = build_description(
             [
                 "vcspull sync --all",
                 'vcspull sync "django-*"',
-                'vcspull sync --dry-run "*"',
-                'vcspull sync -f ./myrepos.yaml "*"',
+                "vcspull sync --dry-run --all",
+                "vcspull sync -f ./myrepos.yaml --all",
                 "vcspull sync -w ~/code myproject",
             ],
         ),
