@@ -47,11 +47,40 @@ OPTIONS_FLAG_ONLY = {
 }
 
 
+class _HelpTheme(t.Protocol):
+    """Protocol describing the argparse color theme.
+
+    Python 3.13+ sets ``self._theme`` on ``HelpFormatter`` instances via
+    ``_colorize.get_theme().argparse``.  This protocol documents the
+    attributes consumed by :meth:`VcspullHelpFormatter._fill_text` and
+    :meth:`VcspullHelpFormatter._colorize_example_line`.
+    """
+
+    heading: str
+    reset: str
+    label: str
+    long_option: str
+    short_option: str
+    prog: str
+    action: str
+
+
 class VcspullHelpFormatter(argparse.RawDescriptionHelpFormatter):
-    """Render description blocks while colorizing example sections when possible."""
+    """Extend argparse help colorization to example command sections.
+
+    Python 3.13+ natively colorizes usage and option groups via
+    ``_set_color()`` / ``_colorize.get_theme().argparse``.  This
+    formatter hooks into the same ``_theme`` attribute to additionally
+    colorize the "examples:" blocks in description text, applying
+    distinct colors to program names, subcommands, long/short options,
+    and option values.
+
+    When ``_theme`` is ``None`` (older Python or ``NO_COLOR`` set),
+    ``_fill_text`` falls through to the base class unchanged.
+    """
 
     def _fill_text(self, text: str, width: int, indent: str) -> str:
-        theme = getattr(self, "_theme", None)
+        theme = t.cast("_HelpTheme | None", getattr(self, "_theme", None))
         if not text or theme is None:
             return super()._fill_text(text, width, indent)
 
@@ -105,7 +134,7 @@ class VcspullHelpFormatter(argparse.RawDescriptionHelpFormatter):
         self,
         content: str,
         *,
-        theme: t.Any,
+        theme: _HelpTheme,
         expect_value: bool,
     ) -> _ColorizedLine:
         parts: list[str] = []
