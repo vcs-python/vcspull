@@ -16,6 +16,9 @@ OPTIONS_EXPECTING_VALUE = {
     "--path",
     "--color",
     "--field",
+    "--max-concurrent",
+    "--name",
+    "--url",
 }
 
 OPTIONS_FLAG_ONLY = {
@@ -44,6 +47,20 @@ OPTIONS_FLAG_ONLY = {
     "-v",
     "--invert-match",
     "--any",
+    "--exit-on-error",
+    "-x",
+    "--fetch",
+    "--long",
+    "--offline",
+    "--relative-paths",
+    "--show-unchanged",
+    "--summary-only",
+    "--version",
+    "-V",
+    "--no-concurrent",
+    "--sequential",
+    "--no-merge",
+    "--verbose",
 }
 
 

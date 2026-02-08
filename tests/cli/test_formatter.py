@@ -157,6 +157,24 @@ COLORIZE_LINE_FIXTURES: list[ColorizeLineFixture] = [
         expected_fragments=["<P>vcspull<R>", "<A>sync<R>", "myrepo"],
         unexpected_fragments=["<P>myrepo", "<A>myrepo", "<LO>myrepo", "<SO>myrepo"],
     ),
+    ColorizeLineFixture(
+        test_id="exit-on-error-flag",
+        input_line="vcspull sync --exit-on-error myrepo",
+        expected_fragments=["<LO>--exit-on-error<R>", "myrepo"],
+        unexpected_fragments=["<L>myrepo"],
+    ),
+    ColorizeLineFixture(
+        test_id="name-expects-value",
+        input_line="vcspull add --name mylib",
+        expected_fragments=["<LO>--name<R>", "<L>mylib<R>"],
+        unexpected_fragments=[],
+    ),
+    ColorizeLineFixture(
+        test_id="max-concurrent-expects-value",
+        input_line="vcspull status --max-concurrent 4",
+        expected_fragments=["<LO>--max-concurrent<R>", "<L>4<R>"],
+        unexpected_fragments=[],
+    ),
 ]
 
 
