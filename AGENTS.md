@@ -225,18 +225,18 @@ EOF
 Use `typing.NamedTuple` for parameterized tests:
 
 ```python
-class SyncFixture(t.NamedTuple):
+class CLIFixture(t.NamedTuple):
     test_id: str  # For test naming
-    sync_args: list[str]
+    cli_args: list[str]
     expected_exit_code: int
     expected_in_out: ExpectedOutput = None
 
 @pytest.mark.parametrize(
-    list(SyncFixture._fields),
-    SYNC_REPO_FIXTURES,
-    ids=[test.test_id for test in SYNC_REPO_FIXTURES],
+    list(CLIFixture._fields),
+    CLI_FIXTURES,
+    ids=[test.test_id for test in CLI_FIXTURES],
 )
-def test_sync(
+def test_cli_subcommands(
     # Parameters and fixtures...
 ):
     # Test implementation
