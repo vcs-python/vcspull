@@ -269,3 +269,90 @@ def test_gitlab_deeply_nested_subgroup(
 
     assert len(repos) == 1
     assert repos[0].name == "deep-project"
+
+
+def test_gitlab_archived_param_omitted_when_including(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that archived param is omitted when include_archived=True.
+
+    GitLab API: archived=true returns ONLY archived projects.
+    Omitting the param returns all projects (archived + non-archived).
+    """
+    captured_urls: list[str] = []
+
+    response_json = [
+        {
+            "path": "project1",
+            "name": "Project 1",
+            "http_url_to_repo": "https://gitlab.com/user/project1.git",
+            "ssh_url_to_repo": "git@gitlab.com:user/project1.git",
+            "web_url": "https://gitlab.com/user/project1",
+            "description": "Active project",
+            "topics": [],
+            "star_count": 10,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "user"},
+        }
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="user", include_archived=True)
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    # archived param should NOT be in the URL when include_archived=True
+    assert "archived=" not in captured_urls[0], (
+        f"Expected no 'archived' param in URL, got: {captured_urls[0]}"
+    )
+
+
+def test_gitlab_archived_param_false_when_excluding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that archived=false is set when include_archived=False."""
+    captured_urls: list[str] = []
+
+    response_json = [
+        {
+            "path": "project1",
+            "name": "Project 1",
+            "http_url_to_repo": "https://gitlab.com/user/project1.git",
+            "ssh_url_to_repo": "git@gitlab.com:user/project1.git",
+            "web_url": "https://gitlab.com/user/project1",
+            "description": "Active project",
+            "topics": [],
+            "star_count": 10,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "user"},
+        }
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="user", include_archived=False)
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    assert "archived=false" in captured_urls[0], (
+        f"Expected 'archived=false' in URL, got: {captured_urls[0]}"
+    )

@@ -242,10 +242,9 @@ class GitLabImporter:
             if include_subgroups:
                 params["include_subgroups"] = "true"
 
-            if options.include_archived:
-                params["archived"] = "true"
-            else:
+            if not options.include_archived:
                 params["archived"] = "false"
+            # When include_archived=True, omit the param to get all projects
 
             data, _headers = self._client.get(
                 endpoint,
