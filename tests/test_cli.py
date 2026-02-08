@@ -246,12 +246,12 @@ CLI_FIXTURES: list[CLIFixture] = [
         expected_exit_code=0,
         expected_in_out="my_git_repo",
     ),
-    # Sync: --all with patterns emits warning
+    # Sync: --all with patterns is an error
     CLIFixture(
         test_id="sync--all-with-patterns",
         sync_args=["sync", "--all", "my_git_repo"],
-        expected_exit_code=0,
-        expected_in_out=["my_git_repo", "--all flag ignores positional patterns"],
+        expected_exit_code=2,
+        expected_in_err="--all cannot be combined with positional patterns",
     ),
     # Sync: Help
     CLIFixture(

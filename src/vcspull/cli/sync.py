@@ -667,10 +667,11 @@ def sync(
 
     if sync_all:
         if repo_patterns:
-            log.warning(
-                "--all flag ignores positional patterns: %s",
-                ", ".join(repo_patterns),
-            )
+            msg = "--all cannot be combined with positional patterns"
+            if parser is not None:
+                parser.error(msg)
+            else:
+                raise SystemExit(msg)
         # Load all repos when --all is specified
         found_repos = list(configs)
     else:
