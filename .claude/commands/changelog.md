@@ -204,6 +204,19 @@ A structured list of entries grouped by section, each with:
    - After editing, read the modified region of the CHANGES file and display it so the user can verify
    - Note: this command does NOT commit — the user decides when to stage and commit the CHANGES update
 
+### Commit message conventions for CHANGES edits
+
+When the user asks to commit the CHANGES update, follow these rules:
+
+1. **`#PRNUM` references belong in CHANGES, never in commit messages.** CHANGES entries reference PRs (e.g., `(#511)`) because they are user-facing and link to GitHub. Commit messages must never contain `#123` — the PR number may not exist yet, and git's merge history already tracks which PR a commit belongs to.
+
+2. **Don't be redundant with the component prefix.** The commit prefix `docs(CHANGES)` already says "this is a changelog edit." The subject line should describe *what the changelog covers*, not that a changelog was added. For example:
+   - **Good**: `docs(CHANGES) Help-on-empty CLI and sync --all flag`
+   - **Bad**: `docs(CHANGES) Add changelog entry for help-on-empty CLI`
+   - **Bad**: `docs(CHANGES[v1.53.x]) ...` — the version is unknown until merge
+
+3. **Use `docs(CHANGES)` as the component.** No sub-component (no `[v1.53.x]` etc.) since the target release version is not known at commit time.
+
 ### Edge case: merging with existing entries
 
 If there are already entries below the placeholder in the unreleased section:
