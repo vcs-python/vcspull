@@ -37,6 +37,7 @@ OPTIONS_FLAG_ONLY = {
     "--ndjson",
     "--tree",
     "--detailed",
+    "-d",
     "-i",
     "--ignore-case",
     "-S",
