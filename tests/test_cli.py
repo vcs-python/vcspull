@@ -296,6 +296,20 @@ CLI_FIXTURES: list[CLIFixture] = [
         expected_exit_code=0,
         expected_in_out=["Directory to scan", "--recursive"],
     ),
+    # Sync: -a short flag (alias for --all)
+    CLIFixture(
+        test_id="sync--a-short-flag",
+        cli_args=["sync", "-a"],
+        expected_exit_code=0,
+        expected_in_out="my_git_repo",
+    ),
+    # Sync: "*" pattern (equivalent to --all)
+    CLIFixture(
+        test_id="sync--star-pattern",
+        cli_args=["sync", "*"],
+        expected_exit_code=0,
+        expected_in_out="my_git_repo",
+    ),
     # Sync: --all --dry-run produces a plan
     CLIFixture(
         test_id="sync--all--dry-run",
