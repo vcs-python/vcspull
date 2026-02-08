@@ -11,7 +11,7 @@ from libvcs.pytest_plugin import git_remote_repo_single_commit_post_init
 from libvcs.sync.git import GitRemote, GitSync
 
 from vcspull._internal.config_reader import ConfigReader
-from vcspull.cli.sync import update_repo
+from vcspull.cli.sync import sync, update_repo
 from vcspull.config import extract_repos, filter_repos, load_configs
 from vcspull.validator import is_valid_config
 
@@ -326,3 +326,57 @@ def test_updating_remote(
                     expected_config["remotes"]["origin"].fetch_url.replace("git+", "")
                     == current_remote_url
                 )
+
+
+def test_sync_deduplicates_repos_matched_by_multiple_patterns(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    create_git_remote_repo: CreateRepoPytestFixtureFn,
+) -> None:
+    """Repos matched by multiple patterns should only sync once."""
+    dummy_repo = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+
+    config_file = write_config(
+        config_path=tmp_path / "myrepos.yaml",
+        content=textwrap.dedent(
+            f"""\
+            {tmp_path}/code/:
+                myclone: git+file://{dummy_repo}
+            """,
+        ),
+    )
+
+    configs = load_configs([config_file])
+    assert len(configs) == 1
+
+    # Two patterns that both match the same repo
+    sync(
+        repo_patterns=["myclone", "*"],
+        config=config_file,
+        workspace_root=None,
+        dry_run=False,
+        output_json=True,
+        output_ndjson=False,
+        color="never",
+        exit_on_error=False,
+        show_unchanged=False,
+        summary_only=False,
+        long_view=False,
+        relative_paths=False,
+        fetch=False,
+        offline=False,
+        verbosity=0,
+    )
+
+    import json
+
+    captured = capsys.readouterr()
+    output_data = json.loads(captured.out)
+
+    # Count sync events (not summary)
+    sync_events = [item for item in output_data if item.get("reason") == "sync"]
+    assert len(sync_events) == 1, (
+        f"Expected exactly 1 sync event, got {len(sync_events)}"
+    )

@@ -692,6 +692,16 @@ def sync(
                 unmatched_count += 1
             found_repos.extend(found)
 
+        # Deduplicate repos matched by multiple patterns
+        seen_paths: set[str] = set()
+        deduped: list[ConfigDict] = []
+        for repo in found_repos:
+            key = str(repo.get("path", ""))
+            if key not in seen_paths:
+                seen_paths.add(key)
+                deduped.append(repo)
+        found_repos = deduped
+
     if workspace_root:
         found_repos = filter_by_workspace(found_repos, workspace_root)
 
