@@ -82,7 +82,7 @@ class RemoteRepo:
         Repository description
     language : str | None
         Primary programming language
-    topics : list[str]
+    topics : tuple[str, ...]
         Repository topics/tags
     stars : int
         Star/favorite count
