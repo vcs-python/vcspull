@@ -174,7 +174,7 @@ duplicate roots reported, not rewritten.
 ## Sync your repos
 
 ```console
-$ vcspull sync
+$ vcspull sync --all
 ```
 
 Preview planned work with Terraform-style plan output or emit structured data
