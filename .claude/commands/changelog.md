@@ -116,13 +116,16 @@ A structured list of entries grouped by section, each with:
 
 4. **Detailed entries** — sub-heading with description:
    ```markdown
-   #### Component: Brief description (#123)
+   #### cli(sync): Brief description (#123)
 
    Explanatory paragraph about what changed and why.
 
    - Bullet point with specific detail
    - Another detail
    ```
+
+   Sub-components use parenthetical style matching commit conventions:
+   `cli(sync)`, `config(reader)`, not `cli/sync` or `cli - sync`.
 
 5. **PR references**:
    - If PR number is known: `(#512)`
