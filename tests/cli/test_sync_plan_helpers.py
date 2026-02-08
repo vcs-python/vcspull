@@ -165,8 +165,8 @@ DETERMINE_PLAN_ACTION_FIXTURES: list[DeterminePlanActionFixture] = [
         test_id="not-git",
         status={"exists": True, "is_git": False},
         config=SyncPlanConfig(fetch=True, offline=False),
-        expected_action=PlanAction.BLOCKED,
-        expected_detail="not a git repository",
+        expected_action=PlanAction.UPDATE,
+        expected_detail="non-git VCS (detailed plan not available)",
     ),
     DeterminePlanActionFixture(
         test_id="dirty-working-tree",

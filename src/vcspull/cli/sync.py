@@ -197,7 +197,7 @@ def _determine_plan_action(
         return PlanAction.CLONE, "missing"
 
     if not status.get("is_git"):
-        return PlanAction.BLOCKED, "not a git repository"
+        return PlanAction.UPDATE, "non-git VCS (detailed plan not available)"
 
     clean_state = status.get("clean")
     if clean_state is False:
