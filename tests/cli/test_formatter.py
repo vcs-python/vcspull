@@ -43,7 +43,7 @@ def test_fill_text_no_theme() -> None:
     """Without _theme, _fill_text delegates to super() unmodified."""
     fmt = _make_formatter()
     # On Python 3.14+ _theme is always set (with empty strings when NO_COLOR).
-    # Force None to test the pre-3.13 / explicit-None path.
+    # Force None to test the pre-3.14 / explicit-None path.
     fmt._theme = None  # type: ignore[attr-defined]
 
     text = "examples:\n  vcspull sync --dry-run\n"

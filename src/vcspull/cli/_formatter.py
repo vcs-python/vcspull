@@ -50,7 +50,7 @@ OPTIONS_FLAG_ONLY = {
 class _HelpTheme(t.Protocol):
     """Protocol describing the argparse color theme.
 
-    Python 3.13+ sets ``self._theme`` on ``HelpFormatter`` instances via
+    Python 3.14+ sets ``self._theme`` on ``HelpFormatter`` instances via
     ``_colorize.get_theme().argparse``.  This protocol documents the
     attributes consumed by :meth:`VcspullHelpFormatter._fill_text` and
     :meth:`VcspullHelpFormatter._colorize_example_line`.
@@ -68,7 +68,7 @@ class _HelpTheme(t.Protocol):
 class VcspullHelpFormatter(argparse.RawDescriptionHelpFormatter):
     """Extend argparse help colorization to example command sections.
 
-    Python 3.13+ natively colorizes usage and option groups via
+    Python 3.14+ natively colorizes usage and option groups via
     ``_set_color()`` / ``_colorize.get_theme().argparse``.  This
     formatter hooks into the same ``_theme`` attribute to additionally
     colorize the "examples:" blocks in description text, applying
