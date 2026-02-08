@@ -35,6 +35,19 @@ _Notes on upcoming releases will be added here_
 
 ### New features
 
+#### `vcspull import`: Default to SSH clone URLs (#510)
+
+`vcspull import` now uses SSH clone URLs by default. Use `--https`
+to get HTTPS URLs instead:
+
+```console
+$ vcspull import github torvalds -w ~/repos/linux --mode user
+```
+
+```console
+$ vcspull import github torvalds -w ~/repos/linux --mode user --https
+```
+
 #### `vcspull import` command for remote repository discovery (#510)
 
 Import repositories from GitHub, GitLab, Codeberg/Gitea/Forgejo, and AWS
