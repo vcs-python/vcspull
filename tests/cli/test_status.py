@@ -949,3 +949,46 @@ def test_status_repos_path_contraction(
             assert not path.startswith(str(tmp_path)), (
                 f"Path {path} should not contain absolute home path"
             )
+
+
+def test_status_repos_non_git_not_counted_as_dirty(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Non-git directories should not be counted as dirty."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    non_git_path = tmp_path / "code" / "plain-dir"
+    non_git_path.mkdir(parents=True)
+
+    config_data = {
+        str(tmp_path / "code") + "/": {
+            "plain-dir": {"repo": "git+https://github.com/user/plain-dir.git"},
+        },
+    }
+    create_test_config(config_file, config_data)
+
+    status_repos(
+        repo_patterns=[],
+        config_path=config_file,
+        workspace_root=None,
+        detailed=False,
+        output_json=True,
+        output_ndjson=False,
+        color="never",
+        concurrent=False,
+    )
+
+    captured = capsys.readouterr()
+    output_data = json.loads(captured.out)
+
+    summary_entries = [item for item in output_data if item.get("reason") == "summary"]
+    assert len(summary_entries) == 1
+
+    summary = summary_entries[0]
+    assert summary["dirty"] == 0
+    assert summary["clean"] == 0
+    assert summary["exists"] == 1

@@ -139,7 +139,7 @@ Now run the command, to pull all the repositories in your
 `.vcspull.yaml` / `.vcspull.json`.
 
 ```console
-$ vcspull sync
+$ vcspull sync --all
 ```
 
 Also, you can sync arbitrary projects, lets assume you have a mercurial
@@ -154,7 +154,7 @@ be any name):
 Use `-f/--file` to specify a config.
 
 ```console
-$ vcspull sync -f .deps.yaml
+$ vcspull sync -f .deps.yaml --all
 ```
 
 You can also use [fnmatch] to pull repositories from your config in

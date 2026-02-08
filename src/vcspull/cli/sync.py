@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
-import json
 import logging
 import os
 import pathlib
@@ -23,6 +22,8 @@ from time import perf_counter
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitSync
+from libvcs.sync.hg import HgSync
+from libvcs.sync.svn import SvnSync
 from libvcs.url import registry as url_tools
 
 from vcspull import exc
@@ -196,7 +197,7 @@ def _determine_plan_action(
         return PlanAction.CLONE, "missing"
 
     if not status.get("is_git"):
-        return PlanAction.BLOCKED, "not a git repository"
+        return PlanAction.UPDATE, "non-git VCS (detailed plan not available)"
 
     clean_state = status.get("clean")
     if clean_state is False:
@@ -491,14 +492,9 @@ def _emit_plan_output(
         show_unchanged=render_options.show_unchanged,
     )
 
-    if formatter.mode == OutputMode.NDJSON:
-        for entry in display_entries:
-            formatter.emit(entry)
-        formatter.emit(plan.summary)
-        return
-    structured = PlanResult(entries=display_entries, summary=plan.summary)
-    sys.stdout.write(json.dumps(structured.to_json_object(), indent=2) + "\n")
-    sys.stdout.flush()
+    for entry in display_entries:
+        formatter.emit(entry)
+    formatter.emit(plan.summary)
 
 
 def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -695,6 +691,16 @@ def sync(
                     )
                 unmatched_count += 1
             found_repos.extend(found)
+
+        # Deduplicate repos matched by multiple patterns
+        seen_paths: set[str] = set()
+        deduped: list[ConfigDict] = []
+        for repo in found_repos:
+            key = str(repo.get("path", ""))
+            if key not in seen_paths:
+                seen_paths.add(key)
+                deduped.append(repo)
+        found_repos = deduped
 
     if workspace_root:
         found_repos = filter_by_workspace(found_repos, workspace_root)
@@ -924,7 +930,7 @@ def update_repo(
     repo_dict: t.Any,
     progress_callback: ProgressCallback | None = None,
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
-) -> GitSync:
+) -> GitSync | HgSync | SvnSync:
     """Synchronize a single repository."""
     repo_dict = deepcopy(repo_dict)
     if "pip_url" not in repo_dict:
@@ -941,7 +947,7 @@ def update_repo(
 
         repo_dict["vcs"] = vcs
 
-    r = create_project(**repo_dict)  # Creates the repo object
+    r: GitSync | HgSync | SvnSync = create_project(**repo_dict)
     if repo_dict.get("vcs") == "git":
         result = r.update_repo(set_remotes=True)
     else:
@@ -952,5 +958,4 @@ def update_repo(
         repo_name = str(repo_dict.get("name", repo_dict.get("url", "unknown")))
         raise SyncFailedError(repo_name=repo_name, errors=error_messages)
 
-    # TODO: Fix this
-    return r  # type:ignore
+    return r

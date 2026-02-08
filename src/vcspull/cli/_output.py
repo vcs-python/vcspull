@@ -132,29 +132,6 @@ class PlanResult:
     entries: list[PlanEntry]
     summary: PlanSummary
 
-    def to_workspace_mapping(self) -> dict[str, list[PlanEntry]]:
-        """Group plan entries by workspace root."""
-        grouped: dict[str, list[PlanEntry]] = {}
-        for entry in self.entries:
-            grouped.setdefault(entry.workspace_root, []).append(entry)
-        return grouped
-
-    def to_json_object(self) -> dict[str, t.Any]:
-        """Return the JSON structure for ``--json`` output."""
-        workspaces: list[dict[str, t.Any]] = []
-        for workspace_root, entries in self.to_workspace_mapping().items():
-            workspaces.append(
-                {
-                    "path": workspace_root,
-                    "operations": [entry.to_payload() for entry in entries],
-                },
-            )
-        return {
-            "format_version": "1",
-            "workspaces": workspaces,
-            "summary": self.summary.to_payload(),
-        }
-
 
 class OutputFormatter:
     """Manages output formatting for different modes (human, JSON, NDJSON)."""
