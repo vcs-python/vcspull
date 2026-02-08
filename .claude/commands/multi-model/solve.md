@@ -15,7 +15,7 @@ Process multi-model code review findings from the conversation context. Validate
 
 **Actions**:
 
-1. **Locate the review report** in the conversation context (output from `/multi-model-review`)
+1. **Locate the review report** in the conversation context (output from `/multi-model:review`)
 
 2. **Extract each finding** into a numbered list with:
    - **Consensus level**: how many reviewers flagged it (3, 2, or 1)
