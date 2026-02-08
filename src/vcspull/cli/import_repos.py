@@ -103,7 +103,7 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
         "--token",
         dest="token",
         metavar="TOKEN",
-        help="API token (overrides environment variable)",
+        help="API token (overrides env var; prefer env var for security)",
     )
     parser.add_argument(
         "--region",
