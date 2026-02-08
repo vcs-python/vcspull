@@ -662,6 +662,11 @@ def sync(
     unmatched_count = 0
 
     if sync_all:
+        if repo_patterns:
+            log.warning(
+                "--all flag ignores positional patterns: %s",
+                ", ".join(repo_patterns),
+            )
         # Load all repos when --all is specified
         found_repos = list(configs)
     else:

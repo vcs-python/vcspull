@@ -246,6 +246,13 @@ SYNC_REPO_FIXTURES: list[SyncFixture] = [
         expected_exit_code=0,
         expected_in_out="my_git_repo",
     ),
+    # Sync: --all with patterns emits warning
+    SyncFixture(
+        test_id="sync--all-with-patterns",
+        sync_args=["sync", "--all", "my_git_repo"],
+        expected_exit_code=0,
+        expected_in_out=["my_git_repo", "--all flag ignores positional patterns"],
+    ),
     # Sync: Help
     SyncFixture(
         test_id="sync---help",
