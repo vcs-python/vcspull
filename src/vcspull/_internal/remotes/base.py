@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import enum
 import json
 import logging
@@ -10,7 +11,6 @@ import typing as t
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class DependencyError(RemoteImportError):
     """Raised when a required dependency is missing."""
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class RemoteRepo:
     """Represents a repository from a remote service.
 
@@ -195,7 +195,7 @@ class RemoteRepo:
         }
 
 
-@dataclass
+@dataclasses.dataclass
 class ImportOptions:
     """Options for importing repositories from a remote service.
 
@@ -230,7 +230,7 @@ class ImportOptions:
     include_forks: bool = False
     include_archived: bool = False
     language: str | None = None
-    topics: list[str] = field(default_factory=list)
+    topics: list[str] = dataclasses.field(default_factory=list)
     min_stars: int = 0
     limit: int = 100
 
