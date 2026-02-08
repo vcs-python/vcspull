@@ -69,7 +69,7 @@ Parse the commit type from the `Component(type[sub])` convention in commit subje
 
 | Commit type | CHANGES section | Notes |
 |---|---|---|
-| `feat` | Features / New features | New functionality |
+| `feat` | What's new | New functionality (formerly "Features" / "New features") |
 | `fix` | Bug fixes | Bug fixes |
 | `docs` | Documentation | Doc changes |
 | `test` | Tests | Test additions/changes |
@@ -101,13 +101,15 @@ A structured list of entries grouped by section, each with:
 
 1. **Section headings**: Use `### Section Name` (e.g., `### Bug fixes`, `### Features`)
 
-2. **Section order** (only include sections that have entries):
-   - Breaking changes
-   - Features / New features
-   - Bug fixes
-   - Documentation
-   - Tests
-   - Development
+2. **Section order** (only include sections that have entries — this order is mandatory, never reorder):
+   1. Breaking changes
+   2. What's new
+   3. Bug fixes
+   4. Documentation
+   5. Tests
+   6. Development
+
+   **IMPORTANT**: Always use the exact heading names above. In particular, use `### What's new` (not "Features" or "New features") — this matches the project's established convention in recent releases.
 
 3. **Simple entries** — single bullet:
    ```markdown
@@ -133,7 +135,7 @@ A structured list of entries grouped by section, each with:
 
 6. **Match existing style**:
    - Check whether the project uses "Bug fixes" or "Bug Fixes" (match existing capitalization)
-   - Check whether "Features" or "New features" is used
+   - This project uses "What's new" (not "Features" or "New features")
    - Preserve the project's conventions
 
 ### Entry writing guidelines
