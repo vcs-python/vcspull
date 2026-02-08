@@ -33,6 +33,32 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### cli: Show help when commands are called without arguments (#511)
+
+Running `vcspull sync`, `vcspull search`, `vcspull add`, or
+`vcspull discover` with no arguments now prints the command's help
+screen instead of raising a cryptic argparse error or silently doing
+nothing. This makes the CLI self-documenting — new users can explore
+available options without reaching for `--help`, and experienced users
+get an instant reminder of the expected syntax.
+
+### Breaking changes
+
+#### cli(sync): Require `--all` to sync all repositories (#511)
+
+`vcspull sync` without arguments previously synced nothing and exited
+silently. It now shows help instead. To sync every configured
+repository, use the new `--all` (or `-a`) flag:
+
+```console
+$ vcspull sync --all
+```
+
+- Passing `--all` with positional patterns is an error (mutually exclusive)
+- The `"*"` glob pattern still works as an alternative to `--all`
+
 ## vcspull v1.52.1 (2026-02-08)
 
 ### Tests
