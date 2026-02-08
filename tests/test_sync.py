@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import textwrap
 import typing as t
 
@@ -377,8 +378,6 @@ def test_sync_deduplicates_repos_matched_by_multiple_patterns(
         offline=False,
         verbosity=0,
     )
-
-    import json
 
     captured = capsys.readouterr()
     output_data = json.loads(captured.out)
