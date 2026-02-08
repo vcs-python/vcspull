@@ -498,8 +498,8 @@ def filter_repo(
 
     # Check topics filter
     if options.topics:
-        repo_topics_lower = {t.lower() for t in repo.topics}
-        required_topics_lower = {t.lower() for t in options.topics}
+        repo_topics_lower = {topic.lower() for topic in repo.topics}
+        required_topics_lower = {topic.lower() for topic in options.topics}
         if not required_topics_lower.issubset(repo_topics_lower):
             return False
 
