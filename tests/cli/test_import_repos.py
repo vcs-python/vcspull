@@ -43,6 +43,7 @@ def _make_repo(
     return RemoteRepo(
         name=name,
         clone_url=f"https://github.com/{owner}/{name}.git",
+        ssh_url=f"git@github.com:{owner}/{name}.git",
         html_url=f"https://github.com/{owner}/{name}",
         description=f"Test repo {name}",
         language=language,
@@ -1234,3 +1235,146 @@ def test_import_only_service_shows_help(capsys: pytest.CaptureFixture[str]) -> N
     # Verify help is shown
     assert "usage: vcspull import" in captured.out
     assert "-w, --workspace DIR" in captured.out
+
+
+def test_import_repos_defaults_to_ssh_urls(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos writes SSH URLs to config by default."""
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("myrepo")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert config_file.exists()
+    with config_file.open() as f:
+        config = yaml.safe_load(f)
+
+    repo_url = config["~/repos/"]["myrepo"]["repo"]
+    assert repo_url == "git+git@github.com:testuser/myrepo.git"
+
+
+def test_import_repos_https_flag(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos writes HTTPS URLs when use_https=True."""
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("myrepo")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        use_https=True,
+    )
+
+    assert config_file.exists()
+    with config_file.open() as f:
+        config = yaml.safe_load(f)
+
+    repo_url = config["~/repos/"]["myrepo"]["repo"]
+    assert repo_url == "git+https://github.com/testuser/myrepo.git"
+
+
+def test_import_https_flag_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that --https flag is recognized by the CLI parser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(
+        ["import", "github", "testuser", "-w", "/tmp/repos", "--https"]
+    )
+    assert args.use_https is True
+
+
+def test_import_ssh_default_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test that SSH is the default (no --https flag)."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(["import", "github", "testuser", "-w", "/tmp/repos"])
+    assert args.use_https is False

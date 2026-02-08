@@ -196,6 +196,12 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
         help="Output as NDJSON (one JSON per line)",
     )
     output_group.add_argument(
+        "--https",
+        action="store_true",
+        dest="use_https",
+        help="Use HTTPS clone URLs instead of SSH (default: SSH)",
+    )
+    output_group.add_argument(
         "--color",
         choices=["auto", "always", "never"],
         default="auto",
@@ -306,6 +312,7 @@ def import_repos(
     output_json: bool,
     output_ndjson: bool,
     color: str,
+    use_https: bool = False,
 ) -> None:
     """Import repositories from a remote service.
 
@@ -351,6 +358,8 @@ def import_repos(
         Output as NDJSON
     color : str
         Color mode
+    use_https : bool
+        Use HTTPS clone URLs instead of SSH (default: False, i.e., SSH)
     """
     output_mode = get_output_mode(output_json, output_ndjson)
     formatter = OutputFormatter(output_mode)
@@ -568,7 +577,9 @@ def import_repos(
             skipped_count += 1
             continue
 
-        raw_config[workspace_label][repo.name] = {"repo": repo.to_vcspull_url()}
+        raw_config[workspace_label][repo.name] = {
+            "repo": repo.to_vcspull_url(use_ssh=not use_https),
+        }
         added_count += 1
 
     if added_count == 0:

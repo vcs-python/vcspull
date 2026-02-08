@@ -524,4 +524,5 @@ def cli(_args: list[str] | None = None) -> None:
             output_json=getattr(args, "output_json", False),
             output_ndjson=getattr(args, "output_ndjson", False),
             color=getattr(args, "color", "auto"),
+            use_https=getattr(args, "use_https", False),
         )
