@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import typing as t
+import urllib.parse
 
 from .base import (
     AuthenticationError,
@@ -115,7 +116,8 @@ class GitLabImporter:
         RemoteRepo
             Repository information
         """
-        endpoint = f"/users/{options.target}/projects"
+        target = urllib.parse.quote(options.target, safe="")
+        endpoint = f"/users/{target}/projects"
         yield from self._paginate_repos(endpoint, options)
 
     def _fetch_group(self, options: ImportOptions) -> t.Iterator[RemoteRepo]:
@@ -131,8 +133,8 @@ class GitLabImporter:
         RemoteRepo
             Repository information
         """
-        # URL-encode the group name in case it contains slashes (subgroups)
-        target = options.target.replace("/", "%2F")
+        # URL-encode the group name (handles slashes in subgroups, etc.)
+        target = urllib.parse.quote(options.target, safe="")
         endpoint = f"/groups/{target}/projects"
         yield from self._paginate_repos(endpoint, options, include_subgroups=True)
 

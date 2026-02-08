@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import typing as t
+import urllib.parse
 
 from .base import (
     HTTPClient,
@@ -114,7 +115,8 @@ class GitHubImporter:
         RemoteRepo
             Repository information
         """
-        endpoint = f"/users/{options.target}/repos"
+        target = urllib.parse.quote(options.target, safe="")
+        endpoint = f"/users/{target}/repos"
         yield from self._paginate_repos(endpoint, options)
 
     def _fetch_org(self, options: ImportOptions) -> t.Iterator[RemoteRepo]:
@@ -130,7 +132,8 @@ class GitHubImporter:
         RemoteRepo
             Repository information
         """
-        endpoint = f"/orgs/{options.target}/repos"
+        target = urllib.parse.quote(options.target, safe="")
+        endpoint = f"/orgs/{target}/repos"
         yield from self._paginate_repos(endpoint, options)
 
     def _fetch_search(self, options: ImportOptions) -> t.Iterator[RemoteRepo]:
