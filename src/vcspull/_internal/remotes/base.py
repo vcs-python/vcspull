@@ -328,10 +328,7 @@ class HTTPClient:
         url = f"{self.base_url}{endpoint}"
 
         if params:
-            query_string = "&".join(
-                f"{k}={urllib.parse.quote(str(v))}" for k, v in params.items()
-            )
-            url = f"{url}?{query_string}"
+            url = f"{url}?{urllib.parse.urlencode(params)}"
 
         headers = self._build_headers()
         request = urllib.request.Request(url, headers=headers)
