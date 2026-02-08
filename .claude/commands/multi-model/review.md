@@ -1,11 +1,11 @@
 ---
-description: Multi-model code review — runs Claude, Gemini, and Codex reviews in parallel, then synthesizes findings
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git remote:*), Bash(gemini:*), Bash(codex:*), Bash(which:*), Read, Grep, Glob, Task
+description: Multi-model code review — runs Claude, Gemini, and GPT reviews in parallel, then synthesizes findings
+allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git remote:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Task
 ---
 
 # Multi-Model Code Review
 
-Run code review using up to three AI models (Claude, Gemini, Codex) in parallel, then synthesize their findings into a unified report with consensus-weighted confidence.
+Run code review using up to three AI models (Claude, Gemini, GPT) in parallel, then synthesize their findings into a unified report with consensus-weighted confidence.
 
 ---
 
@@ -35,21 +35,32 @@ Run code review using up to three AI models (Claude, Gemini, Codex) in parallel,
 
 ## Phase 2: Detect Available Reviewers
 
-**Goal**: Check which AI CLI tools are installed locally.
+**Goal**: Check which AI CLI tools are installed locally and resolve each reviewer slot.
 
 Run these checks in parallel:
 
 ```bash
 which gemini 2>/dev/null && echo "gemini:available" || echo "gemini:missing"
 which codex 2>/dev/null && echo "codex:available" || echo "codex:missing"
+which agent 2>/dev/null && echo "agent:available" || echo "agent:missing"
 ```
 
-Claude (this agent) is always available. Build a list of available reviewers:
-- **Claude** — always available
-- **Gemini** — available if `gemini` binary is found
-- **Codex** — available if `codex` binary is found
+### Reviewer resolution (priority order)
 
-Report which reviewers will participate. If only Claude is available, proceed with Claude-only review and note the missing tools.
+Each reviewer slot is resolved independently using a **native CLI first, `agent` fallback** strategy:
+
+| Slot | Priority 1 (native) | Priority 2 (agent fallback) | Agent model |
+|------|---------------------|-----------------------------|-------------|
+| **Claude** | Always available (this agent) | — | — |
+| **Gemini** | `gemini` binary | `agent --model gemini-3-pro` | `gemini-3-pro` |
+| **GPT** | `codex` binary | `agent --model gpt-5.2` | `gpt-5.2` |
+
+**Resolution logic** for each external slot:
+1. If the native CLI is found → use it (direct API, fewer layers)
+2. Else if `agent` is found → use `agent` with the corresponding `--model` flag
+3. Else → slot is unavailable, note in report
+
+Report which reviewers will participate and which backend is used (native or agent fallback). If only Claude is available, proceed with Claude-only review and note the missing tools.
 
 ---
 
@@ -84,41 +95,64 @@ Launch a Task agent with `subagent_type: "general-purpose"` to perform Claude's 
 
 ### Gemini Review (if available)
 
-Run Gemini CLI in non-interactive mode. Execute via Bash:
+Use the resolved backend from Phase 2. The review prompt is the same regardless of backend.
+
+**Review prompt** (used by both backends):
+> You are a code reviewer. Analyze the changes since the trunk in this branch, consider AGENTS.md.
+>
+> Run git diff origin/<trunk>...HEAD to see the changes. Read AGENTS.md or CLAUDE.md for project conventions.
+>
+> For each issue, report: severity (Critical/Important/Suggestion), file and line, description, and recommendation. Focus on bugs, logic errors, security issues, and convention violations.
+
+**Native (`gemini` CLI)**:
 
 ```bash
-gemini -p "You are a code reviewer. Analyze the changes since the trunk in this branch, consider AGENTS.md.
+timeout 300 gemini -p "<review prompt>"
+```
 
-Run git diff origin/<trunk>...HEAD to see the changes. Read AGENTS.md or CLAUDE.md for project conventions.
+**Fallback (`agent` CLI)**:
 
-For each issue, report: severity (Critical/Important/Suggestion), file and line, description, and recommendation. Focus on bugs, logic errors, security issues, and convention violations."
+```bash
+timeout 300 agent -p -f --model gemini-3-pro "<review prompt>"
 ```
 
 **Important**: Use the actual trunk branch name detected in Phase 1 in the prompt. Capture the full stdout output.
 
-### Codex Review (if available)
+### GPT Review (if available)
 
-Run Codex CLI with full sandbox access. Execute via Bash:
+Use the resolved backend from Phase 2. The review prompt is the same regardless of backend.
+
+**Review prompt** (used by both backends):
+> You are a code reviewer. Analyze the changes since the trunk in this branch, consider AGENTS.md.
+>
+> Run git diff origin/<trunk>...HEAD to see the changes. Read AGENTS.md or CLAUDE.md for project conventions.
+>
+> For each issue, report: severity (Critical/Important/Suggestion), file and line, description, and recommendation. Focus on bugs, logic errors, security issues, and convention violations.
+
+**Native (`codex` CLI)**:
 
 ```bash
-codex \
+timeout 300 codex \
     --sandbox danger-full-access \
     --ask-for-approval never \
     -c model_reasoning_effort=medium \
-    exec "You are a code reviewer - Analyze the changes since the trunk in this branch, consider AGENTS.md.
+    exec "<review prompt>"
+```
 
-Run git diff origin/<trunk>...HEAD to see the changes. Read AGENTS.md or CLAUDE.md for project conventions.
+**Fallback (`agent` CLI)**:
 
-For each issue, report: severity (Critical/Important/Suggestion), file and line, description, and recommendation. Focus on bugs, logic errors, security issues, and convention violations."
+```bash
+timeout 300 agent -p -f --model gpt-5.2 "<review prompt>"
 ```
 
 **Important**: Use the actual trunk branch name detected in Phase 1 in the prompt. Capture the full stdout output.
 
 ### Execution Strategy
 
-- Launch the Claude Task agent and the Gemini/Codex Bash commands in parallel where possible.
+- Launch the Claude Task agent and the Gemini/GPT Bash commands in parallel where possible.
+- Use whichever backend was resolved in Phase 2 for each slot.
 - If a reviewer fails (timeout, crash, API error), note the failure and continue with the remaining reviewers.
-- Set a 5-minute timeout for Gemini and Codex commands (`timeout 300`).
+- Set a 5-minute timeout for external CLI commands (`timeout 300`).
 
 ---
 
@@ -152,7 +186,7 @@ Present the synthesized report in this format:
 ```markdown
 # Multi-Model Code Review Report
 
-**Reviewers**: Claude, Gemini, Codex (or whichever participated)
+**Reviewers**: Claude, Gemini, GPT (or whichever participated)
 **Branch**: <branch-name>
 **Compared against**: origin/<trunk>
 **Files changed**: <count>
@@ -160,7 +194,7 @@ Present the synthesized report in this format:
 ## Consensus Issues (flagged by multiple reviewers)
 
 ### Critical
-- [Claude + Gemini + Codex] **file.py:42** — Description of issue
+- [Claude + Gemini + GPT] **file.py:42** — Description of issue
   - Recommendation: ...
 
 ### Important
@@ -178,7 +212,7 @@ Present the synthesized report in this format:
   - Recommendation: ...
 
 ### Suggestions
-- [Codex] **file.py:55** — Description
+- [GPT] **file.py:55** — Description
   - Recommendation: ...
 
 ## Reviewer Disagreements
@@ -190,7 +224,7 @@ List any cases where reviewers explicitly contradicted each other, noting both p
 - **Total issues**: X
 - **Consensus issues**: Y (flagged by 2+ reviewers)
 - **Critical**: Z
-- **Reviewers participated**: Claude, Gemini, Codex
+- **Reviewers participated**: Claude, Gemini, GPT
 - **Reviewers unavailable/failed**: (if any)
 ```
 
