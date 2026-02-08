@@ -23,6 +23,7 @@ OPTIONS_FLAG_ONLY = {
     "--help",
     "--write",
     "--all",
+    "-a",
     "--recursive",
     "-r",
     "--yes",

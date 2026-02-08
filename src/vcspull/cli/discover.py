@@ -124,6 +124,8 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "scan_dir",
         metavar="PATH",
+        nargs="?",
+        default=None,
         help="Directory to scan for git repositories",
     )
     parser.add_argument(

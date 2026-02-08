@@ -37,6 +37,8 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
     """
     parser.add_argument(
         "repo_path",
+        nargs="?",
+        default=None,
         help=(
             "Filesystem path to an existing project. The parent directory "
             "becomes the workspace unless overridden with --workspace."
