@@ -443,9 +443,9 @@ def status_repos(
 
         if status["exists"]:
             summary["exists"] += 1
-            if status["clean"]:
+            if status["clean"] is True:
                 summary["clean"] += 1
-            else:
+            elif status["clean"] is False:
                 summary["dirty"] += 1
         else:
             summary["missing"] += 1
