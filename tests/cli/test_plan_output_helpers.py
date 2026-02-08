@@ -15,7 +15,6 @@ from vcspull.cli._output import (
     OutputMode,
     PlanAction,
     PlanEntry,
-    PlanResult,
     PlanSummary,
 )
 from vcspull.cli.sync import PlanProgressPrinter
@@ -158,46 +157,6 @@ def test_plan_summary_to_payload(
         assert payload["duration_ms"] == summary.duration_ms
     else:
         assert "duration_ms" not in payload
-
-
-def test_plan_result_grouping_and_json_output() -> None:
-    """PlanResult should group entries and produce stable JSON."""
-    entries = [
-        PlanEntry(
-            name="repo-a",
-            path="/tmp/workspace-a/repo-a",
-            workspace_root="~/workspace-a/",
-            action=PlanAction.CLONE,
-        ),
-        PlanEntry(
-            name="repo-b",
-            path="/tmp/workspace-b/repo-b",
-            workspace_root="~/workspace-b/",
-            action=PlanAction.UPDATE,
-        ),
-        PlanEntry(
-            name="repo-c",
-            path="/tmp/workspace-a/repo-c",
-            workspace_root="~/workspace-a/",
-            action=PlanAction.UNCHANGED,
-        ),
-    ]
-    summary = PlanSummary(clone=1, update=1, unchanged=1)
-    result = PlanResult(entries=entries, summary=summary)
-
-    mapping = result.to_workspace_mapping()
-    assert set(mapping.keys()) == {"~/workspace-a/", "~/workspace-b/"}
-    assert {entry.name for entry in mapping["~/workspace-a/"]} == {"repo-a", "repo-c"}
-    assert {entry.name for entry in mapping["~/workspace-b/"]} == {"repo-b"}
-
-    json_object = result.to_json_object()
-    assert json_object["summary"]["total"] == 3
-    workspaces = {
-        workspace["path"]: workspace for workspace in json_object["workspaces"]
-    }
-    assert set(workspaces) == {"~/workspace-a/", "~/workspace-b/"}
-    assert len(workspaces["~/workspace-a/"]["operations"]) == 2
-    assert workspaces["~/workspace-b/"]["operations"][0]["name"] == "repo-b"
 
 
 def test_output_formatter_json_mode_finalises_buffer() -> None:
