@@ -1378,3 +1378,112 @@ def test_import_ssh_default_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
     parser = create_parser(return_subparsers=False)
     args = parser.parse_args(["import", "github", "testuser", "-w", "/tmp/repos"])
     assert args.use_https is False
+
+
+def test_import_repos_rejects_non_yaml_config(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos rejects non-YAML config file paths."""
+    caplog.set_level(logging.ERROR)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("repo1")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(tmp_path / "config.json"),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert "Only YAML config files are supported" in caplog.text
+
+
+def test_import_repos_rejects_non_dict_config(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos rejects config that is a YAML list instead of dict."""
+    caplog.set_level(logging.ERROR)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+    # Write a YAML list instead of a mapping
+    config_file.write_text("- item1\n- item2\n", encoding="utf-8")
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("repo1")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert "not a valid YAML mapping" in caplog.text

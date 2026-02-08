@@ -282,7 +282,11 @@ def _resolve_config_file(config_path_str: str | None) -> pathlib.Path:
         Resolved config file path
     """
     if config_path_str:
-        return pathlib.Path(config_path_str).expanduser().resolve()
+        path = pathlib.Path(config_path_str).expanduser().resolve()
+        if path.suffix.lower() not in {".yaml", ".yml"}:
+            msg = f"Only YAML config files are supported, got: {path.suffix}"
+            raise ValueError(msg)
+        return path
 
     home_configs = find_home_config_files(filetype=["yaml"])
     if home_configs:
@@ -416,7 +420,11 @@ def import_repos(
     workspace_label = workspace_root_label(workspace_path, cwd=cwd, home=home)
 
     # Resolve config file
-    config_file_path = _resolve_config_file(config_path_str)
+    try:
+        config_file_path = _resolve_config_file(config_path_str)
+    except ValueError as exc:
+        log.error("%s✗%s %s", Fore.RED, Style.RESET_ALL, exc)  # noqa: TRY400
+        return
     display_config_path = str(PrivatePath(config_file_path))
 
     # Fetch repositories
@@ -559,13 +567,33 @@ def import_repos(
         try:
             with config_file_path.open() as f:
                 raw_config = yaml.safe_load(f) or {}
-        except Exception:
+        except (yaml.YAMLError, OSError):
             log.exception("Error loading config file")
+            return
+
+        if not isinstance(raw_config, dict):
+            log.error(
+                "%s✗%s Config file is not a valid YAML mapping: %s",
+                Fore.RED,
+                Style.RESET_ALL,
+                display_config_path,
+            )
             return
     else:
         raw_config = {}
 
     # Add repositories to config
+    if workspace_label in raw_config and not isinstance(
+        raw_config[workspace_label], dict
+    ):
+        log.error(
+            "%s✗%s Workspace section '%s' is not a mapping in config",
+            Fore.RED,
+            Style.RESET_ALL,
+            workspace_label,
+        )
+        return
+
     if workspace_label not in raw_config:
         raw_config[workspace_label] = {}
 
@@ -613,5 +641,5 @@ def import_repos(
                 skipped_count,
                 Style.RESET_ALL,
             )
-    except Exception:
+    except OSError:
         log.exception("Error saving config to %s", display_config_path)
