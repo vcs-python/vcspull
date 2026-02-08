@@ -8,6 +8,7 @@ import urllib.request
 
 import pytest
 
+from tests._internal.remotes.conftest import MockHTTPResponse
 from vcspull._internal.remotes.base import ImportMode, ImportOptions
 from vcspull._internal.remotes.gitlab import GitLabImporter
 
@@ -171,28 +172,6 @@ def test_gitlab_uses_path_not_name(
     repos = list(importer.fetch_repos(options))
     assert len(repos) == 1
     assert repos[0].name == "my-project"  # Uses 'path', not 'name'
-
-
-class MockHTTPResponse:
-    """Mock HTTP response for subgroup test."""
-
-    def __init__(self, body: bytes, headers: dict[str, str] | None = None) -> None:
-        self._body = body
-        self._headers = headers or {}
-        self.status = 200
-        self.code = 200
-
-    def read(self) -> bytes:
-        return self._body
-
-    def getheaders(self) -> list[tuple[str, str]]:
-        return list(self._headers.items())
-
-    def __enter__(self) -> MockHTTPResponse:
-        return self
-
-    def __exit__(self, *args: t.Any) -> None:
-        pass
 
 
 def test_gitlab_subgroup_url_encoding(

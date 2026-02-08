@@ -21,6 +21,7 @@ import urllib.request
 
 import pytest
 
+from tests._internal.remotes.conftest import MockHTTPResponse
 from vcspull._internal.remotes.base import ImportMode, ImportOptions
 from vcspull._internal.remotes.gitea import (
     DEFAULT_PER_PAGE as GITEA_DEFAULT_PER_PAGE,
@@ -103,38 +104,6 @@ def _make_gitlab_repo(
         "default_branch": "main",
         "namespace": {"path": "testuser"},
     }
-
-
-class MockHTTPResponse:
-    """Mock HTTP response for testing."""
-
-    def __init__(
-        self,
-        body: bytes,
-        headers: dict[str, str] | None = None,
-        status: int = 200,
-    ) -> None:
-        """Initialize mock response."""
-        self._body = body
-        self._headers = headers or {}
-        self.status = status
-        self.code = status
-
-    def read(self) -> bytes:
-        """Return response body."""
-        return self._body
-
-    def getheaders(self) -> list[tuple[str, str]]:
-        """Return response headers as list of tuples."""
-        return list(self._headers.items())
-
-    def __enter__(self) -> MockHTTPResponse:
-        """Context manager entry."""
-        return self
-
-    def __exit__(self, *args: t.Any) -> None:
-        """Context manager exit."""
-        pass
 
 
 def test_github_pagination_consistent_per_page(
