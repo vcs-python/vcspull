@@ -7,8 +7,16 @@ import typing as t
 
 import pytest
 from libvcs._internal.shortcuts import create_project
-from libvcs.pytest_plugin import git_remote_repo_single_commit_post_init
+from libvcs.pytest_plugin import (
+    git_remote_repo_single_commit_post_init,
+    hg_remote_repo_single_commit_post_init,
+    skip_if_hg_missing,
+    skip_if_svn_missing,
+    svn_remote_repo_single_commit_post_init,
+)
 from libvcs.sync.git import GitRemote, GitSync
+from libvcs.sync.hg import HgSync
+from libvcs.sync.svn import SvnSync
 
 from vcspull._internal.config_reader import ConfigReader
 from vcspull.cli.sync import sync, update_repo
@@ -380,3 +388,49 @@ def test_sync_deduplicates_repos_matched_by_multiple_patterns(
     assert len(sync_events) == 1, (
         f"Expected exactly 1 sync event, got {len(sync_events)}"
     )
+
+
+@skip_if_svn_missing
+def test_update_repo_svn(
+    tmp_path: pathlib.Path,
+    create_svn_remote_repo: CreateRepoPytestFixtureFn,
+) -> None:
+    """update_repo should handle SVN repositories and return SvnSync."""
+    svn_remote = create_svn_remote_repo(
+        remote_repo_post_init=svn_remote_repo_single_commit_post_init,
+    )
+    # Use bare file:// URL with explicit vcs since svn binary doesn't understand
+    # the svn+ prefix that vcspull uses for VCS detection.
+    repo_dict: ConfigDict = {
+        "vcs": "svn",
+        "name": "my_svn_repo",
+        "path": tmp_path / "checkout" / "my_svn_repo",
+        "url": f"file://{svn_remote}",
+        "workspace_root": str(tmp_path / "checkout/"),
+    }
+
+    result = update_repo(repo_dict)
+    assert isinstance(result, SvnSync)
+
+
+@skip_if_hg_missing
+def test_update_repo_hg(
+    tmp_path: pathlib.Path,
+    create_hg_remote_repo: CreateRepoPytestFixtureFn,
+) -> None:
+    """update_repo should handle Mercurial repositories and return HgSync."""
+    hg_remote = create_hg_remote_repo(
+        remote_repo_post_init=hg_remote_repo_single_commit_post_init,
+    )
+    # Use bare file:// URL with explicit vcs since hg binary doesn't understand
+    # the hg+ prefix that vcspull uses for VCS detection.
+    repo_dict: ConfigDict = {
+        "vcs": "hg",
+        "name": "my_hg_repo",
+        "path": tmp_path / "checkout" / "my_hg_repo",
+        "url": f"file://{hg_remote}",
+        "workspace_root": str(tmp_path / "checkout/"),
+    }
+
+    result = update_repo(repo_dict)
+    assert isinstance(result, HgSync)
