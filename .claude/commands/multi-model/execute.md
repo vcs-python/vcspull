@@ -1,6 +1,6 @@
 ---
 description: Multi-model execute — run a task across Claude, Gemini, and GPT in git worktrees, then synthesize the best of all approaches
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git remote:*), Bash(git worktree:*), Bash(git checkout:*), Bash(git merge:*), Bash(git cherry-pick:*), Bash(git stash:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Bash(ls:*), Bash(cat:*), Bash(rm:*), Bash(uv run ruff:*), Bash(uv run mypy:*), Bash(uv run py.test:*), Bash(uv run pytest:*), Bash(git add:*), Bash(git commit:*), Read, Grep, Glob, Edit, Write, Task
+allowed-tools: Bash(git:*), Bash(uv run:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Edit, Write, Task
 ---
 
 # Multi-Model Execute

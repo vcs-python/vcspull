@@ -1,7 +1,7 @@
 ---
 description: Process external code review feedback — validate each point, apply valid fixes as separate commits
 argument-hint: "Paste the external code review feedback here"
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git add:*), Bash(git commit:*), Bash(uv run ruff:*), Bash(uv run mypy:*), Bash(uv run py.test:*), Bash(uv run pytest:*), Read, Grep, Glob, Edit, Write
+allowed-tools: Bash(git:*), Bash(uv run:*), Read, Grep, Glob, Edit, Write
 ---
 
 # External Code Review Feedback Processor

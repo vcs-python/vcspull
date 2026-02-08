@@ -1,7 +1,7 @@
 ---
 description: Generate CHANGES entries from branch commits and PR context
 argument-hint: "[optional additional context about the changes]"
-allowed-tools: Bash(git log:*), Bash(git branch:*), Bash(git symbolic-ref:*), Bash(gh pr view:*), Bash(gh pr list:*), Read, Grep, Glob, Edit
+allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob, Edit
 ---
 
 # Changelog Entry Generator

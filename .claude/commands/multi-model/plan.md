@@ -1,6 +1,6 @@
 ---
 description: Multi-model planning — get implementation plans from Claude, Gemini, and GPT, then synthesize the best plan
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git remote:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Task
+allowed-tools: Bash(git:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Task
 ---
 
 # Multi-Model Plan

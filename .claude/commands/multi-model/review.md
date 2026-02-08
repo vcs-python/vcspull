@@ -1,6 +1,6 @@
 ---
 description: Multi-model code review — runs Claude, Gemini, and GPT reviews in parallel, then synthesizes findings
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git remote:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Task
+allowed-tools: Bash(git:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Task
 ---
 
 # Multi-Model Code Review

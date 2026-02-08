@@ -1,6 +1,6 @@
 ---
 description: Multi-model prompt — run a prompt across Claude, Gemini, and GPT in isolated git worktrees, then pick the best approach
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git remote:*), Bash(git worktree:*), Bash(git checkout:*), Bash(git merge:*), Bash(git cherry-pick:*), Bash(git stash:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Bash(ls:*), Bash(cat:*), Bash(rm:*), Read, Grep, Glob, Edit, Write, Task
+allowed-tools: Bash(git:*), Bash(uv run:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Edit, Write, Task
 ---
 
 # Multi-Model Prompt

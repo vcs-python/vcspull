@@ -1,6 +1,6 @@
 ---
 description: Rebase current branch onto trunk (origin/master or origin/main), predict and resolve conflicts
-allowed-tools: Bash(git:*), Bash(uv run ruff:*), Bash(uv run mypy:*), Bash(uv run pytest:*), Bash(uv run py.test:*), Read, Grep, Glob, Edit
+allowed-tools: Bash(git:*), Bash(uv run:*), Read, Grep, Glob, Edit
 ---
 
 ## Context

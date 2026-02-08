@@ -1,6 +1,6 @@
 ---
 description: Fix multi-model review findings — validate, add test coverage, fix, and commit each as atomic changes
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git add:*), Bash(git commit:*), Bash(git checkout:*), Bash(uv run ruff:*), Bash(uv run mypy:*), Bash(uv run py.test:*), Bash(uv run pytest:*), Read, Grep, Glob, Edit, Write, Task
+allowed-tools: Bash(git:*), Bash(uv run:*), Read, Grep, Glob, Edit, Write, Task
 ---
 
 # Fix Review Findings

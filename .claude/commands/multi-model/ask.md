@@ -1,6 +1,6 @@
 ---
 description: Multi-model question — ask Claude, Gemini, and GPT the same question in parallel, then synthesize the best answer
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git remote:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Task
+allowed-tools: Bash(git:*), Bash(gemini:*), Bash(codex:*), Bash(agent:*), Bash(which:*), Read, Grep, Glob, Task
 ---
 
 # Multi-Model Ask
