@@ -296,6 +296,13 @@ CLI_FIXTURES: list[CLIFixture] = [
         expected_exit_code=0,
         expected_in_out=["Directory to scan", "--recursive"],
     ),
+    # Sync: --all --dry-run produces a plan
+    CLIFixture(
+        test_id="sync--all--dry-run",
+        sync_args=["sync", "--all", "--dry-run"],
+        expected_exit_code=0,
+        expected_in_out="Plan:",
+    ),
 ]
 
 
