@@ -295,6 +295,7 @@ class GitLabImporter:
         return RemoteRepo(
             name=name,
             clone_url=data.get("http_url_to_repo", ""),
+            ssh_url=data.get("ssh_url_to_repo", ""),
             html_url=data.get("web_url", ""),
             description=data.get("description"),
             language=None,  # GitLab doesn't return language in list endpoints

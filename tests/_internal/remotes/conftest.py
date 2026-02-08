@@ -98,6 +98,7 @@ def github_user_repos_response() -> bytes:
             {
                 "name": "repo1",
                 "clone_url": "https://github.com/testuser/repo1.git",
+                "ssh_url": "git@github.com:testuser/repo1.git",
                 "html_url": "https://github.com/testuser/repo1",
                 "description": "Test repo 1",
                 "language": "Python",
@@ -111,6 +112,7 @@ def github_user_repos_response() -> bytes:
             {
                 "name": "repo2",
                 "clone_url": "https://github.com/testuser/repo2.git",
+                "ssh_url": "git@github.com:testuser/repo2.git",
                 "html_url": "https://github.com/testuser/repo2",
                 "description": "Test repo 2",
                 "language": "JavaScript",
@@ -133,6 +135,7 @@ def github_forked_repo_response() -> bytes:
             {
                 "name": "forked-repo",
                 "clone_url": "https://github.com/testuser/forked-repo.git",
+                "ssh_url": "git@github.com:testuser/forked-repo.git",
                 "html_url": "https://github.com/testuser/forked-repo",
                 "description": "A forked repo",
                 "language": "Python",
@@ -155,6 +158,7 @@ def github_archived_repo_response() -> bytes:
             {
                 "name": "archived-repo",
                 "clone_url": "https://github.com/testuser/archived-repo.git",
+                "ssh_url": "git@github.com:testuser/archived-repo.git",
                 "html_url": "https://github.com/testuser/archived-repo",
                 "description": "An archived repo",
                 "language": "Python",
@@ -178,6 +182,7 @@ def gitlab_user_projects_response() -> bytes:
                 "path": "project1",
                 "name": "Project 1",
                 "http_url_to_repo": "https://gitlab.com/testuser/project1.git",
+                "ssh_url_to_repo": "git@gitlab.com:testuser/project1.git",
                 "web_url": "https://gitlab.com/testuser/project1",
                 "description": "Test project 1",
                 "topics": ["python"],
@@ -198,6 +203,7 @@ def gitea_user_repos_response() -> bytes:
             {
                 "name": "repo1",
                 "clone_url": "https://codeberg.org/testuser/repo1.git",
+                "ssh_url": "git@codeberg.org:testuser/repo1.git",
                 "html_url": "https://codeberg.org/testuser/repo1",
                 "description": "Test repo 1",
                 "language": "Python",
@@ -222,6 +228,7 @@ def gitea_search_response() -> bytes:
                 {
                     "name": "search-result",
                     "clone_url": "https://codeberg.org/user/search-result.git",
+                    "ssh_url": "git@codeberg.org:user/search-result.git",
                     "html_url": "https://codeberg.org/user/search-result",
                     "description": "Found by search",
                     "language": "Go",

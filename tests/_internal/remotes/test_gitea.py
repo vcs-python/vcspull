@@ -34,6 +34,7 @@ def test_gitea_fetch_org(
         {
             "name": "org-repo",
             "clone_url": "https://codeberg.org/testorg/org-repo.git",
+            "ssh_url": "git@codeberg.org:testorg/org-repo.git",
             "html_url": "https://codeberg.org/testorg/org-repo",
             "description": "Org repo",
             "language": "Go",
@@ -75,6 +76,7 @@ def test_gitea_search_with_array_response(
         {
             "name": "plain-result",
             "clone_url": "https://gitea.example.com/user/plain-result.git",
+            "ssh_url": "git@gitea.example.com:user/plain-result.git",
             "html_url": "https://gitea.example.com/user/plain-result",
             "description": "Plain array result",
             "language": "Python",
@@ -132,6 +134,7 @@ def test_gitea_uses_stars_count_field(
         {
             "name": "starred-repo",
             "clone_url": "https://codeberg.org/user/starred-repo.git",
+            "ssh_url": "git@codeberg.org:user/starred-repo.git",
             "html_url": "https://codeberg.org/user/starred-repo",
             "description": "Popular repo",
             "language": "Rust",
@@ -159,6 +162,7 @@ def test_gitea_filters_by_language(
         {
             "name": "go-repo",
             "clone_url": "https://codeberg.org/user/go-repo.git",
+            "ssh_url": "git@codeberg.org:user/go-repo.git",
             "html_url": "https://codeberg.org/user/go-repo",
             "description": "Go repo",
             "language": "Go",
@@ -172,6 +176,7 @@ def test_gitea_filters_by_language(
         {
             "name": "rust-repo",
             "clone_url": "https://codeberg.org/user/rust-repo.git",
+            "ssh_url": "git@codeberg.org:user/rust-repo.git",
             "html_url": "https://codeberg.org/user/rust-repo",
             "description": "Rust repo",
             "language": "Rust",

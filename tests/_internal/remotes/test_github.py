@@ -28,6 +28,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "repo1",
                 "clone_url": "https://github.com/testuser/repo1.git",
+                "ssh_url": "git@github.com:testuser/repo1.git",
                 "html_url": "https://github.com/testuser/repo1",
                 "description": "Test repo",
                 "language": "Python",
@@ -49,6 +50,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "original",
                 "clone_url": "https://github.com/testuser/original.git",
+                "ssh_url": "git@github.com:testuser/original.git",
                 "html_url": "https://github.com/testuser/original",
                 "description": "Original repo",
                 "language": "Python",
@@ -62,6 +64,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "forked",
                 "clone_url": "https://github.com/testuser/forked.git",
+                "ssh_url": "git@github.com:testuser/forked.git",
                 "html_url": "https://github.com/testuser/forked",
                 "description": "Forked repo",
                 "language": "Python",
@@ -87,6 +90,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "original",
                 "clone_url": "https://github.com/testuser/original.git",
+                "ssh_url": "git@github.com:testuser/original.git",
                 "html_url": "https://github.com/testuser/original",
                 "description": "Original repo",
                 "language": "Python",
@@ -100,6 +104,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "forked",
                 "clone_url": "https://github.com/testuser/forked.git",
+                "ssh_url": "git@github.com:testuser/forked.git",
                 "html_url": "https://github.com/testuser/forked",
                 "description": "Forked repo",
                 "language": "Python",
@@ -125,6 +130,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "active",
                 "clone_url": "https://github.com/testuser/active.git",
+                "ssh_url": "git@github.com:testuser/active.git",
                 "html_url": "https://github.com/testuser/active",
                 "description": "Active repo",
                 "language": "Python",
@@ -138,6 +144,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "archived",
                 "clone_url": "https://github.com/testuser/archived.git",
+                "ssh_url": "git@github.com:testuser/archived.git",
                 "html_url": "https://github.com/testuser/archived",
                 "description": "Archived repo",
                 "language": "Python",
@@ -163,6 +170,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "python-repo",
                 "clone_url": "https://github.com/testuser/python-repo.git",
+                "ssh_url": "git@github.com:testuser/python-repo.git",
                 "html_url": "https://github.com/testuser/python-repo",
                 "description": "Python repo",
                 "language": "Python",
@@ -176,6 +184,7 @@ GITHUB_USER_FIXTURES: list[GitHubUserFixture] = [
             {
                 "name": "js-repo",
                 "clone_url": "https://github.com/testuser/js-repo.git",
+                "ssh_url": "git@github.com:testuser/js-repo.git",
                 "html_url": "https://github.com/testuser/js-repo",
                 "description": "JavaScript repo",
                 "language": "JavaScript",
@@ -243,6 +252,7 @@ def test_github_fetch_org(
         {
             "name": "org-repo",
             "clone_url": "https://github.com/testorg/org-repo.git",
+            "ssh_url": "git@github.com:testorg/org-repo.git",
             "html_url": "https://github.com/testorg/org-repo",
             "description": "Org repo",
             "language": "Python",
@@ -281,6 +291,7 @@ def test_github_fetch_search(
             {
                 "name": "search-result",
                 "clone_url": "https://github.com/user/search-result.git",
+                "ssh_url": "git@github.com:user/search-result.git",
                 "html_url": "https://github.com/user/search-result",
                 "description": "Found by search",
                 "language": "Python",
@@ -342,6 +353,7 @@ def test_github_limit_respected(
         {
             "name": f"repo{i}",
             "clone_url": f"https://github.com/user/repo{i}.git",
+            "ssh_url": f"git@github.com:user/repo{i}.git",
             "html_url": f"https://github.com/user/repo{i}",
             "description": f"Repo {i}",
             "language": "Python",

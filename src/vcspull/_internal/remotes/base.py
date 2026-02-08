@@ -73,7 +73,9 @@ class RemoteRepo:
     name : str
         Repository name (filesystem-safe)
     clone_url : str
-        URL for cloning the repository
+        HTTPS URL for cloning the repository
+    ssh_url : str
+        SSH URL for cloning the repository
     html_url : str
         URL for viewing the repository in a browser
     description : str | None
@@ -96,6 +98,7 @@ class RemoteRepo:
 
     name: str
     clone_url: str
+    ssh_url: str
     html_url: str
     description: str | None
     language: str | None
@@ -106,8 +109,14 @@ class RemoteRepo:
     default_branch: str
     owner: str
 
-    def to_vcspull_url(self) -> str:
+    def to_vcspull_url(self, *, use_ssh: bool = True) -> str:
         """Return the URL formatted for vcspull config.
+
+        Parameters
+        ----------
+        use_ssh : bool
+            When True and ``ssh_url`` is non-empty, use the SSH URL.
+            Falls back to ``clone_url`` when ``ssh_url`` is empty.
 
         Returns
         -------
@@ -119,6 +128,7 @@ class RemoteRepo:
         >>> repo = RemoteRepo(
         ...     name="test",
         ...     clone_url="https://github.com/user/test.git",
+        ...     ssh_url="git@github.com:user/test.git",
         ...     html_url="https://github.com/user/test",
         ...     description=None,
         ...     language=None,
@@ -130,11 +140,14 @@ class RemoteRepo:
         ...     owner="user",
         ... )
         >>> repo.to_vcspull_url()
+        'git+git@github.com:user/test.git'
+        >>> repo.to_vcspull_url(use_ssh=False)
         'git+https://github.com/user/test.git'
         """
-        if self.clone_url.startswith("git+"):
-            return self.clone_url
-        return f"git+{self.clone_url}"
+        url = self.ssh_url if use_ssh and self.ssh_url else self.clone_url
+        if url.startswith("git+"):
+            return url
+        return f"git+{url}"
 
     def to_dict(self) -> dict[str, t.Any]:
         """Convert to dictionary for JSON serialization.
@@ -149,6 +162,7 @@ class RemoteRepo:
         >>> repo = RemoteRepo(
         ...     name="test",
         ...     clone_url="https://github.com/user/test.git",
+        ...     ssh_url="git@github.com:user/test.git",
         ...     html_url="https://github.com/user/test",
         ...     description="A test repo",
         ...     language="Python",
@@ -168,6 +182,7 @@ class RemoteRepo:
         return {
             "name": self.name,
             "clone_url": self.clone_url,
+            "ssh_url": self.ssh_url,
             "html_url": self.html_url,
             "description": self.description,
             "language": self.language,
@@ -452,6 +467,7 @@ def filter_repo(
     >>> repo = RemoteRepo(
     ...     name="test",
     ...     clone_url="https://github.com/user/test.git",
+    ...     ssh_url="git@github.com:user/test.git",
     ...     html_url="https://github.com/user/test",
     ...     description=None,
     ...     language="Python",

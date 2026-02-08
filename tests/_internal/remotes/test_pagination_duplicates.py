@@ -46,6 +46,7 @@ def _make_github_repo(
     return {
         "name": name,
         "clone_url": f"https://github.com/testuser/{name}.git",
+        "ssh_url": f"git@github.com:testuser/{name}.git",
         "html_url": f"https://github.com/testuser/{name}",
         "description": f"Repo {name}",
         "language": "Python",
@@ -68,6 +69,7 @@ def _make_gitea_repo(
     return {
         "name": name,
         "clone_url": f"https://codeberg.org/testuser/{name}.git",
+        "ssh_url": f"git@codeberg.org:testuser/{name}.git",
         "html_url": f"https://codeberg.org/testuser/{name}",
         "description": f"Repo {name}",
         "language": "Python",
@@ -91,6 +93,7 @@ def _make_gitlab_repo(
         "path": name,
         "name": name,
         "http_url_to_repo": f"https://gitlab.com/testuser/{name}.git",
+        "ssh_url_to_repo": f"git@gitlab.com:testuser/{name}.git",
         "web_url": f"https://gitlab.com/testuser/{name}",
         "description": f"Project {name}",
         "topics": [],

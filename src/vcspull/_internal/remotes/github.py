@@ -271,6 +271,7 @@ class GitHubImporter:
         return RemoteRepo(
             name=data["name"],
             clone_url=data["clone_url"],
+            ssh_url=data.get("ssh_url", ""),
             html_url=data["html_url"],
             description=data.get("description"),
             language=data.get("language"),

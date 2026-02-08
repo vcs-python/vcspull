@@ -266,6 +266,7 @@ class CodeCommitImporter:
         return RemoteRepo(
             name=repo_name,
             clone_url=data.get("cloneUrlHttp", ""),
+            ssh_url=data.get("cloneUrlSsh", ""),
             html_url=html_url,
             description=data.get("repositoryDescription"),
             language=None,  # CodeCommit doesn't track language

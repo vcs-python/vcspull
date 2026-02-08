@@ -29,6 +29,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "test",
             "clone_url": "https://github.com/user/test.git",
+            "ssh_url": "git@github.com:user/test.git",
             "html_url": "https://github.com/user/test",
             "description": None,
             "language": "Python",
@@ -47,6 +48,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "fork",
             "clone_url": "https://github.com/user/fork.git",
+            "ssh_url": "git@github.com:user/fork.git",
             "html_url": "https://github.com/user/fork",
             "description": None,
             "language": "Python",
@@ -65,6 +67,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "fork",
             "clone_url": "https://github.com/user/fork.git",
+            "ssh_url": "git@github.com:user/fork.git",
             "html_url": "https://github.com/user/fork",
             "description": None,
             "language": "Python",
@@ -83,6 +86,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "archived",
             "clone_url": "https://github.com/user/archived.git",
+            "ssh_url": "git@github.com:user/archived.git",
             "html_url": "https://github.com/user/archived",
             "description": None,
             "language": "Python",
@@ -101,6 +105,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "archived",
             "clone_url": "https://github.com/user/archived.git",
+            "ssh_url": "git@github.com:user/archived.git",
             "html_url": "https://github.com/user/archived",
             "description": None,
             "language": "Python",
@@ -119,6 +124,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "python-repo",
             "clone_url": "https://github.com/user/python-repo.git",
+            "ssh_url": "git@github.com:user/python-repo.git",
             "html_url": "https://github.com/user/python-repo",
             "description": None,
             "language": "Python",
@@ -137,6 +143,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "python-repo",
             "clone_url": "https://github.com/user/python-repo.git",
+            "ssh_url": "git@github.com:user/python-repo.git",
             "html_url": "https://github.com/user/python-repo",
             "description": None,
             "language": "Python",
@@ -155,6 +162,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "python-repo",
             "clone_url": "https://github.com/user/python-repo.git",
+            "ssh_url": "git@github.com:user/python-repo.git",
             "html_url": "https://github.com/user/python-repo",
             "description": None,
             "language": "Python",
@@ -173,6 +181,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "popular",
             "clone_url": "https://github.com/user/popular.git",
+            "ssh_url": "git@github.com:user/popular.git",
             "html_url": "https://github.com/user/popular",
             "description": None,
             "language": "Python",
@@ -191,6 +200,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "unpopular",
             "clone_url": "https://github.com/user/unpopular.git",
+            "ssh_url": "git@github.com:user/unpopular.git",
             "html_url": "https://github.com/user/unpopular",
             "description": None,
             "language": "Python",
@@ -209,6 +219,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "cli-tool",
             "clone_url": "https://github.com/user/cli-tool.git",
+            "ssh_url": "git@github.com:user/cli-tool.git",
             "html_url": "https://github.com/user/cli-tool",
             "description": None,
             "language": "Python",
@@ -227,6 +238,7 @@ FILTER_REPO_FIXTURES: list[FilterRepoFixture] = [
         repo_kwargs={
             "name": "web-app",
             "clone_url": "https://github.com/user/web-app.git",
+            "ssh_url": "git@github.com:user/web-app.git",
             "html_url": "https://github.com/user/web-app",
             "description": None,
             "language": "Python",
@@ -260,11 +272,52 @@ def test_filter_repo(
     assert filter_repo(repo, options) == expected
 
 
-def test_remote_repo_to_vcspull_url() -> None:
-    """Test RemoteRepo.to_vcspull_url adds git+ prefix."""
+def test_remote_repo_to_vcspull_url_defaults_to_ssh() -> None:
+    """Test RemoteRepo.to_vcspull_url defaults to SSH URL."""
     repo = RemoteRepo(
         name="test",
         clone_url="https://github.com/user/test.git",
+        ssh_url="git@github.com:user/test.git",
+        html_url="https://github.com/user/test",
+        description=None,
+        language=None,
+        topics=(),
+        stars=0,
+        is_fork=False,
+        is_archived=False,
+        default_branch="main",
+        owner="user",
+    )
+    assert repo.to_vcspull_url() == "git+git@github.com:user/test.git"
+
+
+def test_remote_repo_to_vcspull_url_https() -> None:
+    """Test RemoteRepo.to_vcspull_url with use_ssh=False returns HTTPS."""
+    repo = RemoteRepo(
+        name="test",
+        clone_url="https://github.com/user/test.git",
+        ssh_url="git@github.com:user/test.git",
+        html_url="https://github.com/user/test",
+        description=None,
+        language=None,
+        topics=(),
+        stars=0,
+        is_fork=False,
+        is_archived=False,
+        default_branch="main",
+        owner="user",
+    )
+    assert repo.to_vcspull_url(use_ssh=False) == (
+        "git+https://github.com/user/test.git"
+    )
+
+
+def test_remote_repo_to_vcspull_url_fallback_no_ssh() -> None:
+    """Test RemoteRepo.to_vcspull_url falls back to clone_url when ssh_url empty."""
+    repo = RemoteRepo(
+        name="test",
+        clone_url="https://github.com/user/test.git",
+        ssh_url="",
         html_url="https://github.com/user/test",
         description=None,
         language=None,
@@ -283,6 +336,7 @@ def test_remote_repo_to_vcspull_url_already_prefixed() -> None:
     repo = RemoteRepo(
         name="test",
         clone_url="git+https://github.com/user/test.git",
+        ssh_url="",
         html_url="https://github.com/user/test",
         description=None,
         language=None,
@@ -293,7 +347,9 @@ def test_remote_repo_to_vcspull_url_already_prefixed() -> None:
         default_branch="main",
         owner="user",
     )
-    assert repo.to_vcspull_url() == "git+https://github.com/user/test.git"
+    assert repo.to_vcspull_url(use_ssh=False) == (
+        "git+https://github.com/user/test.git"
+    )
 
 
 def test_remote_repo_to_dict() -> None:
@@ -301,6 +357,7 @@ def test_remote_repo_to_dict() -> None:
     repo = RemoteRepo(
         name="test",
         clone_url="https://github.com/user/test.git",
+        ssh_url="git@github.com:user/test.git",
         html_url="https://github.com/user/test",
         description="A test repo",
         language="Python",
@@ -314,6 +371,7 @@ def test_remote_repo_to_dict() -> None:
     d = repo.to_dict()
     assert d["name"] == "test"
     assert d["clone_url"] == "https://github.com/user/test.git"
+    assert d["ssh_url"] == "git@github.com:user/test.git"
     assert d["language"] == "Python"
     assert d["topics"] == ["cli", "tool"]
     assert d["stars"] == 100
