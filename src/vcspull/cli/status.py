@@ -297,8 +297,8 @@ def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.A
                 if branch_result is not None:
                     status["branch"] = branch_result.stdout.strip()
 
-                ahead = 0
-                behind = 0
+                ahead: int | None = None
+                behind: int | None = None
                 upstream_available = _run_git_command(
                     repo_path,
                     "rev-parse",
