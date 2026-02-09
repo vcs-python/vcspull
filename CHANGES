@@ -37,96 +37,33 @@ _Notes on upcoming releases will be added here_
 
 ### Breaking changes
 
-#### cli(sync): Route dry-run JSON through OutputFormatter (#514)
-
-JSON dry-run output bypassed `OutputFormatter`, producing a nested
-workspace schema instead of the flat array used by other commands.
-Dry-run JSON and NDJSON now use the same `formatter.emit()` path.
-
 - Dry-run `--json` output is now a flat array of plan entries, matching
-  the schema of `sync --json` and `status --json`
-
-### What's new
-
-#### cli(_formatter): Add `_HelpTheme` protocol for argparse colorization (#514)
-
-Add a typed protocol documenting the CPython 3.14+ argparse theme
-attributes consumed by `VcspullHelpFormatter`. The formatter hooks into
-`_theme` to colorize example command blocks in help text, applying
-distinct colors to program names, subcommands, and options.
+  the schema of `sync --json` and `status --json` (#514)
 
 ### Bug fixes
 
-#### cli(status): Fix false "up to date" and phantom dirty counts (#514)
-
-`check_repo_status` initialized `ahead`/`behind` to `0` instead of
-`None` when no upstream is tracked, causing `_determine_plan_action`
-to report repos as "up to date" when the remote state was actually
-unknown. Additionally, non-git directories (where `clean` is `None`)
-were counted as dirty in the status summary.
-
-- Initialize `ahead`/`behind` as `None` so missing upstream propagates
-  correctly
-- Use identity checks (`is True` / `is False`) instead of truthiness
-  for `clean`, excluding non-git repos from clean/dirty counts
-
-#### cli(sync): Deduplicate repos matched by multiple patterns (#514)
-
-When multiple patterns matched the same repository (e.g. `"myrepo"`
-and `"*"`), the repo was synced multiple times. Repos are now
-deduplicated by path after pattern matching.
-
-#### cli(sync): Report non-git repos as UPDATE in dry-run plan (#514)
-
-`_determine_plan_action` blocked non-git repos in dry-run output even
-though `update_repo` supports SVN and Mercurial via `create_project()`.
-Non-git repos now show `UPDATE` with a "non-git VCS" detail instead of
-`BLOCKED`.
-
-#### cli(sync): Widen `update_repo` return type (#514)
-
-Return type was annotated as `GitSync` but `create_project()` returns
-`GitSync | HgSync | SvnSync`. The annotation now matches the actual
-return type.
-
-#### cli(_formatter): Complete option classification for help colorization (#514)
-
-The help formatter's option sets were missing several flags (`-d`,
-`-x`, `-V`, `--fetch`, `--offline`, `--verbose`, etc.) and
-value-expecting options (`--max-concurrent`, `--name`, `--url`),
-causing tokens following those options to be misclassified in colorized
-help output.
+- Fix false "up to date" status for repos without upstream tracking (#514)
+- Fix non-git repos being counted in dirty/clean summary totals (#514)
+- Fix repos matched by multiple patterns being synced multiple times (#514)
+- Fix SVN and Mercurial repos showing as BLOCKED in dry-run plan (#514)
+- Fix misclassified tokens in colorized `--help` output (#514)
 
 ### Documentation
 
-- Update sync examples in README and quickstart to use `--all`, matching
-  the v1.53.0 CLI change (#514)
+- Update sync examples in README and quickstart to use `--all` (#514)
 
 ### Tests
 
-- Add SVN and Mercurial tests for `update_repo` to verify non-git VCS
-  paths (#514)
+- Add SVN and Mercurial sync tests (#514)
 
 ## vcspull v1.53.0 (2026-02-08)
-
-### What's new
-
-#### cli: Show help when commands are called without arguments (#511)
-
-Running `vcspull sync`, `vcspull search`, `vcspull add`, or
-`vcspull discover` with no arguments now prints the command's help
-screen instead of raising a cryptic argparse error or silently doing
-nothing. This makes the CLI self-documenting — new users can explore
-available options without reaching for `--help`, and experienced users
-get an instant reminder of the expected syntax.
 
 ### Breaking changes
 
 #### cli(sync): Require `--all` to sync all repositories (#511)
 
-`vcspull sync` without arguments previously synced nothing and exited
-silently. It now shows help instead. To sync every configured
-repository, use the new `--all` (or `-a`) flag:
+`vcspull sync` without arguments now shows help instead of silently
+exiting. To sync every configured repository, use `--all` (or `-a`):
 
 ```console
 $ vcspull sync --all
@@ -135,23 +72,17 @@ $ vcspull sync --all
 - Passing `--all` with positional patterns is an error (mutually exclusive)
 - The `"*"` glob pattern still works as an alternative to `--all`
 
+### What's new
+
+- Subcommands (`sync`, `search`, `add`, `discover`) now print help when
+  called without arguments (#511)
+
 ## vcspull v1.52.1 (2026-02-08)
 
 ### Tests
 
-#### conftest: Fix test failures in clean build environments (#513)
-
-Tests now pass in environments without a global git identity (e.g. Arch
-Linux nspawn containers with Python 3.14). The autouse `setup` fixture
-sets `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, and
-`GIT_COMMITTER_EMAIL` as environment variables so subprocesses inherit
-git identity regardless of `~/.gitconfig` resolution.
-
-- Add `@skip_if_hg_missing` / `@skip_if_svn_missing` markers directly on
-  test functions where libvcs fixture-level markers don't propagate
-  reliably under `asyncio_mode = "auto"`
-- Add pytester-based harness tests that validate fixture infrastructure
-  in isolated subprocess environments
+- Fix test failures in clean build environments without a global git
+  identity (e.g. Arch Linux nspawn containers) (#513)
 
 ## vcspull v1.52.0 (2026-02-07)
 
@@ -159,64 +90,40 @@ git identity regardless of `~/.gitconfig` resolution.
 
 - Bump minimum libvcs from v0.38.6 -> v0.39.0 (#512)
 
-  Adds `SyncResult` and various other bug fixes to syncing.
-
 ### Features
 
-#### cli(sync): Detect and report errored git syncs (#512)
+#### cli(sync): Detect and report errored syncs (#512)
 
-`vcspull sync` now detects git fetch/pull failures via libvcs's `SyncResult`
-and reports them as errors instead of silently succeeding. The sync summary
-shows errored repositories alongside successful and failed counts.
-
-- Only pass `set_remotes=True` for git repositories (not SVN/HG)
-- Include repository identity in sync error messages
+`vcspull sync` now reports git fetch/pull failures as errors instead of
+silently succeeding. The sync summary shows errored repos alongside
+successful and failed counts.
 
 #### cli(sync): Exit non-zero on unmatched patterns with `--exit-on-error` (#512)
 
 When `--exit-on-error` is set and sync patterns match no configured
 repositories, `vcspull sync` now exits with a non-zero status code.
-Unmatched patterns are tracked separately from sync failures, giving
-automation scripts a clear signal about config/pattern problems.
 
 #### cli(sync): Improved sync summary output (#512)
 
-- Track and display unmatched patterns separately from repo totals
+- Show unmatched patterns separately from repo totals
 - Omit "0 previewed" from non-dry-run summaries
-- Suppress unmatched-pattern lines in `--summary-only` mode
-- Color the total count in summary output
 
 ### Bug fixes
 
-- Fix path-based sync patterns showing `"None"` instead of the actual search
-  term (#512)
-
-- Downgrade duplicate user-facing unmatched-pattern log message to debug level,
-  so each pattern is reported only once (#512)
-
-- Emit sync summary even when all patterns are unmatched (#512)
+- Fix path-based sync patterns showing `"None"` instead of the actual
+  search term (#512)
+- Fix duplicate unmatched-pattern warnings in output (#512)
+- Fix missing sync summary when all patterns are unmatched (#512)
 
 ### Tests
 
-- Add errored sync tests: fetch failure, exit-on-error, mixed good/errored,
-  summary lines, all-fail, and cross-VCS scenarios (#512)
-- Add SVN and HG errored sync tests using libvcs factory fixtures (#512)
-- Add rev/branch mismatch and ambiguous branch/directory name regression
-  tests (#512)
-- Add unmatched pattern count, duplicate log, and path-pattern "None" message
-  tests (#512)
-- Refactor `test_cli.py` to use `write_config` helper and assert exit codes
-  consistently (#512)
+- Add errored sync, unmatched pattern, and cross-VCS regression tests (#512)
 
 ## vcspull v1.51.1 (2026-02-01)
 
 ### Tests
 
-- Add syrupy 4.x backwards compatibility for `YamlSnapshotExtension` (#509)
-
-  The custom snapshot extension now sets both `_file_extension` (syrupy 4.x API)
-  and `file_extension` (syrupy 5.x API) to support both versions. This fixes
-  test failures on systems packaging syrupy 4.6.1, such as Arch Linux (#503).
+- Fix snapshot test compatibility with syrupy 4.x (#509, #503)
 
 ## vcspull v1.51.0 (2026-01-27)
 
@@ -226,25 +133,12 @@ automation scripts a clear signal about config/pattern problems.
 
 ### Documentation
 
-#### CLI reference pages now have linkable arguments (#502)
-
-Each command-line argument (`--help`, `-v`, `--config`, etc.) in the CLI
-reference documentation now has a permalink anchor (¶). You can hover over any
-argument to reveal the link, then share direct URLs to specific options.
-
-- Improved metadata display: Default values, types, and "Required" tags are now
-  styled more clearly
-- Help text containing glob patterns like `django-*` no longer triggers
-  documentation build warnings
-- Multiple CLI commands can now appear on the same documentation page without
-  ID conflicts
+- CLI reference arguments now have permalink anchors (#502)
+- Fix doc build warnings from glob patterns in help text (#502)
 
 ### Bug fixes
 
-#### Improve downstream compatibility in test matrix (#504)
-
-- Refactor syrupy snapshot tests to avoid `name=` parameter which may cause
-  matching issues in certain build environments, e.g., Arch Linux packaging (#503).
+- Fix snapshot test compatibility for downstream packaging (#504, #503)
 
 ## vcspull v1.50.1 (2026-01-25)
 
