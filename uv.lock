@@ -1436,6 +1436,7 @@ dependencies = [
     { name = "colorama" },
     { name = "libvcs" },
     { name = "pyyaml" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 
 [package.dev-dependencies]
@@ -1520,6 +1521,7 @@ requires-dist = [
     { name = "colorama", specifier = ">=0.3.9" },
     { name = "libvcs", specifier = "~=0.39.0" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'", specifier = ">=4.0.0" },
 ]
 
 [package.metadata.requires-dev]

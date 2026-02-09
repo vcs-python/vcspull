@@ -29,6 +29,9 @@ jobs:
           python -V
           uv run python -V
 
+      - name: Check runtime dependencies
+        run: python .github/scripts/check_deps.py
+
       - name: Lint with ruff check
         run: uv run ruff check .
 
