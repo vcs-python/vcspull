@@ -181,6 +181,14 @@ class GitHubImporter:
 
             self._log_rate_limit(headers)
 
+            total_count = data.get("total_count", 0)
+            if page == 1 and total_count > 1000:
+                log.warning(
+                    "GitHub search returned %d total results but API limits "
+                    "to 1000; consider narrowing your query",
+                    total_count,
+                )
+
             items = data.get("items", [])
             if not items:
                 break
