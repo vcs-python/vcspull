@@ -8,8 +8,6 @@ import pathlib
 import sys
 import typing as t
 
-from colorama import Fore, Style
-
 from vcspull._internal.private_path import PrivatePath
 from vcspull._internal.remotes import (
     AuthenticationError,
@@ -393,19 +391,18 @@ def import_repos(
             profile=profile,
         )
     except ValueError as exc:
-        log.error("%s✗%s %s", Fore.RED, Style.RESET_ALL, exc)  # noqa: TRY400
+        log.error("%s %s", colors.error("✗"), exc)  # noqa: TRY400
         return
     except DependencyError as exc:
-        log.error("%s✗%s %s", Fore.RED, Style.RESET_ALL, exc)  # noqa: TRY400
+        log.error("%s %s", colors.error("✗"), exc)  # noqa: TRY400
         return
 
     # Validate target for non-CodeCommit services
     normalized_service = SERVICE_ALIASES.get(service.lower(), service.lower())
     if normalized_service != "codecommit" and not target:
         log.error(
-            "%s✗%s TARGET is required for %s",
-            Fore.RED,
-            Style.RESET_ALL,
+            "%s TARGET is required for %s",
+            colors.error("✗"),
             service,
         )
         return
@@ -432,16 +429,15 @@ def import_repos(
             limit=limit,
         )
     except ValueError as exc_:
-        log.error("%s✗%s %s", Fore.RED, Style.RESET_ALL, exc_)  # noqa: TRY400
+        log.error("%s %s", colors.error("✗"), exc_)  # noqa: TRY400
         return
 
     # Warn if --language is used with services that don't return language info
     if options.language and normalized_service in ("gitlab", "codecommit"):
         log.warning(
-            "%s!%s %s does not return language metadata; "
+            "%s %s does not return language metadata; "
             "--language filter may exclude all results",
-            Fore.YELLOW,
-            Style.RESET_ALL,
+            colors.warning("!"),
             importer.service_name,
         )
 
@@ -454,19 +450,16 @@ def import_repos(
     try:
         config_file_path = _resolve_config_file(config_path_str)
     except (ValueError, MultipleConfigWarning) as exc_:
-        log.error("%s✗%s %s", Fore.RED, Style.RESET_ALL, exc_)  # noqa: TRY400
+        log.error("%s %s", colors.error("✗"), exc_)  # noqa: TRY400
         return
     display_config_path = str(PrivatePath(config_file_path))
 
     # Fetch repositories
     if output_mode.value == "human":
         log.info(
-            "%s→%s Fetching repositories from %s%s%s...",
-            Fore.CYAN,
-            Style.RESET_ALL,
-            Fore.MAGENTA,
-            importer.service_name,
-            Style.RESET_ALL,
+            "%s Fetching repositories from %s...",
+            colors.info("→"),
+            colors.highlight(importer.service_name),
         )
 
     repos: list[RemoteRepo] = []
@@ -480,65 +473,58 @@ def import_repos(
             # Log progress for human output
             if output_mode.value == "human" and len(repos) % 10 == 0:
                 log.info(
-                    "%s•%s Fetched %s%d%s repositories...",
-                    Fore.BLUE,
-                    Style.RESET_ALL,
-                    Fore.CYAN,
-                    len(repos),
-                    Style.RESET_ALL,
+                    "%s Fetched %s repositories...",
+                    colors.muted("•"),
+                    colors.info(str(len(repos))),
                 )
 
     except AuthenticationError as exc:
         log.error(  # noqa: TRY400
-            "%s✗%s Authentication error: %s", Fore.RED, Style.RESET_ALL, exc
+            "%s Authentication error: %s", colors.error("✗"), exc
         )
         formatter.finalize()
         return
     except RateLimitError as exc:
         log.error(  # noqa: TRY400
-            "%s✗%s Rate limit exceeded: %s", Fore.RED, Style.RESET_ALL, exc
+            "%s Rate limit exceeded: %s", colors.error("✗"), exc
         )
         formatter.finalize()
         return
     except NotFoundError as exc:
-        log.error("%s✗%s Not found: %s", Fore.RED, Style.RESET_ALL, exc)  # noqa: TRY400
+        log.error("%s Not found: %s", colors.error("✗"), exc)  # noqa: TRY400
         formatter.finalize()
         return
     except ServiceUnavailableError as exc:
         log.error(  # noqa: TRY400
-            "%s✗%s Service unavailable: %s", Fore.RED, Style.RESET_ALL, exc
+            "%s Service unavailable: %s", colors.error("✗"), exc
         )
         formatter.finalize()
         return
     except ConfigurationError as exc:
         log.error(  # noqa: TRY400
-            "%s✗%s Configuration error: %s", Fore.RED, Style.RESET_ALL, exc
+            "%s Configuration error: %s", colors.error("✗"), exc
         )
         formatter.finalize()
         return
     except RemoteImportError as exc:
-        log.error("%s✗%s Error: %s", Fore.RED, Style.RESET_ALL, exc)  # noqa: TRY400
+        log.error("%s Error: %s", colors.error("✗"), exc)  # noqa: TRY400
         formatter.finalize()
         return
 
     if not repos:
         if output_mode.value == "human":
             log.info(
-                "%s!%s No repositories found matching criteria.",
-                Fore.YELLOW,
-                Style.RESET_ALL,
+                "%s No repositories found matching criteria.",
+                colors.warning("!"),
             )
         formatter.finalize()
         return
 
     if output_mode.value == "human":
         log.info(
-            "\n%s✓%s Found %s%d%s repositories",
-            Fore.GREEN,
-            Style.RESET_ALL,
-            Fore.CYAN,
-            len(repos),
-            Style.RESET_ALL,
+            "\n%s Found %s repositories",
+            colors.success("✓"),
+            colors.info(str(len(repos))),
         )
 
     # Show preview in human mode
@@ -547,23 +533,17 @@ def import_repos(
             stars_str = f" ★{repo.stars}" if repo.stars > 0 else ""
             lang_str = f" [{repo.language}]" if repo.language else ""
             log.info(
-                "  %s+%s %s%s%s%s%s",
-                Fore.GREEN,
-                Style.RESET_ALL,
-                Fore.CYAN,
-                repo.name,
-                Style.RESET_ALL,
+                "  %s %s%s%s",
+                colors.success("+"),
+                colors.info(repo.name),
                 colors.muted(lang_str),
                 colors.muted(stars_str),
             )
         if len(repos) > 10:
             log.info(
-                "  %s...%s and %s%d%s more",
-                Fore.BLUE,
-                Style.RESET_ALL,
-                Fore.CYAN,
-                len(repos) - 10,
-                Style.RESET_ALL,
+                "  %s and %s more",
+                colors.muted("..."),
+                colors.info(str(len(repos) - 10)),
             )
 
     formatter.finalize()
@@ -571,12 +551,9 @@ def import_repos(
     # Handle dry-run
     if dry_run:
         log.info(
-            "\n%s→%s Dry run complete. Would write to %s%s%s",
-            Fore.YELLOW,
-            Style.RESET_ALL,
-            Fore.BLUE,
-            display_config_path,
-            Style.RESET_ALL,
+            "\n%s Dry run complete. Would write to %s",
+            colors.warning("→"),
+            colors.muted(display_config_path),
         )
         return
 
@@ -584,20 +561,19 @@ def import_repos(
     if not yes and output_mode.value == "human":
         if not sys.stdin.isatty():
             log.info(
-                "%s✗%s Non-interactive mode: use --yes to skip confirmation.",
-                Fore.RED,
-                Style.RESET_ALL,
+                "%s Non-interactive mode: use --yes to skip confirmation.",
+                colors.error("✗"),
             )
             return
         try:
             confirm = input(
-                f"\n{Fore.CYAN}Import {len(repos)} repositories to "
-                f"{display_config_path}? [y/N]: {Style.RESET_ALL}",
+                f"\n{colors.info('Import')} {len(repos)} repositories to "
+                f"{display_config_path}? [y/N]: ",
             ).lower()
         except EOFError:
             confirm = ""
         if confirm not in {"y", "yes"}:
-            log.info("%s✗%s Aborted by user.", Fore.RED, Style.RESET_ALL)
+            log.info("%s Aborted by user.", colors.error("✗"))
             return
 
     # Load existing config or create new
@@ -614,9 +590,8 @@ def import_repos(
 
         if not isinstance(raw_config, dict):
             log.error(
-                "%s✗%s Config file is not a valid YAML mapping: %s",
-                Fore.RED,
-                Style.RESET_ALL,
+                "%s Config file is not a valid YAML mapping: %s",
+                colors.error("✗"),
                 display_config_path,
             )
             return
@@ -658,9 +633,8 @@ def import_repos(
                 raw_config[repo_workspace_label], dict
             ):
                 log.error(
-                    "%s✗%s Workspace section '%s' is not a mapping in config",
-                    Fore.RED,
-                    Style.RESET_ALL,
+                    "%s Workspace section '%s' is not a mapping in config",
+                    colors.error("✗"),
                     repo_workspace_label,
                 )
             checked_labels.add(repo_workspace_label)
@@ -684,9 +658,8 @@ def import_repos(
 
     if added_count == 0:
         log.info(
-            "%s✓%s All repositories already exist in config. Nothing to add.",
-            Fore.GREEN,
-            Style.RESET_ALL,
+            "%s All repositories already exist in config. Nothing to add.",
+            colors.success("✓"),
         )
         return
 
@@ -694,24 +667,16 @@ def import_repos(
     try:
         save_config_yaml(config_file_path, raw_config)
         log.info(
-            "%s✓%s Added %s%d%s repositories to %s%s%s",
-            Fore.GREEN,
-            Style.RESET_ALL,
-            Fore.CYAN,
-            added_count,
-            Style.RESET_ALL,
-            Fore.BLUE,
-            display_config_path,
-            Style.RESET_ALL,
+            "%s Added %s repositories to %s",
+            colors.success("✓"),
+            colors.info(str(added_count)),
+            colors.muted(display_config_path),
         )
         if skipped_count > 0:
             log.info(
-                "%s!%s Skipped %s%d%s existing repositories",
-                Fore.YELLOW,
-                Style.RESET_ALL,
-                Fore.CYAN,
-                skipped_count,
-                Style.RESET_ALL,
+                "%s Skipped %s existing repositories",
+                colors.warning("!"),
+                colors.info(str(skipped_count)),
             )
     except OSError:
         log.exception("Error saving config to %s", display_config_path)
