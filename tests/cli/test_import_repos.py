@@ -353,6 +353,12 @@ RESOLVE_CONFIG_FIXTURES: list[ResolveConfigFixture] = [
         home_configs=[],
         expected_suffix=".vcspull.yaml",
     ),
+    ResolveConfigFixture(
+        test_id="yml-extension-accepted",
+        config_path_str="/custom/config.yml",
+        home_configs=[],
+        expected_suffix="config.yml",
+    ),
 ]
 
 
