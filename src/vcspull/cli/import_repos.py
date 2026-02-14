@@ -418,18 +418,22 @@ def import_repos(
         else []
     )
 
-    options = ImportOptions(
-        mode=import_mode,
-        target=target,
-        base_url=base_url,
-        token=token,
-        include_forks=include_forks,
-        include_archived=include_archived,
-        language=language,
-        topics=topic_list,
-        min_stars=min_stars,
-        limit=limit,
-    )
+    try:
+        options = ImportOptions(
+            mode=import_mode,
+            target=target,
+            base_url=base_url,
+            token=token,
+            include_forks=include_forks,
+            include_archived=include_archived,
+            language=language,
+            topics=topic_list,
+            min_stars=min_stars,
+            limit=limit,
+        )
+    except ValueError as exc_:
+        log.error("%s✗%s %s", Fore.RED, Style.RESET_ALL, exc_)  # noqa: TRY400
+        return
 
     # Warn if --language is used with services that don't return language info
     if options.language and normalized_service in ("gitlab", "codecommit"):

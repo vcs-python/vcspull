@@ -1693,6 +1693,59 @@ def test_import_repos_catches_multiple_config_warning(
     assert "Multiple configs" in caplog.text
 
 
+def test_import_repos_invalid_limit(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos logs error for invalid limit (e.g. 0)."""
+    caplog.set_level(logging.ERROR)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("repo1")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=0,
+        config_path_str=str(tmp_path / "config.yaml"),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert "limit must be >= 1" in caplog.text
+
+
 def test_import_repos_rejects_non_dict_config(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
