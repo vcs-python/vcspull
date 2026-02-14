@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import fnmatch
 import logging
 import os
 import pathlib
+import tempfile
 import typing as t
 from collections.abc import Callable
 
@@ -460,6 +462,32 @@ def is_config_file(
     return any(filename.endswith(e) for e in extensions)
 
 
+def _atomic_write(target: pathlib.Path, content: str) -> None:
+    """Write content to a file atomically via temp-file-then-rename.
+
+    Parameters
+    ----------
+    target : pathlib.Path
+        Destination file path
+    content : str
+        Content to write
+    """
+    fd, tmp_path = tempfile.mkstemp(
+        dir=target.parent,
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp_path, target)
+    except BaseException:
+        # Clean up the temp file on any failure
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
+
+
 def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
     """Save configuration data to a YAML file.
 
@@ -475,7 +503,7 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         content=data,
         indent=2,
     )
-    config_file_path.write_text(yaml_content, encoding="utf-8")
+    _atomic_write(config_file_path, yaml_content)
 
 
 def save_config_yaml_with_items(
@@ -498,7 +526,7 @@ def save_config_yaml_with_items(
     if yaml_content:
         yaml_content += "\n"
 
-    config_file_path.write_text(yaml_content, encoding="utf-8")
+    _atomic_write(config_file_path, yaml_content)
 
 
 def merge_duplicate_workspace_root_entries(
