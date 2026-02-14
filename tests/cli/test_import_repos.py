@@ -1706,3 +1706,107 @@ def test_import_nested_groups(
     for label, expected_repo_names in expected_labels.items():
         assert isinstance(config[label], dict)
         assert set(config[label].keys()) == set(expected_repo_names)
+
+
+class LanguageWarningFixture(t.NamedTuple):
+    """Fixture for --language warning test cases."""
+
+    test_id: str
+    service: str
+    language: str | None
+    expect_warning: bool
+
+
+LANGUAGE_WARNING_FIXTURES: list[LanguageWarningFixture] = [
+    LanguageWarningFixture(
+        test_id="gitlab-with-language-warns",
+        service="gitlab",
+        language="Python",
+        expect_warning=True,
+    ),
+    LanguageWarningFixture(
+        test_id="codecommit-with-language-warns",
+        service="codecommit",
+        language="Python",
+        expect_warning=True,
+    ),
+    LanguageWarningFixture(
+        test_id="github-with-language-no-warning",
+        service="github",
+        language="Python",
+        expect_warning=False,
+    ),
+    LanguageWarningFixture(
+        test_id="gitlab-without-language-no-warning",
+        service="gitlab",
+        language=None,
+        expect_warning=False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(LanguageWarningFixture._fields),
+    LANGUAGE_WARNING_FIXTURES,
+    ids=[f.test_id for f in LANGUAGE_WARNING_FIXTURES],
+)
+def test_import_repos_language_warning(
+    test_id: str,
+    service: str,
+    language: str | None,
+    expect_warning: bool,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that --language warns for services without language metadata."""
+    caplog.set_level(logging.WARNING)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    class MockImporter:
+        service_name = {"gitlab": "GitLab", "codecommit": "CodeCommit"}.get(
+            service, "GitHub"
+        )
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            return iter([])
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service=service,
+        target="testuser" if service != "codecommit" else "",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region="us-east-1" if service == "codecommit" else None,
+        profile=None,
+        language=language,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(tmp_path / "config.yaml"),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    if expect_warning:
+        assert "does not return language metadata" in caplog.text
+    else:
+        assert "does not return language metadata" not in caplog.text

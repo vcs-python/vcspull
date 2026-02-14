@@ -429,6 +429,16 @@ def import_repos(
         limit=limit,
     )
 
+    # Warn if --language is used with services that don't return language info
+    if options.language and normalized_service in ("gitlab", "codecommit"):
+        log.warning(
+            "%s!%s %s does not return language metadata; "
+            "--language filter may exclude all results",
+            Fore.YELLOW,
+            Style.RESET_ALL,
+            importer.service_name,
+        )
+
     # Resolve workspace path
     workspace_path = pathlib.Path(workspace).expanduser().resolve()
     cwd = pathlib.Path.cwd()
