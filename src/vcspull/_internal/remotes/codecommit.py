@@ -196,9 +196,18 @@ class CodeCommitImporter:
         DependencyError
             When AWS CLI is not installed
         """
-        # List all repositories
-        data = self._run_aws_command("codecommit", "list-repositories")
-        repositories = data.get("repositories", [])
+        # List all repositories (paginate over nextToken)
+        repositories: list[dict[str, t.Any]] = []
+        next_token: str | None = None
+        while True:
+            cmd_args = ["codecommit", "list-repositories"]
+            if next_token:
+                cmd_args.extend(["--next-token", next_token])
+            data = self._run_aws_command(*cmd_args)
+            repositories.extend(data.get("repositories", []))
+            next_token = data.get("nextToken")
+            if not next_token:
+                break
 
         if not repositories:
             return

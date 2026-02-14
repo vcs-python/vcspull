@@ -446,6 +446,62 @@ def test_fetch_repos_batch_processing(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(batch_get_calls[1]) == 5
 
 
+def test_fetch_repos_pagination(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test fetch_repos handles nextToken pagination across list-repositories calls."""
+    call_count = 0
+    list_calls: list[list[str]] = []
+
+    def mock_run(cmd: list[str], **kwargs: t.Any) -> subprocess.CompletedProcess[str]:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return _aws_ok("aws-cli/2.x")
+        if "list-repositories" in cmd:
+            list_calls.append(cmd)
+            if "--next-token" not in cmd:
+                # First page: return 2 repos + nextToken
+                return _aws_ok(
+                    json.dumps(
+                        {
+                            "repositories": [
+                                {"repositoryName": "page1-repo1"},
+                                {"repositoryName": "page1-repo2"},
+                            ],
+                            "nextToken": "token-page2",
+                        }
+                    )
+                )
+            # Second page: return 1 repo, no nextToken
+            return _aws_ok(
+                json.dumps(
+                    {
+                        "repositories": [
+                            {"repositoryName": "page2-repo1"},
+                        ],
+                    }
+                )
+            )
+        if "batch-get-repositories" in cmd:
+            names_idx = cmd.index("--repository-names") + 1
+            repo_names = cmd[names_idx:]
+            repos = [_make_cc_repo(name) for name in repo_names]
+            return _aws_ok(json.dumps({"repositories": repos}))
+        return _aws_err(stderr="unknown command")
+
+    monkeypatch.setattr("subprocess.run", mock_run)
+    importer = CodeCommitImporter()
+    options = ImportOptions()
+    repos = list(importer.fetch_repos(options))
+
+    # Should have consumed both pages
+    assert len(repos) == 3
+    assert {r.name for r in repos} == {"page1-repo1", "page1-repo2", "page2-repo1"}
+    # Should have made 2 list-repositories calls
+    assert len(list_calls) == 2
+    assert "--next-token" not in list_calls[0]
+    assert "--next-token" in list_calls[1]
+
+
 # ---------------------------------------------------------------------------
 # _parse_repo — region extraction
 # ---------------------------------------------------------------------------
