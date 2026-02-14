@@ -7,6 +7,7 @@ import logging
 import pathlib
 import textwrap
 import typing as t
+
 from libvcs.__about__ import __version__ as libvcs_version
 
 from vcspull.__about__ import __version__

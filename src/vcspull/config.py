@@ -480,11 +480,11 @@ def _atomic_write(target: pathlib.Path, content: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
-        os.replace(tmp_path, target)
+        pathlib.Path(tmp_path).replace(target)
     except BaseException:
         # Clean up the temp file on any failure
         with contextlib.suppress(OSError):
-            os.unlink(tmp_path)
+            pathlib.Path(tmp_path).unlink()
         raise
 
 

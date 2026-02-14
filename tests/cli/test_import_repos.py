@@ -273,6 +273,8 @@ def test_get_importer(
 
 def test_codeberg_custom_url_used() -> None:
     """Test that Codeberg importer uses custom base_url when provided."""
+    from vcspull._internal.remotes.gitea import GiteaImporter
+
     importer = _get_importer(
         "codeberg",
         token=None,
@@ -280,12 +282,14 @@ def test_codeberg_custom_url_used() -> None:
         region=None,
         profile=None,
     )
-    # GiteaImporter stores base_url on its _client
+    assert isinstance(importer, GiteaImporter)
     assert importer._client.base_url == "https://my-codeberg.example.com/api/v1"
 
 
 def test_codeberg_default_url_used() -> None:
     """Test that Codeberg importer uses default URL when no base_url."""
+    from vcspull._internal.remotes.gitea import GiteaImporter
+
     importer = _get_importer(
         "codeberg",
         token=None,
@@ -293,6 +297,7 @@ def test_codeberg_default_url_used() -> None:
         region=None,
         profile=None,
     )
+    assert isinstance(importer, GiteaImporter)
     assert importer._client.base_url == "https://codeberg.org/api/v1"
 
 
@@ -725,7 +730,9 @@ def test_import_repos_user_abort(
 
     # Mock user input and ensure isatty returns True so we reach input()
     monkeypatch.setattr("builtins.input", lambda _: "n")
-    monkeypatch.setattr("sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})())
+    monkeypatch.setattr(
+        "sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})()
+    )
 
     # Mock the importer
     class MockImporter:
@@ -789,7 +796,9 @@ def test_import_repos_eoferror_aborts(
 
     monkeypatch.setattr("builtins.input", raise_eof)
     # Ensure isatty returns True so we reach input()
-    monkeypatch.setattr("sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})())
+    monkeypatch.setattr(
+        "sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})()
+    )
 
     class MockImporter:
         service_name = "MockService"

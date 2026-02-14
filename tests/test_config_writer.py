@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import textwrap
 import typing as t
 
@@ -82,17 +81,20 @@ def test_save_config_yaml_atomic_preserves_existing_on_error(
 ) -> None:
     """Test that existing config is preserved if atomic write fails."""
     config_path = tmp_path / ".vcspull.yaml"
-    original_content = "~/code/:\n  existing: {repo: git+https://example.com/repo.git}\n"
+    original_content = (
+        "~/code/:\n  existing: {repo: git+https://example.com/repo.git}\n"
+    )
     config_path.write_text(original_content, encoding="utf-8")
 
-    # Mock os.replace to simulate a failure after temp file is written
-    original_replace = os.replace
+    # Mock Path.replace to simulate a failure after temp file is written
+    disk_error_msg = "Simulated disk error"
 
-    def failing_replace(src: str, dst: str) -> None:
-        # Remove the temp file to simulate cleanup
-        raise OSError("Simulated disk error")
+    import pathlib as _pathlib
 
-    monkeypatch.setattr("os.replace", failing_replace)
+    def failing_replace(self: _pathlib.Path, target: t.Any) -> _pathlib.Path:
+        raise OSError(disk_error_msg)
+
+    monkeypatch.setattr(_pathlib.Path, "replace", failing_replace)
 
     data = {"~/new/": {"newrepo": {"repo": "git+https://example.com/new.git"}}}
     with pytest.raises(OSError, match="Simulated disk error"):

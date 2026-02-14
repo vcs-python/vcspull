@@ -525,7 +525,7 @@ def test_handle_http_error(
         fp=io.BytesIO(response_body.encode()),
     )
 
-    with pytest.raises(error_classes[expected_error_type], match="(?i).*") as exc_info:
+    with pytest.raises(error_classes[expected_error_type]) as exc_info:
         client._handle_http_error(exc, "TestService")
 
     assert expected_message_contains.lower() in str(exc_info.value).lower()
