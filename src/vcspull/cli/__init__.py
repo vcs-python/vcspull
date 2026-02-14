@@ -7,8 +7,6 @@ import logging
 import pathlib
 import textwrap
 import typing as t
-from typing import overload
-
 from libvcs.__about__ import __version__ as libvcs_version
 
 from vcspull.__about__ import __version__
@@ -271,13 +269,13 @@ IMPORT_DESCRIPTION = build_description(
 )
 
 
-@overload
+@t.overload
 def create_parser(
     return_subparsers: t.Literal[True],
 ) -> tuple[argparse.ArgumentParser, t.Any]: ...
 
 
-@overload
+@t.overload
 def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParser: ...
 
 
