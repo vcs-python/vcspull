@@ -279,7 +279,7 @@ Common commit types:
 
 Examples:
 ```
-cli/add(feat[add_repo]) Add support for custom remote URLs
+cli(add[repo]) Add support for custom remote URLs
 
 why: Enable users to specify alternative remote URLs for repositories
 what:

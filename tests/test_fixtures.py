@@ -120,6 +120,8 @@ def test_pytester_git_commit_in_isolated_run(
             """
 [pytest]
 addopts=-vv
+asyncio_mode=auto
+asyncio_default_fixture_loop_scope=function
         """.strip(),
         ),
     )
