@@ -2193,3 +2193,122 @@ def test_import_repos_language_warning(
         assert "does not return language metadata" in caplog.text
     else:
         assert "does not return language metadata" not in caplog.text
+
+
+class UnsupportedFilterFixture(t.NamedTuple):
+    """Fixture for unsupported CodeCommit filter warning test cases."""
+
+    test_id: str
+    service: str
+    topics: str | None
+    min_stars: int
+    expect_topics_warning: bool
+    expect_stars_warning: bool
+
+
+UNSUPPORTED_FILTER_FIXTURES: list[UnsupportedFilterFixture] = [
+    UnsupportedFilterFixture(
+        test_id="codecommit-with-topics-warns",
+        service="codecommit",
+        topics="python,cli",
+        min_stars=0,
+        expect_topics_warning=True,
+        expect_stars_warning=False,
+    ),
+    UnsupportedFilterFixture(
+        test_id="codecommit-with-min-stars-warns",
+        service="codecommit",
+        topics=None,
+        min_stars=10,
+        expect_topics_warning=False,
+        expect_stars_warning=True,
+    ),
+    UnsupportedFilterFixture(
+        test_id="codecommit-with-both-warns",
+        service="codecommit",
+        topics="python",
+        min_stars=5,
+        expect_topics_warning=True,
+        expect_stars_warning=True,
+    ),
+    UnsupportedFilterFixture(
+        test_id="github-with-topics-no-warning",
+        service="github",
+        topics="python,cli",
+        min_stars=10,
+        expect_topics_warning=False,
+        expect_stars_warning=False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(UnsupportedFilterFixture._fields),
+    UNSUPPORTED_FILTER_FIXTURES,
+    ids=[f.test_id for f in UNSUPPORTED_FILTER_FIXTURES],
+)
+def test_import_repos_unsupported_filter_warning(
+    test_id: str,
+    service: str,
+    topics: str | None,
+    min_stars: int,
+    expect_topics_warning: bool,
+    expect_stars_warning: bool,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that --topics/--min-stars warn for CodeCommit."""
+    caplog.set_level(logging.WARNING)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    class MockImporter:
+        service_name = "CodeCommit" if service == "codecommit" else "GitHub"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            return iter([])
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service=service,
+        target="testuser" if service != "codecommit" else "",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region="us-east-1" if service == "codecommit" else None,
+        profile=None,
+        language=None,
+        topics=topics,
+        min_stars=min_stars,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(tmp_path / "config.yaml"),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    if expect_topics_warning:
+        assert "does not support topic filtering" in caplog.text
+    else:
+        assert "does not support topic filtering" not in caplog.text
+
+    if expect_stars_warning:
+        assert "does not track star counts" in caplog.text
+    else:
+        assert "does not track star counts" not in caplog.text

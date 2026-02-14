@@ -445,6 +445,20 @@ def import_repos(
             colors.warning("!"),
             importer.service_name,
         )
+    if options.topics and normalized_service == "codecommit":
+        log.warning(
+            "%s %s does not support topic filtering; "
+            "--topics filter may exclude all results",
+            colors.warning("!"),
+            importer.service_name,
+        )
+    if options.min_stars > 0 and normalized_service == "codecommit":
+        log.warning(
+            "%s %s does not track star counts; "
+            "--min-stars filter may exclude all results",
+            colors.warning("!"),
+            importer.service_name,
+        )
 
     # Resolve workspace path
     workspace_path = pathlib.Path(workspace).expanduser().resolve()
