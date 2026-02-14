@@ -33,6 +33,11 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Tests
+
+- Fix `pytest-asyncio` deprecation warning in isolated `pytester` runs by
+  setting `asyncio_default_fixture_loop_scope` explicitly (#515)
+
 ## vcspull v1.54.0 (2026-02-08)
 
 ### Breaking changes
