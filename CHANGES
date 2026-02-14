@@ -48,6 +48,30 @@ $ vcspull import github torvalds -w ~/repos/linux --mode user
 $ vcspull import github torvalds -w ~/repos/linux --mode user --https
 ```
 
+#### `vcspull import`: GitLab subgroups map to workspace roots (#510)
+
+For GitLab organization/group imports, subgroup namespaces are now preserved
+under the selected workspace root by default.
+
+Example:
+
+```console
+$ vcspull import gitlab vcs-python-group-test -w ~/projects/python --mode org
+```
+
+This writes repositories into workspace sections like:
+
+- `~/projects/python/`
+- `~/projects/python/<subgroup>/`
+- `~/projects/python/<subgroup>/<subsubgroup>/`
+
+Use `--flatten-groups` to import all subgroup repositories into a single
+workspace root:
+
+```console
+$ vcspull import gitlab vcs-python-group-test -w ~/projects/python --mode org --flatten-groups
+```
+
 #### `vcspull import` command for remote repository discovery (#510)
 
 Import repositories from GitHub, GitLab, Codeberg/Gitea/Forgejo, and AWS

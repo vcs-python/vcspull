@@ -252,6 +252,8 @@ IMPORT_DESCRIPTION = build_description(
     or AWS CodeCommit and adds them to the vcspull configuration.
 
     For GitLab, you can specify subgroups using slash notation (e.g., parent/child).
+    In org mode, subgroup paths are preserved under the workspace root by
+    default; use --flatten-groups to collapse them into a single workspace.
     """,
     (
         (
