@@ -263,7 +263,7 @@ def _get_importer(
         return GitLabImporter(token=token, base_url=base_url)
 
     if normalized == "codeberg":
-        return GiteaImporter(token=token, base_url="https://codeberg.org")
+        return GiteaImporter(token=token, base_url=base_url or "https://codeberg.org")
 
     if normalized in ("gitea", "forgejo"):
         if not base_url:

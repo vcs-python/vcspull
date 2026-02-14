@@ -133,6 +133,16 @@ GET_IMPORTER_FIXTURES: list[GetImporterFixture] = [
         expected_error=None,
     ),
     GetImporterFixture(
+        test_id="codeberg-custom-url",
+        service="codeberg",
+        token=None,
+        base_url="https://my-codeberg-mirror.example.com",
+        region=None,
+        profile=None,
+        expected_type_name="GiteaImporter",
+        expected_error=None,
+    ),
+    GetImporterFixture(
         test_id="gitea-with-url",
         service="gitea",
         token=None,
@@ -259,6 +269,31 @@ def test_get_importer(
             profile=profile,
         )
         assert type(importer).__name__ == expected_type_name
+
+
+def test_codeberg_custom_url_used() -> None:
+    """Test that Codeberg importer uses custom base_url when provided."""
+    importer = _get_importer(
+        "codeberg",
+        token=None,
+        base_url="https://my-codeberg.example.com",
+        region=None,
+        profile=None,
+    )
+    # GiteaImporter stores base_url on its _client
+    assert importer._client.base_url == "https://my-codeberg.example.com/api/v1"
+
+
+def test_codeberg_default_url_used() -> None:
+    """Test that Codeberg importer uses default URL when no base_url."""
+    importer = _get_importer(
+        "codeberg",
+        token=None,
+        base_url=None,
+        region=None,
+        profile=None,
+    )
+    assert importer._client.base_url == "https://codeberg.org/api/v1"
 
 
 def test_service_aliases_coverage() -> None:
