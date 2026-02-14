@@ -279,7 +279,7 @@ def test_gitlab_subgroup_url_encoding(
             "star_count": 10,
             "archived": False,
             "default_branch": "main",
-            "namespace": {"path": "parent/child"},
+            "namespace": {"path": "child", "full_path": "parent/child"},
         }
     ]
 
@@ -306,6 +306,7 @@ def test_gitlab_subgroup_url_encoding(
     # Verify repos were returned
     assert len(repos) == 1
     assert repos[0].name == "subgroup-project"
+    assert repos[0].owner == "parent/child"
 
 
 def test_gitlab_deeply_nested_subgroup(
@@ -326,7 +327,7 @@ def test_gitlab_deeply_nested_subgroup(
             "star_count": 5,
             "archived": False,
             "default_branch": "main",
-            "namespace": {"path": "a/b/c/d"},
+            "namespace": {"path": "d", "full_path": "a/b/c/d"},
         }
     ]
 
@@ -352,6 +353,7 @@ def test_gitlab_deeply_nested_subgroup(
 
     assert len(repos) == 1
     assert repos[0].name == "deep-project"
+    assert repos[0].owner == "a/b/c/d"
 
 
 def test_gitlab_handles_null_topics(
