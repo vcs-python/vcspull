@@ -184,7 +184,7 @@ class OutputFormatter:
 
     def finalize(self) -> None:
         """Finalize output (flush JSON buffer if needed)."""
-        if self.mode == OutputMode.JSON and self._json_buffer:
+        if self.mode == OutputMode.JSON:
             sys.stdout.write(json.dumps(self._json_buffer, indent=2) + "\n")
             sys.stdout.flush()
             self._json_buffer.clear()
