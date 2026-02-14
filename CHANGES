@@ -35,28 +35,96 @@ _Notes on upcoming releases will be added here_
 
 ### New features
 
-#### `vcspull import`: Default to SSH clone URLs (#510)
+#### New command: `vcspull import` (#510)
 
-`vcspull import` now uses SSH clone URLs by default. Use `--https`
-to get HTTPS URLs instead:
+Import repositories from GitHub, GitLab, Codeberg/Gitea/Forgejo, and AWS
+CodeCommit directly into your vcspull configuration.
+
+Import a user's repositories:
 
 ```console
-$ vcspull import github torvalds -w ~/repos/linux --mode user
+$ vcspull import github torvalds \
+    -w ~/repos/linux \
+    --mode user
+```
+
+Import an organization's repositories:
+
+```console
+$ vcspull import github django \
+    -w ~/study/python \
+    --mode org
+```
+
+Search and import repositories:
+
+```console
+$ vcspull import github "machine learning" \
+    -w ~/ml-repos \
+    --mode search \
+    --min-stars 1000
+```
+
+Use with self-hosted GitLab:
+
+```console
+$ vcspull import gitlab myuser \
+    -w ~/work \
+    --url https://gitlab.company.com
+```
+
+Import from AWS CodeCommit:
+
+```console
+$ vcspull import codecommit \
+    -w ~/work/aws \
+    --region us-east-1
+```
+
+Preview without writing (dry run):
+
+```console
+$ vcspull import codeberg user \
+    -w ~/oss \
+    --dry-run
+```
+
+**Key features:**
+
+- Service aliases: `gh`, `gl`, `cb`, `cc`, `aws`
+- Filtering: `--language`, `--topics`, `--min-stars`, `--archived`, `--forks`
+- Output modes: human-readable (default), `--json`, `--ndjson`
+- Interactive confirmation before writing; use `--yes`/`-y` to skip
+- Repositories already in the config are detected and skipped
+- Non-zero exit code on errors (for CI/automation)
+- No new dependencies (uses stdlib `urllib` for HTTP)
+
+#### `vcspull import`: SSH clone URLs by default (#510)
+
+Clone URLs default to SSH. Use `--https` to get HTTPS URLs instead:
+
+```console
+$ vcspull import github torvalds \
+    -w ~/repos/linux \
+    --mode user
 ```
 
 ```console
-$ vcspull import github torvalds -w ~/repos/linux --mode user --https
+$ vcspull import github torvalds \
+    -w ~/repos/linux \
+    --mode user \
+    --https
 ```
 
 #### `vcspull import`: GitLab subgroups map to workspace roots (#510)
 
-For GitLab organization/group imports, subgroup namespaces are now preserved
-under the selected workspace root by default.
-
-Example:
+For GitLab organization/group imports, subgroup namespaces are preserved
+under the workspace root by default:
 
 ```console
-$ vcspull import gitlab vcs-python-group-test -w ~/projects/python --mode org
+$ vcspull import gitlab vcs-python-group-test \
+    -w ~/projects/python \
+    --mode org
 ```
 
 This writes repositories into workspace sections like:
@@ -65,60 +133,20 @@ This writes repositories into workspace sections like:
 - `~/projects/python/<subgroup>/`
 - `~/projects/python/<subgroup>/<subsubgroup>/`
 
-Use `--flatten-groups` to import all subgroup repositories into a single
+Use `--flatten-groups` to collapse subgroup repositories into a single
 workspace root:
 
 ```console
-$ vcspull import gitlab vcs-python-group-test -w ~/projects/python --mode org --flatten-groups
+$ vcspull import gitlab vcs-python-group-test \
+    -w ~/projects/python \
+    --mode org \
+    --flatten-groups
 ```
 
-#### `vcspull import` command for remote repository discovery (#510)
+### Bug fixes
 
-Import repositories from GitHub, GitLab, Codeberg/Gitea/Forgejo, and AWS
-CodeCommit directly into your vcspull configuration.
-
-Import a user's repositories:
-
-```console
-$ vcspull import github torvalds -w ~/repos/linux --mode user
-```
-
-Import an organization's repositories:
-
-```console
-$ vcspull import github django -w ~/study/python --mode org
-```
-
-Search and import repositories:
-
-```console
-$ vcspull import github "machine learning" -w ~/ml-repos --mode search --min-stars 1000
-```
-
-Use with self-hosted GitLab:
-
-```console
-$ vcspull import gitlab myuser -w ~/work --url https://gitlab.company.com
-```
-
-Preview without writing (dry run):
-
-```console
-$ vcspull import codeberg user -w ~/oss --dry-run
-```
-
-Import from AWS CodeCommit:
-
-```console
-$ vcspull import codecommit -w ~/work/aws --region us-east-1
-```
-
-Features:
-
-- Service aliases: `gh`, `gl`, `cb`, `cc`, `aws`
-- Filtering: `--language`, `--topics`, `--min-stars`, `--archived`, `--forks`
-- Output modes: human-readable (default), `--json`, `--ndjson`
-- No new dependencies (uses stdlib `urllib` for HTTP)
+- Config writes now use atomic temp-file-then-rename to prevent data loss
+  during interrupted writes (#510)
 
 ### Tests
 
