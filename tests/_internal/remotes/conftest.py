@@ -189,7 +189,7 @@ def gitlab_user_projects_response() -> bytes:
                 "star_count": 20,
                 "archived": False,
                 "default_branch": "main",
-                "namespace": {"path": "testuser"},
+                "namespace": {"path": "testuser", "full_path": "testuser"},
             },
         ]
     ).encode()
