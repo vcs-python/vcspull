@@ -54,6 +54,89 @@ def test_gitlab_fetch_group(
     assert repos[0].name == "group-project"
 
 
+def test_gitlab_owner_uses_namespace_full_path(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test GitLab owner preserves full namespace path when available."""
+    response_json = [
+        {
+            "path": "group-project",
+            "name": "Group Project",
+            "path_with_namespace": (
+                "vcs-python-group-test/vcs-python-subgroup-test/group-project"
+            ),
+            "http_url_to_repo": (
+                "https://gitlab.com/vcs-python-group-test/"
+                "vcs-python-subgroup-test/group-project.git"
+            ),
+            "ssh_url_to_repo": (
+                "git@gitlab.com:vcs-python-group-test/"
+                "vcs-python-subgroup-test/group-project.git"
+            ),
+            "web_url": (
+                "https://gitlab.com/vcs-python-group-test/"
+                "vcs-python-subgroup-test/group-project"
+            ),
+            "description": "Group project",
+            "topics": [],
+            "star_count": 50,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {
+                "path": "vcs-python-subgroup-test",
+                "full_path": "vcs-python-group-test/vcs-python-subgroup-test",
+            },
+        }
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.ORG, target="vcs-python-group-test")
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 1
+    assert repos[0].owner == "vcs-python-group-test/vcs-python-subgroup-test"
+
+
+def test_gitlab_owner_falls_back_to_path_with_namespace(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test owner derivation uses path_with_namespace when full_path is missing."""
+    response_json = [
+        {
+            "path": "group-project",
+            "name": "Group Project",
+            "path_with_namespace": (
+                "vcs-python-group-test/vcs-python-subgroup-test/group-project"
+            ),
+            "http_url_to_repo": (
+                "https://gitlab.com/vcs-python-group-test/"
+                "vcs-python-subgroup-test/group-project.git"
+            ),
+            "ssh_url_to_repo": (
+                "git@gitlab.com:vcs-python-group-test/"
+                "vcs-python-subgroup-test/group-project.git"
+            ),
+            "web_url": (
+                "https://gitlab.com/vcs-python-group-test/"
+                "vcs-python-subgroup-test/group-project"
+            ),
+            "description": "Group project",
+            "topics": [],
+            "star_count": 50,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {
+                "path": "vcs-python-subgroup-test",
+            },
+        }
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.ORG, target="vcs-python-group-test")
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 1
+    assert repos[0].owner == "vcs-python-group-test/vcs-python-subgroup-test"
+
+
 def test_gitlab_search_requires_auth(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

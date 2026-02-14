@@ -26,6 +26,7 @@ from vcspull.cli.import_repos import (
     _resolve_config_file,
     import_repos,
 )
+from vcspull.config import workspace_root_label
 
 # Get the actual module (not the function from __init__.py)
 import_repos_mod = sys.modules["vcspull.cli.import_repos"]
@@ -1380,6 +1381,7 @@ def test_import_https_flag_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
         ["import", "github", "testuser", "-w", "/tmp/repos", "--https"]
     )
     assert args.use_https is True
+    assert args.flatten_groups is False
 
 
 def test_import_ssh_default_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
@@ -1389,6 +1391,20 @@ def test_import_ssh_default_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
     parser = create_parser(return_subparsers=False)
     args = parser.parse_args(["import", "github", "testuser", "-w", "/tmp/repos"])
     assert args.use_https is False
+    assert args.flatten_groups is False
+
+
+def test_import_flatten_groups_flag_via_cli(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test that --flatten-groups flag is recognized by the CLI parser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(
+        ["import", "gitlab", "group/subgroup", "-w", "/tmp/repos", "--flatten-groups"]
+    )
+    assert args.flatten_groups is True
 
 
 def test_import_repos_rejects_non_yaml_config(
@@ -1498,3 +1514,195 @@ def test_import_repos_rejects_non_dict_config(
     )
 
     assert "not a valid YAML mapping" in caplog.text
+
+
+class NestedGroupImportFixture(t.NamedTuple):
+    """Fixture for nested-group workspace persistence cases."""
+
+    test_id: str
+    target: str
+    mode: str
+    flatten_groups: bool
+    workspace_relpath: str
+    mock_repos: list[RemoteRepo]
+    expected_sections: dict[str, tuple[str, ...]]
+
+
+NESTED_GROUP_IMPORT_FIXTURES: list[NestedGroupImportFixture] = [
+    NestedGroupImportFixture(
+        test_id="comment-example-relative-subpaths",
+        target="a/b",
+        mode="org",
+        flatten_groups=False,
+        workspace_relpath="repos",
+        mock_repos=[
+            _make_repo("h", owner="a/b"),
+            _make_repo("d", owner="a/b/c"),
+            _make_repo("e", owner="a/b/c"),
+            _make_repo("g", owner="a/b/f"),
+        ],
+        expected_sections={
+            "": ("h",),
+            "c": ("d", "e"),
+            "f": ("g",),
+        },
+    ),
+    NestedGroupImportFixture(
+        test_id="deep-nesting-under-target",
+        target="a/b",
+        mode="org",
+        flatten_groups=False,
+        workspace_relpath="repos",
+        mock_repos=[
+            _make_repo("r1", owner="a/b/c/d"),
+            _make_repo("r2", owner="a/b/c/d/e"),
+        ],
+        expected_sections={
+            "c/d": ("r1",),
+            "c/d/e": ("r2",),
+        },
+    ),
+    NestedGroupImportFixture(
+        test_id="non-org-mode-no-subpathing",
+        target="a/b",
+        mode="user",
+        flatten_groups=False,
+        workspace_relpath="repos",
+        mock_repos=[
+            _make_repo("h", owner="a/b"),
+            _make_repo("d", owner="a/b/c"),
+            _make_repo("g", owner="a/b/f"),
+        ],
+        expected_sections={
+            "": ("h", "d", "g"),
+        },
+    ),
+    NestedGroupImportFixture(
+        test_id="owner-outside-target-fallback-base",
+        target="a/b",
+        mode="org",
+        flatten_groups=False,
+        workspace_relpath="repos",
+        mock_repos=[
+            _make_repo("inside", owner="a/b/c"),
+            _make_repo("outside", owner="z/y"),
+        ],
+        expected_sections={
+            "c": ("inside",),
+            "": ("outside",),
+        },
+    ),
+    NestedGroupImportFixture(
+        test_id="flatten-groups-flag-uses-single-workspace",
+        target="a/b",
+        mode="org",
+        flatten_groups=True,
+        workspace_relpath="repos",
+        mock_repos=[
+            _make_repo("h", owner="a/b"),
+            _make_repo("d", owner="a/b/c"),
+            _make_repo("g", owner="a/b/f"),
+        ],
+        expected_sections={
+            "": ("h", "d", "g"),
+        },
+    ),
+    NestedGroupImportFixture(
+        test_id="workspace-subdirectory-root-is-supported",
+        target="a/b",
+        mode="org",
+        flatten_groups=False,
+        workspace_relpath="projects/python",
+        mock_repos=[
+            _make_repo("h", owner="a/b"),
+            _make_repo("d", owner="a/b/c"),
+        ],
+        expected_sections={
+            "": ("h",),
+            "c": ("d",),
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(NestedGroupImportFixture._fields),
+    NESTED_GROUP_IMPORT_FIXTURES,
+    ids=[fixture.test_id for fixture in NESTED_GROUP_IMPORT_FIXTURES],
+)
+def test_import_nested_groups(
+    test_id: str,
+    target: str,
+    mode: str,
+    flatten_groups: bool,
+    workspace_relpath: str,
+    mock_repos: list[RemoteRepo],
+    expected_sections: dict[str, tuple[str, ...]],
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that nested groups are preserved in config."""
+    import yaml
+
+    del test_id
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    workspace = tmp_path / workspace_relpath
+    workspace.mkdir(parents=True)
+    config_file = tmp_path / ".vcspull.yaml"
+
+    class MockImporter:
+        service_name = "GitLab"
+
+        def fetch_repos(self, options: ImportOptions) -> t.Iterator[RemoteRepo]:
+            yield from mock_repos
+
+    # Mock the importer factory so import_repos() exercises only workspace mapping.
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service="gitlab",
+        target=target,
+        workspace=str(workspace),
+        mode=mode,
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        flatten_groups=flatten_groups,
+    )
+
+    assert config_file.exists()
+    with config_file.open() as f:
+        config = yaml.safe_load(f)
+
+    cwd = pathlib.Path.cwd()
+    home = pathlib.Path.home()
+    expected_labels: dict[str, tuple[str, ...]] = {}
+    for subpath, repo_names in expected_sections.items():
+        expected_path = workspace if not subpath else workspace / subpath
+        label = workspace_root_label(expected_path, cwd=cwd, home=home)
+        expected_labels[label] = repo_names
+
+    assert set(config.keys()) == set(expected_labels.keys())
+    for label, expected_repo_names in expected_labels.items():
+        assert isinstance(config[label], dict)
+        assert set(config[label].keys()) == set(expected_repo_names)
