@@ -385,6 +385,8 @@ def test_resolve_config_file(
         cfg_path.touch()
         full_paths.append(cfg_path)
 
+    # Mock find_home_config_files: return pre-created config file paths
+    # instead of scanning the real home directory
     monkeypatch.setattr(
         import_repos_mod,
         "find_home_config_files",
@@ -600,6 +602,7 @@ def test_import_repos(
                 raise mock_error
             yield from mock_repos
 
+    # Mock _get_importer: return MockImporter to avoid real API/network calls
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -734,8 +737,9 @@ def test_import_repos_user_abort(
     workspace.mkdir()
     config_file = tmp_path / ".vcspull.yaml"
 
-    # Mock user input and ensure isatty returns True so we reach input()
+    # Mock builtins.input: simulate user typing "n" to decline confirmation
     monkeypatch.setattr("builtins.input", lambda _: "n")
+    # Mock sys.stdin: fake TTY so the confirmation prompt is shown
     monkeypatch.setattr(
         "sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})()
     )
@@ -750,6 +754,7 @@ def test_import_repos_user_abort(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to avoid real API calls
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -800,8 +805,9 @@ def test_import_repos_eoferror_aborts(
     def raise_eof(_: str) -> str:
         raise EOFError
 
+    # Mock builtins.input: simulate EOFError from piped/closed stdin
     monkeypatch.setattr("builtins.input", raise_eof)
-    # Ensure isatty returns True so we reach input()
+    # Mock sys.stdin: fake TTY so the confirmation prompt path is exercised
     monkeypatch.setattr(
         "sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})()
     )
@@ -815,6 +821,7 @@ def test_import_repos_eoferror_aborts(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to avoid real API calls
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -861,7 +868,7 @@ def test_import_repos_non_tty_aborts(
     workspace.mkdir()
     config_file = tmp_path / ".vcspull.yaml"
 
-    # Mock stdin.isatty() to return False
+    # Mock sys.stdin: fake non-TTY to test non-interactive abort path
     monkeypatch.setattr(
         "sys.stdin", type("FakeNonTTY", (), {"isatty": lambda self: False})()
     )
@@ -875,6 +882,7 @@ def test_import_repos_non_tty_aborts(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to avoid real API calls
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -942,6 +950,7 @@ def test_import_repos_skips_existing(
             yield _make_repo("repo1")
             yield _make_repo("repo2")
 
+    # Mock _get_importer: return MockImporter with both existing and new repos
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1012,6 +1021,7 @@ def test_import_repos_all_existing(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter with only already-existing repos
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1064,6 +1074,7 @@ def test_import_repos_json_output(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1", stars=50)
 
+    # Mock _get_importer: return MockImporter to test JSON output format
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1123,6 +1134,7 @@ def test_import_repos_ndjson_output(
             yield _make_repo("repo1")
             yield _make_repo("repo2")
 
+    # Mock _get_importer: return MockImporter to test NDJSON output format
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1184,6 +1196,7 @@ def test_import_repos_topics_filter(
             received_options.append(options)
             return iter([])
 
+    # Mock _get_importer: capture ImportOptions to verify filter passthrough
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1244,6 +1257,7 @@ def test_import_repos_codecommit_no_target_required(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("aws-repo")
 
+    # Mock _get_importer: return MockImporter to verify CodeCommit allows empty target
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1303,6 +1317,7 @@ def test_import_repos_many_repos_truncates_preview(
         ) -> t.Iterator[RemoteRepo]:
             yield from many_repos
 
+    # Mock _get_importer: return MockImporter with 15 repos to test truncated preview
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1361,6 +1376,7 @@ def test_import_repos_config_load_error(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to test config load error handling
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1445,6 +1461,7 @@ def test_import_repos_defaults_to_ssh_urls(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("myrepo")
 
+    # Mock _get_importer: return MockImporter to verify default SSH URL output
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1506,6 +1523,7 @@ def test_import_repos_https_flag(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("myrepo")
 
+    # Mock _get_importer: return MockImporter to verify HTTPS URL output
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1600,6 +1618,7 @@ def test_import_repos_rejects_non_yaml_config(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to test non-YAML config rejection
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1655,13 +1674,14 @@ def test_import_repos_catches_multiple_config_warning(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to isolate config resolution logic
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
         lambda *args, **kwargs: MockImporter(),
     )
 
-    # Mock _resolve_config_file to raise MultipleConfigWarning
+    # Mock _resolve_config_file: raise MultipleConfigWarning to test error handling
     def raise_multiple_config(_: str | None) -> pathlib.Path:
         raise MultipleConfigWarning(MultipleConfigWarning.message)
 
@@ -1718,6 +1738,7 @@ def test_import_repos_invalid_limit(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to test invalid limit error handling
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1809,6 +1830,7 @@ def test_import_repos_returns_zero_on_success(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to test successful exit code
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -1865,6 +1887,7 @@ def test_import_repos_rejects_non_dict_config(
         ) -> t.Iterator[RemoteRepo]:
             yield _make_repo("repo1")
 
+    # Mock _get_importer: return MockImporter to test non-dict config rejection
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -2158,6 +2181,7 @@ def test_import_repos_language_warning(
         ) -> t.Iterator[RemoteRepo]:
             return iter([])
 
+    # Mock _get_importer: return MockImporter to test language warning behavior
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",
@@ -2272,6 +2296,7 @@ def test_import_repos_unsupported_filter_warning(
         ) -> t.Iterator[RemoteRepo]:
             return iter([])
 
+    # Mock _get_importer: return MockImporter to test unsupported filter warnings
     monkeypatch.setattr(
         import_repos_mod,
         "_get_importer",

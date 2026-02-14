@@ -290,6 +290,7 @@ def test_gitlab_subgroup_url_encoding(
         captured_urls.append(request.full_url)
         return MockHTTPResponse(json.dumps(response_json).encode())
 
+    # Mock urlopen: capture request URLs to verify subgroup path encoding
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitLabImporter()
@@ -338,6 +339,7 @@ def test_gitlab_deeply_nested_subgroup(
         captured_urls.append(request.full_url)
         return MockHTTPResponse(json.dumps(response_json).encode())
 
+    # Mock urlopen: capture request URLs to verify deep nesting path encoding
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitLabImporter()
@@ -421,6 +423,7 @@ def test_gitlab_archived_param_omitted_when_including(
         captured_urls.append(request.full_url)
         return MockHTTPResponse(json.dumps(response_json).encode())
 
+    # Mock urlopen: capture request URLs to verify archived param is omitted
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitLabImporter()
@@ -463,6 +466,7 @@ def test_gitlab_archived_param_false_when_excluding(
         captured_urls.append(request.full_url)
         return MockHTTPResponse(json.dumps(response_json).encode())
 
+    # Mock urlopen: capture request URLs to verify archived=false is included
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitLabImporter()
@@ -504,6 +508,7 @@ def test_gitlab_search_archived_param_false_when_excluding(
         captured_urls.append(request.full_url)
         return MockHTTPResponse(json.dumps(search_response).encode())
 
+    # Mock urlopen: capture request URLs to verify search archived=false param
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitLabImporter(token="test-token")
@@ -547,6 +552,7 @@ def test_gitlab_search_archived_param_omitted_when_including(
         captured_urls.append(request.full_url)
         return MockHTTPResponse(json.dumps(search_response).encode())
 
+    # Mock urlopen: capture request URLs to verify archived param is omitted in search
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitLabImporter(token="test-token")

@@ -156,6 +156,7 @@ def test_github_pagination_consistent_per_page(
         call_count += 1
         return MockHTTPResponse(body, headers, status)
 
+    # Mock urlopen: capture paginated requests to verify consistent per_page
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitHubImporter()
@@ -227,6 +228,7 @@ def test_gitea_pagination_consistent_limit(
         call_count += 1
         return MockHTTPResponse(body, headers, status)
 
+    # Mock urlopen: capture paginated requests to verify consistent limit param
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GiteaImporter(base_url="https://codeberg.org")
@@ -297,6 +299,7 @@ def test_gitlab_pagination_consistent_per_page(
         call_count += 1
         return MockHTTPResponse(body, headers, status)
 
+    # Mock urlopen: capture paginated requests to verify consistent per_page
     monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
 
     importer = GitLabImporter()

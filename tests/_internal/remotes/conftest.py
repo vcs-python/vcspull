@@ -85,6 +85,7 @@ def mock_urlopen(monkeypatch: pytest.MonkeyPatch) -> t.Callable[..., None]:
             call_count += 1
             return MockHTTPResponse(body, headers, status)
 
+        # Mock urlopen: return pre-configured responses to avoid real HTTP requests
         monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
 
     return _mock
