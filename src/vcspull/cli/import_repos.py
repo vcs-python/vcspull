@@ -32,6 +32,7 @@ from vcspull.config import (
     save_config_yaml,
     workspace_root_label,
 )
+from vcspull.exc import MultipleConfigWarning
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
@@ -448,8 +449,8 @@ def import_repos(
     # Resolve config file
     try:
         config_file_path = _resolve_config_file(config_path_str)
-    except ValueError as exc:
-        log.error("%s✗%s %s", Fore.RED, Style.RESET_ALL, exc)  # noqa: TRY400
+    except (ValueError, MultipleConfigWarning) as exc_:
+        log.error("%s✗%s %s", Fore.RED, Style.RESET_ALL, exc_)  # noqa: TRY400
         return
     display_config_path = str(PrivatePath(config_file_path))
 

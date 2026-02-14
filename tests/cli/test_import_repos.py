@@ -1628,6 +1628,71 @@ def test_import_repos_rejects_non_yaml_config(
     assert "Only YAML config files are supported" in caplog.text
 
 
+def test_import_repos_catches_multiple_config_warning(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos logs error instead of crashing on MultipleConfigWarning."""
+    from vcspull.exc import MultipleConfigWarning
+
+    caplog.set_level(logging.ERROR)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("repo1")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    # Mock _resolve_config_file to raise MultipleConfigWarning
+    def raise_multiple_config(_: str | None) -> pathlib.Path:
+        raise MultipleConfigWarning(MultipleConfigWarning.message)
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_resolve_config_file",
+        raise_multiple_config,
+    )
+
+    import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=None,
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert "Multiple configs" in caplog.text
+
+
 def test_import_repos_rejects_non_dict_config(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
