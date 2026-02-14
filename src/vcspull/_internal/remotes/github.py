@@ -272,10 +272,10 @@ class GitHubImporter:
             Parsed repository information
         """
         return RemoteRepo(
-            name=data["name"],
-            clone_url=data["clone_url"],
+            name=data.get("name", ""),
+            clone_url=data.get("clone_url", ""),
             ssh_url=data.get("ssh_url", ""),
-            html_url=data["html_url"],
+            html_url=data.get("html_url", ""),
             description=data.get("description"),
             language=data.get("language"),
             topics=tuple(data.get("topics") or []),

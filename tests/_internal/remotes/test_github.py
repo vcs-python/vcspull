@@ -490,3 +490,44 @@ def test_log_rate_limit(
     else:
         # No rate limit message should appear
         assert "rate limit" not in caplog.text.lower()
+
+
+def test_github_parse_repo_missing_keys(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test GitHub _parse_repo handles incomplete API responses gracefully.
+
+    GitHub API responses may lack keys like 'name', 'clone_url', or 'html_url'
+    in edge cases (partial responses, API changes). Using .get() with defaults
+    prevents KeyError crashes.
+    """
+    response_json = [
+        {
+            # Missing: name, clone_url, html_url, ssh_url
+            "description": "Incomplete repo data",
+            "language": "Python",
+            "topics": ["test"],
+            "stargazers_count": 5,
+            "fork": False,
+            "archived": False,
+            "default_branch": "main",
+            "owner": {"login": "user"},
+        }
+    ]
+    mock_urlopen(
+        [
+            (
+                json.dumps(response_json).encode(),
+                {"x-ratelimit-remaining": "100", "x-ratelimit-limit": "60"},
+                200,
+            )
+        ]
+    )
+    importer = GitHubImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="user")
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 1
+    assert repos[0].name == ""
+    assert repos[0].clone_url == ""
+    assert repos[0].html_url == ""
+    assert repos[0].ssh_url == ""
