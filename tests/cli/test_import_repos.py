@@ -26,7 +26,7 @@ from vcspull.cli.import_repos import (
     _resolve_config_file,
     import_repos,
 )
-from vcspull.config import workspace_root_label
+from vcspull.config import save_config_yaml, workspace_root_label
 
 # Get the actual module (not the function from __init__.py)
 import_repos_mod = sys.modules["vcspull.cli.import_repos"]
@@ -929,7 +929,7 @@ def test_import_repos_skips_existing(
             "repo1": {"repo": "git+https://github.com/testuser/repo1.git"},
         }
     }
-    config_file.write_text(yaml.dump(existing_config), encoding="utf-8")
+    save_config_yaml(config_file, existing_config)
 
     # Mock the importer to return repo1 (existing) and repo2 (new)
     class MockImporter:
@@ -987,8 +987,6 @@ def test_import_repos_all_existing(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test import_repos handles all repos already existing."""
-    import yaml
-
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1002,7 +1000,7 @@ def test_import_repos_all_existing(
             "repo1": {"repo": "git+https://github.com/testuser/repo1.git"},
         }
     }
-    config_file.write_text(yaml.dump(existing_config), encoding="utf-8")
+    save_config_yaml(config_file, existing_config)
 
     # Mock the importer to return only repo1 (existing)
     class MockImporter:
