@@ -179,6 +179,9 @@ class GitLabImporter:
                 "page": page,
             }
 
+            if not options.include_archived:
+                params["archived"] = "false"
+
             data, _headers = self._client.get(
                 endpoint,
                 params=params,

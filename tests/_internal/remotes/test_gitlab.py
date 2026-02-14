@@ -473,3 +473,89 @@ def test_gitlab_archived_param_false_when_excluding(
     assert "archived=false" in captured_urls[0], (
         f"Expected 'archived=false' in URL, got: {captured_urls[0]}"
     )
+
+
+def test_gitlab_search_archived_param_false_when_excluding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that _fetch_search includes archived=false when excluding archived."""
+    captured_urls: list[str] = []
+
+    search_response = [
+        {
+            "path": "search-result",
+            "name": "Search Result",
+            "http_url_to_repo": "https://gitlab.com/user/search-result.git",
+            "ssh_url_to_repo": "git@gitlab.com:user/search-result.git",
+            "web_url": "https://gitlab.com/user/search-result",
+            "description": "Found",
+            "topics": [],
+            "star_count": 100,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "user"},
+        }
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(search_response).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter(token="test-token")
+    options = ImportOptions(
+        mode=ImportMode.SEARCH, target="test", include_archived=False
+    )
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    assert "archived=false" in captured_urls[0], (
+        f"Expected 'archived=false' in search URL, got: {captured_urls[0]}"
+    )
+
+
+def test_gitlab_search_archived_param_omitted_when_including(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that _fetch_search omits archived param when including archived."""
+    captured_urls: list[str] = []
+
+    search_response = [
+        {
+            "path": "search-result",
+            "name": "Search Result",
+            "http_url_to_repo": "https://gitlab.com/user/search-result.git",
+            "ssh_url_to_repo": "git@gitlab.com:user/search-result.git",
+            "web_url": "https://gitlab.com/user/search-result",
+            "description": "Found",
+            "topics": [],
+            "star_count": 100,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "user"},
+        }
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(search_response).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter(token="test-token")
+    options = ImportOptions(
+        mode=ImportMode.SEARCH, target="test", include_archived=True
+    )
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    assert "archived=" not in captured_urls[0], (
+        f"Expected no 'archived' param in search URL, got: {captured_urls[0]}"
+    )
