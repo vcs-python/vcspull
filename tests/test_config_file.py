@@ -210,6 +210,40 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path) -> None:
         config.find_home_config_files()
 
 
+def test_find_home_config_files_filetype_yaml_only(tmp_path: pathlib.Path) -> None:
+    """When filetype=['yaml'], only .yaml is returned even if .json exists."""
+    (tmp_path / ".vcspull.yaml").touch()
+    (tmp_path / ".vcspull.json").touch()
+    with EnvironmentVarGuard() as env:
+        env.set("HOME", str(tmp_path))
+        # Should NOT raise MultipleConfigWarning because json is filtered out
+        results = config.find_home_config_files(filetype=["yaml"])
+        assert len(results) == 1
+        assert results[0].suffix == ".yaml"
+
+
+def test_find_home_config_files_filetype_json_only(tmp_path: pathlib.Path) -> None:
+    """When filetype=['json'], only .json is returned even if .yaml exists."""
+    (tmp_path / ".vcspull.yaml").touch()
+    (tmp_path / ".vcspull.json").touch()
+    with EnvironmentVarGuard() as env:
+        env.set("HOME", str(tmp_path))
+        results = config.find_home_config_files(filetype=["json"])
+        assert len(results) == 1
+        assert results[0].suffix == ".json"
+
+
+def test_find_home_config_files_both_types_still_raises(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Default filetype still raises MultipleConfigWarning when both exist."""
+    (tmp_path / ".vcspull.yaml").touch()
+    (tmp_path / ".vcspull.json").touch()
+    with EnvironmentVarGuard() as env, pytest.raises(exc.MultipleConfigWarning):
+        env.set("HOME", str(tmp_path))
+        config.find_home_config_files()
+
+
 def test_in_dir(
     config_path: pathlib.Path,
     yaml_config: pathlib.Path,
