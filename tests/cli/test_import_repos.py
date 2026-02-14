@@ -1746,6 +1746,97 @@ def test_import_repos_invalid_limit(
     assert "limit must be >= 1" in caplog.text
 
 
+def test_import_repos_returns_nonzero_on_error(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos returns non-zero exit code on error."""
+    caplog.set_level(logging.ERROR)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    result = import_repos(
+        service="unknownservice",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(tmp_path / "config.yaml"),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result != 0
+
+
+def test_import_repos_returns_zero_on_success(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos returns 0 on success."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("repo1")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    result = import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(tmp_path / "config.yaml"),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+
+
 def test_import_repos_rejects_non_dict_config(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,

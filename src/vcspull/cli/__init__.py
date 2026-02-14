@@ -504,7 +504,7 @@ def cli(_args: list[str] | None = None) -> None:
         if args.service is None or args.workspace is None:
             _import_parser.print_help()
             return
-        import_repos(
+        result = import_repos(
             service=args.service,
             target=args.target,
             workspace=args.workspace,
@@ -528,3 +528,5 @@ def cli(_args: list[str] | None = None) -> None:
             use_https=getattr(args, "use_https", False),
             flatten_groups=getattr(args, "flatten_groups", False),
         )
+        if result:
+            raise SystemExit(result)

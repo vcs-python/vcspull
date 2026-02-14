@@ -327,7 +327,7 @@ def import_repos(
     color: str,
     use_https: bool = False,
     flatten_groups: bool = False,
-) -> None:
+) -> int:
     """Import repositories from a remote service.
 
     Parameters
@@ -376,6 +376,11 @@ def import_repos(
         Use HTTPS clone URLs instead of SSH (default: False, i.e., SSH)
     flatten_groups : bool
         For GitLab org imports, flatten subgroup paths into base workspace
+
+    Returns
+    -------
+    int
+        0 on success, 1 on error
     """
     output_mode = get_output_mode(output_json, output_ndjson)
     formatter = OutputFormatter(output_mode)
@@ -392,10 +397,10 @@ def import_repos(
         )
     except ValueError as exc:
         log.error("%s %s", colors.error("✗"), exc)  # noqa: TRY400
-        return
+        return 1
     except DependencyError as exc:
         log.error("%s %s", colors.error("✗"), exc)  # noqa: TRY400
-        return
+        return 1
 
     # Validate target for non-CodeCommit services
     normalized_service = SERVICE_ALIASES.get(service.lower(), service.lower())
@@ -405,7 +410,7 @@ def import_repos(
             colors.error("✗"),
             service,
         )
-        return
+        return 1
 
     # Build import options
     import_mode = ImportMode(mode)
@@ -430,7 +435,7 @@ def import_repos(
         )
     except ValueError as exc_:
         log.error("%s %s", colors.error("✗"), exc_)  # noqa: TRY400
-        return
+        return 1
 
     # Warn if --language is used with services that don't return language info
     if options.language and normalized_service in ("gitlab", "codecommit"):
@@ -451,7 +456,7 @@ def import_repos(
         config_file_path = _resolve_config_file(config_path_str)
     except (ValueError, MultipleConfigWarning) as exc_:
         log.error("%s %s", colors.error("✗"), exc_)  # noqa: TRY400
-        return
+        return 1
     display_config_path = str(PrivatePath(config_file_path))
 
     # Fetch repositories
@@ -483,33 +488,33 @@ def import_repos(
             "%s Authentication error: %s", colors.error("✗"), exc
         )
         formatter.finalize()
-        return
+        return 1
     except RateLimitError as exc:
         log.error(  # noqa: TRY400
             "%s Rate limit exceeded: %s", colors.error("✗"), exc
         )
         formatter.finalize()
-        return
+        return 1
     except NotFoundError as exc:
         log.error("%s Not found: %s", colors.error("✗"), exc)  # noqa: TRY400
         formatter.finalize()
-        return
+        return 1
     except ServiceUnavailableError as exc:
         log.error(  # noqa: TRY400
             "%s Service unavailable: %s", colors.error("✗"), exc
         )
         formatter.finalize()
-        return
+        return 1
     except ConfigurationError as exc:
         log.error(  # noqa: TRY400
             "%s Configuration error: %s", colors.error("✗"), exc
         )
         formatter.finalize()
-        return
+        return 1
     except RemoteImportError as exc:
         log.error("%s Error: %s", colors.error("✗"), exc)  # noqa: TRY400
         formatter.finalize()
-        return
+        return 1
 
     if not repos:
         if output_mode.value == "human":
@@ -518,7 +523,7 @@ def import_repos(
                 colors.warning("!"),
             )
         formatter.finalize()
-        return
+        return 0
 
     if output_mode.value == "human":
         log.info(
@@ -555,7 +560,7 @@ def import_repos(
             colors.warning("→"),
             colors.muted(display_config_path),
         )
-        return
+        return 0
 
     # Confirm with user
     if not yes and output_mode.value == "human":
@@ -564,7 +569,7 @@ def import_repos(
                 "%s Non-interactive mode: use --yes to skip confirmation.",
                 colors.error("✗"),
             )
-            return
+            return 0
         try:
             confirm = input(
                 f"\n{colors.info('Import')} {len(repos)} repositories to "
@@ -574,7 +579,7 @@ def import_repos(
             confirm = ""
         if confirm not in {"y", "yes"}:
             log.info("%s Aborted by user.", colors.error("✗"))
-            return
+            return 0
 
     # Load existing config or create new
     raw_config: dict[str, t.Any]
@@ -586,7 +591,7 @@ def import_repos(
                 raw_config = yaml.safe_load(f) or {}
         except (yaml.YAMLError, OSError):
             log.exception("Error loading config file")
-            return
+            return 1
 
         if not isinstance(raw_config, dict):
             log.error(
@@ -594,7 +599,7 @@ def import_repos(
                 colors.error("✗"),
                 display_config_path,
             )
-            return
+            return 1
     else:
         raw_config = {}
 
@@ -661,7 +666,7 @@ def import_repos(
             "%s All repositories already exist in config. Nothing to add.",
             colors.success("✓"),
         )
-        return
+        return 0
 
     # Save config
     try:
@@ -680,3 +685,6 @@ def import_repos(
             )
     except OSError:
         log.exception("Error saving config to %s", display_config_path)
+        return 1
+
+    return 0
