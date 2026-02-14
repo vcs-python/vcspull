@@ -52,6 +52,12 @@ class GitLabImporter:
             GitLab API token. If not provided, will try GITLAB_TOKEN env var.
         base_url : str | None
             Base URL for self-hosted GitLab instances. Defaults to gitlab.com.
+
+        Examples
+        --------
+        >>> importer = GitLabImporter(token="fake")
+        >>> importer.service_name
+        'GitLab'
         """
         self._token = token or get_token_from_env("GITLAB_TOKEN", "GL_TOKEN")
         self._base_url = (base_url or GITLAB_API_URL).rstrip("/")
@@ -71,6 +77,11 @@ class GitLabImporter:
         -------
         bool
             True if a token is configured
+
+        Examples
+        --------
+        >>> GitLabImporter(token="fake").is_authenticated
+        True
         """
         return self._token is not None
 

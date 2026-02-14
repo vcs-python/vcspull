@@ -48,7 +48,25 @@ class PlanEntry:
     diagnostics: list[str] = field(default_factory=list)
 
     def to_payload(self) -> dict[str, t.Any]:
-        """Convert the plan entry into a serialisable payload."""
+        """Convert the plan entry into a serialisable payload.
+
+        Examples
+        --------
+        >>> entry = PlanEntry(
+        ...     name="myrepo",
+        ...     path="/home/user/repos/myrepo",
+        ...     workspace_root="/home/user/repos",
+        ...     action=PlanAction.CLONE,
+        ...     url="git+https://github.com/user/myrepo.git",
+        ... )
+        >>> payload = entry.to_payload()
+        >>> payload["name"]
+        'myrepo'
+        >>> payload["action"]
+        'clone'
+        >>> payload["format_version"]
+        '1'
+        """
         payload: dict[str, t.Any] = {
             "format_version": "1",
             "type": "operation",
@@ -94,11 +112,28 @@ class PlanSummary:
     duration_ms: int | None = None
 
     def total(self) -> int:
-        """Return the total number of repositories accounted for."""
+        """Return the total number of repositories accounted for.
+
+        Examples
+        --------
+        >>> summary = PlanSummary(clone=2, update=3, unchanged=1)
+        >>> summary.total()
+        6
+        """
         return self.clone + self.update + self.unchanged + self.blocked + self.errors
 
     def to_payload(self) -> dict[str, t.Any]:
-        """Convert the summary to a serialisable payload."""
+        """Convert the summary to a serialisable payload.
+
+        Examples
+        --------
+        >>> summary = PlanSummary(clone=1, update=2)
+        >>> payload = summary.to_payload()
+        >>> payload["type"]
+        'summary'
+        >>> payload["total"]
+        3
+        """
         payload: dict[str, t.Any] = {
             "format_version": "1",
             "type": "summary",
@@ -143,6 +178,12 @@ class OutputFormatter:
         ----------
         mode : OutputMode
             The output mode to use (human, json, ndjson)
+
+        Examples
+        --------
+        >>> formatter = OutputFormatter(OutputMode.JSON)
+        >>> formatter.mode
+        <OutputMode.JSON: 'json'>
         """
         self.mode = mode
         self._json_buffer: list[dict[str, t.Any]] = []
@@ -204,6 +245,15 @@ def get_output_mode(json_flag: bool, ndjson_flag: bool) -> OutputMode:
     -------
     OutputMode
         The determined output mode (NDJSON takes precedence over JSON)
+
+    Examples
+    --------
+    >>> get_output_mode(json_flag=False, ndjson_flag=False)
+    <OutputMode.HUMAN: 'human'>
+    >>> get_output_mode(json_flag=True, ndjson_flag=False)
+    <OutputMode.JSON: 'json'>
+    >>> get_output_mode(json_flag=True, ndjson_flag=True)
+    <OutputMode.NDJSON: 'ndjson'>
     """
     if ndjson_flag:
         return OutputMode.NDJSON

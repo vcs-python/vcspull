@@ -35,6 +35,14 @@ class RemoteImportError(Exception):
             Error message
         service : str | None
             Name of the service that raised the error
+
+        Examples
+        --------
+        >>> err = RemoteImportError("connection failed", service="GitHub")
+        >>> str(err)
+        'connection failed'
+        >>> err.service
+        'GitHub'
         """
         super().__init__(message)
         self.service = service
@@ -235,7 +243,19 @@ class ImportOptions:
     limit: int = 100
 
     def __post_init__(self) -> None:
-        """Validate options after initialization."""
+        """Validate options after initialization.
+
+        Examples
+        --------
+        >>> opts = ImportOptions(limit=10)
+        >>> opts.limit
+        10
+
+        >>> ImportOptions(limit=0)
+        Traceback (most recent call last):
+            ...
+        ValueError: limit must be >= 1, got 0
+        """
         if self.limit < 1:
             msg = f"limit must be >= 1, got {self.limit}"
             raise ValueError(msg)
@@ -270,6 +290,12 @@ class HTTPClient:
             User-Agent header value
         timeout : int
             Request timeout in seconds
+
+        Examples
+        --------
+        >>> client = HTTPClient("https://api.example.com/")
+        >>> client.base_url
+        'https://api.example.com'
         """
         self.base_url = base_url.rstrip("/")
         self.token = token
@@ -285,6 +311,17 @@ class HTTPClient:
         -------
         dict[str, str]
             Request headers
+
+        Examples
+        --------
+        >>> client = HTTPClient("https://api.example.com", token="tok123")
+        >>> headers = client._build_headers()
+        >>> headers["Authorization"]
+        'Bearer tok123'
+
+        >>> client = HTTPClient("https://api.example.com")
+        >>> "Authorization" not in client._build_headers()
+        True
         """
         headers = {
             "User-Agent": self.user_agent,

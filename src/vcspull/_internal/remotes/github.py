@@ -51,6 +51,12 @@ class GitHubImporter:
             GitHub API token. If not provided, will try GITHUB_TOKEN env var.
         base_url : str | None
             Base URL for GitHub Enterprise. Defaults to api.github.com.
+
+        Examples
+        --------
+        >>> importer = GitHubImporter(token="fake")
+        >>> importer.service_name
+        'GitHub'
         """
         self._token = token or get_token_from_env("GITHUB_TOKEN", "GH_TOKEN")
         self._base_url = (base_url or GITHUB_API_URL).rstrip("/")
@@ -70,6 +76,11 @@ class GitHubImporter:
         -------
         bool
             True if a token is configured
+
+        Examples
+        --------
+        >>> GitHubImporter(token="fake").is_authenticated
+        True
         """
         return self._token is not None
 

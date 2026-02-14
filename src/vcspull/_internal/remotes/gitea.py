@@ -52,6 +52,12 @@ class GiteaImporter:
         base_url : str | None
             Base URL for the Gitea instance. Required for generic Gitea.
             Defaults to Codeberg if not specified.
+
+        Examples
+        --------
+        >>> importer = GiteaImporter(token="fake", base_url="https://codeberg.org")
+        >>> importer.service_name
+        'Gitea'
         """
         self._base_url = (base_url or CODEBERG_API_URL).rstrip("/")
 
@@ -86,6 +92,11 @@ class GiteaImporter:
         -------
         bool
             True if a token is configured
+
+        Examples
+        --------
+        >>> GiteaImporter(token="fake", base_url="https://codeberg.org").is_authenticated
+        True
         """
         return self._token is not None
 
