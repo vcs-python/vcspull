@@ -420,3 +420,73 @@ def test_github_limit_respected(
     options = ImportOptions(mode=ImportMode.USER, target="user", limit=3)
     repos = list(importer.fetch_repos(options))
     assert len(repos) == 3
+
+
+class LogRateLimitFixture(t.NamedTuple):
+    """Fixture for _log_rate_limit test cases."""
+
+    test_id: str
+    headers: dict[str, str]
+    expected_log_level: str | None
+    expected_message_fragment: str | None
+
+
+LOG_RATE_LIMIT_FIXTURES: list[LogRateLimitFixture] = [
+    LogRateLimitFixture(
+        test_id="valid-headers-low-remaining",
+        headers={"x-ratelimit-remaining": "5", "x-ratelimit-limit": "60"},
+        expected_log_level="warning",
+        expected_message_fragment="rate limit low",
+    ),
+    LogRateLimitFixture(
+        test_id="valid-headers-sufficient-remaining",
+        headers={"x-ratelimit-remaining": "50", "x-ratelimit-limit": "60"},
+        expected_log_level="debug",
+        expected_message_fragment="rate limit",
+    ),
+    LogRateLimitFixture(
+        test_id="non-numeric-remaining-header",
+        headers={"x-ratelimit-remaining": "unlimited", "x-ratelimit-limit": "60"},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+    LogRateLimitFixture(
+        test_id="missing-remaining-header",
+        headers={"x-ratelimit-limit": "60"},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+    LogRateLimitFixture(
+        test_id="missing-both-headers",
+        headers={},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(LogRateLimitFixture._fields),
+    LOG_RATE_LIMIT_FIXTURES,
+    ids=[f.test_id for f in LOG_RATE_LIMIT_FIXTURES],
+)
+def test_log_rate_limit(
+    test_id: str,
+    headers: dict[str, str],
+    expected_log_level: str | None,
+    expected_message_fragment: str | None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _log_rate_limit handles various header scenarios."""
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+    importer = GitHubImporter()
+    # Should not raise on any input
+    importer._log_rate_limit(headers)
+
+    if expected_message_fragment is not None:
+        assert expected_message_fragment in caplog.text.lower()
+    else:
+        # No rate limit message should appear
+        assert "rate limit" not in caplog.text.lower()

@@ -298,7 +298,10 @@ class GitHubImporter:
         limit = headers.get("x-ratelimit-limit")
 
         if remaining is not None and limit is not None:
-            remaining_int = int(remaining)
+            try:
+                remaining_int = int(remaining)
+            except (ValueError, TypeError):
+                return
             if remaining_int < 10:
                 log.warning(
                     "GitHub API rate limit low: %s/%s remaining",
