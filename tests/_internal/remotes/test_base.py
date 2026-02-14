@@ -398,3 +398,98 @@ def test_import_mode_values() -> None:
     assert ImportMode.USER.value == "user"
     assert ImportMode.ORG.value == "org"
     assert ImportMode.SEARCH.value == "search"
+
+
+class HandleHttpErrorFixture(t.NamedTuple):
+    """Fixture for HTTPClient._handle_http_error test cases."""
+
+    test_id: str
+    status_code: int
+    response_body: str
+    expected_error_type: str
+    expected_message_contains: str
+
+
+HANDLE_HTTP_ERROR_FIXTURES: list[HandleHttpErrorFixture] = [
+    HandleHttpErrorFixture(
+        test_id="string-message-401",
+        status_code=401,
+        response_body='{"message": "Bad credentials"}',
+        expected_error_type="AuthenticationError",
+        expected_message_contains="Bad credentials",
+    ),
+    HandleHttpErrorFixture(
+        test_id="dict-message-403",
+        status_code=403,
+        response_body='{"message": {"error": "forbidden"}}',
+        expected_error_type="AuthenticationError",
+        expected_message_contains="forbidden",
+    ),
+    HandleHttpErrorFixture(
+        test_id="int-message-404",
+        status_code=404,
+        response_body='{"message": 42}',
+        expected_error_type="NotFoundError",
+        expected_message_contains="42",
+    ),
+    HandleHttpErrorFixture(
+        test_id="rate-limit-string-403",
+        status_code=403,
+        response_body='{"message": "API rate limit exceeded"}',
+        expected_error_type="RateLimitError",
+        expected_message_contains="rate limit",
+    ),
+    HandleHttpErrorFixture(
+        test_id="invalid-json-body-500",
+        status_code=500,
+        response_body="<html>Server Error</html>",
+        expected_error_type="ServiceUnavailableError",
+        expected_message_contains="service unavailable",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(HandleHttpErrorFixture._fields),
+    HANDLE_HTTP_ERROR_FIXTURES,
+    ids=[f.test_id for f in HANDLE_HTTP_ERROR_FIXTURES],
+)
+def test_handle_http_error(
+    test_id: str,
+    status_code: int,
+    response_body: str,
+    expected_error_type: str,
+    expected_message_contains: str,
+) -> None:
+    """Test HTTPClient._handle_http_error with various response bodies."""
+    import io
+    import urllib.error
+
+    from vcspull._internal.remotes.base import (
+        AuthenticationError,
+        HTTPClient,
+        NotFoundError,
+        RateLimitError,
+        ServiceUnavailableError,
+    )
+
+    error_classes = {
+        "AuthenticationError": AuthenticationError,
+        "RateLimitError": RateLimitError,
+        "NotFoundError": NotFoundError,
+        "ServiceUnavailableError": ServiceUnavailableError,
+    }
+
+    client = HTTPClient("https://api.example.com")
+    exc = urllib.error.HTTPError(
+        url="https://api.example.com/test",
+        code=status_code,
+        msg="Error",
+        hdrs=None,  # type: ignore[arg-type]
+        fp=io.BytesIO(response_body.encode()),
+    )
+
+    with pytest.raises(error_classes[expected_error_type], match="(?i).*") as exc_info:
+        client._handle_http_error(exc, "TestService")
+
+    assert expected_message_contains.lower() in str(exc_info.value).lower()

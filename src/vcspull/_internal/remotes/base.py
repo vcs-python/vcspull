@@ -381,7 +381,7 @@ class HTTPClient:
         try:
             body = exc.read().decode("utf-8")
             error_data = json.loads(body)
-            message = error_data.get("message", str(exc))
+            message = str(error_data.get("message", exc))
         except (json.JSONDecodeError, UnicodeDecodeError):
             message = str(exc)
 
