@@ -286,9 +286,15 @@ class GitLabImporter:
         # Use 'path' instead of 'name' for filesystem-safe name
         name = data.get("path", data.get("name", ""))
 
-        # Determine owner from namespace
+        # Prefer the full namespace path for subgroup-aware import behavior.
         namespace = data.get("namespace", {})
-        owner = namespace.get("path", namespace.get("name", ""))
+        owner = namespace.get("full_path")
+        if not owner:
+            path_with_namespace = data.get("path_with_namespace")
+            if isinstance(path_with_namespace, str) and "/" in path_with_namespace:
+                owner = path_with_namespace.rsplit("/", 1)[0]
+            else:
+                owner = namespace.get("path", namespace.get("name", ""))
 
         # Check if it's a fork
         is_fork = data.get("forked_from_project") is not None

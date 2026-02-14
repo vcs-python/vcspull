@@ -525,4 +525,5 @@ def cli(_args: list[str] | None = None) -> None:
             output_ndjson=getattr(args, "output_ndjson", False),
             color=getattr(args, "color", "auto"),
             use_https=getattr(args, "use_https", False),
+            flatten_groups=getattr(args, "flatten_groups", False),
         )

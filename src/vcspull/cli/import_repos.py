@@ -202,6 +202,15 @@ def create_import_subparser(parser: argparse.ArgumentParser) -> None:
         help="Use HTTPS clone URLs instead of SSH (default: SSH)",
     )
     output_group.add_argument(
+        "--flatten-groups",
+        action="store_true",
+        dest="flatten_groups",
+        help=(
+            "For GitLab --mode org, flatten subgroup repositories into the base "
+            "workspace instead of preserving subgroup paths"
+        ),
+    )
+    output_group.add_argument(
         "--color",
         choices=["auto", "always", "never"],
         default="auto",
@@ -317,6 +326,7 @@ def import_repos(
     output_ndjson: bool,
     color: str,
     use_https: bool = False,
+    flatten_groups: bool = False,
 ) -> None:
     """Import repositories from a remote service.
 
@@ -364,6 +374,8 @@ def import_repos(
         Color mode
     use_https : bool
         Use HTTPS clone URLs instead of SSH (default: False, i.e., SSH)
+    flatten_groups : bool
+        For GitLab org imports, flatten subgroup paths into base workspace
     """
     output_mode = get_output_mode(output_json, output_ndjson)
     formatter = OutputFormatter(output_mode)
@@ -421,7 +433,6 @@ def import_repos(
     workspace_path = pathlib.Path(workspace).expanduser().resolve()
     cwd = pathlib.Path.cwd()
     home = pathlib.Path.home()
-    workspace_label = workspace_root_label(workspace_path, cwd=cwd, home=home)
 
     # Resolve config file
     try:
@@ -587,29 +598,60 @@ def import_repos(
         raw_config = {}
 
     # Add repositories to config
-    if workspace_label in raw_config and not isinstance(
-        raw_config[workspace_label], dict
-    ):
-        log.error(
-            "%s✗%s Workspace section '%s' is not a mapping in config",
-            Fore.RED,
-            Style.RESET_ALL,
-            workspace_label,
-        )
-        return
-
-    if workspace_label not in raw_config:
-        raw_config[workspace_label] = {}
-
+    checked_labels: set[str] = set()
     added_count = 0
     skipped_count = 0
 
     for repo in repos:
-        if repo.name in raw_config[workspace_label]:
+        # Determine workspace for this repo
+        repo_workspace_path = workspace_path
+
+        preserve_group_structure = (
+            normalized_service == "gitlab"
+            and options.mode == ImportMode.ORG
+            and not flatten_groups
+        )
+        if preserve_group_structure and repo.owner.startswith(options.target):
+            # Check if it is a subdirectory
+            if repo.owner == options.target:
+                subpath = ""
+            elif repo.owner.startswith(options.target + "/"):
+                subpath = repo.owner[len(options.target) + 1 :]
+            else:
+                subpath = ""
+
+            if subpath:
+                repo_workspace_path = workspace_path / subpath
+
+        repo_workspace_label = workspace_root_label(
+            repo_workspace_path, cwd=cwd, home=home
+        )
+
+        if repo_workspace_label not in checked_labels:
+            if repo_workspace_label in raw_config and not isinstance(
+                raw_config[repo_workspace_label], dict
+            ):
+                log.error(
+                    "%s✗%s Workspace section '%s' is not a mapping in config",
+                    Fore.RED,
+                    Style.RESET_ALL,
+                    repo_workspace_label,
+                )
+            checked_labels.add(repo_workspace_label)
+
+        if repo_workspace_label in raw_config and not isinstance(
+            raw_config[repo_workspace_label], dict
+        ):
+            continue
+
+        if repo_workspace_label not in raw_config:
+            raw_config[repo_workspace_label] = {}
+
+        if repo.name in raw_config[repo_workspace_label]:
             skipped_count += 1
             continue
 
-        raw_config[workspace_label][repo.name] = {
+        raw_config[repo_workspace_label][repo.name] = {
             "repo": repo.to_vcspull_url(use_ssh=not use_https),
         }
         added_count += 1
