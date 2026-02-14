@@ -234,6 +234,12 @@ class ImportOptions:
     min_stars: int = 0
     limit: int = 100
 
+    def __post_init__(self) -> None:
+        """Validate options after initialization."""
+        if self.limit < 1:
+            msg = f"limit must be >= 1, got {self.limit}"
+            raise ValueError(msg)
+
 
 class HTTPClient:
     """Simple HTTP client using urllib for making API requests."""

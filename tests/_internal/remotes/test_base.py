@@ -400,6 +400,42 @@ def test_import_mode_values() -> None:
     assert ImportMode.SEARCH.value == "search"
 
 
+class InvalidLimitFixture(t.NamedTuple):
+    """Fixture for invalid ImportOptions.limit test cases."""
+
+    test_id: str
+    limit: int
+
+
+INVALID_LIMIT_FIXTURES: list[InvalidLimitFixture] = [
+    InvalidLimitFixture(test_id="zero-limit", limit=0),
+    InvalidLimitFixture(test_id="negative-limit", limit=-1),
+    InvalidLimitFixture(test_id="large-negative-limit", limit=-100),
+]
+
+
+@pytest.mark.parametrize(
+    list(InvalidLimitFixture._fields),
+    INVALID_LIMIT_FIXTURES,
+    ids=[f.test_id for f in INVALID_LIMIT_FIXTURES],
+)
+def test_import_options_rejects_invalid_limit(
+    test_id: str,
+    limit: int,
+) -> None:
+    """Test ImportOptions raises ValueError for limit < 1."""
+    with pytest.raises(ValueError, match="limit must be >= 1"):
+        ImportOptions(limit=limit)
+
+
+def test_import_options_accepts_valid_limit() -> None:
+    """Test ImportOptions accepts limit >= 1."""
+    options = ImportOptions(limit=1)
+    assert options.limit == 1
+    options = ImportOptions(limit=500)
+    assert options.limit == 500
+
+
 class HandleHttpErrorFixture(t.NamedTuple):
     """Fixture for HTTPClient._handle_http_error test cases."""
 
