@@ -688,8 +688,9 @@ def test_import_repos_user_abort(
     workspace.mkdir()
     config_file = tmp_path / ".vcspull.yaml"
 
-    # Mock user input
+    # Mock user input and ensure isatty returns True so we reach input()
     monkeypatch.setattr("builtins.input", lambda _: "n")
+    monkeypatch.setattr("sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})())
 
     # Mock the importer
     class MockImporter:
@@ -731,6 +732,129 @@ def test_import_repos_user_abort(
     )
 
     assert "Aborted by user" in caplog.text
+    assert not config_file.exists()
+
+
+def test_import_repos_eoferror_aborts(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos aborts gracefully on EOFError from input()."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Mock input() to raise EOFError (e.g., piped stdin)
+    def raise_eof(_: str) -> str:
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", raise_eof)
+    # Ensure isatty returns True so we reach input()
+    monkeypatch.setattr("sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})())
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("repo1")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=False,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert "Aborted by user" in caplog.text
+    assert not config_file.exists()
+
+
+def test_import_repos_non_tty_aborts(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test import_repos aborts when stdin is not a TTY."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Mock stdin.isatty() to return False
+    monkeypatch.setattr(
+        "sys.stdin", type("FakeNonTTY", (), {"isatty": lambda self: False})()
+    )
+
+    class MockImporter:
+        service_name = "MockService"
+
+        def fetch_repos(
+            self,
+            options: ImportOptions,
+        ) -> t.Iterator[RemoteRepo]:
+            yield _make_repo("repo1")
+
+    monkeypatch.setattr(
+        import_repos_mod,
+        "_get_importer",
+        lambda *args, **kwargs: MockImporter(),
+    )
+
+    import_repos(
+        service="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        base_url=None,
+        token=None,
+        region=None,
+        profile=None,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=False,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert "Non-interactive mode" in caplog.text
     assert not config_file.exists()
 
 

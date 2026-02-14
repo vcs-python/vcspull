@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import sys
 import typing as t
 
 from colorama import Fore, Style
@@ -576,10 +577,20 @@ def import_repos(
 
     # Confirm with user
     if not yes and output_mode.value == "human":
-        confirm = input(
-            f"\n{Fore.CYAN}Import {len(repos)} repositories to "
-            f"{display_config_path}? [y/N]: {Style.RESET_ALL}",
-        ).lower()
+        if not sys.stdin.isatty():
+            log.info(
+                "%s✗%s Non-interactive mode: use --yes to skip confirmation.",
+                Fore.RED,
+                Style.RESET_ALL,
+            )
+            return
+        try:
+            confirm = input(
+                f"\n{Fore.CYAN}Import {len(repos)} repositories to "
+                f"{display_config_path}? [y/N]: {Style.RESET_ALL}",
+            ).lower()
+        except EOFError:
+            confirm = ""
         if confirm not in {"y", "yes"}:
             log.info("%s✗%s Aborted by user.", Fore.RED, Style.RESET_ALL)
             return
