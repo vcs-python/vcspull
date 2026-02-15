@@ -10,6 +10,7 @@
 
 sync
 add
+import
 discover
 list
 search
