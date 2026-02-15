@@ -165,6 +165,21 @@ WORKTREE_CONFIG_ERROR_FIXTURES = [
         wt_config={"dir": "../proj", "tag": "v1", "branch": "main"},
         expected_error_pattern="cannot specify multiple",
     ),
+    WorktreeConfigErrorFixture(
+        test_id="empty_tag_error",
+        wt_config={"dir": "../proj", "tag": ""},
+        expected_error_pattern="empty ref value",
+    ),
+    WorktreeConfigErrorFixture(
+        test_id="empty_branch_error",
+        wt_config={"dir": "../proj", "branch": ""},
+        expected_error_pattern="empty ref value",
+    ),
+    WorktreeConfigErrorFixture(
+        test_id="empty_commit_error",
+        wt_config={"dir": "../proj", "commit": ""},
+        expected_error_pattern="empty ref value",
+    ),
 ]
 
 
@@ -1529,6 +1544,30 @@ def test_update_worktree_verifies_branch(
         check=True,
     )
     assert result.stdout.strip() == "expected-branch"
+
+
+def test_validate_empty_string_refs() -> None:
+    """Test that empty-string refs are rejected in both validation layers.
+
+    Regression test: empty strings passed the `ref is not None` check
+    but failed the truthiness check, producing a misleading error message.
+    """
+    # _get_ref_type_and_value should return None for empty strings
+    assert _get_ref_type_and_value({"dir": "../wt", "tag": ""}) is None
+    assert _get_ref_type_and_value({"dir": "../wt", "branch": ""}) is None
+    assert _get_ref_type_and_value({"dir": "../wt", "commit": ""}) is None
+
+    # validate_worktree_config should raise with "empty ref value" message
+    with pytest.raises(exc.WorktreeConfigError, match="empty ref value"):
+        validate_worktree_config(
+            t.cast(WorktreeConfigDict, {"dir": "../wt", "tag": ""})
+        )
+
+    # config-level validation should also reject empty refs
+    with pytest.raises(exc.VCSPullException, match="empty ref value"):
+        vcspull_config._validate_worktrees_config(
+            [{"dir": "../wt", "branch": ""}], "myrepo"
+        )
 
 
 def test_update_worktree_detached_head(

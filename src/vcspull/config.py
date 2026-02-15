@@ -132,6 +132,13 @@ def _validate_worktrees_config(
         ...
     vcspull.exc.VCSPullException: ...must specify one of: tag, branch, or commit
 
+    Error: empty ref value:
+
+    >>> _validate_worktrees_config([{"dir": "../wt", "tag": ""}], "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...empty ref value...
+
     Error: multiple refs specified:
 
     >>> _validate_worktrees_config(
@@ -171,12 +178,21 @@ def _validate_worktrees_config(
         branch = wt.get("branch")
         commit = wt.get("commit")
 
-        refs_specified = sum(1 for ref in [tag, branch, commit] if ref is not None)
+        refs_specified = sum(
+            1 for ref in [tag, branch, commit] if ref is not None and ref != ""
+        )
+        empty_refs = sum(1 for ref in [tag, branch, commit] if ref == "")
 
-        if refs_specified == 0:
+        if refs_specified == 0 and empty_refs == 0:
             msg = (
                 f"Repository '{repo_name}': worktree entry {idx} "
                 "must specify one of: tag, branch, or commit"
+            )
+            raise exc.VCSPullException(msg)
+        if refs_specified == 0 and empty_refs > 0:
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                "has empty ref value (tag, branch, or commit)"
             )
             raise exc.VCSPullException(msg)
         if refs_specified > 1:

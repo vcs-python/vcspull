@@ -111,12 +111,16 @@ def _get_ref_type_and_value(
     >>> multi = {"dir": "../multi", "tag": "v1", "branch": "main"}
     >>> _get_ref_type_and_value(multi) is None
     True
+    >>> _get_ref_type_and_value({"dir": "../wt", "tag": ""}) is None
+    True
     """
     tag = wt_config.get("tag")
     branch = wt_config.get("branch")
     commit = wt_config.get("commit")
 
-    refs_specified = sum(1 for ref in [tag, branch, commit] if ref is not None)
+    refs_specified = sum(
+        1 for ref in [tag, branch, commit] if ref is not None and ref != ""
+    )
 
     if refs_specified == 0:
         return None
@@ -168,10 +172,14 @@ def validate_worktree_config(wt_config: WorktreeConfigDict) -> None:
         tag = wt_config.get("tag")
         branch = wt_config.get("branch")
         commit = wt_config.get("commit")
-        refs_specified = sum(1 for ref in [tag, branch, commit] if ref is not None)
+        non_none_refs = sum(1 for ref in [tag, branch, commit] if ref is not None)
+        empty_refs = sum(1 for ref in [tag, branch, commit] if ref == "")
 
-        if refs_specified == 0:
+        if non_none_refs == 0:
             msg = "Worktree config must specify one of: tag, branch, or commit"
+            raise exc.WorktreeConfigError(msg)
+        if empty_refs > 0:
+            msg = "Worktree config has empty ref value (tag, branch, or commit)"
             raise exc.WorktreeConfigError(msg)
         msg = "Worktree config cannot specify multiple refs (tag, branch, commit)"
         raise exc.WorktreeConfigError(msg)
