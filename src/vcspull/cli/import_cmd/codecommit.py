@@ -37,7 +37,7 @@ def create_codecommit_subparser(
         metavar="TARGET",
         nargs="?",
         default="",
-        help="Optional filter prefix for repository names",
+        help="Optional substring filter for repository names",
     )
     parser.add_argument(
         "--region",
