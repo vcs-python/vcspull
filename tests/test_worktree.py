@@ -214,6 +214,81 @@ def test_worktree_config_validation_errors(
 
 
 # ---------------------------------------------------------------------------
+# Worktree Exception Construction Tests
+# ---------------------------------------------------------------------------
+
+
+class WorktreeExceptionFixture(t.NamedTuple):
+    """Fixture for worktree exception construction tests."""
+
+    test_id: str
+    exc_class: type[exc.WorktreeError]
+    exc_args: dict[str, str]
+    expected_in_message: str
+    expected_attrs: dict[str, str]
+
+
+WORKTREE_EXCEPTION_FIXTURES = [
+    WorktreeExceptionFixture(
+        test_id="ref_not_found_tag",
+        exc_class=exc.WorktreeRefNotFoundError,
+        exc_args={"ref": "v1.0.0", "ref_type": "tag", "repo_path": "/repo"},
+        expected_in_message="Tag 'v1.0.0' not found",
+        expected_attrs={"ref": "v1.0.0", "ref_type": "tag", "repo_path": "/repo"},
+    ),
+    WorktreeExceptionFixture(
+        test_id="ref_not_found_branch",
+        exc_class=exc.WorktreeRefNotFoundError,
+        exc_args={"ref": "develop", "ref_type": "branch", "repo_path": "/repo"},
+        expected_in_message="Branch 'develop' not found",
+        expected_attrs={"ref": "develop", "ref_type": "branch", "repo_path": "/repo"},
+    ),
+    WorktreeExceptionFixture(
+        test_id="ref_not_found_commit",
+        exc_class=exc.WorktreeRefNotFoundError,
+        exc_args={"ref": "abc123", "ref_type": "commit", "repo_path": "/repo"},
+        expected_in_message="Commit 'abc123' not found",
+        expected_attrs={"ref": "abc123", "ref_type": "commit", "repo_path": "/repo"},
+    ),
+    WorktreeExceptionFixture(
+        test_id="dirty_worktree",
+        exc_class=exc.WorktreeDirtyError,
+        exc_args={"path": "/path/to/worktree"},
+        expected_in_message="uncommitted changes",
+        expected_attrs={"path": "/path/to/worktree"},
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(WorktreeExceptionFixture._fields),
+    WORKTREE_EXCEPTION_FIXTURES,
+    ids=[f.test_id for f in WORKTREE_EXCEPTION_FIXTURES],
+)
+def test_worktree_exception_construction(
+    test_id: str,
+    exc_class: type[exc.WorktreeError],
+    exc_args: dict[str, str],
+    expected_in_message: str,
+    expected_attrs: dict[str, str],
+) -> None:
+    """Test worktree exception classes have correct messages and attributes."""
+    exception = exc_class(**exc_args)
+    assert expected_in_message in str(exception)
+    for attr, value in expected_attrs.items():
+        assert getattr(exception, attr) == value
+    assert isinstance(exception, exc.WorktreeError)
+
+
+def test_worktree_exception_hierarchy() -> None:
+    """Test worktree exceptions inherit from correct base classes."""
+    assert issubclass(exc.WorktreeRefNotFoundError, exc.WorktreeError)
+    assert issubclass(exc.WorktreeRefNotFoundError, exc.VCSPullException)
+    assert issubclass(exc.WorktreeDirtyError, exc.WorktreeError)
+    assert issubclass(exc.WorktreeDirtyError, exc.VCSPullException)
+
+
+# ---------------------------------------------------------------------------
 # Worktree Path Resolution Tests
 # ---------------------------------------------------------------------------
 
