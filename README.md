@@ -68,7 +68,7 @@ You can test the unpublished version of vcspull before its released.
 ## Configuration
 
 Add your repos to `~/.vcspull.yaml`. You can edit the file by hand or let
-`vcspull add` or `vcspull discover` create entries for you.
+`vcspull add`, `vcspull discover`, or `vcspull import` create entries for you.
 
 ```yaml
 ~/code/:
@@ -122,6 +122,24 @@ The scan shows each repository before import unless you opt into `--yes`. Add
 `-w ~/code/` to pin the resulting workspace root or `-f` to write somewhere other
 than the default `~/.vcspull.yaml`. Duplicate workspace roots are merged by
 default; include `--no-merge` to keep them separate while you review the log.
+
+### Import from remote services
+
+Pull repository lists from GitHub, GitLab, Codeberg, Gitea, Forgejo, or AWS
+CodeCommit directly into your configuration:
+
+```console
+$ vcspull import github myuser -w ~/code/ --mode user
+```
+
+```console
+$ vcspull import gitlab my-group -w ~/work/ --mode org
+```
+
+Use `--dry-run` to preview changes, `--https` for HTTPS clone URLs, and
+`--language`/`--topics`/`--min-stars` to filter results. See the
+[import documentation](https://vcspull.git-pull.com/cli/import/) for all
+supported services and options.
 
 ### Inspect configured repositories
 
