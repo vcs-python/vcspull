@@ -252,7 +252,7 @@ IMPORT_DESCRIPTION = build_description(
 
     For GitLab, you can specify subgroups using slash notation (e.g., parent/child).
     In org mode, subgroup paths are preserved under the workspace root by
-    default; use --flatten-groups to collapse them into a single workspace.
+    default; use ``--flatten-groups`` to collapse them into a single workspace.
     """,
     (
         (
