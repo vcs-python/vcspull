@@ -472,7 +472,12 @@ def plan_worktree_sync(
             continue
 
         ref_info = _get_ref_type_and_value(wt_config)
-        assert ref_info is not None  # Validated above
+        if ref_info is None:
+            log.warning(
+                "Worktree config passed validation but has no ref: %s",
+                wt_config,
+            )
+            continue
         ref_type, ref_value = ref_info
 
         worktree_path = _resolve_worktree_path(wt_config, workspace_root)
