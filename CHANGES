@@ -103,11 +103,15 @@ $ vcspull import codeberg user \
 
 Clone URLs default to SSH. Use `--https` to get HTTPS URLs instead:
 
+SSH (default):
+
 ```console
 $ vcspull import github torvalds \
     -w ~/repos/linux \
     --mode user
 ```
+
+Use `--https` for HTTPS clone URLs:
 
 ```console
 $ vcspull import github torvalds \
