@@ -55,7 +55,8 @@ homepage = "https://vcspull.git-pull.com"
 dependencies = [
   "libvcs~=0.39.0",
   "colorama>=0.3.9",
-  "PyYAML>=6.0"
+  "PyYAML>=6.0",
+  "tomli>=1.0; python_version < '3.11'"
 ]
 
 [project-urls]
