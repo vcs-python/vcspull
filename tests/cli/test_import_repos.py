@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import pathlib
-import subprocess
 import sys
 import typing as t
 
@@ -20,16 +19,14 @@ from vcspull._internal.remotes import (
     RemoteRepo,
     ServiceUnavailableError,
 )
-from vcspull.cli.import_repos import (
-    SERVICE_ALIASES,
-    _get_importer,
+from vcspull.cli.import_cmd._common import (
     _resolve_config_file,
-    import_repos,
+    _run_import,
 )
 from vcspull.config import save_config_yaml, workspace_root_label
 
-# Get the actual module (not the function from __init__.py)
-import_repos_mod = sys.modules["vcspull.cli.import_repos"]
+# Get the actual _common module for monkeypatching
+import_common_mod = sys.modules["vcspull.cli.import_cmd._common"]
 
 if t.TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -58,265 +55,28 @@ def _make_repo(
     )
 
 
-class GetImporterFixture(t.NamedTuple):
-    """Fixture for _get_importer test cases."""
+class MockImporter:
+    """Reusable mock importer for tests."""
 
-    test_id: str
-    service: str
-    token: str | None
-    base_url: str | None
-    region: str | None
-    profile: str | None
-    expected_type_name: str
-    expected_error: str | None
+    def __init__(
+        self,
+        *,
+        service_name: str = "MockService",
+        repos: list[RemoteRepo] | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self.service_name = service_name
+        self._repos = repos or []
+        self._error = error
 
-
-GET_IMPORTER_FIXTURES: list[GetImporterFixture] = [
-    GetImporterFixture(
-        test_id="github-direct",
-        service="github",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="GitHubImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="github-alias-gh",
-        service="gh",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="GitHubImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="gitlab-direct",
-        service="gitlab",
-        token="test-token",
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="GitLabImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="gitlab-alias-gl",
-        service="gl",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="GitLabImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="codeberg-direct",
-        service="codeberg",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="GiteaImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="codeberg-alias-cb",
-        service="cb",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="GiteaImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="codeberg-custom-url",
-        service="codeberg",
-        token=None,
-        base_url="https://my-codeberg-mirror.example.com",
-        region=None,
-        profile=None,
-        expected_type_name="GiteaImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="gitea-with-url",
-        service="gitea",
-        token=None,
-        base_url="https://gitea.example.com",
-        region=None,
-        profile=None,
-        expected_type_name="GiteaImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="gitea-without-url-fails",
-        service="gitea",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="",
-        expected_error="--url is required for gitea",
-    ),
-    GetImporterFixture(
-        test_id="forgejo-with-url",
-        service="forgejo",
-        token=None,
-        base_url="https://forgejo.example.com",
-        region=None,
-        profile=None,
-        expected_type_name="GiteaImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="forgejo-without-url-fails",
-        service="forgejo",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="",
-        expected_error="--url is required for forgejo",
-    ),
-    GetImporterFixture(
-        test_id="codecommit-direct",
-        service="codecommit",
-        token=None,
-        base_url=None,
-        region="us-east-1",
-        profile=None,
-        expected_type_name="CodeCommitImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="codecommit-alias-cc",
-        service="cc",
-        token=None,
-        base_url=None,
-        region=None,
-        profile="myprofile",
-        expected_type_name="CodeCommitImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="codecommit-alias-aws",
-        service="aws",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="CodeCommitImporter",
-        expected_error=None,
-    ),
-    GetImporterFixture(
-        test_id="unknown-service-fails",
-        service="unknown",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-        expected_type_name="",
-        expected_error="Unknown service: unknown",
-    ),
-]
-
-
-@pytest.mark.parametrize(
-    list(GetImporterFixture._fields),
-    GET_IMPORTER_FIXTURES,
-    ids=[f.test_id for f in GET_IMPORTER_FIXTURES],
-)
-def test_get_importer(
-    test_id: str,
-    service: str,
-    token: str | None,
-    base_url: str | None,
-    region: str | None,
-    profile: str | None,
-    expected_type_name: str,
-    expected_error: str | None,
-    monkeypatch: MonkeyPatch,
-) -> None:
-    """Test _get_importer creates the correct importer type."""
-    # Mock subprocess.run for CodeCommit tests (aws --version check)
-    if service in ("codecommit", "cc", "aws"):
-        monkeypatch.setattr(
-            "subprocess.run",
-            lambda cmd, **kwargs: subprocess.CompletedProcess(
-                cmd, 0, stdout="aws-cli/2.x", stderr=""
-            ),
-        )
-
-    if expected_error:
-        with pytest.raises(ValueError, match=expected_error):
-            _get_importer(
-                service,
-                token=token,
-                base_url=base_url,
-                region=region,
-                profile=profile,
-            )
-    else:
-        importer = _get_importer(
-            service,
-            token=token,
-            base_url=base_url,
-            region=region,
-            profile=profile,
-        )
-        assert type(importer).__name__ == expected_type_name
-
-
-def test_codeberg_custom_url_used() -> None:
-    """Test that Codeberg importer uses custom base_url when provided."""
-    from vcspull._internal.remotes.gitea import GiteaImporter
-
-    importer = _get_importer(
-        "codeberg",
-        token=None,
-        base_url="https://my-codeberg.example.com",
-        region=None,
-        profile=None,
-    )
-    assert isinstance(importer, GiteaImporter)
-    assert importer._client.base_url == "https://my-codeberg.example.com/api/v1"
-
-
-def test_codeberg_default_url_used() -> None:
-    """Test that Codeberg importer uses default URL when no base_url."""
-    from vcspull._internal.remotes.gitea import GiteaImporter
-
-    importer = _get_importer(
-        "codeberg",
-        token=None,
-        base_url=None,
-        region=None,
-        profile=None,
-    )
-    assert isinstance(importer, GiteaImporter)
-    assert importer._client.base_url == "https://codeberg.org/api/v1"
-
-
-def test_service_aliases_coverage() -> None:
-    """Test that SERVICE_ALIASES covers expected services."""
-    expected_aliases = {
-        "github",
-        "gh",
-        "gitlab",
-        "gl",
-        "codeberg",
-        "cb",
-        "gitea",
-        "forgejo",
-        "codecommit",
-        "cc",
-        "aws",
-    }
-    assert set(SERVICE_ALIASES.keys()) == expected_aliases
+    def fetch_repos(
+        self,
+        options: ImportOptions,
+    ) -> t.Iterator[RemoteRepo]:
+        """Yield mock repos or raise a mock error."""
+        if self._error:
+            raise self._error
+        yield from self._repos
 
 
 class ResolveConfigFixture(t.NamedTuple):
@@ -388,7 +148,7 @@ def test_resolve_config_file(
     # Mock find_home_config_files: return pre-created config file paths
     # instead of scanning the real home directory
     monkeypatch.setattr(
-        import_repos_mod,
+        import_common_mod,
         "find_home_config_files",
         lambda filetype=None: full_paths,
     )
@@ -398,13 +158,12 @@ def test_resolve_config_file(
 
 
 class ImportReposFixture(t.NamedTuple):
-    """Fixture for import_repos test cases."""
+    """Fixture for _run_import test cases."""
 
     test_id: str
-    service: str
+    service_name: str
     target: str
     mode: str
-    base_url: str | None
     dry_run: bool
     yes: bool
     output_json: bool
@@ -417,10 +176,9 @@ class ImportReposFixture(t.NamedTuple):
 IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ImportReposFixture(
         test_id="basic-github-user-dry-run",
-        service="github",
+        service_name="github",
         target="testuser",
         mode="user",
-        base_url=None,
         dry_run=True,
         yes=True,
         output_json=False,
@@ -431,10 +189,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="github-user-writes-config",
-        service="github",
+        service_name="github",
         target="testuser",
         mode="user",
-        base_url=None,
         dry_run=False,
         yes=True,
         output_json=False,
@@ -445,10 +202,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="no-repos-found",
-        service="github",
+        service_name="github",
         target="emptyuser",
         mode="user",
-        base_url=None,
         dry_run=False,
         yes=True,
         output_json=False,
@@ -459,10 +215,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="authentication-error",
-        service="github",
+        service_name="github",
         target="testuser",
         mode="user",
-        base_url=None,
         dry_run=False,
         yes=True,
         output_json=False,
@@ -473,10 +228,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="rate-limit-error",
-        service="github",
+        service_name="github",
         target="testuser",
         mode="user",
-        base_url=None,
         dry_run=False,
         yes=True,
         output_json=False,
@@ -487,10 +241,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="not-found-error",
-        service="github",
+        service_name="github",
         target="nosuchuser",
         mode="user",
-        base_url=None,
         dry_run=False,
         yes=True,
         output_json=False,
@@ -501,10 +254,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="service-unavailable-error",
-        service="github",
+        service_name="github",
         target="testuser",
         mode="user",
-        base_url=None,
         dry_run=False,
         yes=True,
         output_json=False,
@@ -515,10 +267,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="configuration-error",
-        service="codecommit",
+        service_name="codecommit",
         target="",
         mode="user",
-        base_url=None,
         dry_run=False,
         yes=True,
         output_json=False,
@@ -529,10 +280,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="gitlab-org-mode",
-        service="gitlab",
+        service_name="gitlab",
         target="testgroup",
         mode="org",
-        base_url=None,
         dry_run=True,
         yes=True,
         output_json=False,
@@ -543,10 +293,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
     ),
     ImportReposFixture(
         test_id="codeberg-search-mode",
-        service="codeberg",
+        service_name="codeberg",
         target="python cli",
         mode="search",
-        base_url=None,
         dry_run=True,
         yes=True,
         output_json=False,
@@ -565,10 +314,9 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
 )
 def test_import_repos(
     test_id: str,
-    service: str,
+    service_name: str,
     target: str,
     mode: str,
-    base_url: str | None,
     dry_run: bool,
     yes: bool,
     output_json: bool,
@@ -580,7 +328,7 @@ def test_import_repos(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos with various scenarios."""
+    """Test _run_import with various scenarios."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -590,34 +338,14 @@ def test_import_repos(
     workspace.mkdir()
     config_file = tmp_path / ".vcspull.yaml"
 
-    # Mock the importer
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=mock_repos, error=mock_error)
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            if mock_error:
-                raise mock_error
-            yield from mock_repos
-
-    # Mock _get_importer: return MockImporter to avoid real API/network calls
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service=service,
+    _run_import(
+        importer,
+        service_name=service_name,
         target=target,
         workspace=str(workspace),
         mode=mode,
-        base_url=base_url,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -648,88 +376,12 @@ def test_import_repos(
         assert total_repos == expected_config_repos
 
 
-def test_import_repos_missing_target(
-    tmp_path: pathlib.Path,
-    monkeypatch: MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Test import_repos fails when target is missing for non-codecommit."""
-    caplog.set_level(logging.ERROR)
-
-    monkeypatch.setenv("HOME", str(tmp_path))
-    workspace = tmp_path / "repos"
-    workspace.mkdir()
-
-    import_repos(
-        service="github",
-        target="",  # Empty target
-        workspace=str(workspace),
-        mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
-        config_path_str=str(tmp_path / "config.yaml"),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
-    )
-
-    assert "TARGET is required" in caplog.text
-
-
-def test_import_repos_unknown_service(
-    tmp_path: pathlib.Path,
-    monkeypatch: MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Test import_repos fails for unknown service."""
-    caplog.set_level(logging.ERROR)
-
-    monkeypatch.setenv("HOME", str(tmp_path))
-    workspace = tmp_path / "repos"
-    workspace.mkdir()
-
-    import_repos(
-        service="unknownservice",
-        target="testuser",
-        workspace=str(workspace),
-        mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
-        config_path_str=str(tmp_path / "config.yaml"),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
-    )
-
-    assert "Unknown service" in caplog.text
-
-
 def test_import_repos_user_abort(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos aborts when user declines confirmation."""
+    """Test _run_import aborts when user declines confirmation."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -744,32 +396,14 @@ def test_import_repos_user_abort(
         "sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})()
     )
 
-    # Mock the importer
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to avoid real API calls
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -793,7 +427,7 @@ def test_import_repos_eoferror_aborts(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos aborts gracefully on EOFError from input()."""
+    """Test _run_import aborts gracefully on EOFError from input()."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -812,31 +446,14 @@ def test_import_repos_eoferror_aborts(
         "sys.stdin", type("FakeTTY", (), {"isatty": lambda self: True})()
     )
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to avoid real API calls
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -860,7 +477,7 @@ def test_import_repos_non_tty_aborts(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos aborts when stdin is not a TTY."""
+    """Test _run_import aborts when stdin is not a TTY."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -873,31 +490,14 @@ def test_import_repos_non_tty_aborts(
         "sys.stdin", type("FakeNonTTY", (), {"isatty": lambda self: False})()
     )
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to avoid real API calls
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -921,7 +521,7 @@ def test_import_repos_skips_existing(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos skips repositories already in config."""
+    """Test _run_import skips repositories already in config."""
     import yaml
 
     caplog.set_level(logging.INFO)
@@ -939,33 +539,14 @@ def test_import_repos_skips_existing(
     }
     save_config_yaml(config_file, existing_config)
 
-    # Mock the importer to return repo1 (existing) and repo2 (new)
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1"), _make_repo("repo2")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-            yield _make_repo("repo2")
-
-    # Mock _get_importer: return MockImporter with both existing and new repos
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -995,7 +576,7 @@ def test_import_repos_all_existing(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos handles all repos already existing."""
+    """Test _run_import handles all repos already existing."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1011,32 +592,14 @@ def test_import_repos_all_existing(
     }
     save_config_yaml(config_file, existing_config)
 
-    # Mock the importer to return only repo1 (existing)
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter with only already-existing repos
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1059,37 +622,19 @@ def test_import_repos_json_output(
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Test import_repos JSON output format."""
+    """Test _run_import JSON output format."""
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    # Mock the importer
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1", stars=50)])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1", stars=50)
-
-    # Mock _get_importer: return MockImporter to test JSON output format
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1118,38 +663,19 @@ def test_import_repos_ndjson_output(
     monkeypatch: MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Test import_repos NDJSON output format."""
+    """Test _run_import NDJSON output format."""
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    # Mock the importer
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1"), _make_repo("repo2")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-            yield _make_repo("repo2")
-
-    # Mock _get_importer: return MockImporter to test NDJSON output format
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1177,7 +703,7 @@ def test_import_repos_topics_filter(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos passes topics filter correctly."""
+    """Test _run_import passes topics filter correctly."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1186,7 +712,7 @@ def test_import_repos_topics_filter(
 
     received_options: list[ImportOptions] = []
 
-    class MockImporter:
+    class CapturingImporter:
         service_name = "MockService"
 
         def fetch_repos(
@@ -1196,22 +722,12 @@ def test_import_repos_topics_filter(
             received_options.append(options)
             return iter([])
 
-    # Mock _get_importer: capture ImportOptions to verify filter passthrough
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        CapturingImporter(),
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language="Python",
         topics="cli,tool,python",
         min_stars=50,
@@ -1241,38 +757,24 @@ def test_import_repos_codecommit_no_target_required(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos allows empty target for codecommit."""
+    """Test _run_import allows empty target for codecommit."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    class MockImporter:
-        service_name = "CodeCommit"
-
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("aws-repo")
-
-    # Mock _get_importer: return MockImporter to verify CodeCommit allows empty target
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
+    importer = MockImporter(
+        service_name="CodeCommit",
+        repos=[_make_repo("aws-repo")],
     )
 
-    import_repos(
-        service="codecommit",
+    _run_import(
+        importer,
+        service_name="codecommit",
         target="",  # Empty target is OK for CodeCommit
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region="us-east-1",
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1298,7 +800,7 @@ def test_import_repos_many_repos_truncates_preview(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos shows '...and X more' when many repos."""
+    """Test _run_import shows '...and X more' when many repos."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1308,31 +810,14 @@ def test_import_repos_many_repos_truncates_preview(
     # Create 15 repos
     many_repos = [_make_repo(f"repo{i}") for i in range(15)]
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=many_repos)
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield from many_repos
-
-    # Mock _get_importer: return MockImporter with 15 repos to test truncated preview
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1356,7 +841,7 @@ def test_import_repos_config_load_error(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos handles config load errors."""
+    """Test _run_import handles config load errors."""
     caplog.set_level(logging.ERROR)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1367,31 +852,14 @@ def test_import_repos_config_load_error(
     config_file = tmp_path / ".vcspull.yaml"
     config_file.write_text("invalid: yaml: content: [", encoding="utf-8")
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to test config load error handling
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1410,31 +878,14 @@ def test_import_repos_config_load_error(
 
 
 def test_import_no_args_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that 'vcspull import' without args shows help (like --help)."""
+    """Test that 'vcspull import' without args shows help."""
     from vcspull.cli import cli
 
-    # Call cli with just "import" - should show help and not error
     cli(["import"])
 
     captured = capsys.readouterr()
-    # Verify help is shown (usage line and description)
     assert "usage: vcspull import" in captured.out
     assert "Import repositories from remote services" in captured.out
-    assert "positional arguments:" in captured.out
-    assert "SERVICE" in captured.out
-
-
-def test_import_only_service_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
-    """Test that 'vcspull import github' without workspace shows help."""
-    from vcspull.cli import cli
-
-    # Call cli with just "import github" - missing workspace
-    cli(["import", "github"])
-
-    captured = capsys.readouterr()
-    # Verify help is shown
-    assert "usage: vcspull import" in captured.out
-    assert "-w, --workspace DIR" in captured.out
 
 
 def test_import_repos_defaults_to_ssh_urls(
@@ -1442,7 +893,7 @@ def test_import_repos_defaults_to_ssh_urls(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos writes SSH URLs to config by default."""
+    """Test _run_import writes SSH URLs to config by default."""
     import yaml
 
     caplog.set_level(logging.INFO)
@@ -1452,31 +903,14 @@ def test_import_repos_defaults_to_ssh_urls(
     workspace.mkdir()
     config_file = tmp_path / ".vcspull.yaml"
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("myrepo")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("myrepo")
-
-    # Mock _get_importer: return MockImporter to verify default SSH URL output
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1504,7 +938,7 @@ def test_import_repos_https_flag(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos writes HTTPS URLs when use_https=True."""
+    """Test _run_import writes HTTPS URLs when use_https=True."""
     import yaml
 
     caplog.set_level(logging.INFO)
@@ -1514,31 +948,14 @@ def test_import_repos_https_flag(
     workspace.mkdir()
     config_file = tmp_path / ".vcspull.yaml"
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("myrepo")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("myrepo")
-
-    # Mock _get_importer: return MockImporter to verify HTTPS URL output
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1562,7 +979,7 @@ def test_import_repos_https_flag(
     assert repo_url == "git+https://github.com/testuser/myrepo.git"
 
 
-def test_import_https_flag_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
+def test_import_https_flag_via_cli() -> None:
     """Test that --https flag is recognized by the CLI parser."""
     from vcspull.cli import create_parser
 
@@ -1571,23 +988,19 @@ def test_import_https_flag_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
         ["import", "github", "testuser", "-w", "/tmp/repos", "--https"]
     )
     assert args.use_https is True
-    assert args.flatten_groups is False
 
 
-def test_import_ssh_default_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
+def test_import_ssh_default_via_cli() -> None:
     """Test that SSH is the default (no --https flag)."""
     from vcspull.cli import create_parser
 
     parser = create_parser(return_subparsers=False)
     args = parser.parse_args(["import", "github", "testuser", "-w", "/tmp/repos"])
     assert args.use_https is False
-    assert args.flatten_groups is False
 
 
-def test_import_flatten_groups_flag_via_cli(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """Test that --flatten-groups flag is recognized by the CLI parser."""
+def test_import_flatten_groups_flag_via_cli() -> None:
+    """Test that --flatten-groups flag is recognized by the GitLab subparser."""
     from vcspull.cli import create_parser
 
     parser = create_parser(return_subparsers=False)
@@ -1602,38 +1015,21 @@ def test_import_repos_rejects_non_yaml_config(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos rejects non-YAML config file paths."""
+    """Test _run_import rejects non-YAML config file paths."""
     caplog.set_level(logging.ERROR)
 
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to test non-YAML config rejection
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1656,7 +1052,7 @@ def test_import_repos_catches_multiple_config_warning(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos logs error instead of crashing on MultipleConfigWarning."""
+    """Test _run_import logs error instead of crashing on MultipleConfigWarning."""
     from vcspull.exc import MultipleConfigWarning
 
     caplog.set_level(logging.ERROR)
@@ -1665,41 +1061,24 @@ def test_import_repos_catches_multiple_config_warning(
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    class MockImporter:
-        service_name = "MockService"
-
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to isolate config resolution logic
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
     # Mock _resolve_config_file: raise MultipleConfigWarning to test error handling
     def raise_multiple_config(_: str | None) -> pathlib.Path:
         raise MultipleConfigWarning(MultipleConfigWarning.message)
 
     monkeypatch.setattr(
-        import_repos_mod,
+        import_common_mod,
         "_resolve_config_file",
         raise_multiple_config,
     )
 
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1722,38 +1101,21 @@ def test_import_repos_invalid_limit(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos logs error for invalid limit (e.g. 0)."""
+    """Test _run_import logs error for invalid limit (e.g. 0)."""
     caplog.set_level(logging.ERROR)
 
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to test invalid limit error handling
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1776,22 +1138,21 @@ def test_import_repos_returns_nonzero_on_error(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos returns non-zero exit code on error."""
+    """Test _run_import returns non-zero exit code on error."""
     caplog.set_level(logging.ERROR)
 
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    result = import_repos(
-        service="unknownservice",
+    importer = MockImporter(error=AuthenticationError("Bad credentials"))
+
+    result = _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1814,38 +1175,21 @@ def test_import_repos_returns_zero_on_success(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos returns 0 on success."""
+    """Test _run_import returns 0 on success."""
     caplog.set_level(logging.INFO)
 
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to test successful exit code
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    result = import_repos(
-        service="github",
+    result = _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -1868,7 +1212,7 @@ def test_import_repos_rejects_non_dict_config(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test import_repos rejects config that is a YAML list instead of dict."""
+    """Test _run_import rejects config that is a YAML list instead of dict."""
     caplog.set_level(logging.ERROR)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1878,31 +1222,14 @@ def test_import_repos_rejects_non_dict_config(
     # Write a YAML list instead of a mapping
     config_file.write_text("- item1\n- item2\n", encoding="utf-8")
 
-    class MockImporter:
-        service_name = "MockService"
+    importer = MockImporter(repos=[_make_repo("repo1")])
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            yield _make_repo("repo1")
-
-    # Mock _get_importer: return MockImporter to test non-dict config rejection
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="github",
+    _run_import(
+        importer,
+        service_name="github",
         target="testuser",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -2057,28 +1384,14 @@ def test_import_nested_groups(
     workspace.mkdir(parents=True)
     config_file = tmp_path / ".vcspull.yaml"
 
-    class MockImporter:
-        service_name = "GitLab"
+    importer = MockImporter(service_name="GitLab", repos=mock_repos)
 
-        def fetch_repos(self, options: ImportOptions) -> t.Iterator[RemoteRepo]:
-            yield from mock_repos
-
-    # Mock the importer factory so import_repos() exercises only workspace mapping.
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service="gitlab",
+    _run_import(
+        importer,
+        service_name="gitlab",
         target=target,
         workspace=str(workspace),
         mode=mode,
-        base_url=None,
-        token=None,
-        region=None,
-        profile=None,
         language=None,
         topics=None,
         min_stars=0,
@@ -2116,7 +1429,7 @@ class LanguageWarningFixture(t.NamedTuple):
     """Fixture for --language warning test cases."""
 
     test_id: str
-    service: str
+    service_name: str
     language: str | None
     expect_warning: bool
 
@@ -2124,25 +1437,25 @@ class LanguageWarningFixture(t.NamedTuple):
 LANGUAGE_WARNING_FIXTURES: list[LanguageWarningFixture] = [
     LanguageWarningFixture(
         test_id="gitlab-with-language-warns",
-        service="gitlab",
+        service_name="gitlab",
         language="Python",
         expect_warning=True,
     ),
     LanguageWarningFixture(
         test_id="codecommit-with-language-warns",
-        service="codecommit",
+        service_name="codecommit",
         language="Python",
         expect_warning=True,
     ),
     LanguageWarningFixture(
         test_id="github-with-language-no-warning",
-        service="github",
+        service_name="github",
         language="Python",
         expect_warning=False,
     ),
     LanguageWarningFixture(
         test_id="gitlab-without-language-no-warning",
-        service="gitlab",
+        service_name="gitlab",
         language=None,
         expect_warning=False,
     ),
@@ -2156,7 +1469,7 @@ LANGUAGE_WARNING_FIXTURES: list[LanguageWarningFixture] = [
 )
 def test_import_repos_language_warning(
     test_id: str,
-    service: str,
+    service_name: str,
     language: str | None,
     expect_warning: bool,
     tmp_path: pathlib.Path,
@@ -2170,33 +1483,17 @@ def test_import_repos_language_warning(
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    class MockImporter:
-        service_name = {"gitlab": "GitLab", "codecommit": "CodeCommit"}.get(
-            service, "GitHub"
-        )
-
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            return iter([])
-
-    # Mock _get_importer: return MockImporter to test language warning behavior
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
+    display_name = {"gitlab": "GitLab", "codecommit": "CodeCommit"}.get(
+        service_name, "GitHub"
     )
+    importer = MockImporter(service_name=display_name)
 
-    import_repos(
-        service=service,
-        target="testuser" if service != "codecommit" else "",
+    _run_import(
+        importer,
+        service_name=service_name,
+        target="testuser" if service_name != "codecommit" else "",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region="us-east-1" if service == "codecommit" else None,
-        profile=None,
         language=language,
         topics=None,
         min_stars=0,
@@ -2221,7 +1518,7 @@ class UnsupportedFilterFixture(t.NamedTuple):
     """Fixture for unsupported CodeCommit filter warning test cases."""
 
     test_id: str
-    service: str
+    service_name: str
     topics: str | None
     min_stars: int
     expect_topics_warning: bool
@@ -2231,7 +1528,7 @@ class UnsupportedFilterFixture(t.NamedTuple):
 UNSUPPORTED_FILTER_FIXTURES: list[UnsupportedFilterFixture] = [
     UnsupportedFilterFixture(
         test_id="codecommit-with-topics-warns",
-        service="codecommit",
+        service_name="codecommit",
         topics="python,cli",
         min_stars=0,
         expect_topics_warning=True,
@@ -2239,7 +1536,7 @@ UNSUPPORTED_FILTER_FIXTURES: list[UnsupportedFilterFixture] = [
     ),
     UnsupportedFilterFixture(
         test_id="codecommit-with-min-stars-warns",
-        service="codecommit",
+        service_name="codecommit",
         topics=None,
         min_stars=10,
         expect_topics_warning=False,
@@ -2247,7 +1544,7 @@ UNSUPPORTED_FILTER_FIXTURES: list[UnsupportedFilterFixture] = [
     ),
     UnsupportedFilterFixture(
         test_id="codecommit-with-both-warns",
-        service="codecommit",
+        service_name="codecommit",
         topics="python",
         min_stars=5,
         expect_topics_warning=True,
@@ -2255,7 +1552,7 @@ UNSUPPORTED_FILTER_FIXTURES: list[UnsupportedFilterFixture] = [
     ),
     UnsupportedFilterFixture(
         test_id="github-with-topics-no-warning",
-        service="github",
+        service_name="github",
         topics="python,cli",
         min_stars=10,
         expect_topics_warning=False,
@@ -2271,7 +1568,7 @@ UNSUPPORTED_FILTER_FIXTURES: list[UnsupportedFilterFixture] = [
 )
 def test_import_repos_unsupported_filter_warning(
     test_id: str,
-    service: str,
+    service_name: str,
     topics: str | None,
     min_stars: int,
     expect_topics_warning: bool,
@@ -2287,31 +1584,15 @@ def test_import_repos_unsupported_filter_warning(
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    class MockImporter:
-        service_name = "CodeCommit" if service == "codecommit" else "GitHub"
+    display_name = "CodeCommit" if service_name == "codecommit" else "GitHub"
+    importer = MockImporter(service_name=display_name)
 
-        def fetch_repos(
-            self,
-            options: ImportOptions,
-        ) -> t.Iterator[RemoteRepo]:
-            return iter([])
-
-    # Mock _get_importer: return MockImporter to test unsupported filter warnings
-    monkeypatch.setattr(
-        import_repos_mod,
-        "_get_importer",
-        lambda *args, **kwargs: MockImporter(),
-    )
-
-    import_repos(
-        service=service,
-        target="testuser" if service != "codecommit" else "",
+    _run_import(
+        importer,
+        service_name=service_name,
+        target="testuser" if service_name != "codecommit" else "",
         workspace=str(workspace),
         mode="user",
-        base_url=None,
-        token=None,
-        region="us-east-1" if service == "codecommit" else None,
-        profile=None,
         language=None,
         topics=topics,
         min_stars=min_stars,
@@ -2335,3 +1616,159 @@ def test_import_repos_unsupported_filter_warning(
         assert "does not track star counts" in caplog.text
     else:
         assert "does not track star counts" not in caplog.text
+
+
+# ── New tests for per-service subparser architecture ──
+
+
+def test_alias_parsing_gh() -> None:
+    """Test that 'import gh' resolves the same as 'import github'."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(["import", "gh", "myuser", "-w", "/tmp/repos"])
+    assert args.import_service in ("github", "gh")
+    assert hasattr(args, "import_handler")
+
+
+def test_alias_parsing_gl() -> None:
+    """Test that 'import gl' resolves the same as 'import gitlab'."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(["import", "gl", "myuser", "-w", "/tmp/repos"])
+    assert args.import_service in ("gitlab", "gl")
+    assert hasattr(args, "import_handler")
+
+
+def test_alias_parsing_cb() -> None:
+    """Test that 'import cb' resolves the same as 'import codeberg'."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(["import", "cb", "myuser", "-w", "/tmp/repos"])
+    assert args.import_service in ("codeberg", "cb")
+    assert hasattr(args, "import_handler")
+
+
+def test_alias_parsing_cc() -> None:
+    """Test that 'import cc' resolves the same as 'import codecommit'."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(["import", "cc", "-w", "/tmp/repos"])
+    assert args.import_service in ("codecommit", "cc")
+    assert hasattr(args, "import_handler")
+
+
+def test_alias_parsing_aws() -> None:
+    """Test that 'import aws' resolves the same as 'import codecommit'."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(["import", "aws", "-w", "/tmp/repos"])
+    assert args.import_service in ("codecommit", "aws")
+    assert hasattr(args, "import_handler")
+
+
+def test_flatten_groups_only_on_gitlab() -> None:
+    """Test that --flatten-groups is only available on the gitlab subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+
+    # Should work for gitlab
+    args = parser.parse_args(
+        ["import", "gitlab", "mygroup", "-w", "/tmp/repos", "--flatten-groups"]
+    )
+    assert args.flatten_groups is True
+
+    # Should fail for github
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            ["import", "github", "myuser", "-w", "/tmp/repos", "--flatten-groups"]
+        )
+
+
+def test_region_only_on_codecommit() -> None:
+    """Test that --region is only available on the codecommit subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+
+    # Should work for codecommit
+    args = parser.parse_args(
+        ["import", "codecommit", "-w", "/tmp/repos", "--region", "us-east-1"]
+    )
+    assert args.region == "us-east-1"
+
+    # Should fail for github
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            ["import", "github", "myuser", "-w", "/tmp/repos", "--region", "us-east-1"]
+        )
+
+
+def test_url_required_for_gitea() -> None:
+    """Test that --url is required for the gitea subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+
+    # Should fail without --url
+    with pytest.raises(SystemExit):
+        parser.parse_args(["import", "gitea", "myuser", "-w", "/tmp/repos"])
+
+    # Should work with --url
+    args = parser.parse_args(
+        [
+            "import",
+            "gitea",
+            "myuser",
+            "-w",
+            "/tmp/repos",
+            "--url",
+            "https://git.example.com",
+        ]
+    )
+    assert args.base_url == "https://git.example.com"
+
+
+def test_url_required_for_forgejo() -> None:
+    """Test that --url is required for the forgejo subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+
+    # Should fail without --url
+    with pytest.raises(SystemExit):
+        parser.parse_args(["import", "forgejo", "myuser", "-w", "/tmp/repos"])
+
+    # Should work with --url
+    args = parser.parse_args(
+        [
+            "import",
+            "forgejo",
+            "myuser",
+            "-w",
+            "/tmp/repos",
+            "--url",
+            "https://forgejo.example.com",
+        ]
+    )
+    assert args.base_url == "https://forgejo.example.com"
+
+
+def test_codecommit_target_is_optional() -> None:
+    """Test that target is optional for the codecommit subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+
+    # Should work without target
+    args = parser.parse_args(["import", "codecommit", "-w", "/tmp/repos"])
+    assert args.target == ""
+
+    # Should work with target
+    args = parser.parse_args(["import", "codecommit", "myprefix", "-w", "/tmp/repos"])
+    assert args.target == "myprefix"
