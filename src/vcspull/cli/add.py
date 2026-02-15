@@ -13,7 +13,9 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.config_style import format_repo_entry
 from vcspull._internal.private_path import PrivatePath
+from vcspull._internal.settings import resolve_style
 from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
@@ -90,6 +92,13 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         dest="assume_yes",
         action="store_true",
         help="Automatically confirm interactive prompts",
+    )
+    parser.add_argument(
+        "--style",
+        dest="style",
+        choices=["concise", "standard", "verbose"],
+        default=None,
+        help="Config entry style (concise, standard, verbose)",
     )
     parser.set_defaults(merge_duplicates=True)
 
@@ -334,6 +343,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
         workspace_root_path=workspace_root_input,
         dry_run=args.dry_run,
         merge_duplicates=args.merge_duplicates,
+        style=getattr(args, "style", None),
     )
 
 
@@ -346,6 +356,7 @@ def add_repo(
     dry_run: bool,
     *,
     merge_duplicates: bool = True,
+    style: str | None = None,
 ) -> None:
     """Add a repository to the vcspull configuration.
 
@@ -363,6 +374,8 @@ def add_repo(
         Workspace root to use in config
     dry_run : bool
         If True, preview changes without writing
+    style : str | None
+        Config entry style (concise, standard, verbose).
     """
     # Determine config file
     config_file_path: pathlib.Path
@@ -438,7 +451,11 @@ def add_repo(
         preserve_cwd_label=explicit_dot,
     )
 
-    new_repo_entry = {"repo": url}
+    resolved_style = resolve_style(style)
+    repo_path_obj = pathlib.Path(path) if path else None
+    new_repo_entry = format_repo_entry(
+        url, style=resolved_style, repo_path=repo_path_obj
+    )
 
     def _ensure_workspace_label_for_merge(
         config_data: dict[str, t.Any],
