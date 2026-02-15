@@ -75,6 +75,20 @@ def test_save_config_yaml_atomic_write(
     assert tmp_files == [config_path]
 
 
+def test_save_config_yaml_atomic_preserves_permissions(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test that save_config_yaml preserves original file permissions."""
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text("~/code/: {}\n", encoding="utf-8")
+    config_path.chmod(0o644)
+
+    data = {"~/code/": {"myrepo": {"repo": "git+https://example.com/repo.git"}}}
+    save_config_yaml(config_path, data)
+
+    assert config_path.stat().st_mode & 0o777 == 0o644
+
+
 def test_save_config_yaml_atomic_preserves_existing_on_error(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,

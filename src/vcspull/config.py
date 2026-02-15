@@ -475,6 +475,10 @@ def _atomic_write(target: pathlib.Path, content: str) -> None:
     content : str
         Content to write
     """
+    original_mode: int | None = None
+    if target.exists():
+        original_mode = target.stat().st_mode
+
     fd, tmp_path = tempfile.mkstemp(
         dir=target.parent,
         prefix=f".{target.name}.",
@@ -483,6 +487,8 @@ def _atomic_write(target: pathlib.Path, content: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
+        if original_mode is not None:
+            pathlib.Path(tmp_path).chmod(original_mode)
         pathlib.Path(tmp_path).replace(target)
     except BaseException:
         # Clean up the temp file on any failure
