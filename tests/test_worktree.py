@@ -700,6 +700,54 @@ def test_cli_worktree_list_no_config(
     assert "No repositories with worktrees configured" in captured.out
 
 
+def test_sync_dry_run_includes_worktrees(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test --dry-run --include-worktrees shows worktree plan entries.
+
+    Regression test: dry-run path returned early before reaching worktree
+    sync code, so --include-worktrees was silently ignored.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag in the repo
+    subprocess.run(
+        ["git", "tag", "v-dryrun-wt"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    worktree_path = git_repo.path.parent / f"{git_repo.path.name}-dryrun-wt"
+
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        tag: v-dryrun-wt
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["sync", "--dry-run", "--include-worktrees", "-f", str(config_path), "*"])
+
+    captured = capsys.readouterr()
+    # Worktree plan should appear in the output
+    assert "worktree" in captured.out.lower()
+    assert "v-dryrun-wt" in captured.out
+    # Worktree should NOT be created
+    assert not worktree_path.exists()
+
+
 def test_sync_command_include_worktrees_flag_exists() -> None:
     """Test that --include-worktrees flag is available on sync command."""
     from vcspull.cli import create_parser

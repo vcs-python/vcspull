@@ -30,6 +30,7 @@ from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
 from vcspull._internal.worktree_sync import (
     WorktreeAction,
+    plan_worktree_sync,
     sync_all_worktrees,
 )
 from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
@@ -740,6 +741,44 @@ def sync(
             dry_run=True,
             total_repos=total_repos,
         )
+
+        # Show worktree plans if --include-worktrees is set
+        if include_worktrees:
+            for repo in found_repos:
+                worktrees_config = repo.get("worktrees")
+                if not worktrees_config:
+                    continue
+
+                repo_name = str(repo.get("name", "unknown"))
+                repo_path = _get_repo_path(repo)
+                workspace_label = str(repo.get("workspace_root", ""))
+                workspace_path = expand_dir(pathlib.Path(workspace_label))
+
+                wt_entries = plan_worktree_sync(
+                    repo_path, worktrees_config, workspace_path
+                )
+
+                for entry in wt_entries:
+                    ref_display = f"{entry.ref_type}:{entry.ref_value}"
+                    wt_path_display = str(PrivatePath(entry.worktree_path))
+
+                    action_symbols = {
+                        WorktreeAction.CREATE: colors.success("+"),
+                        WorktreeAction.UPDATE: colors.warning("~"),
+                        WorktreeAction.UNCHANGED: colors.muted("✓"),
+                        WorktreeAction.BLOCKED: colors.warning("⚠"),
+                        WorktreeAction.ERROR: colors.error("✗"),
+                    }
+                    sym = action_symbols.get(entry.action, "?")
+                    ref = colors.info(ref_display)
+                    detail = entry.detail or entry.error or ""
+
+                    formatter.emit_text(
+                        f"  {sym} worktree {colors.info(repo_name)} "
+                        f"{ref} {colors.muted('→')} {wt_path_display}"
+                        f"  {colors.muted(detail)}".rstrip(),
+                    )
+
         formatter.finalize()
         return
 
