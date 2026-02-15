@@ -507,7 +507,7 @@ def _run_import(
                 "%s Non-interactive mode: use --yes to skip confirmation.",
                 colors.error("✗"),
             )
-            return 0
+            return 1
         try:
             confirm = input(
                 f"\n{colors.info('Import')} {len(repos)} repositories to "

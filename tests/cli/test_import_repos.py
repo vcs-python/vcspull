@@ -498,7 +498,7 @@ def test_import_repos_non_tty_aborts(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    _run_import(
+    result = _run_import(
         importer,
         service_name="github",
         target="testuser",
@@ -518,6 +518,7 @@ def test_import_repos_non_tty_aborts(
         color="never",
     )
 
+    assert result == 1, "Non-interactive abort must return non-zero exit code"
     assert "Non-interactive mode" in caplog.text
     assert not config_file.exists()
 
