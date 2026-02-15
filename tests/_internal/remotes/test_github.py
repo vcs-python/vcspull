@@ -344,6 +344,24 @@ def test_github_importer_service_name() -> None:
     assert importer.service_name == "GitHub"
 
 
+def test_github_enterprise_url_normalized() -> None:
+    """Test that GitHub Enterprise URLs get /api/v3 appended."""
+    importer = GitHubImporter(token="fake", base_url="https://ghe.example.com")
+    assert importer._client.base_url == "https://ghe.example.com/api/v3"
+
+
+def test_github_enterprise_url_already_has_api() -> None:
+    """Test that GHE URLs with /api/v3 are not double-suffixed."""
+    importer = GitHubImporter(token="fake", base_url="https://ghe.example.com/api/v3")
+    assert importer._client.base_url == "https://ghe.example.com/api/v3"
+
+
+def test_github_public_url_not_modified() -> None:
+    """Test that default api.github.com URL is not modified."""
+    importer = GitHubImporter(token="fake")
+    assert importer._client.base_url == "https://api.github.com"
+
+
 def test_github_handles_null_topics(
     mock_urlopen: t.Callable[..., None],
 ) -> None:

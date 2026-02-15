@@ -71,8 +71,14 @@ class GitHubImporter:
         """
         self._token = token or get_token_from_env("GITHUB_TOKEN", "GH_TOKEN")
         self._base_url = (base_url or GITHUB_API_URL).rstrip("/")
+
+        # GitHub Enterprise needs /api/v3; public api.github.com does not
+        api_url = self._base_url
+        if base_url and "/api/" not in self._base_url:
+            api_url = f"{self._base_url}/api/v3"
+
         self._client = HTTPClient(
-            self._base_url,
+            api_url,
             token=self._token,
             auth_header="Authorization",
             auth_prefix="Bearer",
