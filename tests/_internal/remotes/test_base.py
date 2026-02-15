@@ -540,10 +540,10 @@ def test_http_client_get_merges_query_params(
     already contains query parameters. The implementation should use
     urllib.parse to merge them correctly.
     """
-    import io
     import json
     import urllib.request
 
+    from tests._internal.remotes.conftest import MockHTTPResponse
     from vcspull._internal.remotes.base import HTTPClient
 
     captured_urls: list[str] = []
@@ -551,12 +551,9 @@ def test_http_client_get_merges_query_params(
     def mock_urlopen(
         request: urllib.request.Request,
         **kwargs: t.Any,
-    ) -> io.BytesIO:
+    ) -> MockHTTPResponse:
         captured_urls.append(request.full_url)
-        resp = io.BytesIO(json.dumps({"ok": True}).encode())
-        resp.getheaders = lambda: []  # type: ignore[attr-defined]
-        resp.read = lambda: json.dumps({"ok": True}).encode()  # type: ignore[assignment]
-        return resp
+        return MockHTTPResponse(json.dumps({"ok": True}).encode(), {}, 200)
 
     # Mock urlopen: capture the request URL to verify query param merging
     monkeypatch.setattr("urllib.request.urlopen", mock_urlopen)
