@@ -7,7 +7,11 @@ import typing as t
 
 import pytest
 
-from vcspull.config import save_config_yaml, save_config_yaml_with_items
+from vcspull.config import (
+    save_config_json,
+    save_config_yaml,
+    save_config_yaml_with_items,
+)
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -122,3 +126,48 @@ def test_save_config_yaml_atomic_preserves_existing_on_error(
         f for f in tmp_path.iterdir() if f.name.startswith(".") and f != config_path
     ]
     assert tmp_files == []
+
+
+def test_save_config_json_write_and_readback(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test that save_config_json writes valid JSON that round-trips."""
+    import json
+
+    config_path = tmp_path / ".vcspull.json"
+    data = {"~/code/": {"myrepo": {"repo": "git+https://example.com/repo.git"}}}
+
+    save_config_json(config_path, data)
+
+    assert config_path.exists()
+    loaded = json.loads(config_path.read_text(encoding="utf-8"))
+    assert loaded == data
+
+
+def test_save_config_json_atomic_write(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test that save_config_json uses atomic write (no temp files left)."""
+    config_path = tmp_path / ".vcspull.json"
+    data = {"~/code/": {"myrepo": {"repo": "git+https://example.com/repo.git"}}}
+
+    save_config_json(config_path, data)
+
+    assert config_path.exists()
+    # No stray temp files should be left in the directory
+    tmp_files = [f for f in tmp_path.iterdir() if f.name.startswith(".")]
+    assert tmp_files == [config_path]
+
+
+def test_save_config_json_atomic_preserves_permissions(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test that save_config_json preserves original file permissions."""
+    config_path = tmp_path / ".vcspull.json"
+    config_path.write_text("{}", encoding="utf-8")
+    config_path.chmod(0o644)
+
+    data = {"~/code/": {"myrepo": {"repo": "git+https://example.com/repo.git"}}}
+    save_config_json(config_path, data)
+
+    assert config_path.stat().st_mode & 0o777 == 0o644

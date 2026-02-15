@@ -1214,6 +1214,49 @@ def test_import_repos_returns_zero_on_success(
     assert result == 0
 
 
+def test_import_repos_json_config_write(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _run_import writes valid JSON when config path has .json extension."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.json"
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+    assert config_file.exists()
+    loaded = json.loads(config_file.read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict)
+    total_repos = sum(len(repos) for repos in loaded.values())
+    assert total_repos == 1
+
+
 def test_import_repos_rejects_non_dict_config(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
