@@ -304,7 +304,7 @@ class GiteaImporter:
         RemoteRepo
             Parsed repository information
         """
-        owner_data = data.get("owner", {})
+        owner_data = data.get("owner") or {}
 
         return RemoteRepo(
             name=data.get("name", ""),

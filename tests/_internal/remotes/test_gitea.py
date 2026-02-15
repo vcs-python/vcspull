@@ -227,3 +227,35 @@ def test_gitea_filters_by_language(
     repos = list(importer.fetch_repos(options))
     assert len(repos) == 1
     assert repos[0].name == "rust-repo"
+
+
+def test_gitea_parse_repo_null_owner(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test Gitea _parse_repo handles null owner without crashing.
+
+    Gitea/Forgejo APIs may return ``"owner": null`` for system repositories.
+    The importer must not raise AttributeError when this happens.
+    """
+    response_json = [
+        {
+            "name": "sys-repo",
+            "clone_url": "https://codeberg.org/sys-repo.git",
+            "ssh_url": "git@codeberg.org:sys-repo.git",
+            "html_url": "https://codeberg.org/sys-repo",
+            "description": "System repo",
+            "language": "Go",
+            "topics": [],
+            "stars_count": 0,
+            "fork": False,
+            "archived": False,
+            "default_branch": "main",
+            "owner": None,
+        }
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+    importer = GiteaImporter(base_url="https://codeberg.org")
+    options = ImportOptions(mode=ImportMode.USER, target="testuser")
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 1
+    assert repos[0].owner == ""

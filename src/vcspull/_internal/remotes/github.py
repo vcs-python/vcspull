@@ -319,7 +319,7 @@ class GitHubImporter:
             is_fork=data.get("fork", False),
             is_archived=data.get("archived", False),
             default_branch=data.get("default_branch", "main"),
-            owner=data.get("owner", {}).get("login", ""),
+            owner=(data.get("owner") or {}).get("login", ""),
         )
 
     def _log_rate_limit(self, headers: dict[str, str]) -> None:

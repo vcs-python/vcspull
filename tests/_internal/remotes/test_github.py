@@ -549,3 +549,43 @@ def test_github_parse_repo_missing_keys(
     assert repos[0].clone_url == ""
     assert repos[0].html_url == ""
     assert repos[0].ssh_url == ""
+
+
+def test_github_parse_repo_null_owner(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test GitHub _parse_repo handles null owner without crashing.
+
+    JSON APIs may return ``"owner": null`` for deleted/suspended accounts.
+    The importer must not raise AttributeError when this happens.
+    """
+    response_json = [
+        {
+            "name": "repo",
+            "clone_url": "https://github.com/ghost/repo.git",
+            "ssh_url": "git@github.com:ghost/repo.git",
+            "html_url": "https://github.com/ghost/repo",
+            "description": "Orphaned repo",
+            "language": "Python",
+            "topics": [],
+            "stargazers_count": 1,
+            "fork": False,
+            "archived": False,
+            "default_branch": "main",
+            "owner": None,
+        }
+    ]
+    mock_urlopen(
+        [
+            (
+                json.dumps(response_json).encode(),
+                {"x-ratelimit-remaining": "100", "x-ratelimit-limit": "60"},
+                200,
+            )
+        ]
+    )
+    importer = GitHubImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="ghost")
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 1
+    assert repos[0].owner == ""

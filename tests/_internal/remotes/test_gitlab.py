@@ -565,3 +565,33 @@ def test_gitlab_search_archived_param_omitted_when_including(
     assert "archived=" not in captured_urls[0], (
         f"Expected no 'archived' param in search URL, got: {captured_urls[0]}"
     )
+
+
+def test_gitlab_parse_repo_null_namespace(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test GitLab _parse_repo handles null namespace without crashing.
+
+    Self-hosted GitLab instances may return ``"namespace": null`` for
+    system-level projects. The importer must not raise AttributeError.
+    """
+    response_json = [
+        {
+            "path": "my-project",
+            "name": "my-project",
+            "http_url_to_repo": "https://gitlab.example.com/my-project.git",
+            "ssh_url_to_repo": "git@gitlab.example.com:my-project.git",
+            "web_url": "https://gitlab.example.com/my-project",
+            "description": "Orphaned project",
+            "star_count": 0,
+            "namespace": None,
+            "path_with_namespace": "my-project",
+        }
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="testuser")
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 1
+    assert repos[0].name == "my-project"
+    assert repos[0].owner == ""

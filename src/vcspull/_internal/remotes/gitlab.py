@@ -310,7 +310,7 @@ class GitLabImporter:
         name = data.get("path", data.get("name", ""))
 
         # Prefer the full namespace path for subgroup-aware import behavior.
-        namespace = data.get("namespace", {})
+        namespace = data.get("namespace") or {}
         owner = namespace.get("full_path")
         if not owner:
             path_with_namespace = data.get("path_with_namespace")
