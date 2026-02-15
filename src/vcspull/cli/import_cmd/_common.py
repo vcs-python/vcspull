@@ -522,12 +522,22 @@ def _run_import(
     # Load existing config or create new
     raw_config: dict[str, t.Any]
     if config_file_path.exists():
-        import yaml
-
         try:
-            with config_file_path.open() as f:
-                raw_config = yaml.safe_load(f) or {}
-        except (yaml.YAMLError, OSError):
+            if config_file_path.suffix.lower() == ".json":
+                import json as _json
+
+                raw_config = (
+                    _json.loads(
+                        config_file_path.read_text(encoding="utf-8"),
+                    )
+                    or {}
+                )
+            else:
+                import yaml
+
+                with config_file_path.open() as f:
+                    raw_config = yaml.safe_load(f) or {}
+        except Exception:
             log.exception("Error loading config file")
             return 1
 
