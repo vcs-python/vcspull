@@ -1531,6 +1531,70 @@ def test_update_worktree_verifies_branch(
     assert result.stdout.strip() == "expected-branch"
 
 
+def test_update_worktree_detached_head(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test _update_worktree handles detached HEAD by checking out branch.
+
+    Regression test: when a worktree is in detached HEAD state,
+    _update_worktree should checkout the expected branch before pulling.
+    Previously, detached HEAD caused the checkout to be skipped entirely.
+    """
+    from vcspull._internal.worktree_sync import _update_worktree
+
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "detached-head-test-wt"
+
+    # Create a branch
+    subprocess.run(
+        ["git", "branch", "detach-test-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create worktree on the branch
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "detach-test-branch"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Detach HEAD in the worktree
+    subprocess.run(
+        ["git", "checkout", "--detach"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Verify we're in detached HEAD state
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0  # symbolic-ref fails on detached HEAD
+
+    # Call _update_worktree - should checkout branch (pull may fail without remote)
+    with contextlib.suppress(subprocess.CalledProcessError):
+        _update_worktree(worktree_path, "detach-test-branch")
+
+    # Verify we're now on the expected branch (the checkout happened)
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "detach-test-branch"
+
+
 # ---------------------------------------------------------------------------
 # 2. Parameterized: CLI Filtering Options (lines 133-134, 145-147, 153)
 # ---------------------------------------------------------------------------

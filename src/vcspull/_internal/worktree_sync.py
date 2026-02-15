@@ -698,8 +698,8 @@ def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
 
     current_branch = result.stdout.strip() if result.returncode == 0 else None
 
-    # Checkout expected branch if on a different branch
-    if current_branch and current_branch != branch:
+    # Checkout expected branch if detached or on a different branch
+    if current_branch is None or current_branch != branch:
         log.debug(
             "Worktree %s is on branch %s, checking out %s",
             worktree_path,
