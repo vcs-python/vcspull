@@ -167,6 +167,18 @@ def validate_worktree_config(wt_config: WorktreeConfigDict) -> None:
         msg = "Worktree config missing required 'dir' field"
         raise exc.WorktreeConfigError(msg)
 
+    if not isinstance(wt_config["dir"], str):
+        dir_type = type(wt_config["dir"]).__name__
+        msg = f"Worktree config 'dir' must be a string, got {dir_type}"
+        raise exc.WorktreeConfigError(msg)
+
+    for ref_name in ("tag", "branch", "commit"):
+        ref_val = wt_config.get(ref_name)
+        if ref_val is not None and not isinstance(ref_val, str):
+            ref_type = type(ref_val).__name__
+            msg = f"Worktree config '{ref_name}' must be a string, got {ref_type}"
+            raise exc.WorktreeConfigError(msg)
+
     ref_info = _get_ref_type_and_value(wt_config)
     if ref_info is None:
         tag = wt_config.get("tag")

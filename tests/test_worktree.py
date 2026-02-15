@@ -166,6 +166,21 @@ WORKTREE_CONFIG_ERROR_FIXTURES = [
         expected_error_pattern="cannot specify multiple",
     ),
     WorktreeConfigErrorFixture(
+        test_id="dir_not_string_error",
+        wt_config={"dir": 42, "tag": "v1"},
+        expected_error_pattern="'dir' must be a string",
+    ),
+    WorktreeConfigErrorFixture(
+        test_id="tag_not_string_error",
+        wt_config={"dir": "../proj", "tag": 123},
+        expected_error_pattern="'tag' must be a string",
+    ),
+    WorktreeConfigErrorFixture(
+        test_id="branch_bool_error",
+        wt_config={"dir": "../proj", "branch": True},
+        expected_error_pattern="'branch' must be a string",
+    ),
+    WorktreeConfigErrorFixture(
         test_id="empty_tag_error",
         wt_config={"dir": "../proj", "tag": ""},
         expected_error_pattern="empty ref value",

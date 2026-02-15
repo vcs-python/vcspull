@@ -173,6 +173,13 @@ def _validate_worktrees_config(
             )
             raise exc.VCSPullException(msg)
 
+        if not isinstance(wt["dir"], str):
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                f"'dir' must be a string, got {type(wt['dir']).__name__}"
+            )
+            raise exc.VCSPullException(msg)
+
         # Validate exactly one ref type
         tag = wt.get("tag")
         branch = wt.get("branch")
@@ -201,6 +208,15 @@ def _validate_worktrees_config(
                 "cannot specify multiple refs (tag, branch, commit)"
             )
             raise exc.VCSPullException(msg)
+
+        # Validate ref types are strings
+        for ref_name, ref_val in [("tag", tag), ("branch", branch), ("commit", commit)]:
+            if ref_val is not None and not isinstance(ref_val, str):
+                msg = (
+                    f"Repository '{repo_name}': worktree entry {idx} "
+                    f"'{ref_name}' must be a string, got {type(ref_val).__name__}"
+                )
+                raise exc.VCSPullException(msg)
 
         # Build validated worktree config
         wt_config: WorktreeConfigDict = {"dir": wt["dir"]}
