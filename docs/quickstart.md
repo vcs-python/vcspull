@@ -102,7 +102,7 @@ via trunk (can break easily):
 ## Configuration
 
 ```{seealso}
-{ref}`configuration` and {ref}`config-generation`.
+{ref}`configuration` and {ref}`cli-import`.
 ```
 
 We will check out the source code of [flask][flask] to `~/code/flask`.

@@ -88,13 +88,6 @@ YAML:
 
 ````
 
-```{toctree}
-:maxdepth: 2
-:hidden:
-
-generation
-```
-
 ## Caveats
 
 (git-remote-ssh-git)=
