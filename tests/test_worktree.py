@@ -232,6 +232,34 @@ def test_resolve_worktree_path_relative(tmp_path: pathlib.Path) -> None:
     assert resolved == expected
 
 
+def test_resolve_worktree_path_tilde(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test tilde expansion in worktree path resolution.
+
+    Regression test: _resolve_worktree_path didn't call expanduser(), so
+    dir: "~/worktrees/proj" was treated as a relative path and resolved
+    against workspace_root, creating a literal "~" directory.
+    """
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+
+    home_dir = tmp_path / "fakehome"
+    home_dir.mkdir()
+    monkeypatch.setenv("HOME", str(home_dir))
+
+    wt_config: WorktreeConfigDict = {
+        "dir": "~/worktrees/proj",
+        "tag": "v1.0.0",
+    }
+
+    resolved = _resolve_worktree_path(wt_config, workspace_root)
+
+    expected = home_dir / "worktrees" / "proj"
+    assert resolved == expected
+
+
 def test_resolve_worktree_path_absolute(tmp_path: pathlib.Path) -> None:
     """Test absolute worktree path resolution."""
     workspace_root = tmp_path / "workspace"

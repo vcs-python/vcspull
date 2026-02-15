@@ -411,7 +411,7 @@ def _resolve_worktree_path(
     >>> _resolve_worktree_path(wt_abs, workspace)
     PosixPath('/tmp/worktree')
     """
-    dir_path = pathlib.Path(wt_config["dir"])
+    dir_path = pathlib.Path(wt_config["dir"]).expanduser()
 
     if dir_path.is_absolute():
         return dir_path.resolve()
