@@ -576,3 +576,34 @@ def test_http_client_get_merges_query_params(
     assert "q=test" in url
     assert "page=1" in url
     assert "per_page=10" in url
+
+
+def test_http_client_warns_on_non_https_with_token(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test HTTPClient logs a warning when token is sent over non-HTTPS."""
+    import logging
+
+    from vcspull._internal.remotes.base import HTTPClient
+
+    caplog.set_level(logging.WARNING)
+
+    HTTPClient("http://insecure.example.com", token="secret-token")
+
+    assert "non-HTTPS" in caplog.text
+    assert "insecure.example.com" in caplog.text
+
+
+def test_http_client_no_warning_on_https_with_token(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test HTTPClient does not warn when token is sent over HTTPS."""
+    import logging
+
+    from vcspull._internal.remotes.base import HTTPClient
+
+    caplog.set_level(logging.WARNING)
+
+    HTTPClient("https://secure.example.com", token="secret-token")
+
+    assert "non-HTTPS" not in caplog.text

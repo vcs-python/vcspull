@@ -299,6 +299,12 @@ class HTTPClient:
         """
         self.base_url = base_url.rstrip("/")
         self.token = token
+        if token and not self.base_url.startswith("https://"):
+            log.warning(
+                "Authentication token will be sent over non-HTTPS connection "
+                "to %s — consider using HTTPS to protect credentials",
+                self.base_url,
+            )
         self.auth_header = auth_header
         self.auth_prefix = auth_prefix
         self.user_agent = user_agent
