@@ -32,7 +32,14 @@ $ vcspull import codecommit -w ~/code/ --region us-east-1 --profile work
   - `codecommit:BatchGetRepositories` (resource: repo ARNs or `*`)
 - **Dependency**: AWS CLI must be installed (`pip install awscli`)
 
+Configure your AWS credentials:
+
 ```console
 $ aws configure
+```
+
+Then import:
+
+```console
 $ vcspull import codecommit -w ~/code/ --region us-east-1
 ```

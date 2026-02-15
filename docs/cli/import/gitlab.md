@@ -33,7 +33,14 @@ $ vcspull import gl my-group --mode org -w ~/code/ --flatten-groups
 - **Create at**: <https://gitlab.com/-/user_settings/personal_access_tokens>
   (self-hosted: `https://<instance>/-/user_settings/personal_access_tokens`)
 
+Set the token:
+
 ```console
 $ export GITLAB_TOKEN=glpat-...
+```
+
+Then import:
+
+```console
 $ vcspull import gl myuser -w ~/code/
 ```

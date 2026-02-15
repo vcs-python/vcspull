@@ -25,7 +25,14 @@ Import repositories from GitHub or GitHub Enterprise.
     Read-only" for private
 - **Create at**: <https://github.com/settings/tokens>
 
+Set the token:
+
 ```console
 $ export GITHUB_TOKEN=ghp_...
+```
+
+Then import:
+
+```console
 $ vcspull import gh myuser -w ~/code/
 ```

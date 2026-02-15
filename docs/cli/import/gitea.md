@@ -21,7 +21,14 @@ Import repositories from a self-hosted Gitea instance.
 - **Scope**: `read:repository` (minimum for listing repos)
 - **Create at**: `https://<instance>/user/settings/applications`
 
+Set the token:
+
 ```console
 $ export GITEA_TOKEN=...
+```
+
+Then import:
+
+```console
 $ vcspull import gitea myuser -w ~/code/ --url https://git.example.com
 ```

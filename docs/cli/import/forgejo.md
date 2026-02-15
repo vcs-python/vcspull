@@ -22,7 +22,14 @@ Import repositories from a self-hosted Forgejo instance.
 - **Scope**: `read:repository`
 - **Create at**: `https://<instance>/user/settings/applications`
 
+Set the token:
+
 ```console
 $ export FORGEJO_TOKEN=...
+```
+
+Then import:
+
+```console
 $ vcspull import forgejo myuser -w ~/code/ --url https://forgejo.example.com
 ```

@@ -21,7 +21,14 @@ Import repositories from Codeberg.
 - **Scope**: no scopes needed for public repos; token required for private repos
 - **Create at**: <https://codeberg.org/user/settings/applications>
 
+Set the token:
+
 ```console
 $ export CODEBERG_TOKEN=...
+```
+
+Then import:
+
+```console
 $ vcspull import codeberg myuser -w ~/code/
 ```
