@@ -1,0 +1,11 @@
+{
+  "~/code/": {
+    "flask": {
+      "remotes": {
+        "origin": "https://github.com/pallets/flask.git"
+      },
+      "repo": "git+https://github.com/pallets/flask.git",
+      "vcs": "git"
+    }
+  }
+}
