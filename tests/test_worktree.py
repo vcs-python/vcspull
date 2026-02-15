@@ -763,6 +763,60 @@ def test_sync_dry_run_includes_worktrees(
     assert not worktree_path.exists()
 
 
+def test_sync_worktree_summary_counts(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test sync summary includes worktree counts.
+
+    Regression test: worktree results were not included in the sync summary,
+    so worktree failures didn't affect the exit code or summary display.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag in the repo
+    subprocess.run(
+        ["git", "tag", "v-summary-wt"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    worktree_path = git_repo.path.parent / f"{git_repo.path.name}-summary-wt"
+
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        tag: v-summary-wt
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(
+        [
+            "sync",
+            "--include-worktrees",
+            "--all",
+            "-f",
+            str(config_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    # Summary should include worktree counts
+    assert "worktrees:" in captured.out.lower()
+    assert "created" in captured.out.lower()
+
+
 def test_sync_command_include_worktrees_flag_exists() -> None:
     """Test that --include-worktrees flag is available on sync command."""
     from vcspull.cli import create_parser

@@ -936,6 +936,19 @@ def sync(
                         f"error: {entry.error}",
                     )
 
+            # Tally worktree results into summary
+            summary["worktree_created"] = (
+                summary.get("worktree_created", 0) + wt_result.created
+            )
+            summary["worktree_updated"] = (
+                summary.get("worktree_updated", 0) + wt_result.updated
+            )
+            summary["worktree_failed"] = (
+                summary.get("worktree_failed", 0) + wt_result.errors
+            )
+            # Count worktree errors as failures for exit code
+            summary["failed"] += wt_result.errors
+
     _emit_summary(formatter, colors, summary)
 
     if exit_on_error and unmatched_count > 0:
@@ -970,6 +983,20 @@ def _emit_summary(
         if unmatched > 0:
             parts.append(
                 f", {colors.warning(str(unmatched))} unmatched",
+            )
+        wt_created = summary.get("worktree_created", 0)
+        wt_updated = summary.get("worktree_updated", 0)
+        wt_failed = summary.get("worktree_failed", 0)
+        if wt_created or wt_updated or wt_failed:
+            wt_parts = []
+            if wt_created:
+                wt_parts.append(f"{colors.success(str(wt_created))} created")
+            if wt_updated:
+                wt_parts.append(f"{colors.warning(str(wt_updated))} updated")
+            if wt_failed:
+                wt_parts.append(f"{colors.error(str(wt_failed))} failed")
+            parts.append(
+                f"; worktrees: {', '.join(wt_parts)}",
             )
         formatter.emit_text("".join(parts))
 
