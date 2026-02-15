@@ -12,6 +12,7 @@ import pathlib
 import sys
 import typing as t
 
+from vcspull._internal.config_reader import ConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull._internal.remotes import (
     AuthenticationError,
@@ -523,20 +524,7 @@ def _run_import(
     raw_config: dict[str, t.Any]
     if config_file_path.exists():
         try:
-            if config_file_path.suffix.lower() == ".json":
-                import json as _json
-
-                raw_config = (
-                    _json.loads(
-                        config_file_path.read_text(encoding="utf-8"),
-                    )
-                    or {}
-                )
-            else:
-                import yaml
-
-                with config_file_path.open() as f:
-                    raw_config = yaml.safe_load(f) or {}
+            raw_config = ConfigReader._from_file(config_file_path) or {}
         except Exception:
             log.exception("Error loading config file")
             return 1
