@@ -13,6 +13,7 @@ import sys
 import typing as t
 
 from vcspull._internal.config_reader import ConfigReader
+from vcspull._internal.config_style import format_repo_entry
 from vcspull._internal.private_path import PrivatePath
 from vcspull._internal.remotes import (
     AuthenticationError,
@@ -25,6 +26,7 @@ from vcspull._internal.remotes import (
     RemoteRepo,
     ServiceUnavailableError,
 )
+from vcspull._internal.settings import resolve_style
 from vcspull.config import (
     find_home_config_files,
     save_config_json,
@@ -162,6 +164,13 @@ def _create_shared_parent() -> argparse.ArgumentParser:
         default="auto",
         help="When to use colors (default: auto)",
     )
+    output_group.add_argument(
+        "--style",
+        dest="style",
+        choices=["concise", "standard", "verbose"],
+        default=None,
+        help="Config entry style (concise, standard, verbose)",
+    )
     return parent
 
 
@@ -281,6 +290,7 @@ def _run_import(
     color: str,
     use_https: bool = False,
     flatten_groups: bool = False,
+    style: str | None = None,
 ) -> int:
     """Run the import workflow for a single service.
 
@@ -603,9 +613,10 @@ def _run_import(
             skipped_count += 1
             continue
 
-        raw_config[repo_workspace_label][repo.name] = {
-            "repo": repo.to_vcspull_url(use_ssh=not use_https),
-        }
+        resolved_style = resolve_style(style)
+        raw_config[repo_workspace_label][repo.name] = format_repo_entry(
+            repo.to_vcspull_url(use_ssh=not use_https), style=resolved_style
+        )
         added_count += 1
 
     if error_labels:
