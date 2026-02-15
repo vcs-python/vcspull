@@ -529,3 +529,50 @@ def test_handle_http_error(
         client._handle_http_error(exc, "TestService")
 
     assert expected_message_contains.lower() in str(exc_info.value).lower()
+
+
+def test_http_client_get_merges_query_params(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test HTTPClient.get properly merges params into URLs with existing query strings.
+
+    Naive f"{url}?{params}" would produce a double-? URL when the endpoint
+    already contains query parameters. The implementation should use
+    urllib.parse to merge them correctly.
+    """
+    import io
+    import json
+    import urllib.request
+
+    from vcspull._internal.remotes.base import HTTPClient
+
+    captured_urls: list[str] = []
+
+    def mock_urlopen(
+        request: urllib.request.Request,
+        **kwargs: t.Any,
+    ) -> io.BytesIO:
+        captured_urls.append(request.full_url)
+        resp = io.BytesIO(json.dumps({"ok": True}).encode())
+        resp.getheaders = lambda: []  # type: ignore[attr-defined]
+        resp.read = lambda: json.dumps({"ok": True}).encode()  # type: ignore[assignment]
+        return resp
+
+    # Mock urlopen: capture the request URL to verify query param merging
+    monkeypatch.setattr("urllib.request.urlopen", mock_urlopen)
+
+    client = HTTPClient("https://api.example.com")
+
+    # Endpoint already has a query string; additional params should merge
+    client.get(
+        "/search?q=test",
+        params={"page": 1, "per_page": 10},
+        service_name="TestService",
+    )
+
+    assert len(captured_urls) == 1
+    url = captured_urls[0]
+    assert "??" not in url, f"Double question mark in URL: {url}"
+    assert "q=test" in url
+    assert "page=1" in url
+    assert "per_page=10" in url

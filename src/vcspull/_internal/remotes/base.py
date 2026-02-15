@@ -371,7 +371,15 @@ class HTTPClient:
         url = f"{self.base_url}{endpoint}"
 
         if params:
-            url = f"{url}?{urllib.parse.urlencode(params)}"
+            parts = urllib.parse.urlsplit(url)
+            existing_qs = urllib.parse.parse_qs(parts.query)
+            existing_qs.update({k: [str(v)] for k, v in params.items()})
+            new_query = urllib.parse.urlencode(
+                {k: v[0] for k, v in existing_qs.items()},
+            )
+            url = urllib.parse.urlunsplit(
+                (parts.scheme, parts.netloc, parts.path, new_query, parts.fragment),
+            )
 
         headers = self._build_headers()
         request = urllib.request.Request(url, headers=headers)
