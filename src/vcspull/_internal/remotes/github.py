@@ -19,6 +19,8 @@ log = logging.getLogger(__name__)
 
 GITHUB_API_URL = "https://api.github.com"
 DEFAULT_PER_PAGE = 100
+# GitHub search API limits results to 1000; exceeding this causes HTTP 422.
+SEARCH_MAX_RESULTS = 1000
 
 
 class GitHubImporter:
@@ -232,6 +234,10 @@ class GitHubImporter:
 
             # Check if there are more pages
             if len(items) < DEFAULT_PER_PAGE:
+                break
+
+            # GitHub search API caps at 1000 results
+            if page * DEFAULT_PER_PAGE >= SEARCH_MAX_RESULTS:
                 break
 
             page += 1

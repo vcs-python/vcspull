@@ -589,3 +589,67 @@ def test_github_parse_repo_null_owner(
     repos = list(importer.fetch_repos(options))
     assert len(repos) == 1
     assert repos[0].owner == ""
+
+
+def test_github_search_caps_at_1000_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test GitHub search stops paginating at 1000 results.
+
+    GitHub's search API returns HTTP 422 beyond offset 1000.
+    The importer must stop before requesting page 11 (with per_page=100).
+    """
+    from tests._internal.remotes.conftest import MockHTTPResponse
+
+    call_count = 0
+
+    def make_search_page() -> dict[str, t.Any]:
+        """Create a full page of 100 search results."""
+        return {
+            "total_count": 5000,
+            "items": [
+                {
+                    "name": f"repo-{i}",
+                    "clone_url": f"https://github.com/user/repo-{i}.git",
+                    "ssh_url": f"git@github.com:user/repo-{i}.git",
+                    "html_url": f"https://github.com/user/repo-{i}",
+                    "description": f"Repo {i}",
+                    "language": "Python",
+                    "topics": [],
+                    "stargazers_count": 100,
+                    "fork": False,
+                    "archived": False,
+                    "default_branch": "main",
+                    "owner": {"login": "user"},
+                }
+                for i in range(100)
+            ],
+        }
+
+    def urlopen_side_effect(
+        request: t.Any,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        nonlocal call_count
+        call_count += 1
+        page_data = make_search_page()
+        return MockHTTPResponse(
+            json.dumps(page_data).encode(),
+            {"x-ratelimit-remaining": "100", "x-ratelimit-limit": "60"},
+            200,
+        )
+
+    # Mock urlopen: track how many API requests are made
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    importer = GitHubImporter()
+    options = ImportOptions(
+        mode=ImportMode.SEARCH,
+        target="test",
+        limit=5000,
+    )
+    repos = list(importer.fetch_repos(options))
+
+    # Should have fetched at most 10 pages (1000 results)
+    assert call_count <= 10, f"Expected at most 10 API calls, got {call_count}"
+    assert len(repos) <= 1000
