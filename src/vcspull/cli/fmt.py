@@ -12,6 +12,7 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.config_style import apply_config_style
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     find_config_files,
@@ -20,6 +21,7 @@ from vcspull.config import (
     normalize_workspace_roots,
     save_config_yaml,
 )
+from vcspull.types import ConfigStyle
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +51,13 @@ def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
         dest="merge_roots",
         action="store_false",
         help="Do not merge duplicate workspace roots when formatting",
+    )
+    parser.add_argument(
+        "--style",
+        dest="style",
+        choices=["concise", "standard", "verbose"],
+        default=None,
+        help="Convert repo entries to the specified style (concise, standard, verbose)",
     )
     parser.set_defaults(merge_roots=True)
 
@@ -81,13 +90,18 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
     return t.cast("dict[str, t.Any]", repo_data)
 
 
-def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]:
+def format_config(
+    config_data: dict[str, t.Any],
+    style: ConfigStyle | None = None,
+) -> tuple[dict[str, t.Any], int]:
     """Format vcspull configuration for consistency.
 
     Parameters
     ----------
     config_data : dict
         Raw configuration data
+    style : ConfigStyle | None
+        When set, convert all repo entries to this style after sorting.
 
     Returns
     -------
@@ -132,6 +146,20 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
     if list(config_data.keys()) != sorted_dirs:
         changes += 1
 
+    # Apply style conversion if requested
+    if style is not None:
+        formatted, style_changes, style_warnings = apply_config_style(
+            formatted, style=style
+        )
+        changes += style_changes
+        for warning in style_warnings:
+            log.warning(
+                "%s•%s %s",
+                Fore.YELLOW,
+                Style.RESET_ALL,
+                warning,
+            )
+
     return formatted, changes
 
 
@@ -140,6 +168,7 @@ def format_single_config(
     write: bool,
     *,
     merge_roots: bool,
+    style: ConfigStyle | None = None,
 ) -> bool:
     """Format a single vcspull configuration file.
 
@@ -151,6 +180,8 @@ def format_single_config(
         Whether to write changes back to file
     merge_roots : bool
         Merge duplicate workspace roots when True (default behavior)
+    style : ConfigStyle | None
+        When set, convert all repo entries to this style.
 
     Returns
     -------
@@ -250,7 +281,7 @@ def format_single_config(
     for message in duplicate_merge_conflicts:
         log.warning(message)
 
-    formatted_config, change_count = format_config(normalized_config)
+    formatted_config, change_count = format_config(normalized_config, style=style)
     change_count += normalization_changes + duplicate_merge_changes
 
     if change_count == 0:
@@ -392,6 +423,7 @@ def format_config_file(
     format_all: bool = False,
     *,
     merge_roots: bool = True,
+    style: ConfigStyle | None = None,
 ) -> None:
     """Format vcspull configuration file(s).
 
@@ -405,6 +437,8 @@ def format_config_file(
         If True, format all discovered config files
     merge_roots : bool
         Merge duplicate workspace roots when True (default)
+    style : ConfigStyle | None
+        When set, convert all repo entries to this style.
     """
     if format_all:
         # Format all discovered config files
@@ -457,6 +491,7 @@ def format_config_file(
                 config_file,
                 write,
                 merge_roots=merge_roots,
+                style=style,
             ):
                 success_count += 1
 
@@ -508,4 +543,5 @@ def format_config_file(
             config_file_path,
             write,
             merge_roots=merge_roots,
+            style=style,
         )
