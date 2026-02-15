@@ -53,6 +53,15 @@ class GitLabImporter:
         base_url : str | None
             Base URL for self-hosted GitLab instances. Defaults to gitlab.com.
 
+        Notes
+        -----
+        Set ``GITLAB_TOKEN`` or ``GL_TOKEN`` for authentication. A token with
+        the ``read_api`` scope is the minimum for listing projects. Search mode
+        **requires** authentication.
+
+        Create a token at
+        https://gitlab.com/-/user_settings/personal_access_tokens.
+
         Examples
         --------
         >>> importer = GitLabImporter(token="fake")

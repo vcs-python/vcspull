@@ -47,6 +47,15 @@ class CodeCommitImporter:
             AWS region. If not provided, uses AWS CLI default.
         profile : str | None
             AWS profile name. If not provided, uses default profile.
+
+        Notes
+        -----
+        Uses AWS CLI credentials (``aws configure``). No token environment
+        variable is used. IAM policy must include
+        ``codecommit:ListRepositories`` (resource ``*``) and
+        ``codecommit:BatchGetRepositories``.
+
+        Requires AWS CLI: ``pip install awscli``.
         """
         self._region = region
         self._profile = profile

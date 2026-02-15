@@ -52,6 +52,17 @@ class GitHubImporter:
         base_url : str | None
             Base URL for GitHub Enterprise. Defaults to api.github.com.
 
+        Notes
+        -----
+        Authentication is optional for public repositories. For private
+        repositories or higher rate limits, set ``GITHUB_TOKEN`` or ``GH_TOKEN``.
+
+        Classic PAT: no scopes needed for public repos; ``repo`` scope for
+        private. Fine-grained PAT: "Metadata: Read-only" for public; add
+        "Contents: Read-only" for private repos.
+
+        Create a token at https://github.com/settings/tokens.
+
         Examples
         --------
         >>> importer = GitHubImporter(token="fake")

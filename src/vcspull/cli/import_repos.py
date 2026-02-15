@@ -1,4 +1,9 @@
-"""Import repositories from remote services for vcspull."""
+"""Import repositories from remote services for vcspull.
+
+Supports GitHub, GitLab, Codeberg, Gitea, Forgejo, and AWS CodeCommit.
+Authentication is via environment variables (``GITHUB_TOKEN``, ``GITLAB_TOKEN``,
+etc.) or the ``--token`` CLI flag. See each importer class for required scopes.
+"""
 
 from __future__ import annotations
 

@@ -53,6 +53,19 @@ class GiteaImporter:
             Base URL for the Gitea instance. Required for generic Gitea.
             Defaults to Codeberg if not specified.
 
+        Notes
+        -----
+        Token lookup is hostname-aware:
+
+        - Codeberg (codeberg.org): ``CODEBERG_TOKEN``, falls back to
+          ``GITEA_TOKEN``
+        - Forgejo (hostname contains "forgejo"): ``FORGEJO_TOKEN``, falls back
+          to ``GITEA_TOKEN``
+        - Other Gitea instances: ``GITEA_TOKEN``
+
+        Create a scoped token with at least ``read:repository`` permission at
+        ``https://<instance>/user/settings/applications``.
+
         Examples
         --------
         >>> importer = GiteaImporter(token="fake", base_url="https://codeberg.org")
