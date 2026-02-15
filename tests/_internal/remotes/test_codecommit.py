@@ -647,3 +647,33 @@ def test_is_authenticated_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     importer = CodeCommitImporter()
 
     assert importer.is_authenticated is False
+
+
+def test_codecommit_timeout_raises_service_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test _run_aws_command raises ServiceUnavailableError on timeout.
+
+    If the AWS CLI hangs (broken credential provider, network issue),
+    subprocess.run should time out and the error should propagate as
+    ServiceUnavailableError rather than blocking indefinitely.
+    """
+    from vcspull._internal.remotes.base import ServiceUnavailableError
+
+    call_count = 0
+
+    def mock_run(*args: t.Any, **kwargs: t.Any) -> subprocess.CompletedProcess[str]:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # _check_aws_cli: aws --version succeeds
+            return _aws_ok("aws-cli/2.x")
+        # Mock subprocess.run: second call (actual command) raises
+        # TimeoutExpired to simulate a hung AWS CLI process
+        raise subprocess.TimeoutExpired(cmd="aws", timeout=60)
+
+    monkeypatch.setattr("subprocess.run", mock_run)
+    importer = CodeCommitImporter()
+
+    with pytest.raises(ServiceUnavailableError, match="timed out"):
+        importer._run_aws_command("codecommit", "list-repositories")

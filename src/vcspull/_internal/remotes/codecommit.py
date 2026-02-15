@@ -13,6 +13,7 @@ from .base import (
     DependencyError,
     ImportOptions,
     RemoteRepo,
+    ServiceUnavailableError,
     filter_repo,
 )
 
@@ -136,10 +137,14 @@ class CodeCommitImporter:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=60,
             )
         except FileNotFoundError as exc:
             msg = "AWS CLI not found"
             raise DependencyError(msg, service=self.service_name) from exc
+        except subprocess.TimeoutExpired as exc:
+            msg = "AWS CLI command timed out"
+            raise ServiceUnavailableError(msg, service=self.service_name) from exc
 
         if result.returncode != 0:
             stderr = result.stderr.lower()
