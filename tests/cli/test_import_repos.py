@@ -119,6 +119,12 @@ RESOLVE_CONFIG_FIXTURES: list[ResolveConfigFixture] = [
         home_configs=[],
         expected_suffix="config.yml",
     ),
+    ResolveConfigFixture(
+        test_id="json-extension-accepted",
+        config_path_str="/custom/config.json",
+        home_configs=[],
+        expected_suffix="config.json",
+    ),
 ]
 
 
@@ -1010,12 +1016,12 @@ def test_import_flatten_groups_flag_via_cli() -> None:
     assert args.flatten_groups is True
 
 
-def test_import_repos_rejects_non_yaml_config(
+def test_import_repos_rejects_unsupported_config_type(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test _run_import rejects non-YAML config file paths."""
+    """Test _run_import rejects unsupported config file types."""
     caplog.set_level(logging.ERROR)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1036,7 +1042,7 @@ def test_import_repos_rejects_non_yaml_config(
         include_archived=False,
         include_forks=False,
         limit=100,
-        config_path_str=str(tmp_path / "config.json"),
+        config_path_str=str(tmp_path / "config.toml"),
         dry_run=False,
         yes=True,
         output_json=False,
@@ -1044,7 +1050,7 @@ def test_import_repos_rejects_non_yaml_config(
         color="never",
     )
 
-    assert "Only YAML config files are supported" in caplog.text
+    assert "Unsupported config file type" in caplog.text
 
 
 def test_import_repos_catches_multiple_config_warning(
@@ -1244,7 +1250,7 @@ def test_import_repos_rejects_non_dict_config(
         color="never",
     )
 
-    assert "not a valid YAML mapping" in caplog.text
+    assert "not a valid mapping" in caplog.text
 
 
 class NestedGroupImportFixture(t.NamedTuple):

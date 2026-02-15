@@ -26,6 +26,7 @@ from vcspull._internal.remotes import (
 )
 from vcspull.config import (
     find_home_config_files,
+    save_config_json,
     save_config_yaml,
     workspace_root_label,
 )
@@ -241,12 +242,12 @@ def _resolve_config_file(config_path_str: str | None) -> pathlib.Path:
     """
     if config_path_str:
         path = pathlib.Path(config_path_str).expanduser().resolve()
-        if path.suffix.lower() not in {".yaml", ".yml"}:
-            msg = f"Only YAML config files are supported, got: {path.suffix}"
+        if path.suffix.lower() not in {".yaml", ".yml", ".json"}:
+            msg = f"Unsupported config file type: {path.suffix}"
             raise ValueError(msg)
         return path
 
-    home_configs = find_home_config_files(filetype=["yaml"])
+    home_configs = find_home_config_files(filetype=["yaml", "json"])
     if home_configs:
         return home_configs[0]
 
@@ -532,7 +533,7 @@ def _run_import(
 
         if not isinstance(raw_config, dict):
             log.error(
-                "%s Config file is not a valid YAML mapping: %s",
+                "%s Config file is not a valid mapping: %s",
                 colors.error("✗"),
                 display_config_path,
             )
@@ -616,7 +617,10 @@ def _run_import(
 
     # Save config
     try:
-        save_config_yaml(config_file_path, raw_config)
+        if config_file_path.suffix.lower() == ".json":
+            save_config_json(config_file_path, raw_config)
+        else:
+            save_config_yaml(config_file_path, raw_config)
         log.info(
             "%s Added %s repositories to %s",
             colors.success("✓"),

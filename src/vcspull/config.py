@@ -515,6 +515,24 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
     _atomic_write(config_file_path, yaml_content)
 
 
+def save_config_json(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
+    """Save configuration data to a JSON file.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Path to the configuration file to write
+    data : dict
+        Configuration data to save
+    """
+    json_content = ConfigReader._dump(
+        fmt="json",
+        content=data,
+        indent=2,
+    )
+    _atomic_write(config_file_path, json_content)
+
+
 def save_config_yaml_with_items(
     config_file_path: pathlib.Path,
     items: list[tuple[str, t.Any]],
