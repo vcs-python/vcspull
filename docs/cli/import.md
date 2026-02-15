@@ -38,14 +38,14 @@ Import 12 repositories to ~/.vcspull.yaml? [y/N]: y
 
 ## Supported services
 
-| Service    | Aliases          | Self-hosted | Auth env var             |
-|------------|------------------|-------------|--------------------------|
-| GitHub     | `github`, `gh`   | `--url`     | `GITHUB_TOKEN`           |
-| GitLab     | `gitlab`, `gl`   | `--url`     | `GITLAB_TOKEN`           |
-| Codeberg   | `codeberg`, `cb` | No          | `CODEBERG_TOKEN`         |
-| Gitea      | `gitea`          | `--url` (required) | `GITEA_TOKEN`     |
-| Forgejo    | `forgejo`        | `--url` (required) | `FORGEJO_TOKEN`   |
-| CodeCommit | `codecommit`, `cc`, `aws` | N/A | AWS credentials    |
+| Service    | Aliases          | Self-hosted          | Auth env var(s)                   |
+|------------|------------------|----------------------|-----------------------------------|
+| GitHub     | `github`, `gh`   | `--url`              | `GITHUB_TOKEN` / `GH_TOKEN`      |
+| GitLab     | `gitlab`, `gl`   | `--url`              | `GITLAB_TOKEN` / `GL_TOKEN`      |
+| Codeberg   | `codeberg`, `cb` | No                   | `CODEBERG_TOKEN` / `GITEA_TOKEN` |
+| Gitea      | `gitea`          | `--url` (required)   | `GITEA_TOKEN`                     |
+| Forgejo    | `forgejo`        | `--url` (required)   | `FORGEJO_TOKEN` / `GITEA_TOKEN`  |
+| CodeCommit | `codecommit`, `cc`, `aws` | N/A          | AWS CLI credentials               |
 
 For Gitea and Forgejo, `--url` is required because there is no default
 instance.
@@ -196,14 +196,100 @@ $ vcspull import gitea myuser -w ~/code/ --url https://git.example.com
 
 ## Authentication
 
-vcspull reads API tokens from environment variables by default. You can also
-pass a token directly with `--token`, though environment variables are preferred
-for security:
+vcspull reads API tokens from environment variables. Use `--token` to override.
+Environment variables are preferred for security.
+
+### GitHub
+
+- **Env vars**: `GITHUB_TOKEN` (primary), `GH_TOKEN` (fallback)
+- **Token type**: Personal access token (classic) or fine-grained PAT
+- **Permissions**:
+  - Classic PAT: no scopes needed for public repos; `repo` scope for private
+    repos; `read:org` for org repos
+  - Fine-grained PAT: "Metadata: Read-only" for public; add "Contents:
+    Read-only" for private
+- **Create at**: <https://github.com/settings/tokens>
 
 ```console
 $ export GITHUB_TOKEN=ghp_...
 $ vcspull import gh myuser -w ~/code/
 ```
+
+### GitLab
+
+- **Env vars**: `GITLAB_TOKEN` (primary), `GL_TOKEN` (fallback)
+- **Token type**: Personal access token
+- **Scope**: `read_api` (minimum for listing projects; **required** for search
+  mode)
+- **Create at**: <https://gitlab.com/-/user_settings/personal_access_tokens>
+  (self-hosted: `https://<instance>/-/user_settings/personal_access_tokens`)
+
+```console
+$ export GITLAB_TOKEN=glpat-...
+$ vcspull import gl myuser -w ~/code/
+```
+
+### Codeberg
+
+- **Env vars**: `CODEBERG_TOKEN` (primary), `GITEA_TOKEN` (fallback)
+- **Token type**: API token
+- **Scope**: no scopes needed for public repos; token required for private repos
+- **Create at**: <https://codeberg.org/user/settings/applications>
+
+```console
+$ export CODEBERG_TOKEN=...
+$ vcspull import codeberg myuser -w ~/code/
+```
+
+### Gitea
+
+- **Env var**: `GITEA_TOKEN`
+- **Token type**: API token with scoped permissions
+- **Scope**: `read:repository` (minimum for listing repos)
+- **Create at**: `https://<instance>/user/settings/applications`
+
+```console
+$ export GITEA_TOKEN=...
+$ vcspull import gitea myuser -w ~/code/ --url https://git.example.com
+```
+
+### Forgejo
+
+- **Env vars**: `FORGEJO_TOKEN` (primary; matched when hostname contains
+  "forgejo"), `GITEA_TOKEN` (fallback)
+- **Token type**: API token
+- **Scope**: `read:repository`
+- **Create at**: `https://<instance>/user/settings/applications`
+
+```console
+$ export FORGEJO_TOKEN=...
+$ vcspull import forgejo myuser -w ~/code/ --url https://forgejo.example.com
+```
+
+### AWS CodeCommit
+
+- **Auth**: AWS CLI credentials (`aws configure`) — no token env var
+- **CLI args**: `--region`, `--profile`
+- **IAM permissions required**:
+  - `codecommit:ListRepositories` (resource: `*`)
+  - `codecommit:BatchGetRepositories` (resource: repo ARNs or `*`)
+- **Dependency**: AWS CLI must be installed (`pip install awscli`)
+
+```console
+$ aws configure
+$ vcspull import codecommit -w ~/code/ --region us-east-1
+```
+
+### Summary
+
+| Service    | Env var(s)                       | Token type            | Min scope / permissions                                          |
+|------------|----------------------------------|-----------------------|------------------------------------------------------------------|
+| GitHub     | `GITHUB_TOKEN` / `GH_TOKEN`     | PAT (classic or fine) | None (public), `repo` (private)                                  |
+| GitLab     | `GITLAB_TOKEN` / `GL_TOKEN`     | PAT                   | `read_api`                                                       |
+| Codeberg   | `CODEBERG_TOKEN` / `GITEA_TOKEN` | API token            | None (public), any token (private)                               |
+| Gitea      | `GITEA_TOKEN`                    | API token             | `read:repository`                                                |
+| Forgejo    | `FORGEJO_TOKEN` / `GITEA_TOKEN`  | API token            | `read:repository`                                                |
+| CodeCommit | AWS CLI credentials              | IAM access key        | `codecommit:ListRepositories`, `codecommit:BatchGetRepositories` |
 
 ## After importing
 
