@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import logging
 
 from vcspull._internal.remotes import GitHubImporter
 
@@ -15,8 +14,6 @@ from ._common import (
     _create_token_parent,
     _run_import,
 )
-
-log = logging.getLogger(__name__)
 
 
 def create_github_subparser(
