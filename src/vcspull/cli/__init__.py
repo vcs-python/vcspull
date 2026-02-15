@@ -17,7 +17,7 @@ from ._formatter import VcspullHelpFormatter
 from .add import add_repo, create_add_subparser, handle_add_command
 from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
-from .import_repos import create_import_subparser, import_repos
+from .import_cmd import create_import_subparser
 from .list import create_list_subparser, list_repos
 from .search import create_search_subparser, search_repos
 from .status import create_status_subparser, status_repos
@@ -247,22 +247,23 @@ IMPORT_DESCRIPTION = build_description(
     """
     Import repositories from remote services.
 
-    Fetches repository lists from GitHub, GitLab, Codeberg/Gitea/Forgejo,
-    or AWS CodeCommit and adds them to the vcspull configuration.
+    Fetches repository lists from a remote hosting service and adds them to
+    the vcspull configuration.  Choose a service subcommand for details:
 
-    For GitLab, you can specify subgroups using slash notation (e.g., parent/child).
-    In org mode, subgroup paths are preserved under the workspace root by
-    default; use ``--flatten-groups`` to collapse them into a single workspace.
+      github (gh)       GitHub or GitHub Enterprise
+      gitlab (gl)       GitLab (gitlab.com or self-hosted)
+      codeberg (cb)     Codeberg
+      gitea             Self-hosted Gitea instance
+      forgejo           Self-hosted Forgejo instance
+      codecommit (cc)   AWS CodeCommit
     """,
     (
         (
             None,
             [
-                "vcspull import github torvalds -w ~/repos/linux --mode user",
-                "vcspull import github django -w ~/study/python --mode org",
-                "vcspull import gitlab gitlab-org/ci-cd -w ~/work --mode org",
-                "vcspull import gitlab myuser -w ~/work --url https://gitlab.company.com",
-                "vcspull import codeberg user -w ~/oss --dry-run",
+                "vcspull import github torvalds -w ~/repos/linux",
+                "vcspull import gh django -w ~/study/python --mode org",
+                "vcspull import gitlab mygroup -w ~/work --mode org",
                 "vcspull import codecommit -w ~/work/aws --region us-east-1",
             ],
         ),
@@ -500,33 +501,10 @@ def cli(_args: list[str] | None = None) -> None:
             merge_roots=args.merge_roots,
         )
     elif args.subparser_name == "import":
-        # Show help if required arguments are missing
-        if args.service is None or args.workspace is None:
+        handler = getattr(args, "import_handler", None)
+        if handler is None:
             _import_parser.print_help()
             return
-        result = import_repos(
-            service=args.service,
-            target=args.target,
-            workspace=args.workspace,
-            mode=args.mode,
-            base_url=getattr(args, "base_url", None),
-            token=getattr(args, "token", None),
-            region=getattr(args, "region", None),
-            profile=getattr(args, "profile", None),
-            language=getattr(args, "language", None),
-            topics=getattr(args, "topics", None),
-            min_stars=getattr(args, "min_stars", 0),
-            include_archived=getattr(args, "include_archived", False),
-            include_forks=getattr(args, "include_forks", False),
-            limit=getattr(args, "limit", 100),
-            config_path_str=getattr(args, "config", None),
-            dry_run=getattr(args, "dry_run", False),
-            yes=getattr(args, "yes", False),
-            output_json=getattr(args, "output_json", False),
-            output_ndjson=getattr(args, "output_ndjson", False),
-            color=getattr(args, "color", "auto"),
-            use_https=getattr(args, "use_https", False),
-            flatten_groups=getattr(args, "flatten_groups", False),
-        )
+        result = handler(args)
         if result:
             raise SystemExit(result)
