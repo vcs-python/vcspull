@@ -527,6 +527,262 @@ def test_plan_worktree_sync_dirty_worktree_blocked(
 
 
 # ---------------------------------------------------------------------------
+# Worktree Audit Trail (WorktreeCheck) Tests
+# ---------------------------------------------------------------------------
+
+
+class WorktreeCheckTrailFixture(t.NamedTuple):
+    """Fixture for worktree audit trail tests."""
+
+    test_id: str
+    setup: str
+    ref_key: str
+    ref_value: str
+    expected_action: WorktreeAction
+    expected_check_count: int
+    expected_check_names: list[str]
+    expected_failed_check: str | None
+    expected_exception_type: type | None
+
+
+WORKTREE_CHECK_TRAIL_FIXTURES = [
+    WorktreeCheckTrailFixture(
+        test_id="create_tag_full_trail",
+        setup="create_tag",
+        ref_key="tag",
+        ref_value="v-trail-test",
+        expected_action=WorktreeAction.CREATE,
+        expected_check_count=3,
+        expected_check_names=["validate_config", "ref_exists", "worktree_exists"],
+        expected_failed_check=None,
+        expected_exception_type=None,
+    ),
+    WorktreeCheckTrailFixture(
+        test_id="missing_ref_stops_at_ref_check",
+        setup="none",
+        ref_key="tag",
+        ref_value="v999.nonexistent",
+        expected_action=WorktreeAction.ERROR,
+        expected_check_count=2,
+        expected_check_names=["validate_config", "ref_exists"],
+        expected_failed_check="ref_exists",
+        expected_exception_type=exc.WorktreeRefNotFoundError,
+    ),
+    WorktreeCheckTrailFixture(
+        test_id="dirty_worktree_has_dirty_check",
+        setup="create_dirty_worktree",
+        ref_key="commit",
+        ref_value="HEAD_SHA",
+        expected_action=WorktreeAction.BLOCKED,
+        expected_check_count=4,
+        expected_check_names=[
+            "validate_config",
+            "ref_exists",
+            "worktree_exists",
+            "is_dirty",
+        ],
+        expected_failed_check="is_dirty",
+        expected_exception_type=exc.WorktreeDirtyError,
+    ),
+    WorktreeCheckTrailFixture(
+        test_id="existing_tag_unchanged_clean_trail",
+        setup="create_existing_tag_worktree",
+        ref_key="tag",
+        ref_value="v-trail-unchanged",
+        expected_action=WorktreeAction.UNCHANGED,
+        expected_check_count=4,
+        expected_check_names=[
+            "validate_config",
+            "ref_exists",
+            "worktree_exists",
+            "is_dirty",
+        ],
+        expected_failed_check=None,
+        expected_exception_type=None,
+    ),
+    WorktreeCheckTrailFixture(
+        test_id="existing_branch_update_clean_trail",
+        setup="create_existing_branch_worktree",
+        ref_key="branch",
+        ref_value="trail-update-branch",
+        expected_action=WorktreeAction.UPDATE,
+        expected_check_count=4,
+        expected_check_names=[
+            "validate_config",
+            "ref_exists",
+            "worktree_exists",
+            "is_dirty",
+        ],
+        expected_failed_check=None,
+        expected_exception_type=None,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(WorktreeCheckTrailFixture._fields),
+    WORKTREE_CHECK_TRAIL_FIXTURES,
+    ids=[f.test_id for f in WORKTREE_CHECK_TRAIL_FIXTURES],
+)
+def test_plan_worktree_check_trail(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    test_id: str,
+    setup: str,
+    ref_key: str,
+    ref_value: str,
+    expected_action: WorktreeAction,
+    expected_check_count: int,
+    expected_check_names: list[str],
+    expected_failed_check: str | None,
+    expected_exception_type: type | None,
+) -> None:
+    """Test WorktreePlanEntry.checks audit trail for various scenarios."""
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / f"trail-{test_id}"
+
+    actual_ref_value = ref_value
+    if setup == "create_tag":
+        subprocess.run(
+            ["git", "tag", ref_value],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+    elif setup == "none":
+        pass
+    elif setup == "create_dirty_worktree":
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=git_repo.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        actual_ref_value = result.stdout.strip()
+        subprocess.run(
+            ["git", "worktree", "add", str(worktree_path), "HEAD", "--detach"],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+        (worktree_path / "dirty.txt").write_text("dirty")
+    elif setup == "create_existing_tag_worktree":
+        subprocess.run(
+            ["git", "tag", ref_value],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "worktree",
+                "add",
+                str(worktree_path),
+                ref_value,
+                "--detach",
+            ],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+    elif setup == "create_existing_branch_worktree":
+        subprocess.run(
+            ["git", "branch", ref_value],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "worktree", "add", str(worktree_path), ref_value],
+            cwd=git_repo.path,
+            check=True,
+            capture_output=True,
+        )
+
+    wt_config = t.cast(
+        WorktreeConfigDict,
+        {"dir": str(worktree_path), ref_key: actual_ref_value},
+    )
+    entries = plan_worktree_sync(git_repo.path, [wt_config], workspace_root)
+
+    assert len(entries) == 1
+    entry = entries[0]
+
+    assert entry.action == expected_action
+    assert len(entry.checks) == expected_check_count
+    assert [c.name for c in entry.checks] == expected_check_names
+
+    for check in entry.checks:
+        if check.name == expected_failed_check:
+            assert check.passed is False
+            assert check.exception is not None
+            assert expected_exception_type is not None
+            assert isinstance(check.exception, expected_exception_type)
+        else:
+            assert check.passed is True
+            assert check.exception is None
+
+
+def test_plan_check_ref_not_found_exception_attributes(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test WorktreeRefNotFoundError attributes are accessible via check trail."""
+    workspace_root = git_repo.path.parent
+    entries = plan_worktree_sync(
+        git_repo.path,
+        [{"dir": "../wt-ref-attr", "tag": "v-nonexistent-attr-test"}],
+        workspace_root,
+    )
+    entry = entries[0]
+    ref_check = next(c for c in entry.checks if c.name == "ref_exists")
+    assert isinstance(ref_check.exception, exc.WorktreeRefNotFoundError)
+    assert ref_check.exception.ref == "v-nonexistent-attr-test"
+    assert ref_check.exception.ref_type == "tag"
+    assert ref_check.exception.repo_path == str(git_repo.path)
+
+
+def test_plan_check_dirty_exception_attributes(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test WorktreeDirtyError attributes are accessible via check trail."""
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "dirty-attr-test"
+
+    # Create worktree then make it dirty
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+    (worktree_path / "dirty.txt").write_text("dirty")
+
+    # Get HEAD SHA for commit ref
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=git_repo.path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commit_sha = result.stdout.strip()
+
+    entries = plan_worktree_sync(
+        git_repo.path,
+        [{"dir": str(worktree_path), "commit": commit_sha}],
+        workspace_root,
+    )
+    entry = entries[0]
+    dirty_check = next(c for c in entry.checks if c.name == "is_dirty")
+    assert isinstance(dirty_check.exception, exc.WorktreeDirtyError)
+    assert dirty_check.exception.path == str(worktree_path)
+
+
+# ---------------------------------------------------------------------------
 # Worktree Sync Execution Tests
 # ---------------------------------------------------------------------------
 

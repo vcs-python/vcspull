@@ -34,6 +34,23 @@ class WorktreeAction(enum.Enum):
 
 
 @dataclasses.dataclass
+class WorktreeCheck:
+    """A single check performed during worktree planning."""
+
+    name: str
+    """Check name: 'validate_config', 'ref_exists', 'worktree_exists', 'is_dirty'."""
+
+    passed: bool
+    """Whether the check passed."""
+
+    detail: str
+    """Human-readable description of the check result."""
+
+    exception: exc.WorktreeError | None = None
+    """Typed exception if the check failed."""
+
+
+@dataclasses.dataclass
 class WorktreePlanEntry:
     """Planning information for a single worktree operation."""
 
@@ -63,6 +80,9 @@ class WorktreePlanEntry:
 
     current_ref: str | None = None
     """Current HEAD reference if worktree exists."""
+
+    checks: list[WorktreeCheck] = dataclasses.field(default_factory=list)
+    """Ordered audit trail of checks performed during planning."""
 
 
 @dataclasses.dataclass
@@ -467,9 +487,21 @@ def plan_worktree_sync(
                     ref_value="unknown",
                     action=WorktreeAction.ERROR,
                     error=str(e),
+                    checks=[
+                        WorktreeCheck(
+                            name="validate_config",
+                            passed=False,
+                            detail=str(e),
+                            exception=e,
+                        ),
+                    ],
                 )
             )
             continue
+
+        entry_checks: list[WorktreeCheck] = [
+            WorktreeCheck(name="validate_config", passed=True, detail="config valid"),
+        ]
 
         ref_info = _get_ref_type_and_value(wt_config)
         if ref_info is None:
@@ -493,10 +525,37 @@ def plan_worktree_sync(
 
         # Check if ref exists
         if not _ref_exists(repo_path, ref_value, ref_type):
+            ref_exc = exc.WorktreeRefNotFoundError(ref_value, ref_type, str(repo_path))
+            entry_checks.append(
+                WorktreeCheck(
+                    name="ref_exists",
+                    passed=False,
+                    detail=str(ref_exc),
+                    exception=ref_exc,
+                )
+            )
             entry.action = WorktreeAction.ERROR
-            entry.error = f"{ref_type.capitalize()} '{ref_value}' not found"
+            entry.error = str(ref_exc)
+            entry.checks = entry_checks
             entries.append(entry)
             continue
+
+        entry_checks.append(
+            WorktreeCheck(
+                name="ref_exists",
+                passed=True,
+                detail=f"{ref_type.capitalize()} '{ref_value}' found",
+            )
+        )
+
+        entry_checks.append(
+            WorktreeCheck(
+                name="worktree_exists",
+                passed=True,
+                detail=f"worktree {'exists' if exists else 'not found'}"
+                f" at {worktree_path}",
+            )
+        )
 
         if not exists:
             # Worktree doesn't exist, create it
@@ -508,16 +567,34 @@ def plan_worktree_sync(
             entry.is_dirty = _is_worktree_dirty(worktree_path)
 
             if entry.is_dirty:
+                dirty_exc = exc.WorktreeDirtyError(str(worktree_path))
+                entry_checks.append(
+                    WorktreeCheck(
+                        name="is_dirty",
+                        passed=False,
+                        detail=str(dirty_exc),
+                        exception=dirty_exc,
+                    )
+                )
                 entry.action = WorktreeAction.BLOCKED
-                entry.detail = "worktree has uncommitted changes"
-            elif ref_type == "branch":
-                entry.action = WorktreeAction.UPDATE
-                entry.detail = "branch worktree may be updated"
+                entry.detail = str(dirty_exc)
             else:
-                # Tags and commits are immutable
-                entry.action = WorktreeAction.UNCHANGED
-                entry.detail = f"{ref_type} worktree already exists"
+                entry_checks.append(
+                    WorktreeCheck(
+                        name="is_dirty",
+                        passed=True,
+                        detail="worktree is clean",
+                    )
+                )
+                if ref_type == "branch":
+                    entry.action = WorktreeAction.UPDATE
+                    entry.detail = "branch worktree may be updated"
+                else:
+                    # Tags and commits are immutable
+                    entry.action = WorktreeAction.UNCHANGED
+                    entry.detail = f"{ref_type} worktree already exists"
 
+        entry.checks = entry_checks
         entries.append(entry)
 
     return entries
