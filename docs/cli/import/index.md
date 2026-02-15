@@ -36,7 +36,7 @@ Choose a service subcommand for details:
 Import all repositories for a GitHub user into a workspace:
 
 ```vcspull-console
-$ vcspull import github myuser -w ~/code/
+$ vcspull import github myuser --workspace ~/code/
 → Fetching repositories from GitHub...
 ✓ Found 12 repositories
   + project-a [Python]
@@ -80,7 +80,7 @@ codecommit
 Fetch all repositories owned by a user:
 
 ```console
-$ vcspull import gh myuser -w ~/code/
+$ vcspull import gh myuser --workspace ~/code/
 ```
 
 ### Organization mode
@@ -88,13 +88,17 @@ $ vcspull import gh myuser -w ~/code/
 Fetch repositories belonging to an organization or group:
 
 ```console
-$ vcspull import gh my-org --mode org -w ~/code/
+$ vcspull import gh my-org \
+    --mode org \
+    --workspace ~/code/
 ```
 
 For GitLab, subgroups are supported with slash notation:
 
 ```console
-$ vcspull import gl my-group/sub-group --mode org -w ~/code/
+$ vcspull import gl my-group/sub-group \
+    --mode org \
+    --workspace ~/code/
 ```
 
 ### Search mode
@@ -102,7 +106,10 @@ $ vcspull import gl my-group/sub-group --mode org -w ~/code/
 Search for repositories matching a query:
 
 ```console
-$ vcspull import gh django --mode search -w ~/code/ --min-stars 100
+$ vcspull import gh django \
+    --mode search \
+    --workspace ~/code/ \
+    --min-stars 100
 ```
 
 ## Filtering
@@ -110,27 +117,39 @@ $ vcspull import gh django --mode search -w ~/code/ --min-stars 100
 Narrow results with filtering flags:
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --language python
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --language python
 ```
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --topics cli,automation
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --topics cli,automation
 ```
 
 ```console
-$ vcspull import gh django --mode search -w ~/code/ --min-stars 50
+$ vcspull import gh django \
+    --mode search \
+    --workspace ~/code/ \
+    --min-stars 50
 ```
 
 Include archived or forked repositories (excluded by default):
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --archived --forks
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --archived \
+    --forks
 ```
 
 Limit the number of repositories fetched:
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --limit 50
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --limit 50
 ```
 
 ```{note}
@@ -144,19 +163,23 @@ language metadata. vcspull warns when a filter is unlikely to work.
 Human-readable output (default):
 
 ```console
-$ vcspull import gh myuser -w ~/code/
+$ vcspull import gh myuser --workspace ~/code/
 ```
 
 JSON for automation:
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --json
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --json
 ```
 
 NDJSON for streaming:
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --ndjson
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --ndjson
 ```
 
 ## Dry runs and confirmation
@@ -164,13 +187,17 @@ $ vcspull import gh myuser -w ~/code/ --ndjson
 Preview what would be imported without writing to the config file:
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --dry-run
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --dry-run
 ```
 
 Skip the confirmation prompt (useful for scripts):
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --yes
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --yes
 ```
 
 ## Configuration file selection
@@ -178,7 +205,9 @@ $ vcspull import gh myuser -w ~/code/ --yes
 vcspull writes to `~/.vcspull.yaml` by default. Override with `-f/--file`:
 
 ```console
-$ vcspull import gh myuser -w ~/code/ -f ~/configs/github.yaml
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --file ~/configs/github.yaml
 ```
 
 ## Protocol selection
@@ -186,7 +215,9 @@ $ vcspull import gh myuser -w ~/code/ -f ~/configs/github.yaml
 SSH clone URLs are used by default. Switch to HTTPS with `--https`:
 
 ```console
-$ vcspull import gh myuser -w ~/code/ --https
+$ vcspull import gh myuser \
+    --workspace ~/code/ \
+    --https
 ```
 
 ## Self-hosted instances
@@ -195,7 +226,9 @@ Point to a self-hosted GitHub Enterprise, GitLab, Gitea, or Forgejo instance
 with `--url`:
 
 ```console
-$ vcspull import gitea myuser -w ~/code/ --url https://git.example.com
+$ vcspull import gitea myuser \
+    --workspace ~/code/ \
+    --url https://git.example.com
 ```
 
 ## Authentication

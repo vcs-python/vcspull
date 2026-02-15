@@ -154,7 +154,7 @@ be any name):
 Use `-f/--file` to specify a config.
 
 ```console
-$ vcspull sync -f .deps.yaml --all
+$ vcspull sync --file .deps.yaml --all
 ```
 
 You can also use [fnmatch] to pull repositories from your config in

@@ -59,22 +59,12 @@ Run the formatter in dry-run mode first to preview the adjustments:
 $ vcspull fmt --file ~/.vcspull.yaml
 ```
 
-Then add `--write` (or `-w`) to persist them back to disk:
+Then add `--write` to persist them back to disk:
 
 ```console
-$ vcspull fmt --file ~/.vcspull.yaml --write
-```
-
-Short form for preview:
-
-```console
-$ vcspull fmt -f ~/.vcspull.yaml
-```
-
-Short form to apply:
-
-```console
-$ vcspull fmt -f ~/.vcspull.yaml -w
+$ vcspull fmt \
+    --file ~/.vcspull.yaml \
+    --write
 ```
 
 Use `--all` to iterate over the default search locations: the current working

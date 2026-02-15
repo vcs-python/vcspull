@@ -34,5 +34,5 @@ $ export GITHUB_TOKEN=ghp_...
 Then import:
 
 ```console
-$ vcspull import gh myuser -w ~/code/
+$ vcspull import gh myuser --workspace ~/code/
 ```

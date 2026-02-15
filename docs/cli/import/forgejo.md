@@ -31,5 +31,7 @@ $ export FORGEJO_TOKEN=...
 Then import:
 
 ```console
-$ vcspull import forgejo myuser -w ~/code/ --url https://forgejo.example.com
+$ vcspull import forgejo myuser \
+    --workspace ~/code/ \
+    --url https://forgejo.example.com
 ```

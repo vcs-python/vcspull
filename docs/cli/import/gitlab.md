@@ -21,7 +21,10 @@ structure as nested workspace directories by default. Use `--flatten-groups` to
 place all repositories directly in the base workspace:
 
 ```console
-$ vcspull import gl my-group --mode org -w ~/code/ --flatten-groups
+$ vcspull import gl my-group \
+    --mode org \
+    --workspace ~/code/ \
+    --flatten-groups
 ```
 
 ## Authentication
@@ -42,5 +45,5 @@ $ export GITLAB_TOKEN=glpat-...
 Then import:
 
 ```console
-$ vcspull import gl myuser -w ~/code/
+$ vcspull import gl myuser --workspace ~/code/
 ```

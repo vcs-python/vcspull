@@ -119,7 +119,7 @@ $ vcspull discover ~/code --recursive
 ```
 
 The scan shows each repository before import unless you opt into `--yes`. Add
-`-w ~/code/` to pin the resulting workspace root or `-f` to write somewhere other
+`--workspace ~/code/` to pin the resulting workspace root or `-f/--file` to write somewhere other
 than the default `~/.vcspull.yaml`. Duplicate workspace roots are merged by
 default; include `--no-merge` to keep them separate while you review the log.
 
@@ -129,11 +129,15 @@ Pull repository lists from GitHub, GitLab, Codeberg, Gitea, Forgejo, or AWS
 CodeCommit directly into your configuration:
 
 ```console
-$ vcspull import github myuser -w ~/code/ --mode user
+$ vcspull import github myuser \
+    --workspace ~/code/ \
+    --mode user
 ```
 
 ```console
-$ vcspull import gitlab my-group -w ~/work/ --mode org
+$ vcspull import gitlab my-group \
+    --workspace ~/work/ \
+    --mode org
 ```
 
 Use `--dry-run` to preview changes, `--https` for HTTPS clone URLs, and
@@ -182,7 +186,9 @@ After importing or editing by hand, run the formatter to tidy up keys, merge
 duplicate workspace sections, and keep entries sorted:
 
 ```console
-$ vcspull fmt -f ~/.vcspull.yaml --write
+$ vcspull fmt \
+    --file ~/.vcspull.yaml \
+    --write
 ```
 
 Use `vcspull fmt --all --write` to format every YAML file that vcspull can
@@ -223,7 +229,7 @@ or svn project with a git dependency:
 Clone / update repos via config file:
 
 ```console
-$ vcspull sync -f external_deps.yaml '*'
+$ vcspull sync --file external_deps.yaml '*'
 ```
 
 See the [Quickstart](https://vcspull.git-pull.com/quickstart.html) for

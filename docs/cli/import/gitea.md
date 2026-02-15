@@ -30,5 +30,7 @@ $ export GITEA_TOKEN=...
 Then import:
 
 ```console
-$ vcspull import gitea myuser -w ~/code/ --url https://git.example.com
+$ vcspull import gitea myuser \
+    --workspace ~/code/ \
+    --url https://git.example.com
 ```

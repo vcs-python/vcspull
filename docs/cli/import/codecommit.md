@@ -20,7 +20,10 @@ CodeCommit does not require a target argument. Use `--region` and `--profile`
 to select the AWS environment:
 
 ```console
-$ vcspull import codecommit -w ~/code/ --region us-east-1 --profile work
+$ vcspull import codecommit \
+    --workspace ~/code/ \
+    --region us-east-1 \
+    --profile work
 ```
 
 ## Authentication
@@ -41,5 +44,7 @@ $ aws configure
 Then import:
 
 ```console
-$ vcspull import codecommit -w ~/code/ --region us-east-1
+$ vcspull import codecommit \
+    --workspace ~/code/ \
+    --region us-east-1
 ```

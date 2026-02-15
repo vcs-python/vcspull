@@ -180,7 +180,7 @@ $ vcspull status --json > workspace-status-$(date +%Y%m%d).json
 Specify a custom config file with `-f/--file`:
 
 ```console
-$ vcspull status -f ~/projects/.vcspull.yaml
+$ vcspull status --file ~/projects/.vcspull.yaml
 ```
 
 ## Workspace filtering
@@ -188,7 +188,7 @@ $ vcspull status -f ~/projects/.vcspull.yaml
 Filter repositories by workspace root (planned feature):
 
 ```console
-$ vcspull status -w ~/code/
+$ vcspull status --workspace ~/code/
 ```
 
 ## Color output

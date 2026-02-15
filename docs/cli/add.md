@@ -98,7 +98,8 @@ vcspull searches for configuration files in this order:
 Specify a file explicitly with `-f/--file`:
 
 ```console
-$ vcspull add ~/study/python/pytest-docker -f ~/configs/python.yaml
+$ vcspull add ~/study/python/pytest-docker \
+    --file ~/configs/python.yaml
 ```
 
 ## Handling duplicates
@@ -122,7 +123,7 @@ by `vcspull add`:
 
 ```diff
 - $ vcspull import flask https://github.com/pallets/flask.git -c ~/.vcspull.yaml
-+ $ vcspull add ~/code/flask --url https://github.com/pallets/flask.git -f ~/.vcspull.yaml
++ $ vcspull add ~/code/flask --url https://github.com/pallets/flask.git --file ~/.vcspull.yaml
 ```
 
 Key differences:

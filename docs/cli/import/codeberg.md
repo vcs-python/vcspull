@@ -30,5 +30,5 @@ $ export CODEBERG_TOKEN=...
 Then import:
 
 ```console
-$ vcspull import codeberg myuser -w ~/code/
+$ vcspull import codeberg myuser --workspace ~/code/
 ```
