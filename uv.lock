@@ -1694,6 +1694,7 @@ dependencies = [
     { name = "colorama" },
     { name = "libvcs" },
     { name = "pyyaml" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 
 [package.dev-dependencies]
@@ -1760,6 +1761,7 @@ requires-dist = [
     { name = "colorama", specifier = ">=0.3.9" },
     { name = "libvcs", specifier = ">=0.44.0,<0.45.0" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.0" },
 ]
 
 [package.metadata.requires-dev]
