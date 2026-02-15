@@ -1324,6 +1324,21 @@ NESTED_GROUP_IMPORT_FIXTURES: list[NestedGroupImportFixture] = [
         },
     ),
     NestedGroupImportFixture(
+        test_id="traversal-in-owner-flattened-to-base",
+        target="a/b",
+        mode="org",
+        flatten_groups=False,
+        workspace_relpath="repos",
+        mock_repos=[
+            _make_repo("evil", owner="a/b/../../escape"),
+            _make_repo("safe", owner="a/b/c"),
+        ],
+        expected_sections={
+            "": ("evil",),
+            "c": ("safe",),
+        },
+    ),
+    NestedGroupImportFixture(
         test_id="flatten-groups-flag-uses-single-workspace",
         target="a/b",
         mode="org",

@@ -564,7 +564,16 @@ def _run_import(
                 subpath = ""
 
             if subpath:
-                repo_workspace_path = workspace_path / subpath
+                candidate = (workspace_path / subpath).resolve()
+                if not candidate.is_relative_to(workspace_path.resolve()):
+                    log.warning(
+                        "%s Ignoring subgroup path that escapes workspace: %s",
+                        colors.warning("⚠"),
+                        repo.owner,
+                    )
+                    subpath = ""
+                else:
+                    repo_workspace_path = workspace_path / subpath
 
         repo_workspace_label = workspace_root_label(
             repo_workspace_path, cwd=cwd, home=home
