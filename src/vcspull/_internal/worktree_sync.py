@@ -748,6 +748,22 @@ def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
             text=True,
         )
 
+    # Check if the branch has an upstream tracking ref before pulling
+    upstream_check = subprocess.run(
+        ["git", "config", f"branch.{branch}.remote"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if upstream_check.returncode != 0 or not upstream_check.stdout.strip():
+        log.debug(
+            "Worktree %s branch %s has no upstream tracking, skipping pull",
+            worktree_path,
+            branch,
+        )
+        return
+
     subprocess.run(
         ["git", "pull", "--ff-only"],
         cwd=worktree_path,

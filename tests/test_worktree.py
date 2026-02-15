@@ -1028,17 +1028,16 @@ def test_sync_worktree_branch_update(
     assert entries[0].exists is True
 
 
-def test_sync_worktree_executes_update(
+def test_sync_worktree_executes_update_no_upstream(
     git_repo: GitSync,
     tmp_path: pathlib.Path,
 ) -> None:
-    """Test sync_worktree UPDATE action attempts git pull.
+    """Test sync_worktree UPDATE skips pull when branch has no upstream.
 
-    Coverage: Lines 547-559 (UPDATE execution path in sync_worktree).
+    Coverage: UPDATE execution path in sync_worktree.
 
-    Note: Since git_repo is a local-only repo without a remote, git pull fails.
-    This tests that the UPDATE path IS exercised and handles the error correctly.
-    The error path (lines 554-559) converts it to ERROR action.
+    When a branch has no upstream tracking ref, _update_worktree skips the
+    pull and succeeds. The worktree is already on the correct branch.
     """
     workspace_root = git_repo.path.parent
     worktree_path = workspace_root / "update-exec-wt"
@@ -1064,13 +1063,13 @@ def test_sync_worktree_executes_update(
         "branch": "update-exec-branch",
     }
 
-    # Sync without dry_run - attempts UPDATE but fails because no tracking info
+    # Sync without dry_run - should succeed (skip pull, no upstream)
     entry = sync_worktree(git_repo.path, wt_config, workspace_root, dry_run=False)
 
-    # The UPDATE path was executed (lines 547-549), but git pull failed (lines 554-559)
-    assert entry.action == WorktreeAction.ERROR
+    # UPDATE succeeds because pull is skipped when there's no upstream
+    assert entry.action == WorktreeAction.UPDATE
     assert entry.exists is True
-    assert "no tracking information" in (entry.error or "").lower()
+    assert "updated" in (entry.detail or "").lower()
 
 
 def test_sync_all_worktrees_counts_mixed(
