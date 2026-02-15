@@ -29,6 +29,7 @@ When the configuration is parsed we preserve the original key string, but
 
 from __future__ import annotations
 
+import enum
 import pathlib
 import typing as t
 from typing import TypeAlias
@@ -38,6 +39,26 @@ from typing_extensions import NotRequired, TypedDict
 if t.TYPE_CHECKING:
     from libvcs._internal.types import StrPath, VCSLiteral
     from libvcs.sync.git import GitSyncRemoteDict
+
+
+class ConfigStyle(enum.Enum):
+    """Output style for repository entries in vcspull configuration files.
+
+    Examples
+    --------
+    >>> from vcspull.types import ConfigStyle
+    >>> ConfigStyle("concise")
+    <ConfigStyle.CONCISE: 'concise'>
+    >>> ConfigStyle.STANDARD.value
+    'standard'
+    """
+
+    CONCISE = "concise"
+    STANDARD = "standard"
+    VERBOSE = "verbose"
+
+
+RawRepoEntry: TypeAlias = "str | dict[str, t.Any]"
 
 
 class WorktreeConfigDict(TypedDict):
