@@ -1253,6 +1253,48 @@ def test_import_repos_rejects_non_dict_config(
     assert "not a valid mapping" in caplog.text
 
 
+def test_import_repos_non_mapping_workspace_returns_error(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _run_import returns non-zero when a workspace section is not a mapping."""
+    caplog.set_level(logging.ERROR)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+    # Workspace section is a string, not a mapping
+    label = workspace_root_label(workspace, cwd=pathlib.Path.cwd(), home=tmp_path)
+    config_file.write_text(f"{label}: invalid_string\n", encoding="utf-8")
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 1
+    assert "not a mapping in config" in caplog.text
+
+
 class NestedGroupImportFixture(t.NamedTuple):
     """Fixture for nested-group workspace persistence cases."""
 

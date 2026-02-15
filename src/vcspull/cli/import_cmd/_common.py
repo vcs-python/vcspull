@@ -543,6 +543,7 @@ def _run_import(
 
     # Add repositories to config
     checked_labels: set[str] = set()
+    error_labels: set[str] = set()
     added_count = 0
     skipped_count = 0
 
@@ -589,6 +590,7 @@ def _run_import(
                     colors.error("✗"),
                     repo_workspace_label,
                 )
+                error_labels.add(repo_workspace_label)
             checked_labels.add(repo_workspace_label)
 
         if repo_workspace_label in raw_config and not isinstance(
@@ -607,6 +609,9 @@ def _run_import(
             "repo": repo.to_vcspull_url(use_ssh=not use_https),
         }
         added_count += 1
+
+    if error_labels:
+        return 1
 
     if added_count == 0:
         log.info(
