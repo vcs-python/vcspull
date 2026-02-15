@@ -13,7 +13,9 @@ import typing as t
 from colorama import Fore, Style
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.config_style import format_repo_entry
 from vcspull._internal.private_path import PrivatePath
+from vcspull._internal.settings import resolve_style
 from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
@@ -218,6 +220,13 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
         dest="include_worktrees",
         help="include git worktrees in discovery (excluded by default)",
     )
+    parser.add_argument(
+        "--style",
+        dest="style",
+        choices=["concise", "standard", "verbose"],
+        default=None,
+        help="Config entry style (concise, standard, verbose)",
+    )
     parser.set_defaults(merge_duplicates=True)
 
 
@@ -260,6 +269,7 @@ def discover_repos(
     *,
     merge_duplicates: bool = True,
     include_worktrees: bool = False,
+    style: str | None = None,
 ) -> None:
     """Scan filesystem for git repositories and add to vcspull config.
 
@@ -277,6 +287,8 @@ def discover_repos(
         Whether to skip confirmation prompt
     dry_run : bool
         If True, preview changes without writing
+    style : str | None
+        Config entry style (concise, standard, verbose).
     """
     scan_dir = expand_dir(pathlib.Path(scan_dir_str))
 
@@ -677,7 +689,10 @@ def discover_repos(
             continue
 
         if repo_name not in raw_config[workspace_label]:
-            raw_config[workspace_label][repo_name] = {"repo": repo_url}
+            resolved_style = resolve_style(style)
+            raw_config[workspace_label][repo_name] = format_repo_entry(
+                repo_url, style=resolved_style
+            )
             log.info(
                 "%s+%s Importing %s'%s'%s (%s%s%s) under '%s%s%s'.",
                 Fore.GREEN,
