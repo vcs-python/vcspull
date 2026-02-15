@@ -8,8 +8,9 @@ merges duplicate workspace roots by default, and prompts before writing unless
 you pass `--yes`.
 
 ```{note}
-This command replaces the manual import functionality from `vcspull import`.
-For bulk scanning of existing repositories, see {ref}`cli-discover`.
+This command replaces the old `vcspull import <name> <url>` from v1.36--v1.39.
+For bulk scanning of local repositories, see {ref}`cli-discover`.
+For bulk import from remote services (GitHub, GitLab, etc.), see {ref}`cli-import`.
 ```
 
 ## Command
@@ -97,7 +98,8 @@ vcspull searches for configuration files in this order:
 Specify a file explicitly with `-f/--file`:
 
 ```console
-$ vcspull add ~/study/python/pytest-docker -f ~/configs/python.yaml
+$ vcspull add ~/study/python/pytest-docker \
+    --file ~/configs/python.yaml
 ```
 
 ## Handling duplicates
@@ -114,22 +116,27 @@ a summary of the merge. Prefer to inspect duplicates yourself? Add
 2. Run `vcspull list` to verify the new entry (see {ref}`cli-list`).
 3. Run `vcspull sync` to clone or update the working tree (see {ref}`cli-sync`).
 
-## Migration from vcspull import
+## Migration from the old vcspull import
 
-If you previously used `vcspull import <name> <url>`, switch to the path-first
-workflow:
+The `vcspull import <name> <url>` command from v1.36--v1.39 has been replaced
+by `vcspull add`:
 
 ```diff
 - $ vcspull import flask https://github.com/pallets/flask.git -c ~/.vcspull.yaml
-+ $ vcspull add ~/code/flask --url https://github.com/pallets/flask.git -f ~/.vcspull.yaml
++ $ vcspull add ~/code/flask --url https://github.com/pallets/flask.git --file ~/.vcspull.yaml
 ```
 
 Key differences:
 
-- `vcspull add` now derives the name from the filesystem unless you pass
-  `--name`.
+- `vcspull add` derives the name from the filesystem unless you pass `--name`.
 - The parent directory becomes the workspace automatically; use `--workspace`
   to override.
 - Use `--url` to record a remote when the checkout does not have one.
+
+```{note}
+Starting with v1.55, `vcspull import` is a *different* command that bulk-imports
+repositories from remote services (GitHub, GitLab, etc.). See {ref}`cli-import`
+for details.
+```
 
 [pip vcs url]: https://pip.pypa.io/en/stable/topics/vcs-support/

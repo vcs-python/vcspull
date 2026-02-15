@@ -129,7 +129,9 @@ $ vcspull discover ~ --recursive --workspace-root ~/code/ --yes
 Specify a custom config file with `-f/--file`:
 
 ```console
-$ vcspull discover ~/company --recursive -f ~/company/.vcspull.yaml
+$ vcspull discover ~/company \
+    --recursive \
+    --file ~/company/.vcspull.yaml
 ```
 
 If the config file doesn't exist, it will be created.
@@ -195,7 +197,7 @@ Scan to specific config:
 $ vcspull discover ~/company/repos \
     --recursive \
     --yes \
-    -f ~/company/.vcspull.yaml
+    --file ~/company/.vcspull.yaml
 ```
 
 ## After discovering repositories
@@ -229,7 +231,7 @@ If you previously used `vcspull import --scan`:
 
 ```diff
 - $ vcspull import --scan ~/code --recursive -c ~/.vcspull.yaml --yes
-+ $ vcspull discover ~/code --recursive -f ~/.vcspull.yaml --yes
++ $ vcspull discover ~/code --recursive --file ~/.vcspull.yaml --yes
 ```
 
 Changes:
@@ -273,7 +275,7 @@ $ vcspull discover ~/projects --recursive --yes
 ```console
 $ vcspull discover ~/company \
     --recursive \
-    -f ~/company/.vcspull.yaml \
+    --file ~/company/.vcspull.yaml \
     --workspace-root ~/work/ \
     --yes
 ```

@@ -102,7 +102,7 @@ via trunk (can break easily):
 ## Configuration
 
 ```{seealso}
-{ref}`configuration` and {ref}`config-generation`.
+{ref}`configuration` and {ref}`cli-import`.
 ```
 
 We will check out the source code of [flask][flask] to `~/code/flask`.
@@ -154,7 +154,7 @@ be any name):
 Use `-f/--file` to specify a config.
 
 ```console
-$ vcspull sync -f .deps.yaml --all
+$ vcspull sync --file .deps.yaml --all
 ```
 
 You can also use [fnmatch] to pull repositories from your config in

@@ -7,7 +7,6 @@ import logging
 import pathlib
 import textwrap
 import typing as t
-from typing import overload
 
 from libvcs.__about__ import __version__ as libvcs_version
 
@@ -18,6 +17,7 @@ from ._formatter import VcspullHelpFormatter
 from .add import add_repo, create_add_subparser, handle_add_command
 from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
+from .import_cmd import create_import_subparser
 from .list import create_list_subparser, list_repos
 from .search import create_search_subparser, search_repos
 from .status import create_status_subparser, status_repos
@@ -103,6 +103,15 @@ CLI_DESCRIPTION = build_description(
                 "vcspull fmt -f ./myrepos.yaml",
                 "vcspull fmt --write",
                 "vcspull fmt --all",
+            ],
+        ),
+        (
+            "import",
+            [
+                "vcspull import github torvalds -w ~/repos/linux --mode user",
+                "vcspull import github django -w ~/study/python --mode org",
+                "vcspull import gitlab gitlab-org/ci-cd -w ~/work --mode org",
+                "vcspull import codeberg user -w ~/oss --json",
             ],
         ),
     ),
@@ -234,14 +243,41 @@ FMT_DESCRIPTION = build_description(
     ),
 )
 
+IMPORT_DESCRIPTION = build_description(
+    """
+    Import repositories from remote services.
 
-@overload
+    Fetches repository lists from a remote hosting service and adds them to
+    the vcspull configuration.  Choose a service subcommand for details:
+
+      github (gh)       GitHub or GitHub Enterprise
+      gitlab (gl)       GitLab (gitlab.com or self-hosted)
+      codeberg (cb)     Codeberg
+      gitea             Self-hosted Gitea instance
+      forgejo           Self-hosted Forgejo instance
+      codecommit (cc)   AWS CodeCommit
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull import github torvalds -w ~/repos/linux",
+                "vcspull import gh django -w ~/study/python --mode org",
+                "vcspull import gitlab mygroup -w ~/work --mode org",
+                "vcspull import codecommit -w ~/work/aws --region us-east-1",
+            ],
+        ),
+    ),
+)
+
+
+@t.overload
 def create_parser(
     return_subparsers: t.Literal[True],
 ) -> tuple[argparse.ArgumentParser, t.Any]: ...
 
 
-@overload
+@t.overload
 def create_parser(return_subparsers: t.Literal[False]) -> argparse.ArgumentParser: ...
 
 
@@ -333,6 +369,15 @@ def create_parser(
     )
     create_fmt_subparser(fmt_parser)
 
+    # Import command
+    import_parser = subparsers.add_parser(
+        "import",
+        help="import repositories from remote services",
+        formatter_class=VcspullHelpFormatter,
+        description=IMPORT_DESCRIPTION,
+    )
+    create_import_subparser(import_parser)
+
     if return_subparsers:
         # Return all parsers needed by cli() function
         return parser, (
@@ -343,6 +388,7 @@ def create_parser(
             add_parser,
             discover_parser,
             fmt_parser,
+            import_parser,
         )
     return parser
 
@@ -358,6 +404,7 @@ def cli(_args: list[str] | None = None) -> None:
         add_parser,
         discover_parser,
         _fmt_parser,
+        _import_parser,
     ) = subparsers
     args = parser.parse_args(_args)
 
@@ -453,3 +500,11 @@ def cli(_args: list[str] | None = None) -> None:
             args.all,
             merge_roots=args.merge_roots,
         )
+    elif args.subparser_name == "import":
+        handler = getattr(args, "import_handler", None)
+        if handler is None:
+            _import_parser.print_help()
+            return
+        result = handler(args)
+        if result:
+            raise SystemExit(result)

@@ -55,7 +55,7 @@ $ vcspull search --fixed-strings 'git+https://github.com/org/repo.git'
 case-insensitively unless your query includes uppercase characters.
 
 ```console
-$ vcspull search -S Django
+$ vcspull search --smart-case Django
 ```
 
 ## Boolean matching
@@ -69,7 +69,7 @@ $ vcspull search --any django flask
 Invert matches with `-v/--invert-match`:
 
 ```console
-$ vcspull search -v --fixed-strings github
+$ vcspull search --invert-match --fixed-strings github
 ```
 
 ## JSON output

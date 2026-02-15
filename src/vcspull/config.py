@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import fnmatch
 import logging
 import os
 import pathlib
+import tempfile
 import typing as t
 from collections.abc import Callable
 
@@ -152,10 +154,13 @@ def find_home_config_files(
         filetype = ["json", "yaml"]
     configs: list[pathlib.Path] = []
 
+    check_yaml = "yaml" in filetype
+    check_json = "json" in filetype
+
     yaml_config = pathlib.Path("~/.vcspull.yaml").expanduser()
-    has_yaml_config = yaml_config.exists()
+    has_yaml_config = check_yaml and yaml_config.exists()
     json_config = pathlib.Path("~/.vcspull.json").expanduser()
-    has_json_config = json_config.exists()
+    has_json_config = check_json and json_config.exists()
 
     if not has_yaml_config and not has_json_config:
         log.debug(
@@ -460,6 +465,38 @@ def is_config_file(
     return any(filename.endswith(e) for e in extensions)
 
 
+def _atomic_write(target: pathlib.Path, content: str) -> None:
+    """Write content to a file atomically via temp-file-then-rename.
+
+    Parameters
+    ----------
+    target : pathlib.Path
+        Destination file path
+    content : str
+        Content to write
+    """
+    original_mode: int | None = None
+    if target.exists():
+        original_mode = target.stat().st_mode
+
+    fd, tmp_path = tempfile.mkstemp(
+        dir=target.parent,
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        if original_mode is not None:
+            pathlib.Path(tmp_path).chmod(original_mode)
+        pathlib.Path(tmp_path).replace(target)
+    except BaseException:
+        # Clean up the temp file on any failure
+        with contextlib.suppress(OSError):
+            pathlib.Path(tmp_path).unlink()
+        raise
+
+
 def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
     """Save configuration data to a YAML file.
 
@@ -475,7 +512,25 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         content=data,
         indent=2,
     )
-    config_file_path.write_text(yaml_content, encoding="utf-8")
+    _atomic_write(config_file_path, yaml_content)
+
+
+def save_config_json(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
+    """Save configuration data to a JSON file.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Path to the configuration file to write
+    data : dict
+        Configuration data to save
+    """
+    json_content = ConfigReader._dump(
+        fmt="json",
+        content=data,
+        indent=2,
+    )
+    _atomic_write(config_file_path, json_content)
 
 
 def save_config_yaml_with_items(
@@ -498,7 +553,7 @@ def save_config_yaml_with_items(
     if yaml_content:
         yaml_content += "\n"
 
-    config_file_path.write_text(yaml_content, encoding="utf-8")
+    _atomic_write(config_file_path, yaml_content)
 
 
 def merge_duplicate_workspace_root_entries(

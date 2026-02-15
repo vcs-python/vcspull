@@ -19,6 +19,16 @@ OPTIONS_EXPECTING_VALUE = {
     "--max-concurrent",
     "--name",
     "--url",
+    "--region",
+    "--profile",
+    "--token",
+    "-m",
+    "--mode",
+    "-l",
+    "--language",
+    "--topics",
+    "--min-stars",
+    "--limit",
 }
 
 OPTIONS_FLAG_ONLY = {
@@ -62,6 +72,10 @@ OPTIONS_FLAG_ONLY = {
     "--sequential",
     "--no-merge",
     "--verbose",
+    "--flatten-groups",
+    "--archived",
+    "--forks",
+    "--https",
 }
 
 

@@ -159,6 +159,17 @@ def test_plan_summary_to_payload(
         assert "duration_ms" not in payload
 
 
+def test_output_formatter_json_mode_empty_buffer_emits_empty_array() -> None:
+    """OutputFormatter should emit an empty JSON array when buffer has no items."""
+    formatter = OutputFormatter(mode=OutputMode.JSON)
+    captured = io.StringIO()
+    with redirect_stdout(captured):
+        formatter.finalize()
+
+    output = json.loads(captured.getvalue())
+    assert output == []
+
+
 def test_output_formatter_json_mode_finalises_buffer() -> None:
     """OutputFormatter should flush buffered JSON payloads on finalize."""
     entry = PlanEntry(

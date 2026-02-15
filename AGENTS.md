@@ -332,6 +332,24 @@ $ vcspull search django
 $ vcspull search "name:flask"
 ```
 
+**Prefer longform flags** — use `--workspace` not `-w`, `--file` not `-f`.
+
+**Split multi-flag commands** — when a command has 2+ flags/options, place each on its own `\`-continuation line, indented by 4 spaces.
+
+Good:
+
+```console
+$ vcspull import gh my-org \
+    --mode org \
+    --workspace ~/code/
+```
+
+Bad:
+
+```console
+$ vcspull import gh my-org --mode org -w ~/code/
+```
+
 ## Debugging Tips
 
 When stuck in debugging loops:

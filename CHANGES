@@ -33,6 +33,125 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### New features
+
+#### New command: `vcspull import` (#510)
+
+Import repositories from GitHub, GitLab, Codeberg/Gitea/Forgejo, and AWS
+CodeCommit directly into your vcspull configuration.
+
+Import a user's repositories:
+
+```console
+$ vcspull import github torvalds \
+    --workspace ~/repos/linux \
+    --mode user
+```
+
+Import an organization's repositories:
+
+```console
+$ vcspull import github django \
+    --workspace ~/study/python \
+    --mode org
+```
+
+Search and import repositories:
+
+```console
+$ vcspull import github "machine learning" \
+    --workspace ~/ml-repos \
+    --mode search \
+    --min-stars 1000
+```
+
+Use with self-hosted GitLab:
+
+```console
+$ vcspull import gitlab myuser \
+    --workspace ~/work \
+    --url https://gitlab.company.com
+```
+
+Import from AWS CodeCommit:
+
+```console
+$ vcspull import codecommit \
+    --workspace ~/work/aws \
+    --region us-east-1
+```
+
+Preview without writing (dry run):
+
+```console
+$ vcspull import codeberg user \
+    --workspace ~/oss \
+    --dry-run
+```
+
+**Key features:**
+
+- Service aliases: `gh`, `gl`, `cb`, `cc`, `aws`
+- Filtering: `--language`, `--topics`, `--min-stars`, `--archived`, `--forks`
+- Output modes: human-readable (default), `--json`, `--ndjson`
+- Interactive confirmation before writing; use `--yes`/`-y` to skip
+- Repositories already in the config are detected and skipped
+- Non-zero exit code on errors (for CI/automation)
+- No new dependencies (uses stdlib `urllib` for HTTP)
+
+#### `vcspull import`: SSH clone URLs by default (#510)
+
+Clone URLs default to SSH. Use `--https` to get HTTPS URLs instead:
+
+SSH (default):
+
+```console
+$ vcspull import github torvalds \
+    --workspace ~/repos/linux \
+    --mode user
+```
+
+Use `--https` for HTTPS clone URLs:
+
+```console
+$ vcspull import github torvalds \
+    --workspace ~/repos/linux \
+    --mode user \
+    --https
+```
+
+#### `vcspull import`: GitLab subgroups map to workspace roots (#510)
+
+For GitLab organization/group imports, subgroup namespaces are preserved
+under the workspace root by default:
+
+```console
+$ vcspull import gitlab vcs-python-group-test \
+    --workspace ~/projects/python \
+    --mode org
+```
+
+This writes repositories into workspace sections like:
+
+- `~/projects/python/`
+- `~/projects/python/<subgroup>/`
+- `~/projects/python/<subgroup>/<subsubgroup>/`
+
+Use `--flatten-groups` to collapse subgroup repositories into a single
+workspace root:
+
+```console
+$ vcspull import gitlab vcs-python-group-test \
+    --workspace ~/projects/python \
+    --mode org \
+    --flatten-groups
+```
+
+### Bug fixes
+
+- Config writes now use atomic temp-file-then-rename to prevent data loss
+  during interrupted writes (#510)
+
 ### Tests
 
 - Fix `pytest-asyncio` deprecation warning in isolated `pytester` runs by

@@ -88,7 +88,7 @@ Each line is a JSON object representing a sync event, ideal for:
 Specify a custom config file with `-f/--file`:
 
 ```console
-$ vcspull sync -f ~/projects/.vcspull.yaml '*'
+$ vcspull sync --file ~/projects/.vcspull.yaml '*'
 ```
 
 By default, vcspull searches for config files in:
@@ -101,7 +101,7 @@ By default, vcspull searches for config files in:
 Filter repositories by workspace root with `-w/--workspace` or `--workspace-root`:
 
 ```console
-$ vcspull sync -w ~/code/ '*'
+$ vcspull sync --workspace ~/code/ '*'
 ```
 
 This syncs only repositories in the specified workspace root,  useful for:

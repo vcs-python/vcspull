@@ -124,7 +124,7 @@ By default, vcspull searches for config files in standard locations
 Specify a custom config file with `-f/--file`:
 
 ```console
-$ vcspull list -f ~/projects/.vcspull.yaml
+$ vcspull list --file ~/projects/.vcspull.yaml
 ```
 
 ## Workspace filtering
@@ -132,7 +132,7 @@ $ vcspull list -f ~/projects/.vcspull.yaml
 Filter repositories by workspace root with `-w/--workspace/--workspace-root`:
 
 ```vcspull-console
-$ vcspull list -w ~/code/
+$ vcspull list --workspace ~/code/
 • flask → ~/code/flask
 • requests → ~/code/requests
 ```
