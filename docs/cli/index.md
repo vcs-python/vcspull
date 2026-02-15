@@ -8,7 +8,7 @@
 
 sync
 add
-import
+import/index
 discover
 list
 search

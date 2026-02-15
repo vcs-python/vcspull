@@ -18,7 +18,18 @@ Supported services: **GitHub**, **GitLab**, **Codeberg**, **Gitea**,
     :func: create_parser
     :prog: vcspull
     :path: import
+    :nosubcommands:
+    :nodescription:
 ```
+
+Choose a service subcommand for details:
+
+- {ref}`cli-import-github` — GitHub or GitHub Enterprise
+- {ref}`cli-import-gitlab` — GitLab (gitlab.com or self-hosted)
+- {ref}`cli-import-codeberg` — Codeberg
+- {ref}`cli-import-gitea` — Self-hosted Gitea instance
+- {ref}`cli-import-forgejo` — Self-hosted Forgejo instance
+- {ref}`cli-import-codecommit` — AWS CodeCommit
 
 ## Basic usage
 
@@ -49,6 +60,18 @@ Import 12 repositories to ~/.vcspull.yaml? [y/N]: y
 
 For Gitea and Forgejo, `--url` is required because there is no default
 instance.
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+
+github
+gitlab
+codeberg
+gitea
+forgejo
+codecommit
+```
 
 ## Import modes
 
@@ -166,25 +189,6 @@ SSH clone URLs are used by default. Switch to HTTPS with `--https`:
 $ vcspull import gh myuser -w ~/code/ --https
 ```
 
-## Group flattening
-
-When importing a GitLab group with `--mode org`, vcspull preserves subgroup
-structure as nested workspace directories by default. Use `--flatten-groups` to
-place all repositories directly in the base workspace:
-
-```console
-$ vcspull import gl my-group --mode org -w ~/code/ --flatten-groups
-```
-
-## AWS CodeCommit
-
-CodeCommit does not require a target argument. Use `--region` and `--profile`
-to select the AWS environment:
-
-```console
-$ vcspull import codecommit -w ~/code/ --region us-east-1 --profile work
-```
-
 ## Self-hosted instances
 
 Point to a self-hosted GitHub Enterprise, GitLab, Gitea, or Forgejo instance
@@ -197,90 +201,8 @@ $ vcspull import gitea myuser -w ~/code/ --url https://git.example.com
 ## Authentication
 
 vcspull reads API tokens from environment variables. Use `--token` to override.
-Environment variables are preferred for security.
-
-### GitHub
-
-- **Env vars**: `GITHUB_TOKEN` (primary), `GH_TOKEN` (fallback)
-- **Token type**: Personal access token (classic) or fine-grained PAT
-- **Permissions**:
-  - Classic PAT: no scopes needed for public repos; `repo` scope for private
-    repos; `read:org` for org repos
-  - Fine-grained PAT: "Metadata: Read-only" for public; add "Contents:
-    Read-only" for private
-- **Create at**: <https://github.com/settings/tokens>
-
-```console
-$ export GITHUB_TOKEN=ghp_...
-$ vcspull import gh myuser -w ~/code/
-```
-
-### GitLab
-
-- **Env vars**: `GITLAB_TOKEN` (primary), `GL_TOKEN` (fallback)
-- **Token type**: Personal access token
-- **Scope**: `read_api` (minimum for listing projects; **required** for search
-  mode)
-- **Create at**: <https://gitlab.com/-/user_settings/personal_access_tokens>
-  (self-hosted: `https://<instance>/-/user_settings/personal_access_tokens`)
-
-```console
-$ export GITLAB_TOKEN=glpat-...
-$ vcspull import gl myuser -w ~/code/
-```
-
-### Codeberg
-
-- **Env vars**: `CODEBERG_TOKEN` (primary), `GITEA_TOKEN` (fallback)
-- **Token type**: API token
-- **Scope**: no scopes needed for public repos; token required for private repos
-- **Create at**: <https://codeberg.org/user/settings/applications>
-
-```console
-$ export CODEBERG_TOKEN=...
-$ vcspull import codeberg myuser -w ~/code/
-```
-
-### Gitea
-
-- **Env var**: `GITEA_TOKEN`
-- **Token type**: API token with scoped permissions
-- **Scope**: `read:repository` (minimum for listing repos)
-- **Create at**: `https://<instance>/user/settings/applications`
-
-```console
-$ export GITEA_TOKEN=...
-$ vcspull import gitea myuser -w ~/code/ --url https://git.example.com
-```
-
-### Forgejo
-
-- **Env vars**: `FORGEJO_TOKEN` (primary; matched when hostname contains
-  "forgejo"), `GITEA_TOKEN` (fallback)
-- **Token type**: API token
-- **Scope**: `read:repository`
-- **Create at**: `https://<instance>/user/settings/applications`
-
-```console
-$ export FORGEJO_TOKEN=...
-$ vcspull import forgejo myuser -w ~/code/ --url https://forgejo.example.com
-```
-
-### AWS CodeCommit
-
-- **Auth**: AWS CLI credentials (`aws configure`) — no token env var
-- **CLI args**: `--region`, `--profile`
-- **IAM permissions required**:
-  - `codecommit:ListRepositories` (resource: `*`)
-  - `codecommit:BatchGetRepositories` (resource: repo ARNs or `*`)
-- **Dependency**: AWS CLI must be installed (`pip install awscli`)
-
-```console
-$ aws configure
-$ vcspull import codecommit -w ~/code/ --region us-east-1
-```
-
-### Summary
+Environment variables are preferred for security. See each service page for
+details.
 
 | Service    | Env var(s)                       | Token type            | Min scope / permissions                                          |
 |------------|----------------------------------|-----------------------|------------------------------------------------------------------|
