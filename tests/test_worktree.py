@@ -1867,6 +1867,47 @@ def test_cli_worktree_list_config_discovery(
 # ---------------------------------------------------------------------------
 
 
+def test_worktree_exists_rejects_submodule_path(tmp_path: pathlib.Path) -> None:
+    """Test _worktree_exists returns False for submodule .git files.
+
+    Regression test: _worktree_exists only checked if .git was a file,
+    not whether it pointed to the repo's worktrees directory. Submodules
+    also have .git files but point to .git/modules/, not .git/worktrees/.
+    """
+    from vcspull._internal.worktree_sync import _worktree_exists
+
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / ".git").mkdir()
+
+    # Create a fake submodule directory with a .git file pointing to /modules/
+    submodule_path = tmp_path / "submodule"
+    submodule_path.mkdir()
+    (submodule_path / ".git").write_text(
+        f"gitdir: {repo_path / '.git' / 'modules' / 'sub'}\n"
+    )
+
+    assert _worktree_exists(repo_path, submodule_path) is False
+
+
+def test_worktree_exists_accepts_real_worktree(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Test _worktree_exists returns True for actual worktrees of the repo."""
+    from vcspull._internal.worktree_sync import _worktree_exists
+
+    worktree_path = git_repo.path.parent / "real-wt-check"
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    assert _worktree_exists(git_repo.path, worktree_path) is True
+
+
 def test_worktree_exists_path_no_git(tmp_path: pathlib.Path) -> None:
     """Test _worktree_exists returns False for path without .git.
 

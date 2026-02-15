@@ -345,10 +345,24 @@ def _worktree_exists(repo_path: pathlib.Path, worktree_path: pathlib.Path) -> bo
     if not worktree_path.exists():
         return False
 
-    # Check if it's a valid git worktree
+    # Check if it's a valid git worktree pointing to this repo
     git_file = worktree_path / ".git"
     if git_file.is_file():
-        return True
+        try:
+            content = git_file.read_text().strip()
+            # Worktrees have "gitdir: <path>/.git/worktrees/<name>"
+            # Submodules have "gitdir: <path>/.git/modules/<name>"
+            if not content.startswith("gitdir:") or "/worktrees/" not in content:
+                return False
+            # Verify it points back to the expected repo's worktrees directory
+            gitdir = content.split("gitdir:", 1)[1].strip()
+            gitdir_path = pathlib.Path(gitdir)
+            if not gitdir_path.is_absolute():
+                gitdir_path = (worktree_path / gitdir_path).resolve()
+            repo_git_dir = (repo_path / ".git").resolve()
+            return str(gitdir_path).startswith(str(repo_git_dir))
+        except (OSError, PermissionError):
+            return False
     if git_file.is_dir():
         # This is a regular repository, not a worktree
         return False
