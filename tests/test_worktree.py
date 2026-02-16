@@ -13,6 +13,8 @@ from pytest_mock import MockerFixture
 from vcspull import config as vcspull_config, exc
 from vcspull._internal.worktree_sync import (
     WorktreeAction,
+    WorktreePlanEntry,
+    WorktreeSyncResult,
     _get_ref_type_and_value,
     _resolve_worktree_path,
     list_existing_worktrees,
@@ -3175,3 +3177,66 @@ def test_get_worktree_head_oserror(
     # Should return None (OSError exception path)
     result = _get_worktree_head(test_dir)
     assert result is None
+
+
+def test_sync_exit_on_error_worktree_failures(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
+) -> None:
+    """Test --exit-on-error exits on worktree sync failures.
+
+    Regression test: worktree errors incremented summary["failed"] but the
+    exit_on_error guard was never checked until after all repos were processed.
+    """
+    from vcspull.cli.sync import sync
+
+    # Create config with worktrees
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: ../bad-wt
+        branch: nonexistent-branch
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Mock sync_all_worktrees to return a result with errors
+    error_entry = WorktreePlanEntry(
+        worktree_path=tmp_path / "bad-wt",
+        ref_type="branch",
+        ref_value="nonexistent-branch",
+        action=WorktreeAction.ERROR,
+        error="ref not found",
+    )
+    error_result = WorktreeSyncResult(entries=[error_entry], errors=1)
+    mocker.patch("vcspull.cli.sync.sync_all_worktrees", return_value=error_result)
+
+    with pytest.raises(SystemExit, match="exit-on-error"):
+        sync(
+            repo_patterns=[git_repo.path.name],
+            config=config_path,
+            workspace_root=None,
+            dry_run=False,
+            output_json=False,
+            output_ndjson=False,
+            color="never",
+            exit_on_error=True,
+            show_unchanged=False,
+            summary_only=False,
+            long_view=False,
+            relative_paths=False,
+            fetch=False,
+            offline=False,
+            verbosity=0,
+            sync_all=False,
+            parser=None,
+            include_worktrees=True,
+        )
