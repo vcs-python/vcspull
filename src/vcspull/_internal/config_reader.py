@@ -218,12 +218,20 @@ class ConfigReader:
 
 
 class _DuplicateTrackingSafeLoader(yaml.SafeLoader):
-    """SafeLoader that records duplicate top-level keys."""
+    """SafeLoader that records duplicate top-level keys.
+
+    Notes
+    -----
+    PyYAML constructs sequence (list) items AFTER exiting parent mappings,
+    so simple depth-counting doesn't work for nested structures. Instead,
+    we explicitly track the root mapping node and only consider keys as
+    top-level if they're direct children of that root node.
+    """
 
     def __init__(self, stream: str) -> None:
         super().__init__(stream)
         self.top_level_key_values: dict[t.Any, list[t.Any]] = {}
-        self._mapping_depth = 0
+        self._root_mapping_node: yaml.nodes.MappingNode | None = None
         self.top_level_items: list[tuple[t.Any, t.Any]] = []
 
 
@@ -232,7 +240,10 @@ def _duplicate_tracking_construct_mapping(
     node: yaml.nodes.MappingNode,
     deep: bool = False,
 ) -> dict[t.Any, t.Any]:
-    loader._mapping_depth += 1
+    # First mapping encountered is the root - remember it
+    if loader._root_mapping_node is None:
+        loader._root_mapping_node = node
+
     loader.flatten_mapping(node)
     mapping: dict[t.Any, t.Any] = {}
 
@@ -244,14 +255,14 @@ def _duplicate_tracking_construct_mapping(
         key = construct(key_node)
         value = construct(value_node)
 
-        if loader._mapping_depth == 1:
+        # Only track keys that are direct children of the root mapping
+        if node is loader._root_mapping_node:
             duplicated_value = copy.deepcopy(value)
             loader.top_level_key_values.setdefault(key, []).append(duplicated_value)
             loader.top_level_items.append((copy.deepcopy(key), duplicated_value))
 
         mapping[key] = value
 
-    loader._mapping_depth -= 1
     return mapping
 
 

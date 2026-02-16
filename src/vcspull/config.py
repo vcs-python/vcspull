@@ -18,7 +18,7 @@ from vcspull.validator import is_valid_config
 
 from . import exc
 from ._internal.config_reader import ConfigReader, DuplicateAwareConfigReader
-from .types import ConfigDict, RawConfigDict
+from .types import ConfigDict, RawConfigDict, WorktreeConfigDict
 from .util import get_config_dir, update_dict
 
 log = logging.getLogger(__name__)
@@ -51,6 +51,194 @@ def expand_dir(
         dir_ = pathlib.Path(os.path.normpath(cwd / dir_))
         assert dir_ == pathlib.Path(cwd, dir_).resolve(strict=False)
     return dir_
+
+
+def _validate_worktrees_config(
+    worktrees_raw: t.Any,
+    repo_name: str,
+) -> list[WorktreeConfigDict]:
+    """Validate and normalize worktrees configuration.
+
+    Parameters
+    ----------
+    worktrees_raw : Any
+        Raw worktrees configuration from YAML/JSON.
+    repo_name : str
+        Name of the parent repository (for error messages).
+
+    Returns
+    -------
+    list[WorktreeConfigDict]
+        Validated list of worktree configurations.
+
+    Raises
+    ------
+    VCSPullException
+        If the worktrees configuration is invalid.
+
+    Examples
+    --------
+    Valid configuration with a tag:
+
+    >>> from vcspull.config import _validate_worktrees_config
+    >>> config = [{"dir": "../v1", "tag": "v1.0.0"}]
+    >>> result = _validate_worktrees_config(config, "myrepo")
+    >>> len(result)
+    1
+    >>> result[0]["dir"]
+    '../v1'
+    >>> result[0]["tag"]
+    'v1.0.0'
+
+    Valid configuration with a branch:
+
+    >>> config = [{"dir": "../dev", "branch": "develop"}]
+    >>> result = _validate_worktrees_config(config, "myrepo")
+    >>> result[0]["branch"]
+    'develop'
+
+    Valid configuration with a commit:
+
+    >>> config = [{"dir": "../fix", "commit": "abc123"}]
+    >>> result = _validate_worktrees_config(config, "myrepo")
+    >>> result[0]["commit"]
+    'abc123'
+
+    Error: worktrees must be a list:
+
+    >>> _validate_worktrees_config("not-a-list", "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...worktrees must be a list, got str
+
+    Error: worktree entry must be a dict:
+
+    >>> _validate_worktrees_config(["not-a-dict"], "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...must be a dict, got str
+
+    Error: missing required 'dir' field:
+
+    >>> _validate_worktrees_config([{"tag": "v1.0.0"}], "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...missing required 'dir' field
+
+    Error: no ref type specified:
+
+    >>> _validate_worktrees_config([{"dir": "../wt"}], "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...must specify one of: tag, branch, or commit
+
+    Error: empty ref value:
+
+    >>> _validate_worktrees_config([{"dir": "../wt", "tag": ""}], "myrepo")
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...empty ref value...
+
+    Error: multiple refs specified:
+
+    >>> _validate_worktrees_config(
+    ...     [{"dir": "../wt", "tag": "v1", "branch": "main"}], "myrepo"
+    ... )
+    Traceback (most recent call last):
+        ...
+    vcspull.exc.VCSPullException: ...cannot specify multiple refs...
+    """
+    if not isinstance(worktrees_raw, list):
+        msg = (
+            f"Repository '{repo_name}': worktrees must be a list, "
+            f"got {type(worktrees_raw).__name__}"
+        )
+        raise exc.VCSPullException(msg)
+
+    validated: list[WorktreeConfigDict] = []
+
+    for idx, wt in enumerate(worktrees_raw):
+        if not isinstance(wt, dict):
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} must be a dict, "
+                f"got {type(wt).__name__}"
+            )
+            raise exc.VCSPullException(msg)
+
+        # Validate required 'dir' field
+        if "dir" not in wt or not wt["dir"]:
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                "missing required 'dir' field"
+            )
+            raise exc.VCSPullException(msg)
+
+        if not isinstance(wt["dir"], str):
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                f"'dir' must be a string, got {type(wt['dir']).__name__}"
+            )
+            raise exc.VCSPullException(msg)
+
+        # Validate exactly one ref type
+        tag = wt.get("tag")
+        branch = wt.get("branch")
+        commit = wt.get("commit")
+
+        refs_specified = sum(
+            1 for ref in [tag, branch, commit] if ref is not None and ref != ""
+        )
+        empty_refs = sum(1 for ref in [tag, branch, commit] if ref == "")
+
+        if refs_specified == 0 and empty_refs == 0:
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                "must specify one of: tag, branch, or commit"
+            )
+            raise exc.VCSPullException(msg)
+        if refs_specified == 0 and empty_refs > 0:
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                "has empty ref value (tag, branch, or commit)"
+            )
+            raise exc.VCSPullException(msg)
+        if refs_specified > 1:
+            msg = (
+                f"Repository '{repo_name}': worktree entry {idx} "
+                "cannot specify multiple refs (tag, branch, commit)"
+            )
+            raise exc.VCSPullException(msg)
+
+        # Validate ref types are strings
+        for ref_name, ref_val in [("tag", tag), ("branch", branch), ("commit", commit)]:
+            if ref_val is not None and not isinstance(ref_val, str):
+                msg = (
+                    f"Repository '{repo_name}': worktree entry {idx} "
+                    f"'{ref_name}' must be a string, got {type(ref_val).__name__}"
+                )
+                raise exc.VCSPullException(msg)
+
+        # Build validated worktree config
+        wt_config: WorktreeConfigDict = {"dir": wt["dir"]}
+
+        if tag:
+            wt_config["tag"] = tag
+        if branch:
+            wt_config["branch"] = branch
+        if commit:
+            wt_config["commit"] = commit
+
+        # Optional fields
+        if "detach" in wt:
+            wt_config["detach"] = wt["detach"]
+        if "lock" in wt:
+            wt_config["lock"] = wt["lock"]
+        if "lock_reason" in wt:
+            wt_config["lock_reason"] = wt["lock_reason"]
+
+        validated.append(wt_config)
+
+    return validated
 
 
 def extract_repos(
@@ -134,6 +322,17 @@ def extract_repos(
                             name=remote_name,
                             **url,
                         )
+
+            # Process worktrees configuration
+            if "worktrees" in conf:
+                worktrees_raw = conf["worktrees"]
+                if worktrees_raw is not None:
+                    repo_name_for_error = conf.get("name") or repo
+                    validated_worktrees = _validate_worktrees_config(
+                        worktrees_raw,
+                        repo_name=repo_name_for_error,
+                    )
+                    conf["worktrees"] = validated_worktrees
 
             def is_valid_config_dict(val: t.Any) -> t.TypeGuard[ConfigDict]:
                 assert isinstance(val, dict)

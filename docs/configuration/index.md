@@ -88,6 +88,26 @@ YAML:
 
 ````
 
+## Worktree configuration
+
+Repositories can declare worktrees—additional checkouts of specific tags,
+branches, or commits in separate directories. Worktrees are listed under the
+`worktrees` key of a repository entry:
+
+```{literalinclude} ../../examples/worktrees.yaml
+:language: yaml
+```
+
+Each worktree entry requires:
+- `dir`: Path for the worktree (relative to workspace root or absolute)
+- Exactly one of `tag`, `branch`, or `commit`
+
+Optional fields:
+- `lock`: Lock the worktree to prevent accidental removal
+- `lock_reason`: Reason for locking (implies `lock: true`)
+
+See {ref}`cli-worktree` for full command documentation.
+
 ## Caveats
 
 (git-remote-ssh-git)=

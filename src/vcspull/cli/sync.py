@@ -28,7 +28,12 @@ from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
-from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull._internal.worktree_sync import (
+    WorktreeAction,
+    plan_worktree_sync,
+    sync_all_worktrees,
+)
+from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
 from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
@@ -599,6 +604,12 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         dest="sync_all",
         help="sync all configured repositories",
     )
+    parser.add_argument(
+        "--include-worktrees",
+        action="store_true",
+        dest="include_worktrees",
+        help="also sync configured worktrees for each repository",
+    )
 
     try:
         import shtab
@@ -628,6 +639,7 @@ def sync(
     sync_all: bool = False,
     parser: argparse.ArgumentParser
     | None = None,  # optional so sync can be unit tested
+    include_worktrees: bool = False,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Show help if no patterns and --all not specified
@@ -729,6 +741,44 @@ def sync(
             dry_run=True,
             total_repos=total_repos,
         )
+
+        # Show worktree plans if --include-worktrees is set
+        if include_worktrees:
+            for repo in found_repos:
+                worktrees_config = repo.get("worktrees")
+                if not worktrees_config:
+                    continue
+
+                repo_name = str(repo.get("name", "unknown"))
+                repo_path = _get_repo_path(repo)
+                workspace_label = str(repo.get("workspace_root", ""))
+                workspace_path = expand_dir(pathlib.Path(workspace_label))
+
+                wt_entries = plan_worktree_sync(
+                    repo_path, worktrees_config, workspace_path
+                )
+
+                for entry in wt_entries:
+                    ref_display = f"{entry.ref_type}:{entry.ref_value}"
+                    wt_path_display = str(PrivatePath(entry.worktree_path))
+
+                    action_symbols = {
+                        WorktreeAction.CREATE: colors.success("+"),
+                        WorktreeAction.UPDATE: colors.warning("~"),
+                        WorktreeAction.UNCHANGED: colors.muted("✓"),
+                        WorktreeAction.BLOCKED: colors.warning("⚠"),
+                        WorktreeAction.ERROR: colors.error("✗"),
+                    }
+                    sym = action_symbols.get(entry.action, "?")
+                    ref = colors.info(ref_display)
+                    detail = entry.detail or entry.error or ""
+
+                    formatter.emit_text(
+                        f"  {sym} worktree {colors.info(repo_name)} "
+                        f"{ref} {colors.muted('→')} {wt_path_display}"
+                        f"  {colors.muted(detail)}".rstrip(),
+                    )
+
         formatter.finalize()
         return
 
@@ -843,6 +893,69 @@ def sync(
             f"{colors.muted('→')} {display_repo_path}",
         )
 
+        # Sync worktrees if enabled and configured
+        worktrees_config = repo.get("worktrees")
+        if include_worktrees and worktrees_config:
+            workspace_path = expand_dir(pathlib.Path(str(workspace_label)))
+            repo_path_obj = pathlib.Path(str(repo_path))
+
+            wt_result = sync_all_worktrees(
+                repo_path_obj,
+                worktrees_config,
+                workspace_path,
+                dry_run=dry_run,
+            )
+
+            for entry in wt_result.entries:
+                ref_display = f"{entry.ref_type}:{entry.ref_value}"
+                wt_path_display = str(PrivatePath(entry.worktree_path))
+
+                if entry.action == WorktreeAction.CREATE:
+                    sym = colors.success("+")
+                    ref = colors.info(ref_display)
+                    arrow = colors.muted("→")
+                    formatter.emit_text(
+                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
+                    )
+                elif entry.action == WorktreeAction.UPDATE:
+                    sym = colors.warning("~")
+                    ref = colors.info(ref_display)
+                    arrow = colors.muted("→")
+                    formatter.emit_text(
+                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
+                    )
+                elif entry.action == WorktreeAction.BLOCKED:
+                    sym = colors.warning("⚠")
+                    ref = colors.info(ref_display)
+                    formatter.emit_text(
+                        f"    {sym} worktree {ref} blocked: {entry.detail}",
+                    )
+                elif entry.action == WorktreeAction.ERROR:
+                    formatter.emit_text(
+                        f"    {colors.error('✗')} worktree {colors.info(ref_display)} "
+                        f"error: {entry.error}",
+                    )
+
+            # Tally worktree results into summary
+            summary["worktree_created"] = (
+                summary.get("worktree_created", 0) + wt_result.created
+            )
+            summary["worktree_updated"] = (
+                summary.get("worktree_updated", 0) + wt_result.updated
+            )
+            summary["worktree_failed"] = (
+                summary.get("worktree_failed", 0) + wt_result.errors
+            )
+            # Count worktree errors as failures for exit code
+            summary["failed"] += wt_result.errors
+
+            if exit_on_error and wt_result.errors > 0:
+                _emit_summary(formatter, colors, summary)
+                formatter.finalize()
+                if parser is not None:
+                    parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+                raise SystemExit(EXIT_ON_ERROR_MSG)
+
     _emit_summary(formatter, colors, summary)
 
     if exit_on_error and unmatched_count > 0:
@@ -877,6 +990,20 @@ def _emit_summary(
         if unmatched > 0:
             parts.append(
                 f", {colors.warning(str(unmatched))} unmatched",
+            )
+        wt_created = summary.get("worktree_created", 0)
+        wt_updated = summary.get("worktree_updated", 0)
+        wt_failed = summary.get("worktree_failed", 0)
+        if wt_created or wt_updated or wt_failed:
+            wt_parts = []
+            if wt_created:
+                wt_parts.append(f"{colors.success(str(wt_created))} created")
+            if wt_updated:
+                wt_parts.append(f"{colors.warning(str(wt_updated))} updated")
+            if wt_failed:
+                wt_parts.append(f"{colors.error(str(wt_failed))} failed")
+            parts.append(
+                f"; worktrees: {', '.join(wt_parts)}",
             )
         formatter.emit_text("".join(parts))
 

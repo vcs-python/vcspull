@@ -69,6 +69,12 @@ def create_list_subparser(parser: argparse.ArgumentParser) -> None:
         default="auto",
         help="when to use colors (default: auto)",
     )
+    parser.add_argument(
+        "--include-worktrees",
+        action="store_true",
+        dest="include_worktrees",
+        help="include configured worktrees in the listing",
+    )
 
 
 def list_repos(
@@ -79,6 +85,7 @@ def list_repos(
     output_json: bool,
     output_ndjson: bool,
     color: str,
+    include_worktrees: bool = False,
 ) -> None:
     """List configured repositories.
 
@@ -98,6 +105,8 @@ def list_repos(
         Output as NDJSON
     color : str
         Color mode (auto, always, never)
+    include_worktrees : bool
+        Include configured worktrees in the listing (default: False)
     """
     # Load configs
     if config_path:
@@ -130,9 +139,9 @@ def list_repos(
 
     # Output based on mode
     if tree:
-        _output_tree(found_repos, formatter, colors)
+        _output_tree(found_repos, formatter, colors, include_worktrees)
     else:
-        _output_flat(found_repos, formatter, colors)
+        _output_flat(found_repos, formatter, colors, include_worktrees)
 
     formatter.finalize()
 
@@ -141,6 +150,7 @@ def _output_flat(
     repos: list[ConfigDict],
     formatter: OutputFormatter,
     colors: Colors,
+    include_worktrees: bool = False,
 ) -> None:
     """Output repositories in flat list format.
 
@@ -152,6 +162,8 @@ def _output_flat(
         Output formatter
     colors : Colors
         Color manager
+    include_worktrees : bool
+        Whether to include configured worktrees
     """
     for repo in repos:
         repo_name = repo.get("name", "unknown")
@@ -174,11 +186,42 @@ def _output_flat(
             f"{colors.muted('→')} {PrivatePath(repo_path)}",
         )
 
+        # Output worktrees if enabled
+        worktrees = repo.get("worktrees")
+        if include_worktrees and worktrees:
+            for wt in worktrees:
+                wt_dir = wt.get("dir", "unknown")
+                ref_type = (
+                    "tag"
+                    if wt.get("tag")
+                    else "branch"
+                    if wt.get("branch")
+                    else "commit"
+                )
+                ref_value = wt.get("tag") or wt.get("branch") or wt.get("commit")
+
+                formatter.emit(
+                    {
+                        "type": "worktree",
+                        "parent_repo": repo_name,
+                        "dir": wt_dir,
+                        "ref_type": ref_type,
+                        "ref_value": ref_value,
+                    }
+                )
+
+                formatter.emit_text(
+                    f"    {colors.muted('└─')} {colors.warning(ref_type)}:"
+                    f"{colors.info(str(ref_value))} "
+                    f"{colors.muted('→')} {wt_dir}",
+                )
+
 
 def _output_tree(
     repos: list[ConfigDict],
     formatter: OutputFormatter,
     colors: Colors,
+    include_worktrees: bool = False,
 ) -> None:
     """Output repositories grouped by workspace root (tree view).
 
@@ -190,6 +233,8 @@ def _output_tree(
         Output formatter
     colors : Colors
         Color manager
+    include_worktrees : bool
+        Whether to include configured worktrees
     """
     # Group by workspace root
     by_workspace: dict[str, list[ConfigDict]] = {}
@@ -224,3 +269,33 @@ def _output_tree(
                 f"  {colors.muted('•')} {colors.info(repo_name)} "
                 f"{colors.muted('→')} {PrivatePath(repo_path)}",
             )
+
+            # Output worktrees if enabled
+            worktrees_tree = repo.get("worktrees")
+            if include_worktrees and worktrees_tree:
+                for wt in worktrees_tree:
+                    wt_dir = wt.get("dir", "unknown")
+                    ref_type = (
+                        "tag"
+                        if wt.get("tag")
+                        else "branch"
+                        if wt.get("branch")
+                        else "commit"
+                    )
+                    ref_value = wt.get("tag") or wt.get("branch") or wt.get("commit")
+
+                    formatter.emit(
+                        {
+                            "type": "worktree",
+                            "parent_repo": repo_name,
+                            "dir": wt_dir,
+                            "ref_type": ref_type,
+                            "ref_value": ref_value,
+                        }
+                    )
+
+                    formatter.emit_text(
+                        f"      {colors.muted('└─')} {colors.warning(ref_type)}:"
+                        f"{colors.info(str(ref_value))} "
+                        f"{colors.muted('→')} {wt_dir}",
+                    )
