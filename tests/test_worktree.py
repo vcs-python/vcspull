@@ -3389,3 +3389,31 @@ def test_sync_worktree_lock_failure_still_creates(
     # Creation should succeed despite lock failure
     assert entry.action == WorktreeAction.CREATE
     assert worktree_path.exists()
+
+
+def test_sync_worktree_empty_plan_returns_error(
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+) -> None:
+    """Test sync_worktree returns ERROR entry when plan returns empty list.
+
+    Defense-in-depth: plan_worktree_sync should always return at least one
+    entry, but if it doesn't, sync_worktree should return an ERROR entry
+    instead of crashing with IndexError.
+    """
+    # Mock plan_worktree_sync to return empty list
+    mocker.patch(
+        "vcspull._internal.worktree_sync.plan_worktree_sync",
+        return_value=[],
+    )
+
+    wt_config: WorktreeConfigDict = {
+        "dir": "../empty-plan-wt",
+        "tag": "v1.0.0",
+    }
+
+    entry = sync_worktree(tmp_path, wt_config, tmp_path)
+
+    assert entry.action == WorktreeAction.ERROR
+    assert entry.error is not None
+    assert "no entries" in entry.error

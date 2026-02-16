@@ -655,6 +655,15 @@ def sync_worktree(
     """
     # Plan the operation
     entries = plan_worktree_sync(repo_path, [wt_config], workspace_root)
+    if not entries:
+        log.warning("plan_worktree_sync returned empty list for %s", wt_config)
+        return WorktreePlanEntry(
+            worktree_path=_resolve_worktree_path(wt_config, workspace_root),
+            ref_type="unknown",
+            ref_value="unknown",
+            action=WorktreeAction.ERROR,
+            error="internal: planning produced no entries",
+        )
     entry = entries[0]
 
     if dry_run or entry.action in (WorktreeAction.ERROR, WorktreeAction.BLOCKED):
