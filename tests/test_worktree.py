@@ -2553,6 +2553,29 @@ def test_ref_exists_remote_branch_fallback(
     assert _ref_exists(git_repo.path, "remote-only-branch", "branch") is True
 
 
+def test_ref_exists_branch_rejects_tag(git_repo: GitSync) -> None:
+    """Test _ref_exists with ref_type='branch' does not match a tag.
+
+    Ensures branch validation uses refs/heads/ namespace, not bare rev-parse
+    which would resolve tags too.
+    """
+    from vcspull._internal.worktree_sync import _ref_exists
+
+    # Create a tag in the repo
+    subprocess.run(
+        ["git", "tag", "v9.9.9"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Tag should be found as a tag
+    assert _ref_exists(git_repo.path, "v9.9.9", "tag") is True
+
+    # Tag should NOT be found as a branch
+    assert _ref_exists(git_repo.path, "v9.9.9", "branch") is False
+
+
 def test_get_worktree_head_exception_handling(tmp_path: pathlib.Path) -> None:
     """Test _get_worktree_head handles exceptions gracefully.
 

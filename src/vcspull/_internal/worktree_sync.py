@@ -296,17 +296,17 @@ def _ref_exists(repo_path: pathlib.Path, ref: str, ref_type: str) -> bool:
                 check=False,
             )
         elif ref_type == "branch":
-            # Check both local and remote branches
+            # Check local branch namespace explicitly (not tags/notes)
             result = subprocess.run(
-                ["git", "rev-parse", "--verify", ref],
+                ["git", "rev-parse", "--verify", f"refs/heads/{ref}"],
                 cwd=repo_path,
                 capture_output=True,
                 check=False,
             )
             if result.returncode != 0:
-                # Try remote
+                # Try remote-tracking branch namespace
                 result = subprocess.run(
-                    ["git", "rev-parse", "--verify", f"origin/{ref}"],
+                    ["git", "rev-parse", "--verify", f"refs/remotes/origin/{ref}"],
                     cwd=repo_path,
                     capture_output=True,
                     check=False,
