@@ -2335,6 +2335,32 @@ def test_worktree_exists_accepts_real_worktree(
     assert _worktree_exists(git_repo.path, worktree_path) is True
 
 
+def test_worktree_exists_rejects_prefix_collision(tmp_path: pathlib.Path) -> None:
+    """Test _worktree_exists rejects paths whose .git dir is a prefix collision.
+
+    Regression test: str.startswith() would match /repo/.git-other/worktrees/feat
+    against /repo/.git because the string prefix matches. Path.relative_to()
+    correctly rejects this since .git-other is not inside .git.
+    """
+    from vcspull._internal.worktree_sync import _worktree_exists
+
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / ".git").mkdir()
+
+    # Create a sibling directory that is a prefix collision with .git
+    collider_git = repo_path / ".git-other" / "worktrees" / "feat"
+    collider_git.mkdir(parents=True)
+
+    # Create a fake worktree pointing to the collider path
+    worktree_path = tmp_path / "feat-wt"
+    worktree_path.mkdir()
+    (worktree_path / ".git").write_text(f"gitdir: {collider_git}\n")
+
+    # Should be False: .git-other is not inside .git
+    assert _worktree_exists(repo_path, worktree_path) is False
+
+
 def test_worktree_exists_path_no_git(tmp_path: pathlib.Path) -> None:
     """Test _worktree_exists returns False for path without .git.
 

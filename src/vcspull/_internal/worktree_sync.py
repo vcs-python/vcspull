@@ -403,7 +403,12 @@ def _worktree_exists(repo_path: pathlib.Path, worktree_path: pathlib.Path) -> bo
             if not gitdir_path.is_absolute():
                 gitdir_path = (worktree_path / gitdir_path).resolve()
             repo_git_dir = (repo_path / ".git").resolve()
-            return str(gitdir_path).startswith(str(repo_git_dir))
+            try:
+                gitdir_path.relative_to(repo_git_dir)
+            except ValueError:
+                return False
+            else:
+                return True
         except (OSError, PermissionError):
             return False
     if git_file.is_dir():
