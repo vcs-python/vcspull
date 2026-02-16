@@ -1,0 +1,42 @@
+# Worktree configuration example
+#
+# vcspull can manage git worktrees declaratively. Each repository can
+# define a list of worktrees under the "worktrees" key. Worktrees
+# are checked out in separate directories alongside the main clone.
+#
+# Each worktree entry requires:
+#   dir:     Path for the worktree (relative to workspace root or absolute)
+#   Exactly one of:
+#     tag:    Tag to checkout (creates detached HEAD)
+#     branch: Branch to checkout (updatable via pull)
+#     commit: Commit SHA to checkout (creates detached HEAD)
+#
+# Optional fields:
+#   lock:        Lock the worktree to prevent accidental removal
+#   lock_reason: Reason for locking (implies lock: true)
+
+~/code/:
+  myproject:
+    url: "git+https://github.com/myorg/myproject.git"
+    worktrees:
+      # Pin a stable release for reference
+      - dir: "../myproject-v2.0"
+        tag: "v2.0.0"
+        lock: true
+        lock_reason: "production reference"
+
+      # Track a development branch
+      - dir: "../myproject-dev"
+        branch: "develop"
+
+      # Pin a specific commit for debugging
+      - dir: "../myproject-bisect"
+        commit: "abc1234"
+
+  another-repo:
+    url: "git+https://github.com/myorg/another-repo.git"
+    worktrees:
+      - dir: "../another-repo-v1.0"
+        tag: "v1.0.0"
+      - dir: "../another-repo-stable"
+        branch: "stable"
