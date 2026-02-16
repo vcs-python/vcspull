@@ -17,6 +17,23 @@ create, update, and prune them.
     :func: create_parser
     :prog: vcspull
     :path: worktree
+    :nosubcommands:
+    :nodescription:
+```
+
+Choose a subcommand for details:
+
+- {ref}`cli-worktree-list` — show configured worktrees and their status
+- {ref}`cli-worktree-sync` — create or update worktrees
+- {ref}`cli-worktree-prune` — remove worktrees not in configuration
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+
+list
+sync
+prune
 ```
 
 ## Configuration
@@ -57,70 +74,6 @@ ref type: `tag`, `branch`, or `commit`.
 | `lock_reason` | no | Reason for locking (implies `lock: true`) |
 
 Exactly one of `tag`, `branch`, or `commit` must be specified per entry.
-
-## Subcommands
-
-### List
-
-Show configured worktrees and their planned status without making changes:
-
-```console
-$ vcspull worktree list
-```
-
-Each worktree is displayed with a status symbol:
-
-| Symbol | Action | Meaning |
-|--------|--------|---------|
-| `+` | CREATE | Worktree doesn't exist yet, will be created |
-| `~` | UPDATE | Branch worktree exists, will pull latest |
-| `✓` | UNCHANGED | Tag/commit worktree exists, already at target |
-| `⚠` | BLOCKED | Worktree has uncommitted changes |
-| `✗` | ERROR | Operation failed (ref not found, etc.) |
-
-Filter to specific repositories:
-
-```console
-$ vcspull worktree list 'myproject'
-```
-
-### Sync
-
-Create or update worktrees to match configuration:
-
-```console
-$ vcspull worktree sync '*'
-```
-
-Preview what would happen without making changes:
-
-```console
-$ vcspull worktree sync --dry-run '*'
-```
-
-The sync subcommand:
-- Creates missing worktrees at the configured `dir`
-- Pulls latest changes for `branch` worktrees
-- Leaves `tag` and `commit` worktrees unchanged (they're immutable)
-- Skips worktrees with uncommitted changes (BLOCKED)
-
-### Prune
-
-Remove worktrees that are no longer in your configuration:
-
-```console
-$ vcspull worktree prune '*'
-```
-
-Preview what would be removed:
-
-```console
-$ vcspull worktree prune --dry-run '*'
-```
-
-Prune scans all git worktrees registered with each matched repository and
-removes any that don't appear in the current config. Repositories that have
-had their `worktrees` config removed entirely are also scanned.
 
 ## Integration with vcspull sync
 
