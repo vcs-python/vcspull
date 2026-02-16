@@ -777,15 +777,28 @@ def _create_worktree(
     # 1. lock=True with lock_reason - lock with reason
     # 2. lock_reason without explicit lock=True - also locks with reason
     if lock_reason:
-        lock_cmd = ["git", "worktree", "lock", "--reason", lock_reason]
-        lock_cmd.append(str(worktree_path))
-        subprocess.run(
-            lock_cmd,
-            cwd=repo_path,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        lock_cmd = [
+            "git",
+            "worktree",
+            "lock",
+            "--reason",
+            lock_reason,
+            str(worktree_path),
+        ]
+        try:
+            subprocess.run(
+                lock_cmd,
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            log.warning(
+                "Worktree created at %s but lock failed: %s",
+                worktree_path,
+                e.stderr.strip() if e.stderr else str(e),
+            )
 
 
 def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:

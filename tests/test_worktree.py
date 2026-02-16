@@ -3343,3 +3343,49 @@ def test_sync_exit_on_error_worktree_failures(
             parser=None,
             include_worktrees=True,
         )
+
+
+def test_sync_worktree_lock_failure_still_creates(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+) -> None:
+    """Test worktree creation succeeds even if lock fails.
+
+    Regression test: lock failure after successful creation marked the entire
+    operation as ERROR. Lock is non-critical — the worktree is still usable.
+    """
+    workspace_root = git_repo.path.parent
+    worktree_path = workspace_root / "lock-fail-test-wt"
+
+    # Create a tag
+    subprocess.run(
+        ["git", "tag", "v-lock-fail-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    wt_config: WorktreeConfigDict = {
+        "dir": str(worktree_path),
+        "tag": "v-lock-fail-test",
+        "lock": True,
+        "lock_reason": "This lock will fail",
+    }
+
+    # Mock only the lock command to fail (let creation succeed)
+    original_run = subprocess.run
+
+    def mock_run(*args: t.Any, **kwargs: t.Any) -> t.Any:
+        cmd = args[0] if args else kwargs.get("args", [])
+        if isinstance(cmd, list) and "lock" in cmd:
+            raise subprocess.CalledProcessError(1, cmd, stderr="lock failed")
+        return original_run(*args, **kwargs)
+
+    mocker.patch("vcspull._internal.worktree_sync.subprocess.run", side_effect=mock_run)
+
+    entry = sync_worktree(git_repo.path, wt_config, workspace_root)
+
+    # Creation should succeed despite lock failure
+    assert entry.action == WorktreeAction.CREATE
+    assert worktree_path.exists()
