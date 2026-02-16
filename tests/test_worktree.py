@@ -2570,18 +2570,38 @@ def test_get_worktree_head_exception_handling(tmp_path: pathlib.Path) -> None:
 
 
 def test_is_worktree_dirty_exception_handling(tmp_path: pathlib.Path) -> None:
-    """Test _is_worktree_dirty handles exceptions gracefully.
+    """Test _is_worktree_dirty returns True (fail-safe) on exception.
 
-    Coverage: Lines 209-211 in worktree_sync.py.
+    Coverage: Lines 249-251 in worktree_sync.py.
     """
     from vcspull._internal.worktree_sync import _is_worktree_dirty
 
-    # Pass a path that doesn't exist
+    # Pass a path that doesn't exist — should return True (fail-safe)
     nonexistent = tmp_path / "nonexistent"
-
-    # Should return False (exception path)
     result = _is_worktree_dirty(nonexistent)
-    assert result is False
+    assert result is True
+
+
+def test_is_worktree_dirty_nonzero_returncode(
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+) -> None:
+    """Test _is_worktree_dirty returns True when git status returns non-zero.
+
+    Covers the returncode != 0 branch for fail-safe behavior.
+    """
+    from vcspull._internal.worktree_sync import _is_worktree_dirty
+
+    # Mock subprocess.run to return non-zero exit code
+    mock_result = mocker.MagicMock()
+    mock_result.returncode = 128
+    mock_result.stdout = ""
+    mocker.patch(
+        "vcspull._internal.worktree_sync.subprocess.run", return_value=mock_result
+    )
+
+    result = _is_worktree_dirty(tmp_path)
+    assert result is True
 
 
 def test_ref_exists_exception_handling(tmp_path: pathlib.Path) -> None:

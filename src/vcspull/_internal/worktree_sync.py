@@ -220,6 +220,9 @@ def validate_worktree_config(wt_config: WorktreeConfigDict) -> None:
 def _is_worktree_dirty(worktree_path: pathlib.Path) -> bool:
     """Check if a worktree has uncommitted changes.
 
+    Returns ``True`` if dirty **or** if the check fails (fail-safe).
+    This prevents destructive operations when the dirty state is unknown.
+
     Parameters
     ----------
     worktree_path : pathlib.Path
@@ -228,13 +231,13 @@ def _is_worktree_dirty(worktree_path: pathlib.Path) -> bool:
     Returns
     -------
     bool
-        True if the worktree has uncommitted changes.
+        True if the worktree has uncommitted changes or if the check fails.
 
     Examples
     --------
     >>> import pathlib
     >>> _is_worktree_dirty(pathlib.Path("/nonexistent/path"))
-    False
+    True
     """
     try:
         result = subprocess.run(
@@ -244,11 +247,19 @@ def _is_worktree_dirty(worktree_path: pathlib.Path) -> bool:
             text=True,
             check=False,
         )
+        if result.returncode != 0:
+            log.warning(
+                "git status failed for %s (returncode %d), assuming dirty",
+                worktree_path,
+                result.returncode,
+            )
+            return True
         # If there's any output, the worktree is dirty
         return bool(result.stdout.strip())
     except (FileNotFoundError, OSError):
-        # If we can't check, assume clean to avoid blocking unnecessarily
-        return False
+        # If we can't check, assume dirty to avoid destructive operations
+        log.warning("Cannot check dirty state for %s, assuming dirty", worktree_path)
+        return True
 
 
 def _ref_exists(repo_path: pathlib.Path, ref: str, ref_type: str) -> bool:
