@@ -151,6 +151,16 @@ def handle_worktree_command(args: argparse.Namespace) -> None:
         found_repos: list[ConfigDict] = []
         for pattern in args.repo_patterns:
             found_repos.extend(filter_repos(configs, name=pattern))
+
+        # Deduplicate repos matched by multiple patterns
+        seen_paths: set[str] = set()
+        deduped: list[ConfigDict] = []
+        for repo in found_repos:
+            key = str(repo.get("path", ""))
+            if key not in seen_paths:
+                seen_paths.add(key)
+                deduped.append(repo)
+        found_repos = deduped
     else:
         found_repos = configs
 

@@ -3182,6 +3182,63 @@ def test_get_worktree_head_oserror(
     assert result is None
 
 
+def test_cli_worktree_deduplicates_patterns(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test worktree CLI deduplicates repos matched by multiple patterns.
+
+    Regression test: overlapping patterns (e.g. 'flask*' and '*lask') would
+    cause the same repo to be processed multiple times.
+    """
+    from vcspull.cli import cli
+
+    # Create a tag
+    subprocess.run(
+        ["git", "tag", "v-dedup-test"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    worktree_path = git_repo.path.parent / f"{git_repo.path.name}-dedup-wt"
+    repo_name = git_repo.path.name
+
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {repo_name}:
+    repo: git+file://{git_repo.path}
+    worktrees:
+      - dir: {worktree_path}
+        tag: v-dedup-test
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    # Use two patterns that both match the same repo
+    cli(
+        [
+            "worktree",
+            "list",
+            "-f",
+            str(config_path),
+            f"{repo_name}*",
+            f"*{repo_name[-3:]}",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    # Repo header line (e.g. "\ngit_repo (...)") should appear only once
+    header_count = captured.out.count(f"\n{repo_name} (")
+    assert header_count == 1, f"Expected 1 repo header, got {header_count}"
+
+
 def test_cli_worktree_prune_empty_config(
     git_repo: GitSync,
     tmp_path: pathlib.Path,
