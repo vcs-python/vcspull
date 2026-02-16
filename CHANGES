@@ -37,7 +37,7 @@ _Notes on upcoming releases will be added here_
 
 ### New features
 
-#### New command: `vcspull worktree` (#507)
+#### New command: `vcspull worktree` (#508)
 
 Declarative git worktree management. Configure worktrees per-repo in YAML
 targeting tags, branches, or commits, then list, sync, and prune them.
@@ -129,7 +129,7 @@ $ vcspull worktree list --ndjson
 - Pattern filtering: all subcommands accept glob patterns to target specific
   repositories
 
-#### `vcspull worktree`: Integration with `vcspull sync` (#507)
+#### `vcspull worktree`: Integration with `vcspull sync` (#508)
 
 Sync repositories and their worktrees in one pass with
 `--include-worktrees`:
@@ -152,18 +152,18 @@ when `--exit-on-error` is set.
 ### Bug fixes
 
 - `vcspull discover` now correctly distinguishes git worktrees from
-  submodules by inspecting the `.git` file target path (#507)
+  submodules by inspecting the `.git` file target path (#508)
 - Config reader: fix false duplicate-key detection in nested list mappings
-  inside `_DuplicateTrackingSafeLoader` (#507)
+  inside `_DuplicateTrackingSafeLoader` (#508)
 
 ### Internal / Development
 
 - New exception hierarchy: `WorktreeError` base with `WorktreeConfigError`,
-  `WorktreeRefNotFoundError`, and `WorktreeDirtyError` subtypes (#507)
+  `WorktreeRefNotFoundError`, and `WorktreeDirtyError` subtypes (#508)
 - `WorktreeCheck` audit trail attached to every plan entry for
-  debuggability (#507)
+  debuggability (#508)
 - Comprehensive worktree test suite covering planning, sync, prune, CLI
-  handlers, and edge cases (#507)
+  handlers, and edge cases (#508)
 
 ## vcspull v1.55.0 (2026-02-15)
 
