@@ -175,8 +175,10 @@ def handle_worktree_command(args: argparse.Namespace) -> None:
             dry_run=args.dry_run,
         )
     elif args.worktree_action == "prune":
+        # Use found_repos (not repos_with_worktrees) so repos whose worktree
+        # config was removed can still have orphaned worktrees pruned.
         _handle_prune(
-            repos_with_worktrees,
+            found_repos,
             formatter,
             colors,
             dry_run=args.dry_run,

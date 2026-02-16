@@ -1704,9 +1704,11 @@ def test_cli_worktree_prune_no_repos(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Test CLI prune shows message when no repos have worktrees.
+    """Test CLI prune handles repos with no worktrees configured.
 
     Coverage: Lines 338-341 in cli/worktree.py.
+    Prune now checks all matched repos (not just those with worktree config)
+    so orphaned worktrees on repos with removed config can be found.
     """
     from vcspull.cli import cli
 
@@ -1727,7 +1729,8 @@ def test_cli_worktree_prune_no_repos(
     cli(["worktree", "prune", "-f", str(config_path)])
 
     captured = capsys.readouterr()
-    assert "No repositories with worktrees configured" in captured.out
+    # Prune now processes all repos; for non-existent repos it finds no orphans
+    assert "No orphaned worktrees to prune" in captured.out
 
 
 def test_cli_worktree_prune_no_orphans(
@@ -3177,6 +3180,49 @@ def test_get_worktree_head_oserror(
     # Should return None (OSError exception path)
     result = _get_worktree_head(test_dir)
     assert result is None
+
+
+def test_cli_worktree_prune_empty_config(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test prune detects orphans when worktrees config is empty.
+
+    Regression test: prune filtered to repos_with_worktrees (non-empty config),
+    so repos where all worktree entries were removed from config would never
+    have their orphaned worktrees detected.
+    """
+    from vcspull.cli import cli
+
+    # Create an orphaned worktree
+    orphan_path = git_repo.path.parent / "orphaned-empty-cfg"
+    subprocess.run(
+        ["git", "worktree", "add", str(orphan_path), "HEAD", "--detach"],
+        cwd=git_repo.path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Config has the repo but NO worktrees key — simulates removing all entries
+    config_path = tmp_path / ".vcspull.yaml"
+    config_path.write_text(
+        f"""\
+{git_repo.path.parent}/:
+  {git_repo.path.name}:
+    repo: git+file://{git_repo.path}
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    cli(["worktree", "prune", "--dry-run", "-f", str(config_path)])
+
+    captured = capsys.readouterr()
+    # Should detect the orphan even though config has no worktrees
+    assert "Would prune" in captured.out
 
 
 def test_sync_exit_on_error_worktree_failures(
