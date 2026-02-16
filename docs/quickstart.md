@@ -142,6 +142,9 @@ Now run the command, to pull all the repositories in your
 $ vcspull sync --all
 ```
 
+Want to manage multiple branches or tags of the same repository?
+See {ref}`cli-worktree` for declarative worktree support.
+
 Also, you can sync arbitrary projects, lets assume you have a mercurial
 repo but need a git dependency, in your project add `.deps.yaml` (can
 be any name):
