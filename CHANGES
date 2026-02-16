@@ -33,6 +33,136 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### New features
+
+#### New command: `vcspull worktree` (#507)
+
+Declarative git worktree management. Configure worktrees per-repo in YAML
+targeting tags, branches, or commits, then list, sync, and prune them.
+
+**Configuration format:**
+
+```yaml
+~/repos/:
+  myproject:
+    repo: "git+https://github.com/user/project"
+    worktrees:
+      - dir: ../myproject-v1.0
+        tag: v1.0.0
+      - dir: ../myproject-dev
+        branch: develop
+      - dir: ../myproject-abc123
+        commit: abc123
+      - dir: ../myproject-stable
+        tag: stable
+        lock: true
+        lock_reason: "Production reference - do not remove"
+```
+
+Each worktree entry requires a `dir` and exactly one ref type (`tag`, `branch`,
+or `commit`). Optional fields: `lock` (boolean), `lock_reason` (string, implies
+`lock: true`), and `detach` (boolean, defaults to true for tag/commit).
+
+**Subcommands:**
+
+Preview the plan for all configured worktrees:
+
+```console
+$ vcspull worktree list
+```
+
+Create or update worktrees to match configuration:
+
+```console
+$ vcspull worktree sync
+```
+
+Preview sync without making changes:
+
+```console
+$ vcspull worktree sync --dry-run
+```
+
+Remove worktrees not present in configuration:
+
+```console
+$ vcspull worktree prune
+```
+
+Preview prune without removing anything:
+
+```console
+$ vcspull worktree prune --dry-run
+```
+
+Filter by repository name pattern:
+
+```console
+$ vcspull worktree list "myproject"
+```
+
+Machine-readable output:
+
+```console
+$ vcspull worktree list --json
+```
+
+```console
+$ vcspull worktree list --ndjson
+```
+
+**Key features:**
+
+- Three ref types: `tag` (detached HEAD), `branch` (tracks upstream, pulls on
+  sync), `commit` (detached HEAD at exact SHA)
+- Path resolution: relative paths resolve from workspace root, absolute and
+  tilde-prefixed paths are supported
+- Lock support: `lock: true` passes `--lock` to `git worktree add`;
+  `lock_reason` locks with a reason after creation
+- Safety: dirty worktrees are reported as BLOCKED (never force-updated),
+  missing refs are reported as ERROR
+- Plan display: entries show CREATE / UPDATE / UNCHANGED / BLOCKED / ERROR
+  status with colored symbols (`+`, `~`, `✓`, `⚠`, `✗`)
+- Output modes: human-readable (default), `--json`, `--ndjson`
+- Pattern filtering: all subcommands accept glob patterns to target specific
+  repositories
+
+#### `vcspull worktree`: Integration with `vcspull sync` (#507)
+
+Sync repositories and their worktrees in one pass with
+`--include-worktrees`:
+
+```console
+$ vcspull sync --all --include-worktrees
+```
+
+Preview everything without changes:
+
+```console
+$ vcspull sync --all \
+    --include-worktrees \
+    --dry-run
+```
+
+Worktree results are included in the sync summary and affect the exit code
+when `--exit-on-error` is set.
+
+### Bug fixes
+
+- `vcspull discover` now correctly distinguishes git worktrees from
+  submodules by inspecting the `.git` file target path (#507)
+- Config reader: fix false duplicate-key detection in nested list mappings
+  inside `_DuplicateTrackingSafeLoader` (#507)
+
+### Internal / Development
+
+- New exception hierarchy: `WorktreeError` base with `WorktreeConfigError`,
+  `WorktreeRefNotFoundError`, and `WorktreeDirtyError` subtypes (#507)
+- `WorktreeCheck` audit trail attached to every plan entry for
+  debuggability (#507)
+- Comprehensive worktree test suite covering planning, sync, prune, CLI
+  handlers, and edge cases (#507)
+
 ## vcspull v1.55.0 (2026-02-15)
 
 ### New features
