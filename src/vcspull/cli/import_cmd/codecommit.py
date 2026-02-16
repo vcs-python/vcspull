@@ -101,4 +101,5 @@ def handle_codecommit(args: argparse.Namespace) -> int:
         output_ndjson=getattr(args, "output_ndjson", False),
         color=getattr(args, "color", "auto"),
         use_https=getattr(args, "use_https", False),
+        style=getattr(args, "style", None),
     )

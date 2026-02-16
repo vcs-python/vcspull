@@ -98,4 +98,5 @@ def handle_gitlab(args: argparse.Namespace) -> int:
         color=getattr(args, "color", "auto"),
         use_https=getattr(args, "use_https", False),
         flatten_groups=getattr(args, "flatten_groups", False),
+        style=getattr(args, "style", None),
     )

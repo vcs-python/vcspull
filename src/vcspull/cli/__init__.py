@@ -527,13 +527,19 @@ def cli(_args: list[str] | None = None) -> None:
             dry_run=args.dry_run,
             merge_duplicates=args.merge_duplicates,
             include_worktrees=getattr(args, "include_worktrees", False),
+            style=getattr(args, "style", None),
         )
     elif args.subparser_name == "fmt":
+        from vcspull._internal.settings import resolve_style
+
+        fmt_style = getattr(args, "style", None)
+        resolved_fmt_style = resolve_style(fmt_style) if fmt_style is not None else None
         format_config_file(
             args.config,
             args.write,
             args.all,
             merge_roots=args.merge_roots,
+            style=resolved_fmt_style,
         )
     elif args.subparser_name == "import":
         handler = getattr(args, "import_handler", None)
