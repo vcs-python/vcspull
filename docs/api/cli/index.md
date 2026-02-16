@@ -15,6 +15,7 @@ discover
 list
 search
 status
+worktree
 fmt
 ```
 
