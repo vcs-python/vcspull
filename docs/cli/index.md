@@ -13,7 +13,7 @@ discover
 list
 search
 status
-worktree
+worktree/index
 fmt
 ```
 
