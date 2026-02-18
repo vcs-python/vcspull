@@ -408,7 +408,6 @@ class InvalidLimitFixture(t.NamedTuple):
 
 
 INVALID_LIMIT_FIXTURES: list[InvalidLimitFixture] = [
-    InvalidLimitFixture(test_id="zero-limit", limit=0),
     InvalidLimitFixture(test_id="negative-limit", limit=-1),
     InvalidLimitFixture(test_id="large-negative-limit", limit=-100),
 ]
@@ -423,8 +422,8 @@ def test_import_options_rejects_invalid_limit(
     test_id: str,
     limit: int,
 ) -> None:
-    """Test ImportOptions raises ValueError for limit < 1."""
-    with pytest.raises(ValueError, match="limit must be >= 1"):
+    """Test ImportOptions raises ValueError for limit < 0."""
+    with pytest.raises(ValueError, match="limit must be >= 0"):
         ImportOptions(limit=limit)
 
 
@@ -434,6 +433,14 @@ def test_import_options_accepts_valid_limit() -> None:
     assert options.limit == 1
     options = ImportOptions(limit=500)
     assert options.limit == 500
+
+
+def test_import_options_limit_zero_means_no_limit() -> None:
+    """Test ImportOptions limit=0 is converted to sys.maxsize (no limit)."""
+    import sys
+
+    options = ImportOptions(limit=0)
+    assert options.limit == sys.maxsize
 
 
 class HandleHttpErrorFixture(t.NamedTuple):

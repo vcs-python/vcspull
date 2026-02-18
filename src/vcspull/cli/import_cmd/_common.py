@@ -114,7 +114,7 @@ def _create_shared_parent() -> argparse.ArgumentParser:
         type=int,
         default=100,
         metavar="N",
-        help="Maximum repositories to fetch (default: 100)",
+        help="Maximum repositories to fetch (default: 100, 0 = no limit)",
     )
 
     # Output options

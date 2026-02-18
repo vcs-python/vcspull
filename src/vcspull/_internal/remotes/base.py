@@ -7,6 +7,7 @@ import enum
 import json
 import logging
 import os
+import sys
 import typing as t
 import urllib.error
 import urllib.parse
@@ -251,14 +252,21 @@ class ImportOptions:
         >>> opts.limit
         10
 
-        >>> ImportOptions(limit=0)
+        >>> import sys
+        >>> opts = ImportOptions(limit=0)
+        >>> opts.limit == sys.maxsize
+        True
+
+        >>> ImportOptions(limit=-1)
         Traceback (most recent call last):
             ...
-        ValueError: limit must be >= 1, got 0
+        ValueError: limit must be >= 0, got -1
         """
-        if self.limit < 1:
-            msg = f"limit must be >= 1, got {self.limit}"
+        if self.limit < 0:
+            msg = f"limit must be >= 0, got {self.limit}"
             raise ValueError(msg)
+        if self.limit == 0:
+            object.__setattr__(self, "limit", sys.maxsize)
 
 
 class HTTPClient:
