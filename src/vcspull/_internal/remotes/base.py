@@ -7,7 +7,9 @@ import enum
 import json
 import logging
 import os
+import random
 import sys
+import time
 import typing as t
 import urllib.error
 import urllib.parse
@@ -281,6 +283,8 @@ class HTTPClient:
         auth_prefix: str = "Bearer",
         user_agent: str = "vcspull",
         timeout: int = 30,
+        max_retries: int = 3,
+        retry_base_delay: float = 1.0,
     ) -> None:
         """Initialize the HTTP client.
 
@@ -298,6 +302,10 @@ class HTTPClient:
             User-Agent header value
         timeout : int
             Request timeout in seconds
+        max_retries : int
+            Maximum number of retries on HTTP 429 (rate limit) responses
+        retry_base_delay : float
+            Base delay in seconds for exponential backoff
 
         Examples
         --------
@@ -317,6 +325,8 @@ class HTTPClient:
         self.auth_prefix = auth_prefix
         self.user_agent = user_agent
         self.timeout = timeout
+        self.max_retries = max_retries
+        self.retry_base_delay = retry_base_delay
 
     def _build_headers(self) -> dict[str, str]:
         """Build request headers.
@@ -376,7 +386,7 @@ class HTTPClient:
         AuthenticationError
             When authentication fails (401)
         RateLimitError
-            When rate limit is exceeded (403/429)
+            When rate limit is exceeded (403/429) after retries exhausted
         NotFoundError
             When resource is not found (404)
         ServiceUnavailableError
@@ -400,23 +410,80 @@ class HTTPClient:
 
         log.debug("GET %s", url)
 
-        try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                body = response.read().decode("utf-8")
-                response_headers = {k.lower(): v for k, v in response.getheaders()}
-                return json.loads(body), response_headers
-        except urllib.error.HTTPError as exc:
-            self._handle_http_error(exc, service_name)
-        except urllib.error.URLError as exc:
-            msg = f"Connection error: {exc.reason}"
-            raise ServiceUnavailableError(msg, service=service_name) from exc
-        except json.JSONDecodeError as exc:
-            msg = f"Invalid JSON response from {service_name}"
-            raise ServiceUnavailableError(msg, service=service_name) from exc
+        last_exc: urllib.error.HTTPError | None = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    body = response.read().decode("utf-8")
+                    response_headers = {k.lower(): v for k, v in response.getheaders()}
+                    return json.loads(body), response_headers
+            except urllib.error.HTTPError as exc:  # noqa: PERF203
+                if exc.code == 429 and attempt < self.max_retries:
+                    last_exc = exc
+                    delay = self._calculate_retry_delay(exc, attempt)
+                    log.warning(
+                        "Rate limited by %s, retrying in %.1fs (attempt %d/%d)",
+                        service_name,
+                        delay,
+                        attempt + 1,
+                        self.max_retries,
+                    )
+                    time.sleep(delay)
+                    continue
+                self._handle_http_error(exc, service_name)
+            except urllib.error.URLError as exc:
+                msg = f"Connection error: {exc.reason}"
+                raise ServiceUnavailableError(msg, service=service_name) from exc
+            except json.JSONDecodeError as exc:
+                msg = f"Invalid JSON response from {service_name}"
+                raise ServiceUnavailableError(msg, service=service_name) from exc
+
+        # Retries exhausted on 429 — raise via _handle_http_error
+        if last_exc is not None:
+            self._handle_http_error(last_exc, service_name)
 
         # Should never reach here, but for type checker
         msg = "Unexpected error"
         raise ServiceUnavailableError(msg, service=service_name)
+
+    def _calculate_retry_delay(
+        self,
+        exc: urllib.error.HTTPError,
+        attempt: int,
+    ) -> float:
+        """Calculate delay before retrying a rate-limited request.
+
+        Uses the ``Retry-After`` header if present (capped at 120s),
+        otherwise falls back to exponential backoff with jitter.
+
+        Parameters
+        ----------
+        exc : urllib.error.HTTPError
+            The 429 HTTP error response
+        attempt : int
+            Zero-based attempt number
+
+        Returns
+        -------
+        float
+            Delay in seconds before the next retry
+        """
+        retry_after = None
+        if exc.headers:
+            retry_after = exc.headers.get("Retry-After")
+
+        if retry_after is not None:
+            try:
+                delay = min(float(retry_after), 120.0)
+                return max(delay, 0.0)
+            except (ValueError, TypeError):
+                pass
+
+        # Exponential backoff: 2^attempt * base_delay, capped at 60s
+        backoff_delay = float(min(2**attempt * self.retry_base_delay, 60.0))
+        # Add jitter: 0 to 50% of the delay
+        jitter = random.uniform(0, 0.5 * backoff_delay)
+        return backoff_delay + jitter
 
     def _handle_http_error(
         self,
