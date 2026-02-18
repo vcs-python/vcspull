@@ -202,11 +202,13 @@ class GitLabImporter:
             if not options.include_archived:
                 params["archived"] = "false"
 
-            data, _headers = self._client.get(
+            data, headers = self._client.get(
                 endpoint,
                 params=params,
                 service_name=self.service_name,
             )
+
+            self._log_rate_limit(headers)
 
             if not data:
                 break
@@ -269,11 +271,13 @@ class GitLabImporter:
                 params["archived"] = "false"
             # When include_archived=True, omit the param to get all projects
 
-            data, _headers = self._client.get(
+            data, headers = self._client.get(
                 endpoint,
                 params=params,
                 service_name=self.service_name,
             )
+
+            self._log_rate_limit(headers)
 
             if not data:
                 break
@@ -292,6 +296,35 @@ class GitLabImporter:
                 break
 
             page += 1
+
+    def _log_rate_limit(self, headers: dict[str, str]) -> None:
+        """Log rate limit information from response headers.
+
+        Parameters
+        ----------
+        headers : dict[str, str]
+            Response headers (lowercase keys)
+        """
+        remaining = headers.get("ratelimit-remaining")
+        limit = headers.get("ratelimit-limit")
+
+        if remaining is not None and limit is not None:
+            try:
+                remaining_int = int(remaining)
+            except (ValueError, TypeError):
+                return
+            if remaining_int < 10:
+                log.warning(
+                    "GitLab API rate limit low: %s/%s remaining",
+                    remaining,
+                    limit,
+                )
+            else:
+                log.debug(
+                    "GitLab API rate limit: %s/%s remaining",
+                    remaining,
+                    limit,
+                )
 
     def _parse_repo(self, data: dict[str, t.Any]) -> RemoteRepo:
         """Parse GitLab API response into RemoteRepo.

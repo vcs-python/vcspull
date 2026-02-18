@@ -595,3 +595,75 @@ def test_gitlab_parse_repo_null_namespace(
     assert len(repos) == 1
     assert repos[0].name == "my-project"
     assert repos[0].owner == ""
+
+
+# ---------------------------------------------------------------------------
+# Rate limit header logging
+# ---------------------------------------------------------------------------
+
+
+class GitLabLogRateLimitFixture(t.NamedTuple):
+    """Fixture for GitLabImporter._log_rate_limit test cases."""
+
+    test_id: str
+    headers: dict[str, str]
+    expected_log_level: str | None
+    expected_message_fragment: str | None
+
+
+GITLAB_LOG_RATE_LIMIT_FIXTURES: list[GitLabLogRateLimitFixture] = [
+    GitLabLogRateLimitFixture(
+        test_id="low-remaining",
+        headers={"ratelimit-remaining": "5", "ratelimit-limit": "600"},
+        expected_log_level="warning",
+        expected_message_fragment="rate limit low",
+    ),
+    GitLabLogRateLimitFixture(
+        test_id="sufficient-remaining",
+        headers={"ratelimit-remaining": "500", "ratelimit-limit": "600"},
+        expected_log_level="debug",
+        expected_message_fragment="rate limit",
+    ),
+    GitLabLogRateLimitFixture(
+        test_id="non-numeric-remaining",
+        headers={"ratelimit-remaining": "unlimited", "ratelimit-limit": "600"},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+    GitLabLogRateLimitFixture(
+        test_id="missing-remaining-header",
+        headers={"ratelimit-limit": "600"},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+    GitLabLogRateLimitFixture(
+        test_id="missing-both-headers",
+        headers={},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(GitLabLogRateLimitFixture._fields),
+    GITLAB_LOG_RATE_LIMIT_FIXTURES,
+    ids=[f.test_id for f in GITLAB_LOG_RATE_LIMIT_FIXTURES],
+)
+def test_gitlab_log_rate_limit(
+    test_id: str,
+    headers: dict[str, str],
+    expected_log_level: str | None,
+    expected_message_fragment: str | None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _log_rate_limit handles various GitLab header scenarios."""
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+    importer = GitLabImporter()
+    importer._log_rate_limit(headers)
+    if expected_message_fragment is not None:
+        assert expected_message_fragment in caplog.text.lower()
+    else:
+        assert "rate limit" not in caplog.text.lower()
