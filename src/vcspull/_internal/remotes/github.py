@@ -191,6 +191,7 @@ class GitHubImporter:
         endpoint = "/search/repositories"
         page = 1
         count = 0
+        total_available: int | None = None
 
         while count < options.limit:
             # Always use DEFAULT_PER_PAGE to maintain consistent pagination offset.
@@ -212,12 +213,14 @@ class GitHubImporter:
             self._log_rate_limit(headers)
 
             total_count = data.get("total_count", 0)
-            if page == 1 and total_count > 1000:
-                log.warning(
-                    "GitHub search returned %d total results but API limits "
-                    "to 1000; consider narrowing your query",
-                    total_count,
-                )
+            if page == 1:
+                total_available = total_count
+                if total_count > 1000:
+                    log.warning(
+                        "GitHub search returned %d total results but API limits "
+                        "to 1000; consider narrowing your query",
+                        total_count,
+                    )
 
             items = data.get("items", [])
             if not items:
@@ -242,6 +245,18 @@ class GitHubImporter:
 
             page += 1
 
+        # Warn if results were truncated by --limit
+        if (
+            count >= options.limit
+            and total_available is not None
+            and total_available > count
+        ):
+            log.warning(
+                "Showing %d of %d repositories (use --limit 0 to fetch all)",
+                count,
+                total_available,
+            )
+
     def _paginate_repos(
         self,
         endpoint: str,
@@ -263,6 +278,7 @@ class GitHubImporter:
         """
         page = 1
         count = 0
+        more_available = False
 
         while count < options.limit:
             # Always use DEFAULT_PER_PAGE to maintain consistent pagination offset.
@@ -285,8 +301,12 @@ class GitHubImporter:
             if not data:
                 break
 
-            for item in data:
+            for idx, item in enumerate(data):
                 if count >= options.limit:
+                    # Remaining items on this page or a full page = more exist
+                    more_available = (
+                        idx < len(data) - 1 or len(data) == DEFAULT_PER_PAGE
+                    )
                     break
 
                 repo = self._parse_repo(item)
@@ -299,6 +319,15 @@ class GitHubImporter:
                 break
 
             page += 1
+
+        # Warn if results were truncated by --limit
+        # GitHub user/org endpoints don't return total count
+        if count >= options.limit and more_available:
+            log.warning(
+                "Showing %d repositories; more may be available "
+                "(use --limit 0 to fetch all)",
+                count,
+            )
 
     def _parse_repo(self, data: dict[str, t.Any]) -> RemoteRepo:
         """Parse GitHub API response into RemoteRepo.
