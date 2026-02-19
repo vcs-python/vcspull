@@ -268,7 +268,7 @@ class ImportOptions:
             msg = f"limit must be >= 0, got {self.limit}"
             raise ValueError(msg)
         if self.limit == 0:
-            object.__setattr__(self, "limit", sys.maxsize)
+            self.limit = sys.maxsize
 
 
 class HTTPClient:
