@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import typing as t
 import urllib.parse
@@ -188,6 +189,8 @@ class GitLabImporter:
         endpoint = "/search"
         page = 1
         count = 0
+        total_available: int | None = None
+        last_x_next_page: str | None = None
 
         while count < options.limit:
             # Always use DEFAULT_PER_PAGE to maintain consistent pagination offset.
@@ -202,11 +205,22 @@ class GitLabImporter:
             if not options.include_archived:
                 params["archived"] = "false"
 
-            data, _headers = self._client.get(
+            data, headers = self._client.get(
                 endpoint,
                 params=params,
                 service_name=self.service_name,
             )
+
+            self._log_rate_limit(headers)
+
+            # Capture x-total from first response
+            if page == 1:
+                x_total = headers.get("x-total")
+                if x_total is not None:
+                    with contextlib.suppress(ValueError, TypeError):
+                        total_available = int(x_total)
+
+            last_x_next_page = headers.get("x-next-page") or None
 
             if not data:
                 break
@@ -225,6 +239,9 @@ class GitLabImporter:
                 break
 
             page += 1
+
+        # Warn if results were truncated by --limit
+        self._warn_truncation(count, options.limit, total_available, last_x_next_page)
 
     def _paginate_repos(
         self,
@@ -251,6 +268,8 @@ class GitLabImporter:
         """
         page = 1
         count = 0
+        total_available: int | None = None
+        last_x_next_page: str | None = None
 
         while count < options.limit:
             # Always use DEFAULT_PER_PAGE to maintain consistent pagination offset.
@@ -269,11 +288,22 @@ class GitLabImporter:
                 params["archived"] = "false"
             # When include_archived=True, omit the param to get all projects
 
-            data, _headers = self._client.get(
+            data, headers = self._client.get(
                 endpoint,
                 params=params,
                 service_name=self.service_name,
             )
+
+            self._log_rate_limit(headers)
+
+            # Capture x-total from first response
+            if page == 1:
+                x_total = headers.get("x-total")
+                if x_total is not None:
+                    with contextlib.suppress(ValueError, TypeError):
+                        total_available = int(x_total)
+
+            last_x_next_page = headers.get("x-next-page") or None
 
             if not data:
                 break
@@ -292,6 +322,74 @@ class GitLabImporter:
                 break
 
             page += 1
+
+        # Warn if results were truncated by --limit
+        self._warn_truncation(count, options.limit, total_available, last_x_next_page)
+
+    def _warn_truncation(
+        self,
+        count: int,
+        limit: int,
+        total_available: int | None,
+        x_next_page: str | None,
+    ) -> None:
+        """Warn if results were truncated by the --limit option.
+
+        Parameters
+        ----------
+        count : int
+            Number of repositories actually returned
+        limit : int
+            The configured limit
+        total_available : int | None
+            Value of x-total header (None if absent)
+        x_next_page : str | None
+            Value of x-next-page header (None if absent/empty)
+        """
+        if count < limit:
+            return
+
+        if total_available is not None and total_available > count:
+            log.warning(
+                "Showing %d of %d repositories (use --limit 0 to fetch all)",
+                count,
+                total_available,
+            )
+        elif x_next_page is not None:
+            log.warning(
+                "Showing %d repositories; more are available "
+                "(use --limit 0 to fetch all)",
+                count,
+            )
+
+    def _log_rate_limit(self, headers: dict[str, str]) -> None:
+        """Log rate limit information from response headers.
+
+        Parameters
+        ----------
+        headers : dict[str, str]
+            Response headers (lowercase keys)
+        """
+        remaining = headers.get("ratelimit-remaining")
+        limit = headers.get("ratelimit-limit")
+
+        if remaining is not None and limit is not None:
+            try:
+                remaining_int = int(remaining)
+            except (ValueError, TypeError):
+                return
+            if remaining_int < 10:
+                log.warning(
+                    "GitLab API rate limit low: %s/%s remaining",
+                    remaining,
+                    limit,
+                )
+            else:
+                log.debug(
+                    "GitLab API rate limit: %s/%s remaining",
+                    remaining,
+                    limit,
+                )
 
     def _parse_repo(self, data: dict[str, t.Any]) -> RemoteRepo:
         """Parse GitLab API response into RemoteRepo.

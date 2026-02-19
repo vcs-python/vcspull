@@ -1108,7 +1108,7 @@ def test_import_repos_invalid_limit(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test _run_import logs error for invalid limit (e.g. 0)."""
+    """Test _run_import logs error for invalid limit (e.g. -1)."""
     caplog.set_level(logging.ERROR)
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1128,7 +1128,7 @@ def test_import_repos_invalid_limit(
         min_stars=0,
         include_archived=False,
         include_forks=False,
-        limit=0,
+        limit=-1,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=False,
         yes=True,
@@ -1137,7 +1137,7 @@ def test_import_repos_invalid_limit(
         color="never",
     )
 
-    assert "limit must be >= 1" in caplog.text
+    assert "limit must be >= 0" in caplog.text
 
 
 def test_import_repos_returns_nonzero_on_error(

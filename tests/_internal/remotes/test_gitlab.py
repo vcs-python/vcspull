@@ -595,3 +595,203 @@ def test_gitlab_parse_repo_null_namespace(
     assert len(repos) == 1
     assert repos[0].name == "my-project"
     assert repos[0].owner == ""
+
+
+# ---------------------------------------------------------------------------
+# Rate limit header logging
+# ---------------------------------------------------------------------------
+
+
+class GitLabLogRateLimitFixture(t.NamedTuple):
+    """Fixture for GitLabImporter._log_rate_limit test cases."""
+
+    test_id: str
+    headers: dict[str, str]
+    expected_log_level: str | None
+    expected_message_fragment: str | None
+
+
+GITLAB_LOG_RATE_LIMIT_FIXTURES: list[GitLabLogRateLimitFixture] = [
+    GitLabLogRateLimitFixture(
+        test_id="low-remaining",
+        headers={"ratelimit-remaining": "5", "ratelimit-limit": "600"},
+        expected_log_level="warning",
+        expected_message_fragment="rate limit low",
+    ),
+    GitLabLogRateLimitFixture(
+        test_id="sufficient-remaining",
+        headers={"ratelimit-remaining": "500", "ratelimit-limit": "600"},
+        expected_log_level="debug",
+        expected_message_fragment="rate limit",
+    ),
+    GitLabLogRateLimitFixture(
+        test_id="non-numeric-remaining",
+        headers={"ratelimit-remaining": "unlimited", "ratelimit-limit": "600"},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+    GitLabLogRateLimitFixture(
+        test_id="missing-remaining-header",
+        headers={"ratelimit-limit": "600"},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+    GitLabLogRateLimitFixture(
+        test_id="missing-both-headers",
+        headers={},
+        expected_log_level=None,
+        expected_message_fragment=None,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(GitLabLogRateLimitFixture._fields),
+    GITLAB_LOG_RATE_LIMIT_FIXTURES,
+    ids=[f.test_id for f in GITLAB_LOG_RATE_LIMIT_FIXTURES],
+)
+def test_gitlab_log_rate_limit(
+    test_id: str,
+    headers: dict[str, str],
+    expected_log_level: str | None,
+    expected_message_fragment: str | None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _log_rate_limit handles various GitLab header scenarios."""
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+    importer = GitLabImporter()
+    importer._log_rate_limit(headers)
+    if expected_message_fragment is not None:
+        assert expected_message_fragment in caplog.text.lower()
+    else:
+        assert "rate limit" not in caplog.text.lower()
+
+
+# ---------------------------------------------------------------------------
+# Truncation warnings
+# ---------------------------------------------------------------------------
+
+
+def _make_gitlab_project(idx: int) -> dict[str, t.Any]:
+    """Create a minimal GitLab project API object for testing."""
+    return {
+        "path": f"project-{idx}",
+        "name": f"Project {idx}",
+        "http_url_to_repo": f"https://gitlab.com/user/project-{idx}.git",
+        "ssh_url_to_repo": f"git@gitlab.com:user/project-{idx}.git",
+        "web_url": f"https://gitlab.com/user/project-{idx}",
+        "description": f"Project {idx}",
+        "topics": [],
+        "star_count": 10,
+        "archived": False,
+        "default_branch": "main",
+        "namespace": {"path": "user", "full_path": "user"},
+    }
+
+
+class TruncationWarningFixture(t.NamedTuple):
+    """Fixture for GitLab truncation warning test cases."""
+
+    test_id: str
+    limit: int
+    num_repos_on_server: int  # total repos to simulate
+    x_total_header: str | None  # x-total header value, None to omit
+    x_next_page_header: str | None  # x-next-page header, None to omit
+    expect_warning: bool
+    expected_warning_fragment: str | None
+
+
+TRUNCATION_WARNING_FIXTURES: list[TruncationWarningFixture] = [
+    TruncationWarningFixture(
+        test_id="truncated-with-x-total",
+        limit=2,
+        num_repos_on_server=5,
+        x_total_header="5",
+        x_next_page_header="2",
+        expect_warning=True,
+        expected_warning_fragment="showing 2 of 5",
+    ),
+    TruncationWarningFixture(
+        test_id="truncated-without-x-total-with-next-page",
+        limit=2,
+        num_repos_on_server=5,
+        x_total_header=None,
+        x_next_page_header="2",
+        expect_warning=True,
+        expected_warning_fragment="more are available",
+    ),
+    TruncationWarningFixture(
+        test_id="not-truncated-all-fetched",
+        limit=100,
+        num_repos_on_server=3,
+        x_total_header="3",
+        x_next_page_header=None,
+        expect_warning=False,
+        expected_warning_fragment=None,
+    ),
+    TruncationWarningFixture(
+        test_id="truncated-no-headers-but-full-page",
+        limit=2,
+        num_repos_on_server=5,
+        x_total_header=None,
+        x_next_page_header=None,
+        expect_warning=False,  # no headers = no way to warn
+        expected_warning_fragment=None,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(TruncationWarningFixture._fields),
+    TRUNCATION_WARNING_FIXTURES,
+    ids=[f.test_id for f in TRUNCATION_WARNING_FIXTURES],
+)
+def test_gitlab_truncation_warning(
+    test_id: str,
+    limit: int,
+    num_repos_on_server: int,
+    x_total_header: str | None,
+    x_next_page_header: str | None,
+    expect_warning: bool,
+    expected_warning_fragment: str | None,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test truncation warnings when results exceed --limit."""
+    import logging
+
+    caplog.set_level(logging.WARNING)
+
+    repos = [_make_gitlab_project(i) for i in range(num_repos_on_server)]
+
+    # Build response pages with appropriate headers
+    page_headers: dict[str, str] = {}
+    if x_total_header is not None:
+        page_headers["x-total"] = x_total_header
+    if x_next_page_header is not None:
+        page_headers["x-next-page"] = x_next_page_header
+
+    def urlopen_side_effect(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        return MockHTTPResponse(
+            json.dumps(repos).encode(),
+            page_headers,
+            200,
+        )
+
+    # Mock urlopen: return all repos in one page with configured headers
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="user", limit=limit)
+    list(importer.fetch_repos(options))
+
+    if expect_warning:
+        assert expected_warning_fragment is not None
+        assert expected_warning_fragment in caplog.text.lower()
+    else:
+        assert "--limit" not in caplog.text.lower()

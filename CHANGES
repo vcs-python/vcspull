@@ -33,6 +33,41 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Bug fixes
+
+#### `vcspull import`: Fix silent truncation of GitLab/GitHub results (#518)
+
+Previously, `--limit 100` (the default) would silently discard repositories
+beyond the cap with no indication that more were available.
+
+- GitLab: Read `x-total` and `x-next-page` response headers to detect
+  truncation and warn users
+- GitHub search: Use `total_count` from the JSON body to detect truncation
+- GitHub user/org: Detect mid-page limit hit as a "more available" signal
+- All providers now warn when results are capped by `--limit`
+
+#### `vcspull import`: Fix HTTP 429 rate-limit failures on large imports (#518)
+
+Rate-limited API requests previously failed immediately with an unrecoverable
+error. Large imports that triggered rate limits had to be manually restarted.
+
+- Add automatic retry with exponential backoff (up to 3 attempts) on HTTP 429
+- Honor the `Retry-After` response header when present (capped at 120 s)
+- Fall back to exponential backoff with jitter when the header is absent
+
+### New features
+
+#### `vcspull import`: `--limit 0` means "no limit" (#518)
+
+`--limit 0` now fetches every repository instead of raising a validation
+error. This follows the common CLI convention where 0 means unlimited.
+
+#### `vcspull import`: GitLab rate-limit header logging (#518)
+
+GitLab `ratelimit-remaining` / `ratelimit-limit` headers are now logged
+after each API request, matching the existing GitHub rate-limit logging.
+A warning is emitted when fewer than 10 requests remain.
+
 ## vcspull v1.56.0 (2026-02-15)
 
 ### New features

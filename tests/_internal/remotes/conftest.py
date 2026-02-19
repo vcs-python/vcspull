@@ -57,17 +57,22 @@ def mock_urlopen(monkeypatch: pytest.MonkeyPatch) -> t.Callable[..., None]:
     """
 
     def _mock(
-        responses: list[tuple[bytes, dict[str, str], int]] | None = None,
+        responses: (
+            list[tuple[bytes, dict[str, str], int] | urllib.error.HTTPError] | None
+        ) = None,
         error: urllib.error.HTTPError | None = None,
     ) -> None:
         """Set up mock responses.
 
         Parameters
         ----------
-        responses : list[tuple[bytes, dict[str, str], int]] | None
-            List of (body, headers, status) tuples for sequential responses
+        responses : list | None
+            List of sequential responses.  Each entry is either a
+            ``(body, headers, status)`` tuple that produces a
+            :class:`MockHTTPResponse`, or a :class:`urllib.error.HTTPError`
+            that will be raised directly.
         error : urllib.error.HTTPError | None
-            Error to raise instead of returning response
+            Error to raise on every call instead of returning a response
         """
         call_count = 0
         responses = responses or []
@@ -81,8 +86,11 @@ def mock_urlopen(monkeypatch: pytest.MonkeyPatch) -> t.Callable[..., None]:
                 raise error
             if not responses:
                 return MockHTTPResponse(b"[]", {}, 200)
-            body, headers, status = responses[call_count % len(responses)]
+            item = responses[call_count % len(responses)]
             call_count += 1
+            if isinstance(item, urllib.error.HTTPError):
+                raise item
+            body, headers, status = item
             return MockHTTPResponse(body, headers, status)
 
         # Mock urlopen: return pre-configured responses to avoid real HTTP requests

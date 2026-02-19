@@ -408,7 +408,6 @@ class InvalidLimitFixture(t.NamedTuple):
 
 
 INVALID_LIMIT_FIXTURES: list[InvalidLimitFixture] = [
-    InvalidLimitFixture(test_id="zero-limit", limit=0),
     InvalidLimitFixture(test_id="negative-limit", limit=-1),
     InvalidLimitFixture(test_id="large-negative-limit", limit=-100),
 ]
@@ -423,8 +422,8 @@ def test_import_options_rejects_invalid_limit(
     test_id: str,
     limit: int,
 ) -> None:
-    """Test ImportOptions raises ValueError for limit < 1."""
-    with pytest.raises(ValueError, match="limit must be >= 1"):
+    """Test ImportOptions raises ValueError for limit < 0."""
+    with pytest.raises(ValueError, match="limit must be >= 0"):
         ImportOptions(limit=limit)
 
 
@@ -434,6 +433,14 @@ def test_import_options_accepts_valid_limit() -> None:
     assert options.limit == 1
     options = ImportOptions(limit=500)
     assert options.limit == 500
+
+
+def test_import_options_limit_zero_means_no_limit() -> None:
+    """Test ImportOptions limit=0 is converted to sys.maxsize (no limit)."""
+    import sys
+
+    options = ImportOptions(limit=0)
+    assert options.limit == sys.maxsize
 
 
 class HandleHttpErrorFixture(t.NamedTuple):
@@ -604,3 +611,288 @@ def test_http_client_no_warning_on_https_with_token(
     HTTPClient("https://secure.example.com", token="secret-token")
 
     assert "non-HTTPS" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# HTTPClient retry on HTTP 429
+# ---------------------------------------------------------------------------
+
+
+class RetryFixture(t.NamedTuple):
+    """Fixture for HTTPClient retry behavior test cases."""
+
+    test_id: str
+    max_retries: int
+    num_429s: int  # how many 429s before success
+    retry_after_header: str | None  # Retry-After header value on 429 responses
+    expect_success: bool  # whether the request eventually succeeds
+    expected_sleep_count: int  # how many times time.sleep is called
+
+
+RETRY_FIXTURES: list[RetryFixture] = [
+    RetryFixture(
+        test_id="single-429-then-success",
+        max_retries=3,
+        num_429s=1,
+        retry_after_header=None,
+        expect_success=True,
+        expected_sleep_count=1,
+    ),
+    RetryFixture(
+        test_id="429-with-retry-after-header",
+        max_retries=3,
+        num_429s=1,
+        retry_after_header="5",
+        expect_success=True,
+        expected_sleep_count=1,
+    ),
+    RetryFixture(
+        test_id="exhausted-retries-raises",
+        max_retries=2,
+        num_429s=10,  # more 429s than retries
+        retry_after_header=None,
+        expect_success=False,
+        expected_sleep_count=2,
+    ),
+    RetryFixture(
+        test_id="max-retries-zero-no-retry",
+        max_retries=0,
+        num_429s=1,
+        retry_after_header=None,
+        expect_success=False,
+        expected_sleep_count=0,
+    ),
+    RetryFixture(
+        test_id="multiple-429s-then-success",
+        max_retries=3,
+        num_429s=2,
+        retry_after_header=None,
+        expect_success=True,
+        expected_sleep_count=2,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(RetryFixture._fields),
+    RETRY_FIXTURES,
+    ids=[f.test_id for f in RETRY_FIXTURES],
+)
+def test_http_client_retry_on_429(
+    test_id: str,
+    max_retries: int,
+    num_429s: int,
+    retry_after_header: str | None,
+    expect_success: bool,
+    expected_sleep_count: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test HTTPClient retries on HTTP 429 with backoff."""
+    import io
+    import json
+    import urllib.error
+    import urllib.request
+    from email.message import Message
+
+    from tests._internal.remotes.conftest import MockHTTPResponse
+    from vcspull._internal.remotes.base import HTTPClient, RateLimitError
+
+    # Monkeypatch time.sleep: record calls without actually sleeping
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda d: sleep_calls.append(d))
+
+    call_count = 0
+    success_body = json.dumps({"ok": True}).encode()
+
+    def urlopen_side_effect(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        nonlocal call_count
+        call_count += 1
+        if call_count <= num_429s:
+            hdrs = Message()
+            if retry_after_header is not None:
+                hdrs["Retry-After"] = retry_after_header
+            raise urllib.error.HTTPError(
+                url=request.full_url,
+                code=429,
+                msg="Too Many Requests",
+                hdrs=hdrs,
+                fp=io.BytesIO(b'{"message": "rate limit"}'),
+            )
+        return MockHTTPResponse(success_body, {}, 200)
+
+    # Mock urlopen: simulate 429s followed by success
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    client = HTTPClient(
+        "https://api.example.com",
+        max_retries=max_retries,
+        retry_base_delay=0.1,  # small for tests
+    )
+
+    if expect_success:
+        data, _headers = client.get("/test", service_name="TestService")
+        assert data == {"ok": True}
+    else:
+        with pytest.raises(RateLimitError):
+            client.get("/test", service_name="TestService")
+
+    assert len(sleep_calls) == expected_sleep_count
+
+
+def test_http_client_retry_uses_retry_after_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that Retry-After header value is used as sleep duration."""
+    import io
+    import json
+    import urllib.error
+    import urllib.request
+    from email.message import Message
+
+    from tests._internal.remotes.conftest import MockHTTPResponse
+    from vcspull._internal.remotes.base import HTTPClient
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda d: sleep_calls.append(d))
+
+    call_count = 0
+    success_body = json.dumps({"ok": True}).encode()
+
+    def urlopen_side_effect(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 1:
+            hdrs = Message()
+            hdrs["Retry-After"] = "5"
+            raise urllib.error.HTTPError(
+                url=request.full_url,
+                code=429,
+                msg="Too Many Requests",
+                hdrs=hdrs,
+                fp=io.BytesIO(b'{"message": "rate limit"}'),
+            )
+        return MockHTTPResponse(success_body, {}, 200)
+
+    # Mock urlopen: single 429 with Retry-After: 5
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    client = HTTPClient(
+        "https://api.example.com",
+        max_retries=3,
+        retry_base_delay=0.1,
+    )
+    client.get("/test", service_name="TestService")
+
+    assert len(sleep_calls) == 1
+    assert sleep_calls[0] == 5.0
+
+
+def test_http_client_retry_backoff_increases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test exponential backoff: each retry sleeps longer than the previous."""
+    import io
+    import json
+    import urllib.error
+    import urllib.request
+    from email.message import Message
+
+    from tests._internal.remotes.conftest import MockHTTPResponse
+    from vcspull._internal.remotes.base import HTTPClient
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda d: sleep_calls.append(d))
+
+    call_count = 0
+    success_body = json.dumps({"ok": True}).encode()
+
+    def urlopen_side_effect(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 3:
+            hdrs = Message()
+            raise urllib.error.HTTPError(
+                url=request.full_url,
+                code=429,
+                msg="Too Many Requests",
+                hdrs=hdrs,
+                fp=io.BytesIO(b'{"message": "rate limit"}'),
+            )
+        return MockHTTPResponse(success_body, {}, 200)
+
+    # Mock urlopen: 3 consecutive 429s then success
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    client = HTTPClient(
+        "https://api.example.com",
+        max_retries=3,
+        retry_base_delay=1.0,
+    )
+    client.get("/test", service_name="TestService")
+
+    assert len(sleep_calls) == 3
+    # Base delays (before jitter): 1.0, 2.0, 4.0
+    # With jitter (up to 50% of delay), each delay is in range [base, base*1.5]
+    # Verify increasing trend
+    assert sleep_calls[0] < sleep_calls[1]
+    assert sleep_calls[1] < sleep_calls[2]
+
+
+def test_http_client_retry_delay_capped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test retry delay is capped at 120s for Retry-After, 60s for backoff."""
+    import io
+    import json
+    import urllib.error
+    import urllib.request
+    from email.message import Message
+
+    from tests._internal.remotes.conftest import MockHTTPResponse
+    from vcspull._internal.remotes.base import HTTPClient
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("time.sleep", lambda d: sleep_calls.append(d))
+
+    call_count = 0
+    success_body = json.dumps({"ok": True}).encode()
+
+    def urlopen_side_effect(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 1:
+            hdrs = Message()
+            hdrs["Retry-After"] = "999"  # Way too large
+            raise urllib.error.HTTPError(
+                url=request.full_url,
+                code=429,
+                msg="Too Many Requests",
+                hdrs=hdrs,
+                fp=io.BytesIO(b'{"message": "rate limit"}'),
+            )
+        return MockHTTPResponse(success_body, {}, 200)
+
+    # Mock urlopen: single 429 with excessive Retry-After value
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    client = HTTPClient(
+        "https://api.example.com",
+        max_retries=3,
+        retry_base_delay=1.0,
+    )
+    client.get("/test", service_name="TestService")
+
+    assert len(sleep_calls) == 1
+    assert sleep_calls[0] == 120.0  # Capped at 120s
