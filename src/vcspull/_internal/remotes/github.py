@@ -314,6 +314,11 @@ class GitHubImporter:
                     yield repo
                     count += 1
 
+            # Boundary: limit reached on the last item of a full page
+            if count >= options.limit and len(data) == DEFAULT_PER_PAGE:
+                more_available = True
+                break
+
             # Check if there are more pages
             if len(data) < DEFAULT_PER_PAGE:
                 break

@@ -779,3 +779,44 @@ def test_github_truncation_warning(
         assert expected_warning_fragment in caplog.text.lower()
     else:
         assert "--limit" not in caplog.text.lower()
+
+
+def test_github_truncation_at_page_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Truncation warning fires when limit equals a full page of results."""
+    import logging
+
+    from tests._internal.remotes.conftest import MockHTTPResponse
+
+    # Return exactly DEFAULT_PER_PAGE (100) repos on page 1;
+    # the while loop should detect this boundary and warn
+    page1_repos = [_make_github_repo(i) for i in range(100)]
+    page2_repos = [_make_github_repo(i) for i in range(100, 105)]
+    rate_headers = {"x-ratelimit-remaining": "100", "x-ratelimit-limit": "60"}
+
+    call_count = 0
+
+    def urlopen_side_effect(
+        request: t.Any,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            body = json.dumps(page1_repos).encode()
+        else:
+            body = json.dumps(page2_repos).encode()
+        return MockHTTPResponse(body, rate_headers, 200)
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+    caplog.set_level(logging.WARNING)
+
+    importer = GitHubImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="user", limit=100)
+    repos = list(importer.fetch_repos(options))
+
+    assert len(repos) == 100
+    assert call_count == 1, "Should not fetch page 2 when limit already reached"
+    assert "more may be available" in caplog.text.lower()
