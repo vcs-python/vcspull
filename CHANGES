@@ -33,6 +33,8 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+## vcspull v1.56.1 (2026-02-18)
+
 ### Bug fixes
 
 #### `vcspull import`: Fix silent truncation of GitLab/GitHub results (#518)

@@ -1,6 +1,6 @@
 [project]
 name = "vcspull"
-version = "1.56.0"
+version = "1.56.1"
 description = "Manage and sync multiple git, mercurial, and svn repos"
 requires-python = ">=3.10,<4.0"
 license = { text = "MIT" }
