@@ -410,7 +410,6 @@ class HTTPClient:
 
         log.debug("GET %s", url)
 
-        last_exc: urllib.error.HTTPError | None = None
         for attempt in range(self.max_retries + 1):
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
@@ -419,7 +418,6 @@ class HTTPClient:
                     return json.loads(body), response_headers
             except urllib.error.HTTPError as exc:  # noqa: PERF203
                 if exc.code == 429 and attempt < self.max_retries:
-                    last_exc = exc
                     delay = self._calculate_retry_delay(exc, attempt)
                     log.warning(
                         "Rate limited by %s, retrying in %.1fs (attempt %d/%d)",
@@ -438,11 +436,6 @@ class HTTPClient:
                 msg = f"Invalid JSON response from {service_name}"
                 raise ServiceUnavailableError(msg, service=service_name) from exc
 
-        # Retries exhausted on 429 — raise via _handle_http_error
-        if last_exc is not None:
-            self._handle_http_error(last_exc, service_name)
-
-        # Should never reach here, but for type checker
         msg = "Unexpected error"
         raise ServiceUnavailableError(msg, service=service_name)
 
