@@ -44,8 +44,7 @@ beyond the cap with no indication that more were available.
   truncation and warn users
 - GitHub search: Use `total_count` from the JSON body to detect truncation
 - GitHub user/org: Detect mid-page limit hit as a "more available" signal
-- All providers now print:
-  `Showing N of M repositories (use --limit 0 to fetch all)`
+- All providers now warn when results are capped by `--limit`
 
 #### `vcspull import`: Fix HTTP 429 rate-limit failures on large imports (#518)
 
