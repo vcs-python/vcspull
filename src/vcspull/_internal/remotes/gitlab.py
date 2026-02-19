@@ -213,7 +213,7 @@ class GitLabImporter:
 
             self._log_rate_limit(headers)
 
-            # Capture pagination metadata from first page
+            # Capture x-total from first response
             if page == 1:
                 x_total = headers.get("x-total")
                 if x_total is not None:
@@ -296,7 +296,7 @@ class GitLabImporter:
 
             self._log_rate_limit(headers)
 
-            # Capture pagination metadata from first page
+            # Capture x-total from first response
             if page == 1:
                 x_total = headers.get("x-total")
                 if x_total is not None:
