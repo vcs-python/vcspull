@@ -203,6 +203,63 @@ def test_gitlab_importer_service_name() -> None:
     assert importer.service_name == "GitLab"
 
 
+def test_gitlab_uses_private_token_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test GitLab sends PRIVATE-TOKEN header, not Authorization: Bearer.
+
+    GitLab accepts both PRIVATE-TOKEN and Authorization: Bearer, but they
+    can return different result sets for private projects in public groups.
+    vcspull explicitly uses PRIVATE-TOKEN (via auth_header/auth_prefix
+    overrides in GitLabImporter.__init__) for consistent authenticated results.
+
+    If this test fails, check that GitLabImporter still sets:
+        auth_header="PRIVATE-TOKEN", auth_prefix=""
+    """
+    captured_requests: list[urllib.request.Request] = []
+
+    response_json = [
+        {
+            "path": "test-project",
+            "name": "Test Project",
+            "http_url_to_repo": "https://gitlab.com/testgroup/test-project.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/test-project.git",
+            "web_url": "https://gitlab.com/testgroup/test-project",
+            "description": "",
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "testgroup", "full_path": "testgroup"},
+        }
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        # Mock urlopen: capture Request object to inspect auth headers
+        captured_requests.append(request)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter(token="glpat-test123")
+    options = ImportOptions(mode=ImportMode.ORG, target="testgroup")
+    list(importer.fetch_repos(options))
+
+    assert len(captured_requests) == 1
+    req = captured_requests[0]
+
+    # urllib normalizes header names via str.capitalize(): PRIVATE-TOKEN → Private-token
+    assert req.get_header("Private-token") == "glpat-test123", (
+        "Expected PRIVATE-TOKEN header with bare token value (no Bearer prefix)"
+    )
+    assert req.get_header("Authorization") is None, (
+        "Expected no Authorization header — GitLab uses PRIVATE-TOKEN instead"
+    )
+
+
 def test_gitlab_handles_forked_project(
     mock_urlopen: t.Callable[..., None],
 ) -> None:
