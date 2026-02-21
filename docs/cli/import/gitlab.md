@@ -100,6 +100,10 @@ $ vcspull import gl my-group \
 The flag matches any path segment: `--skip-group bots` skips repos owned by
 `my-group/bots` or `my-group/bots/subteam` but not `my-group/robotics`.
 
+> **Note**: Passing the root group name itself (`--skip-group my-org` when
+> importing `my-org`) will silently exclude every repository, since all repo
+> paths include the root group as a path segment.
+
 ## Authentication
 
 - **Env vars**: `GITLAB_TOKEN` (primary), `GL_TOKEN` (fallback)
