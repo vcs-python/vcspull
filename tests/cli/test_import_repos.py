@@ -1807,6 +1807,12 @@ WITH_SHARED_MODE_WARNING_FIXTURES: list[WithSharedModeWarningFixture] = [
         with_shared=False,
         expect_warning=False,
     ),
+    WithSharedModeWarningFixture(
+        test_id="search-mode-with-shared-warns",
+        mode="search",
+        with_shared=True,
+        expect_warning=True,
+    ),
 ]
 
 
