@@ -1058,3 +1058,94 @@ def test_gitlab_skip_groups_case_insensitive(
     options = ImportOptions(mode=ImportMode.ORG, target="ORG", skip_groups=["bots"])
     repos = list(importer.fetch_repos(options))
     assert len(repos) == 0
+
+
+def test_gitlab_with_shared_and_skip_groups_combined(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that with_shared=True and skip_groups work correctly together.
+
+    Verifies that:
+    - with_shared=true is sent to the API
+    - skip_groups filtering applies client-side after fetching
+    - shared repos from external namespaces survive the skip filter
+    - repos in skipped subgroups are excluded regardless of shared status
+    """
+    captured_urls: list[str] = []
+
+    response_json: list[dict[str, t.Any]] = [
+        {
+            "path": "top-repo",
+            "name": "top-repo",
+            "http_url_to_repo": "https://gitlab.com/testgroup/top-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/top-repo.git",
+            "web_url": "https://gitlab.com/testgroup/top-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            # Owned directly by testgroup — passes skip filter
+            "namespace": {"path": "testgroup", "full_path": "testgroup"},
+        },
+        {
+            "path": "bots-repo",
+            "name": "bots-repo",
+            "http_url_to_repo": "https://gitlab.com/testgroup/bots/bots-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/bots/bots-repo.git",
+            "web_url": "https://gitlab.com/testgroup/bots/bots-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            # Owned by testgroup/bots — excluded by skip_groups=["bots"]
+            "namespace": {"path": "bots", "full_path": "testgroup/bots"},
+        },
+        {
+            "path": "external-repo",
+            "name": "external-repo",
+            "http_url_to_repo": "https://gitlab.com/external-user/external-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:external-user/external-repo.git",
+            "web_url": "https://gitlab.com/external-user/external-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            # Shared from an external namespace — not in "bots", survives filter
+            "namespace": {"path": "external-user", "full_path": "external-user"},
+        },
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    # Mock urlopen: capture URL and return all three repos
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    options = ImportOptions(
+        mode=ImportMode.ORG,
+        target="testgroup",
+        with_shared=True,
+        skip_groups=["bots"],
+    )
+    repos = list(importer.fetch_repos(options))
+
+    # Assert with_shared=true was sent in the API request
+    assert len(captured_urls) == 1
+    qs = urllib.parse.parse_qs(urllib.parse.urlsplit(captured_urls[0]).query)
+    assert qs.get("with_shared") == ["true"], (
+        f"Expected with_shared=true, got: {captured_urls[0]}"
+    )
+
+    # top-repo and external-repo survive; bots-repo excluded by skip filter
+    repo_names = {r.name for r in repos}
+    assert repo_names == {"top-repo", "external-repo"}, (
+        f"Unexpected repos returned: {repo_names}"
+    )
