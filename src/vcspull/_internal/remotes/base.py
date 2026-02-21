@@ -232,6 +232,12 @@ class ImportOptions:
         Minimum star count (for search mode)
     limit : int
         Maximum number of repositories to return
+    with_shared : bool
+        Include projects shared into a group from other namespaces
+        (GitLab group mode only; default: False)
+    skip_groups : list[str]
+        Exclude repos whose owner path contains any of these group name
+        segments (case-insensitive segment matching)
     """
 
     mode: ImportMode = ImportMode.USER
@@ -244,6 +250,8 @@ class ImportOptions:
     topics: list[str] = dataclasses.field(default_factory=list)
     min_stars: int = 0
     limit: int = 100
+    with_shared: bool = False
+    skip_groups: list[str] = dataclasses.field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Validate options after initialization.
@@ -263,6 +271,18 @@ class ImportOptions:
         Traceback (most recent call last):
             ...
         ValueError: limit must be >= 0, got -1
+
+        >>> opts = ImportOptions(with_shared=True)
+        >>> opts.with_shared
+        True
+
+        >>> opts = ImportOptions(skip_groups=["bots", "archived"])
+        >>> opts.skip_groups
+        ['bots', 'archived']
+
+        >>> opts = ImportOptions()
+        >>> opts.skip_groups
+        []
         """
         if self.limit < 0:
             msg = f"limit must be >= 0, got {self.limit}"
@@ -606,6 +626,37 @@ def filter_repo(
     >>> options = ImportOptions(language="JavaScript")
     >>> filter_repo(repo, options)
     False
+
+    >>> options = ImportOptions(skip_groups=["user"])
+    >>> filter_repo(repo, options)
+    False
+
+    >>> options = ImportOptions(skip_groups=["other-group"])
+    >>> filter_repo(repo, options)
+    True
+
+    >>> repo_sub = RemoteRepo(
+    ...     name="sub-project",
+    ...     clone_url="https://github.com/org/sub/sub-project.git",
+    ...     ssh_url="git@github.com:org/sub/sub-project.git",
+    ...     html_url="https://github.com/org/sub/sub-project",
+    ...     description=None,
+    ...     language=None,
+    ...     topics=(),
+    ...     stars=0,
+    ...     is_fork=False,
+    ...     is_archived=False,
+    ...     default_branch="main",
+    ...     owner="org/sub",
+    ... )
+    >>> filter_repo(repo_sub, ImportOptions(skip_groups=["sub"]))
+    False
+    >>> filter_repo(repo_sub, ImportOptions(skip_groups=["org"]))
+    False
+    >>> filter_repo(repo_sub, ImportOptions(skip_groups=["unrelated"]))
+    True
+    >>> filter_repo(repo_sub, ImportOptions(skip_groups=["SUB"]))
+    False
     """
     # Check fork filter
     if repo.is_fork and not options.include_forks:
@@ -626,6 +677,13 @@ def filter_repo(
         repo_topics_lower = {topic.lower() for topic in repo.topics}
         required_topics_lower = {topic.lower() for topic in options.topics}
         if not required_topics_lower.issubset(repo_topics_lower):
+            return False
+
+    # Check skip_groups: exclude if any owner path segment matches
+    if options.skip_groups:
+        owner_segments = {s.lower() for s in repo.owner.split("/") if s}
+        skip_set = {g.lower() for g in options.skip_groups if g}
+        if owner_segments & skip_set:
             return False
 
     # Check minimum stars

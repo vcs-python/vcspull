@@ -281,6 +281,8 @@ def _run_import(
     color: str,
     use_https: bool = False,
     flatten_groups: bool = False,
+    with_shared: bool = False,
+    skip_groups: list[str] | None = None,
 ) -> int:
     """Run the import workflow for a single service.
 
@@ -329,6 +331,10 @@ def _run_import(
         Use HTTPS clone URLs instead of SSH (default: False, i.e., SSH)
     flatten_groups : bool
         For GitLab org imports, flatten subgroup paths into base workspace
+    with_shared : bool
+        Include projects shared into a group from other namespaces (GitLab only)
+    skip_groups : list[str] | None
+        Exclude repos whose owner path contains any of these group name segments
 
     Returns
     -------
@@ -347,6 +353,8 @@ def _run_import(
         else []
     )
 
+    skip_groups_list: list[str] = skip_groups or []
+
     try:
         options = ImportOptions(
             mode=import_mode,
@@ -357,6 +365,8 @@ def _run_import(
             topics=topic_list,
             min_stars=min_stars,
             limit=limit,
+            with_shared=with_shared,
+            skip_groups=skip_groups_list,
         )
     except ValueError as exc_:
         log.error("%s %s", colors.error("✗"), exc_)  # noqa: TRY400
