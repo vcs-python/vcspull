@@ -73,7 +73,8 @@ $ vcspull import gl my-group \
     --with-shared
 ```
 
-`--with-shared` has no effect in user mode or search mode.
+`--with-shared` has no effect in user mode or search mode; a warning is
+emitted if the flag is passed in those contexts.
 
 ## Skipping subgroups
 
