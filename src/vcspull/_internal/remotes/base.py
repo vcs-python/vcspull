@@ -237,7 +237,10 @@ class ImportOptions:
         (GitLab group mode only; default: False)
     skip_groups : list[str]
         Exclude repos whose owner path contains any of these group name
-        segments (case-insensitive segment matching)
+        segments (case-insensitive segment matching). For flat-namespace
+        hosts (e.g. GitHub orgs, which have a single path segment), passing
+        the org name itself as a skip value would exclude every repository
+        under that org.
     """
 
     mode: ImportMode = ImportMode.USER
