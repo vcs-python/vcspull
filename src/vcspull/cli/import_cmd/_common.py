@@ -394,6 +394,12 @@ def _run_import(
             colors.warning("!"),
             importer.service_name,
         )
+    if options.with_shared and options.mode != ImportMode.ORG:
+        log.warning(
+            "%s --with-shared has no effect outside org mode; "
+            "shared projects are only available via the GitLab group API",
+            colors.warning("!"),
+        )
 
     # Resolve workspace path
     workspace_path = pathlib.Path(workspace).expanduser().resolve()

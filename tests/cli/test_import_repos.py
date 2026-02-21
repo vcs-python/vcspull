@@ -1779,6 +1779,89 @@ def test_import_repos_unsupported_filter_warning(
         assert "does not track star counts" not in caplog.text
 
 
+class WithSharedModeWarningFixture(t.NamedTuple):
+    """Fixture for --with-shared outside-org-mode warning test cases."""
+
+    test_id: str
+    mode: str
+    with_shared: bool
+    expect_warning: bool
+
+
+WITH_SHARED_MODE_WARNING_FIXTURES: list[WithSharedModeWarningFixture] = [
+    WithSharedModeWarningFixture(
+        test_id="user-mode-with-shared-warns",
+        mode="user",
+        with_shared=True,
+        expect_warning=True,
+    ),
+    WithSharedModeWarningFixture(
+        test_id="org-mode-with-shared-no-warning",
+        mode="org",
+        with_shared=True,
+        expect_warning=False,
+    ),
+    WithSharedModeWarningFixture(
+        test_id="user-mode-without-shared-no-warning",
+        mode="user",
+        with_shared=False,
+        expect_warning=False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(WithSharedModeWarningFixture._fields),
+    WITH_SHARED_MODE_WARNING_FIXTURES,
+    ids=[f.test_id for f in WITH_SHARED_MODE_WARNING_FIXTURES],
+)
+def test_import_repos_with_shared_mode_warning(
+    test_id: str,
+    mode: str,
+    with_shared: bool,
+    expect_warning: bool,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that --with-shared warns when used outside org mode."""
+    caplog.set_level(logging.WARNING)
+
+    del test_id
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    importer = MockImporter(service_name="GitLab")
+
+    _run_import(
+        importer,
+        service_name="gitlab",
+        target="testuser",
+        workspace=str(workspace),
+        mode=mode,
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(tmp_path / "config.yaml"),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        with_shared=with_shared,
+    )
+
+    if expect_warning:
+        assert "--with-shared has no effect outside org mode" in caplog.text
+    else:
+        assert "--with-shared has no effect outside org mode" not in caplog.text
+
+
 # ── New tests for per-service subparser architecture ──
 
 
