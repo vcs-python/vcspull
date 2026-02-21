@@ -79,6 +79,28 @@ class MockImporter:
         yield from self._repos
 
 
+class CapturingMockImporter:
+    """Mock importer that captures the ImportOptions passed to fetch_repos."""
+
+    def __init__(
+        self,
+        *,
+        service_name: str = "MockService",
+        repos: list[RemoteRepo] | None = None,
+    ) -> None:
+        self.service_name = service_name
+        self._repos = repos or []
+        self.captured_options: ImportOptions | None = None
+
+    def fetch_repos(
+        self,
+        options: ImportOptions,
+    ) -> t.Iterator[RemoteRepo]:
+        """Capture options and yield repos."""
+        self.captured_options = options
+        yield from self._repos
+
+
 class ResolveConfigFixture(t.NamedTuple):
     """Fixture for _resolve_config_file test cases."""
 
@@ -1017,6 +1039,38 @@ def test_import_flatten_groups_flag_via_cli() -> None:
     assert args.flatten_groups is True
 
 
+def test_import_with_shared_flag_via_cli() -> None:
+    """Test that --with-shared flag is recognized by the GitLab subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(
+        ["import", "gitlab", "my-group", "-w", "/tmp/repos", "--with-shared"]
+    )
+    assert args.with_shared is True
+
+
+def test_import_skip_group_flag_via_cli() -> None:
+    """Test that --skip-group is recognized and repeatable by the GitLab subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+    args = parser.parse_args(
+        [
+            "import",
+            "gitlab",
+            "my-group",
+            "-w",
+            "/tmp/repos",
+            "--skip-group",
+            "bots",
+            "--skip-group",
+            "archived",
+        ]
+    )
+    assert args.skip_groups == ["bots", "archived"]
+
+
 def test_import_repos_rejects_unsupported_config_type(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
@@ -1879,3 +1933,41 @@ def test_codecommit_target_is_optional() -> None:
     # Should work with target
     args = parser.parse_args(["import", "codecommit", "myprefix", "-w", "/tmp/repos"])
     assert args.target == "myprefix"
+
+
+def test_run_import_forwards_with_shared_and_skip_groups(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Test that with_shared and skip_groups are forwarded to ImportOptions."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    importer = CapturingMockImporter()
+
+    _run_import(
+        importer,
+        service_name="gitlab",
+        target="my-group",
+        workspace=str(workspace),
+        mode="org",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(tmp_path / "config.yaml"),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        with_shared=True,
+        skip_groups=["bots", "archived"],
+    )
+
+    assert importer.captured_options is not None
+    assert importer.captured_options.with_shared is True
+    assert importer.captured_options.skip_groups == ["bots", "archived"]
