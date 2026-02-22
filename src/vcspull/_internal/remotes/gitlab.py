@@ -350,6 +350,12 @@ class GitLabImporter:
         if count < limit:
             return
 
+        # TODO: total_available comes from the x-total header which reflects
+        # the unfiltered server-side project count.  After client-side
+        # filter_repo filtering (e.g. skip_groups, language, topics), count
+        # may be less than total_available for reasons unrelated to --limit.
+        # A more accurate message would require tracking pre-filter vs
+        # post-filter counts separately.
         if total_available is not None and total_available > count:
             log.warning(
                 "Showing %d of %d repositories (use --limit 0 to fetch all)",
