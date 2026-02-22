@@ -927,6 +927,44 @@ def test_gitlab_truncation_warning_count_below_limit_with_filters(
     assert "server total includes projects excluded" in caplog.text
 
 
+def test_gitlab_truncation_warning_with_min_stars_filter(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Qualified warning fires when min_stars filters repos and server total > count.
+
+    Regression test: min_stars must be included in the has_client_filters gate.
+    """
+    import logging
+
+    caplog.set_level(logging.WARNING)
+
+    # _make_group_project has star_count=0; min_stars=1 filters all of them out
+    repos = [_make_group_project(f"proj-{i}") for i in range(5)]
+    headers = {"x-total": "5"}
+
+    def urlopen_side_effect(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        return MockHTTPResponse(json.dumps(repos).encode(), headers, 200)
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    importer = GitLabImporter()
+    options = ImportOptions(
+        mode=ImportMode.ORG,
+        target="testgroup",
+        limit=20,
+        min_stars=1,  # all repos have 0 stars → all filtered out by filter_repo
+    )
+    list(importer.fetch_repos(options))
+
+    # min_stars > 0 → has_client_filters=True → qualified warning fires
+    assert "server total includes projects excluded" in caplog.text
+    assert "--min-stars" in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # with_shared URL parameter tests
 # ---------------------------------------------------------------------------

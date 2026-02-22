@@ -247,7 +247,10 @@ class GitLabImporter:
             total_available,
             last_x_next_page,
             has_client_filters=bool(
-                options.skip_groups or options.language or options.topics
+                options.skip_groups
+                or options.language
+                or options.topics
+                or options.min_stars > 0
             ),
         )
 
@@ -339,7 +342,10 @@ class GitLabImporter:
             total_available,
             last_x_next_page,
             has_client_filters=bool(
-                options.skip_groups or options.language or options.topics
+                options.skip_groups
+                or options.language
+                or options.topics
+                or options.min_stars > 0
             ),
         )
 
@@ -384,7 +390,7 @@ class GitLabImporter:
                 log.warning(
                     "Showing %d repositories; %d total on server "
                     "(note: server total includes projects excluded by "
-                    "--skip-group / --language / --topics; "
+                    "--skip-group / --language / --topics / --min-stars; "
                     "use --limit 0 to fetch all matching your filters)",
                     count,
                     total_available,
