@@ -367,11 +367,16 @@ class GitLabImporter:
         x_next_page : str | None
             Value of x-next-page header (None if absent/empty)
         has_client_filters : bool
-            True when any client-side filter (skip_groups, language, topics) is
-            active; used to qualify the warning message so the server-side
-            total is not presented as the filtered total.
+            True when any client-side filter (skip_groups, language, topics,
+            min_stars) is active; suppresses the early ``count < limit`` return
+            so the qualified warning can fire even when count < limit.
         """
-        if count < limit:
+        # Without client-side filters, count < limit means we consumed all
+        # server results without hitting the limit — no truncation to warn about.
+        # With active filters, skip the early return: count < limit may simply
+        # reflect that filters excluded repos, while total_available still
+        # exceeds count and is worth surfacing to the user.
+        if count < limit and not has_client_filters:
             return
 
         if total_available is not None and total_available > count:

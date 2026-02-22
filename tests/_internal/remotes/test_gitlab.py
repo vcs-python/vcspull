@@ -888,6 +888,45 @@ def test_gitlab_truncation_warning_with_client_filter(
     assert "server total includes projects excluded" in caplog.text
 
 
+def test_gitlab_truncation_warning_count_below_limit_with_filters(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Qualified warning fires even when count < limit, if client filters are active.
+
+    Regression test: the count < limit early return in _warn_truncation must
+    not suppress the warning when has_client_filters=True.
+    """
+    import logging
+
+    caplog.set_level(logging.WARNING)
+
+    # _make_group_project has namespace full_path="testgroup";
+    # skip_groups=["testgroup"] filters every repo → count=0 < limit=20
+    repos = [_make_group_project(f"proj-{i}") for i in range(5)]
+    headers = {"x-total": "5"}
+
+    def urlopen_side_effect(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        return MockHTTPResponse(json.dumps(repos).encode(), headers, 200)
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    importer = GitLabImporter()
+    options = ImportOptions(
+        mode=ImportMode.ORG,
+        target="testgroup",
+        limit=20,
+        skip_groups=["testgroup"],  # owner="testgroup", so all 5 repos are excluded
+    )
+    list(importer.fetch_repos(options))
+
+    # count=0 < limit=20, but has_client_filters=True → qualified warning should fire
+    assert "server total includes projects excluded" in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # with_shared URL parameter tests
 # ---------------------------------------------------------------------------
