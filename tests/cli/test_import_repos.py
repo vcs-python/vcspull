@@ -1940,6 +1940,44 @@ def test_flatten_groups_only_on_gitlab() -> None:
         )
 
 
+def test_with_shared_only_on_gitlab() -> None:
+    """Test that --with-shared is only available on the gitlab subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+
+    # Should work for gitlab
+    args = parser.parse_args(
+        ["import", "gitlab", "mygroup", "-w", "/tmp/repos", "--with-shared"]
+    )
+    assert args.with_shared is True
+
+    # Should fail for github
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            ["import", "github", "myuser", "-w", "/tmp/repos", "--with-shared"]
+        )
+
+
+def test_skip_group_only_on_gitlab() -> None:
+    """Test that --skip-group is only available on the gitlab subparser."""
+    from vcspull.cli import create_parser
+
+    parser = create_parser(return_subparsers=False)
+
+    # Should work for gitlab
+    args = parser.parse_args(
+        ["import", "gitlab", "mygroup", "-w", "/tmp/repos", "--skip-group", "bots"]
+    )
+    assert args.skip_groups == ["bots"]
+
+    # Should fail for github
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            ["import", "github", "myuser", "-w", "/tmp/repos", "--skip-group", "bots"]
+        )
+
+
 def test_region_only_on_codecommit() -> None:
     """Test that --region is only available on the codecommit subparser."""
     from vcspull.cli import create_parser
