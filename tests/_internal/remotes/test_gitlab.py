@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import typing as t
 import urllib.parse
 import urllib.request
 
 import pytest
+import yaml
 
 from tests._internal.remotes.conftest import MockHTTPResponse
 from vcspull._internal.remotes.base import ImportMode, ImportOptions
 from vcspull._internal.remotes.gitlab import GitLabImporter
+from vcspull.cli.import_cmd._common import _run_import
 
 
 def test_gitlab_fetch_user(
@@ -1181,3 +1184,85 @@ def test_gitlab_with_shared_and_skip_groups_combined(
     assert repo_names == {"top-repo", "external-repo"}, (
         f"Unexpected repos returned: {repo_names}"
     )
+
+
+def test_gitlab_cli_skip_groups_excludes_from_config(
+    mock_urlopen: t.Callable[..., None],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Integration: _run_import + GitLabImporter + filter_repo writes correct config.
+
+    MockImporter.fetch_repos bypasses filter_repo, so CLI tests using it cannot
+    catch regressions in the importer→filter boundary. This test uses a real
+    GitLabImporter with mocked HTTP and verifies bots-repo is absent from the
+    written config.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    response_json: list[dict[str, t.Any]] = [
+        {
+            "path": "top-repo",
+            "name": "top-repo",
+            "http_url_to_repo": "https://gitlab.com/testgroup/top-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/top-repo.git",
+            "web_url": "https://gitlab.com/testgroup/top-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "testgroup", "full_path": "testgroup"},
+        },
+        {
+            "path": "bots-repo",
+            "name": "bots-repo",
+            "http_url_to_repo": "https://gitlab.com/testgroup/bots/bots-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/bots/bots-repo.git",
+            "web_url": "https://gitlab.com/testgroup/bots/bots-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "bots", "full_path": "testgroup/bots"},
+        },
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    result = _run_import(
+        GitLabImporter(),
+        service_name="gitlab",
+        target="testgroup",
+        workspace=str(workspace),
+        mode="org",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        skip_groups=["bots"],
+    )
+
+    assert result == 0
+    assert config_file.exists()
+    config = yaml.safe_load(config_file.read_text())
+
+    all_repo_names: set[str] = set()
+    for section in config.values():
+        if isinstance(section, dict):
+            all_repo_names.update(section.keys())
+
+    assert "top-repo" in all_repo_names
+    assert "bots-repo" not in all_repo_names
