@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import typing as t
+import urllib.parse
 import urllib.request
 
 import pytest
@@ -200,6 +201,63 @@ def test_gitlab_importer_service_name() -> None:
     """Test service_name property."""
     importer = GitLabImporter()
     assert importer.service_name == "GitLab"
+
+
+def test_gitlab_uses_private_token_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test GitLab sends PRIVATE-TOKEN header, not Authorization: Bearer.
+
+    GitLab accepts both PRIVATE-TOKEN and Authorization: Bearer, but they
+    can return different result sets for private projects in public groups.
+    vcspull explicitly uses PRIVATE-TOKEN (via auth_header/auth_prefix
+    overrides in GitLabImporter.__init__) for consistent authenticated results.
+
+    If this test fails, check that GitLabImporter still sets:
+        auth_header="PRIVATE-TOKEN", auth_prefix=""
+    """
+    captured_requests: list[urllib.request.Request] = []
+
+    response_json = [
+        {
+            "path": "test-project",
+            "name": "Test Project",
+            "http_url_to_repo": "https://gitlab.com/testgroup/test-project.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/test-project.git",
+            "web_url": "https://gitlab.com/testgroup/test-project",
+            "description": "",
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "testgroup", "full_path": "testgroup"},
+        }
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        # Mock urlopen: capture Request object to inspect auth headers
+        captured_requests.append(request)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter(token="glpat-test123")
+    options = ImportOptions(mode=ImportMode.ORG, target="testgroup")
+    list(importer.fetch_repos(options))
+
+    assert len(captured_requests) == 1
+    req = captured_requests[0]
+
+    # urllib normalizes header names via str.capitalize(): PRIVATE-TOKEN → Private-token
+    assert req.get_header("Private-token") == "glpat-test123", (
+        "Expected PRIVATE-TOKEN header with bare token value (no Bearer prefix)"
+    )
+    assert req.get_header("Authorization") is None, (
+        "Expected no Authorization header — GitLab uses PRIVATE-TOKEN instead"
+    )
 
 
 def test_gitlab_handles_forked_project(
@@ -795,3 +853,331 @@ def test_gitlab_truncation_warning(
         assert expected_warning_fragment in caplog.text.lower()
     else:
         assert "--limit" not in caplog.text.lower()
+
+
+# ---------------------------------------------------------------------------
+# with_shared URL parameter tests
+# ---------------------------------------------------------------------------
+
+
+def _make_group_project(name: str = "project1") -> dict[str, t.Any]:
+    """Create a minimal GitLab group project API object."""
+    return {
+        "path": name,
+        "name": name,
+        "http_url_to_repo": f"https://gitlab.com/testgroup/{name}.git",
+        "ssh_url_to_repo": f"git@gitlab.com:testgroup/{name}.git",
+        "web_url": f"https://gitlab.com/testgroup/{name}",
+        "description": None,
+        "topics": [],
+        "star_count": 0,
+        "archived": False,
+        "default_branch": "main",
+        "namespace": {"path": "testgroup", "full_path": "testgroup"},
+    }
+
+
+def test_gitlab_with_shared_false_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that with_shared=false is sent to GitLab API in group mode by default."""
+    captured_urls: list[str] = []
+
+    response_json = [_make_group_project()]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    # Mock urlopen: verify with_shared=false is sent when not explicitly set
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.ORG, target="testgroup")
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    qs = urllib.parse.parse_qs(urllib.parse.urlsplit(captured_urls[0]).query)
+    assert qs.get("with_shared") == ["false"], (
+        f"Expected with_shared=false, got: {captured_urls[0]}"
+    )
+
+
+def test_gitlab_with_shared_true_when_flag_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that with_shared=true is sent to GitLab API when with_shared=True."""
+    captured_urls: list[str] = []
+
+    response_json = [_make_group_project()]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    # Mock urlopen: verify with_shared=true is sent when explicitly enabled
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.ORG, target="testgroup", with_shared=True)
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    qs = urllib.parse.parse_qs(urllib.parse.urlsplit(captured_urls[0]).query)
+    assert qs.get("with_shared") == ["true"], (
+        f"Expected with_shared=true, got: {captured_urls[0]}"
+    )
+
+
+def test_gitlab_with_shared_not_sent_in_user_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that with_shared is NOT sent to GitLab API in user mode."""
+    captured_urls: list[str] = []
+
+    response_json = [_make_group_project()]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    # Mock urlopen: verify with_shared is absent from user-mode API calls
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    options = ImportOptions(mode=ImportMode.USER, target="testuser", with_shared=True)
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    qs = urllib.parse.parse_qs(urllib.parse.urlsplit(captured_urls[0]).query)
+    assert "with_shared" not in qs, (
+        f"Expected no with_shared param in user-mode URL, got: {captured_urls[0]}"
+    )
+
+
+def test_gitlab_with_shared_not_sent_in_search_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that with_shared is NOT sent to GitLab API in search mode."""
+    captured_urls: list[str] = []
+
+    response_json = [_make_group_project()]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    # Mock urlopen: verify with_shared is absent from search-mode API calls
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    # Search mode requires authentication; token="fake" satisfies is_authenticated
+    importer = GitLabImporter(token="fake")
+    options = ImportOptions(
+        mode=ImportMode.SEARCH, target="testsearch", with_shared=True
+    )
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    qs = urllib.parse.parse_qs(urllib.parse.urlsplit(captured_urls[0]).query)
+    assert "with_shared" not in qs, (
+        f"Expected no with_shared param in search-mode URL, got: {captured_urls[0]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# skip_groups filtering tests
+# ---------------------------------------------------------------------------
+
+
+def test_gitlab_skip_groups_filters_repos(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test skip_groups excludes repos whose owner path contains the group segment."""
+    response_json: list[dict[str, t.Any]] = [
+        {
+            "path": "top-repo",
+            "name": "top-repo",
+            "http_url_to_repo": "https://gitlab.com/testgroup/top-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/top-repo.git",
+            "web_url": "https://gitlab.com/testgroup/top-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "testgroup", "full_path": "testgroup"},
+        },
+        {
+            "path": "bots-repo",
+            "name": "bots-repo",
+            "http_url_to_repo": "https://gitlab.com/testgroup/bots/bots-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/bots/bots-repo.git",
+            "web_url": "https://gitlab.com/testgroup/bots/bots-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "bots", "full_path": "testgroup/bots"},
+        },
+        {
+            "path": "sub-bots-repo",
+            "name": "sub-bots-repo",
+            "http_url_to_repo": (
+                "https://gitlab.com/testgroup/bots/subteam/sub-bots-repo.git"
+            ),
+            "ssh_url_to_repo": (
+                "git@gitlab.com:testgroup/bots/subteam/sub-bots-repo.git"
+            ),
+            "web_url": ("https://gitlab.com/testgroup/bots/subteam/sub-bots-repo"),
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {
+                "path": "subteam",
+                "full_path": "testgroup/bots/subteam",
+            },
+        },
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+    importer = GitLabImporter()
+    options = ImportOptions(
+        mode=ImportMode.ORG, target="testgroup", skip_groups=["bots"]
+    )
+    repos = list(importer.fetch_repos(options))
+
+    # Only top-level repo should survive; bots and bots/subteam are excluded
+    assert len(repos) == 1
+    assert repos[0].name == "top-repo"
+
+
+def test_gitlab_skip_groups_case_insensitive(
+    mock_urlopen: t.Callable[..., None],
+) -> None:
+    """Test skip_groups matching is case-insensitive."""
+    response_json: list[dict[str, t.Any]] = [
+        {
+            "path": "bots-repo",
+            "name": "bots-repo",
+            "http_url_to_repo": "https://gitlab.com/ORG/Bots/bots-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:ORG/Bots/bots-repo.git",
+            "web_url": "https://gitlab.com/ORG/Bots/bots-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            "namespace": {"path": "Bots", "full_path": "ORG/Bots"},
+        },
+    ]
+    mock_urlopen([(json.dumps(response_json).encode(), {}, 200)])
+    importer = GitLabImporter()
+    # Lowercase skip group matches uppercase owner segment
+    options = ImportOptions(mode=ImportMode.ORG, target="ORG", skip_groups=["bots"])
+    repos = list(importer.fetch_repos(options))
+    assert len(repos) == 0
+
+
+def test_gitlab_with_shared_and_skip_groups_combined(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that with_shared=True and skip_groups work correctly together.
+
+    Verifies that:
+    - with_shared=true is sent to the API
+    - skip_groups filtering applies client-side after fetching
+    - shared repos from external namespaces survive the skip filter
+    - repos in skipped subgroups are excluded regardless of shared status
+    """
+    captured_urls: list[str] = []
+
+    response_json: list[dict[str, t.Any]] = [
+        {
+            "path": "top-repo",
+            "name": "top-repo",
+            "http_url_to_repo": "https://gitlab.com/testgroup/top-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/top-repo.git",
+            "web_url": "https://gitlab.com/testgroup/top-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            # Owned directly by testgroup — passes skip filter
+            "namespace": {"path": "testgroup", "full_path": "testgroup"},
+        },
+        {
+            "path": "bots-repo",
+            "name": "bots-repo",
+            "http_url_to_repo": "https://gitlab.com/testgroup/bots/bots-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:testgroup/bots/bots-repo.git",
+            "web_url": "https://gitlab.com/testgroup/bots/bots-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            # Owned by testgroup/bots — excluded by skip_groups=["bots"]
+            "namespace": {"path": "bots", "full_path": "testgroup/bots"},
+        },
+        {
+            "path": "external-repo",
+            "name": "external-repo",
+            "http_url_to_repo": "https://gitlab.com/external-user/external-repo.git",
+            "ssh_url_to_repo": "git@gitlab.com:external-user/external-repo.git",
+            "web_url": "https://gitlab.com/external-user/external-repo",
+            "description": None,
+            "topics": [],
+            "star_count": 0,
+            "archived": False,
+            "default_branch": "main",
+            # Shared from an external namespace — not in "bots", survives filter
+            "namespace": {"path": "external-user", "full_path": "external-user"},
+        },
+    ]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    # Mock urlopen: capture URL and return all three repos
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    importer = GitLabImporter()
+    options = ImportOptions(
+        mode=ImportMode.ORG,
+        target="testgroup",
+        with_shared=True,
+        skip_groups=["bots"],
+    )
+    repos = list(importer.fetch_repos(options))
+
+    # Assert with_shared=true was sent in the API request
+    assert len(captured_urls) == 1
+    qs = urllib.parse.parse_qs(urllib.parse.urlsplit(captured_urls[0]).query)
+    assert qs.get("with_shared") == ["true"], (
+        f"Expected with_shared=true, got: {captured_urls[0]}"
+    )
+
+    # top-repo and external-repo survive; bots-repo excluded by skip filter
+    repo_names = {r.name for r in repos}
+    assert repo_names == {"top-repo", "external-repo"}, (
+        f"Unexpected repos returned: {repo_names}"
+    )

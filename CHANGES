@@ -33,6 +33,21 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### New features
+
+#### `vcspull import gitlab`: Add `--with-shared` and `--skip-group` flags
+
+**Behavior change**: Prior to this release, GitLab's group API returned shared
+projects by default. vcspull now explicitly requests `with_shared=false`, so
+shared repositories are excluded unless `--with-shared` is passed.
+
+- `--with-shared`: Opt-in flag to include projects shared into a group from
+  another namespace. Only applies in `--mode org`; a warning is emitted when
+  used in user or search modes.
+- `--skip-group <name>`: Client-side filter that excludes all repositories
+  whose owner path contains the specified group name segment (case-insensitive,
+  segment-based). Repeat the flag to skip multiple groups.
+
 ## vcspull v1.56.1 (2026-02-18)
 
 ### Bug fixes

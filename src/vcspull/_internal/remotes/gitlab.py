@@ -283,6 +283,7 @@ class GitLabImporter:
 
             if include_subgroups:
                 params["include_subgroups"] = "true"
+                params["with_shared"] = "true" if options.with_shared else "false"
 
             if not options.include_archived:
                 params["archived"] = "false"

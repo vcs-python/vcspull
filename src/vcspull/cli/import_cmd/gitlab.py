@@ -54,6 +54,27 @@ def create_gitlab_subparser(
             "workspace instead of preserving subgroup paths"
         ),
     )
+    parser.add_argument(
+        "--with-shared",
+        action="store_true",
+        dest="with_shared",
+        default=False,
+        help=(
+            "Include projects shared into the group from other namespaces "
+            "(default: exclude shared projects)"
+        ),
+    )
+    parser.add_argument(
+        "--skip-group",
+        action="append",
+        dest="skip_groups",
+        metavar="GROUP",
+        default=None,
+        help=(
+            "Exclude repos whose namespace contains GROUP as a path segment "
+            "(repeatable: --skip-group bots --skip-group archived)"
+        ),
+    )
     parser.set_defaults(import_handler=handle_gitlab)
 
 
@@ -98,4 +119,6 @@ def handle_gitlab(args: argparse.Namespace) -> int:
         color=getattr(args, "color", "auto"),
         use_https=getattr(args, "use_https", False),
         flatten_groups=getattr(args, "flatten_groups", False),
+        with_shared=getattr(args, "with_shared", False),
+        skip_groups=getattr(args, "skip_groups", None),
     )
