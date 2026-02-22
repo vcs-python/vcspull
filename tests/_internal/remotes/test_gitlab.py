@@ -1,4 +1,52 @@
-"""Tests for vcspull._internal.remotes.gitlab module."""
+"""Tests for vcspull._internal.remotes.gitlab module.
+
+Live fixture catalogue (gitlab.com)
+------------------------------------
+The live smoke tests target real repos on gitlab.com.  If any fixture is
+deleted, use this section to know what to recreate and what each piece tests.
+
+Groups (must exist)
+~~~~~~~~~~~~~~~~~~~
+vcs-python-group-test
+    Top-level group.  Tests org mode and top-level ``with_shared``.
+vcs-python-group-test/vcs-python-subgroup-test
+    Subgroup at depth 1.  Tests ``--skip-group`` at segment depth 1.
+vcs-python-group-test/vcs-python-subgroup-test/vcs-python-subsubgroup-test
+    Leaf sub-subgroup.  Tests ``--skip-group`` at segment depth 2 and the
+    "no further subgroups" code path.
+
+Repos (4 per group level; minimum 1 each to be useful)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+top-test-repo-{1..4}    in vcs-python-group-test
+sub-test-repo-{1..4}    in vcs-python-subgroup-test
+subsub-test-repo-{1..4} in vcs-python-subsubgroup-test
+
+Shared projects (external dependency: tony/external-shared-repo)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Shared into vcs-python-group-test:
+    Tests ``--with-shared`` on/off (top-level) and ``--skip-group tony``
+    (skip by external owner).
+Shared into vcs-python-subgroup-test:
+    Empirical finding: ``GET /groups/vcs-python-group-test/projects?
+    include_subgroups=true&with_shared=true`` does NOT surface subgroup-level
+    shares — it only appears when targeting that subgroup directly.
+
+Expected counts (post-cleanup baseline)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- Org mode, no ``--with-shared``: 12 (4+4+4 owned only)
+- Org mode, ``--with-shared``:    13 (+1 top-level share of external-shared-repo)
+- ``--skip-group vcs-python-subgroup-test``: 4 (top-level repos only)
+- ``--skip-group vcs-python-subsubgroup-test``: 8 (top + sub repos only)
+- Subgroup target, ``--with-shared``: 9 (4 sub + 4 subsub + 1 subgroup share)
+
+External dependency note
+~~~~~~~~~~~~~~~~~~~~~~~~
+``tony/external-shared-repo`` must remain a public project on gitlab.com.
+If it is deleted, create a replacement under any accessible namespace and
+reshare it into both groups above.  The repo only needs to exist and be
+shareable; content does not matter.
+
+"""
 
 from __future__ import annotations
 
