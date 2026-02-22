@@ -241,7 +241,15 @@ class GitLabImporter:
             page += 1
 
         # Warn if results were truncated by --limit
-        self._warn_truncation(count, options.limit, total_available, last_x_next_page)
+        self._warn_truncation(
+            count,
+            options.limit,
+            total_available,
+            last_x_next_page,
+            has_client_filters=bool(
+                options.skip_groups or options.language or options.topics
+            ),
+        )
 
     def _paginate_repos(
         self,
@@ -325,7 +333,15 @@ class GitLabImporter:
             page += 1
 
         # Warn if results were truncated by --limit
-        self._warn_truncation(count, options.limit, total_available, last_x_next_page)
+        self._warn_truncation(
+            count,
+            options.limit,
+            total_available,
+            last_x_next_page,
+            has_client_filters=bool(
+                options.skip_groups or options.language or options.topics
+            ),
+        )
 
     def _warn_truncation(
         self,
@@ -333,35 +349,47 @@ class GitLabImporter:
         limit: int,
         total_available: int | None,
         x_next_page: str | None,
+        *,
+        has_client_filters: bool = False,
     ) -> None:
         """Warn if results were truncated by the --limit option.
 
         Parameters
         ----------
         count : int
-            Number of repositories actually returned
+            Number of repositories returned after client-side filtering
         limit : int
             The configured limit
         total_available : int | None
-            Value of x-total header (None if absent)
+            Value of x-total header (None if absent). Reflects the unfiltered
+            server-side total; may overstate the count of repos matching
+            client-side filters (skip_groups, language, topics).
         x_next_page : str | None
             Value of x-next-page header (None if absent/empty)
+        has_client_filters : bool
+            True when any client-side filter (skip_groups, language, topics) is
+            active; used to qualify the warning message so the server-side
+            total is not presented as the filtered total.
         """
         if count < limit:
             return
 
-        # TODO: total_available comes from the x-total header which reflects
-        # the unfiltered server-side project count.  After client-side
-        # filter_repo filtering (e.g. skip_groups, language, topics), count
-        # may be less than total_available for reasons unrelated to --limit.
-        # A more accurate message would require tracking pre-filter vs
-        # post-filter counts separately.
         if total_available is not None and total_available > count:
-            log.warning(
-                "Showing %d of %d repositories (use --limit 0 to fetch all)",
-                count,
-                total_available,
-            )
+            if has_client_filters:
+                log.warning(
+                    "Showing %d repositories; %d total on server "
+                    "(note: server total includes projects excluded by "
+                    "--skip-group / --language / --topics; "
+                    "use --limit 0 to fetch all matching your filters)",
+                    count,
+                    total_available,
+                )
+            else:
+                log.warning(
+                    "Showing %d of %d repositories (use --limit 0 to fetch all)",
+                    count,
+                    total_available,
+                )
         elif x_next_page is not None:
             log.warning(
                 "Showing %d repositories; more are available "

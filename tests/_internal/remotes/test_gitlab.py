@@ -858,6 +858,36 @@ def test_gitlab_truncation_warning(
         assert "--limit" not in caplog.text.lower()
 
 
+def test_gitlab_truncation_warning_with_client_filter(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Truncation warning with client filters active uses qualified message."""
+    import logging
+
+    caplog.set_level(logging.WARNING)
+
+    repos = [_make_gitlab_project(i) for i in range(5)]
+    headers = {"x-total": "5", "x-next-page": "2"}
+
+    def urlopen_side_effect(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        return MockHTTPResponse(json.dumps(repos).encode(), headers, 200)
+
+    # Mock urlopen: return all 5 repos with x-total=5 to trigger truncation path
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_side_effect)
+
+    importer = GitLabImporter()
+    options = ImportOptions(
+        mode=ImportMode.USER, target="user", limit=2, skip_groups=["bots"]
+    )
+    list(importer.fetch_repos(options))
+
+    assert "server total includes projects excluded" in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # with_shared URL parameter tests
 # ---------------------------------------------------------------------------
