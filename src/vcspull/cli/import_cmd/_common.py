@@ -355,6 +355,19 @@ def _run_import(
 
     skip_groups_list: list[str] = skip_groups or []
 
+    # Validate skip_groups: each value must be a single path segment.
+    # A slash inside a value like "bots/subteam" would never match any
+    # owner segment (filter_repo splits repo.owner on "/" and compares
+    # individual parts), so it silently has no effect.
+    for group in skip_groups_list:
+        if "/" in group:
+            log.error(
+                "--skip-group values must be single path segments; "
+                "'/' is not allowed: %r",
+                group,
+            )
+            return 1
+
     try:
         options = ImportOptions(
             mode=import_mode,

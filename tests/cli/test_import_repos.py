@@ -2024,6 +2024,52 @@ def test_codecommit_target_is_optional() -> None:
     assert args.target == "myprefix"
 
 
+def test_run_import_rejects_skip_group_with_slash(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """_run_import returns 1 when a --skip-group value contains a slash.
+
+    A value like 'bots/subteam' can never match any single owner path segment
+    (filter_repo splits repo.owner on '/' and compares segments individually),
+    so such values silently have no effect.  The early validation catches
+    this and returns a non-zero exit code.
+    """
+    import logging
+
+    caplog.set_level(logging.ERROR)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    result = _run_import(
+        MockImporter(),
+        service_name="gitlab",
+        target="my-group",
+        workspace=str(workspace),
+        mode="org",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(tmp_path / "config.yaml"),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        skip_groups=["bots/subteam"],
+    )
+
+    assert result == 1
+    assert "bots/subteam" in caplog.text
+    assert "'/' is not allowed" in caplog.text
+
+
 def test_run_import_forwards_with_shared_and_skip_groups(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
