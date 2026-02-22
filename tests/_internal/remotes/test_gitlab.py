@@ -964,6 +964,38 @@ def test_gitlab_with_shared_not_sent_in_user_mode(
     )
 
 
+def test_gitlab_with_shared_not_sent_in_search_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that with_shared is NOT sent to GitLab API in search mode."""
+    captured_urls: list[str] = []
+
+    response_json = [_make_group_project()]
+
+    def urlopen_capture(
+        request: urllib.request.Request,
+        timeout: int | None = None,
+    ) -> MockHTTPResponse:
+        captured_urls.append(request.full_url)
+        return MockHTTPResponse(json.dumps(response_json).encode())
+
+    # Mock urlopen: verify with_shared is absent from search-mode API calls
+    monkeypatch.setattr("urllib.request.urlopen", urlopen_capture)
+
+    # Search mode requires authentication; token="fake" satisfies is_authenticated
+    importer = GitLabImporter(token="fake")
+    options = ImportOptions(
+        mode=ImportMode.SEARCH, target="testsearch", with_shared=True
+    )
+    list(importer.fetch_repos(options))
+
+    assert len(captured_urls) == 1
+    qs = urllib.parse.parse_qs(urllib.parse.urlsplit(captured_urls[0]).query)
+    assert "with_shared" not in qs, (
+        f"Expected no with_shared param in search-mode URL, got: {captured_urls[0]}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # skip_groups filtering tests
 # ---------------------------------------------------------------------------
