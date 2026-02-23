@@ -241,7 +241,18 @@ class GitLabImporter:
             page += 1
 
         # Warn if results were truncated by --limit
-        self._warn_truncation(count, options.limit, total_available, last_x_next_page)
+        self._warn_truncation(
+            count,
+            options.limit,
+            total_available,
+            last_x_next_page,
+            has_client_filters=bool(
+                options.skip_groups
+                or options.language
+                or options.topics
+                or options.min_stars > 0
+            ),
+        )
 
     def _paginate_repos(
         self,
@@ -283,6 +294,7 @@ class GitLabImporter:
 
             if include_subgroups:
                 params["include_subgroups"] = "true"
+                params["with_shared"] = "true" if options.with_shared else "false"
 
             if not options.include_archived:
                 params["archived"] = "false"
@@ -324,7 +336,18 @@ class GitLabImporter:
             page += 1
 
         # Warn if results were truncated by --limit
-        self._warn_truncation(count, options.limit, total_available, last_x_next_page)
+        self._warn_truncation(
+            count,
+            options.limit,
+            total_available,
+            last_x_next_page,
+            has_client_filters=bool(
+                options.skip_groups
+                or options.language
+                or options.topics
+                or options.min_stars > 0
+            ),
+        )
 
     def _warn_truncation(
         self,
@@ -332,29 +355,52 @@ class GitLabImporter:
         limit: int,
         total_available: int | None,
         x_next_page: str | None,
+        *,
+        has_client_filters: bool = False,
     ) -> None:
         """Warn if results were truncated by the --limit option.
 
         Parameters
         ----------
         count : int
-            Number of repositories actually returned
+            Number of repositories returned after client-side filtering
         limit : int
             The configured limit
         total_available : int | None
-            Value of x-total header (None if absent)
+            Value of x-total header (None if absent). Reflects the unfiltered
+            server-side total; may overstate the count of repos matching
+            client-side filters (skip_groups, language, topics).
         x_next_page : str | None
             Value of x-next-page header (None if absent/empty)
+        has_client_filters : bool
+            True when any client-side filter (skip_groups, language, topics,
+            min_stars) is active; suppresses the early ``count < limit`` return
+            so the qualified warning can fire even when count < limit.
         """
-        if count < limit:
+        # Without client-side filters, count < limit means we consumed all
+        # server results without hitting the limit — no truncation to warn about.
+        # With active filters, skip the early return: count < limit may simply
+        # reflect that filters excluded repos, while total_available still
+        # exceeds count and is worth surfacing to the user.
+        if count < limit and not has_client_filters:
             return
 
         if total_available is not None and total_available > count:
-            log.warning(
-                "Showing %d of %d repositories (use --limit 0 to fetch all)",
-                count,
-                total_available,
-            )
+            if has_client_filters:
+                log.warning(
+                    "Showing %d repositories; %d total on server "
+                    "(note: server total includes projects excluded by "
+                    "--skip-group / --language / --topics / --min-stars; "
+                    "use --limit 0 to fetch all matching your filters)",
+                    count,
+                    total_available,
+                )
+            else:
+                log.warning(
+                    "Showing %d of %d repositories (use --limit 0 to fetch all)",
+                    count,
+                    total_available,
+                )
         elif x_next_page is not None:
             log.warning(
                 "Showing %d repositories; more are available "
