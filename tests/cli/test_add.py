@@ -1137,3 +1137,57 @@ def test_handle_add_command_preserves_existing_dot_workspace_section(
     assert "./" in config_data
     assert "existing" in config_data["./"]
     assert "pytest-docker" in config_data["./"]
+
+
+# ---------------------------------------------------------------------------
+# AddAction classifier unit tests
+# ---------------------------------------------------------------------------
+
+from vcspull.cli.add import AddAction, _classify_add_action  # noqa: E402
+
+_ADD_SSH = "git+git@github.com:testuser/repo1.git"
+
+
+class AddActionFixture(t.NamedTuple):
+    """Fixture for _classify_add_action unit tests."""
+
+    test_id: str
+    existing_entry: dict[str, t.Any] | str | None
+    expected_action: AddAction
+
+
+ADD_ACTION_FIXTURES: list[AddActionFixture] = [
+    AddActionFixture("add-new", None, AddAction.ADD),
+    AddActionFixture("skip-existing", {"repo": _ADD_SSH}, AddAction.SKIP_EXISTING),
+    AddActionFixture(
+        "skip-locked-global",
+        {"repo": _ADD_SSH, "options": {"lock": True}},
+        AddAction.SKIP_LOCKED,
+    ),
+    AddActionFixture(
+        "skip-locked-add-specific",
+        {"repo": _ADD_SSH, "options": {"lock": {"add": True}}},
+        AddAction.SKIP_LOCKED,
+    ),
+    AddActionFixture(
+        "not-locked-import-only",
+        {"repo": _ADD_SSH, "options": {"lock": {"import": True}}},
+        AddAction.SKIP_EXISTING,
+    ),
+    AddActionFixture("str-entry", _ADD_SSH, AddAction.SKIP_EXISTING),
+]
+
+
+@pytest.mark.parametrize(
+    list(AddActionFixture._fields),
+    ADD_ACTION_FIXTURES,
+    ids=[f.test_id for f in ADD_ACTION_FIXTURES],
+)
+def test_classify_add_action(
+    test_id: str,
+    existing_entry: dict[str, t.Any] | str | None,
+    expected_action: AddAction,
+) -> None:
+    """Test _classify_add_action covers all permutations."""
+    action = _classify_add_action(existing_entry)
+    assert action == expected_action

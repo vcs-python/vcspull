@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import enum
 import logging
 import pathlib
 import subprocess
@@ -15,16 +16,68 @@ from colorama import Fore, Style
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
+    _get_lock_reason,
+    _is_locked_for_op,
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
     merge_duplicate_workspace_roots,
+    save_config_json,
     save_config_yaml,
     save_config_yaml_with_items,
     workspace_root_label,
 )
 
 log = logging.getLogger(__name__)
+
+
+class AddAction(enum.Enum):
+    """Action resolved for a single repo during ``vcspull add``."""
+
+    ADD = "add"
+    SKIP_EXISTING = "skip_existing"
+    SKIP_LOCKED = "skip_locked"
+
+
+def _classify_add_action(existing_entry: t.Any) -> AddAction:
+    """Classify the add action for a single repository.
+
+    Parameters
+    ----------
+    existing_entry : Any
+        Current config entry for this repo name, or ``None`` if absent.
+
+    Examples
+    --------
+    Not in config:
+
+    >>> _classify_add_action(None)
+    <AddAction.ADD: 'add'>
+
+    Already exists (unlocked):
+
+    >>> _classify_add_action({"repo": "git+ssh://x"})
+    <AddAction.SKIP_EXISTING: 'skip_existing'>
+
+    Locked for add:
+
+    >>> _classify_add_action({"repo": "git+ssh://x", "options": {"lock": True}})
+    <AddAction.SKIP_LOCKED: 'skip_locked'>
+    >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"add": True}}}
+    >>> _classify_add_action(entry)
+    <AddAction.SKIP_LOCKED: 'skip_locked'>
+
+    Locked for import only — not locked for add:
+
+    >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"import": True}}}
+    >>> _classify_add_action(entry)
+    <AddAction.SKIP_EXISTING: 'skip_existing'>
+    """
+    if existing_entry is None:
+        return AddAction.ADD
+    if _is_locked_for_op(existing_entry, "add"):
+        return AddAction.SKIP_LOCKED
+    return AddAction.SKIP_EXISTING
 
 
 def create_add_subparser(parser: argparse.ArgumentParser) -> None:
@@ -555,7 +608,38 @@ def add_repo(
             return
 
         existing_config = workspace_section.get(name)
-        if existing_config is not None:
+        add_action = _classify_add_action(existing_config)
+
+        if add_action == AddAction.SKIP_LOCKED:
+            reason = _get_lock_reason(existing_config)
+            log.warning(
+                "Repository '%s' is locked%s — skipping",
+                name,
+                f" ({reason})" if reason else "",
+            )
+            if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
+                try:
+                    if config_file_path.suffix.lower() == ".json":
+                        save_config_json(config_file_path, raw_config)
+                    else:
+                        save_config_yaml(config_file_path, raw_config)
+                    log.info(
+                        "%s✓%s Workspace label adjustments saved to %s%s%s.",
+                        Fore.GREEN,
+                        Style.RESET_ALL,
+                        Fore.BLUE,
+                        display_config_path,
+                        Style.RESET_ALL,
+                    )
+                except Exception:
+                    log.exception(
+                        "Error saving config to %s",
+                        PrivatePath(config_file_path),
+                    )
+                    if log.isEnabledFor(logging.DEBUG):
+                        traceback.print_exc()
+            return
+        elif add_action == AddAction.SKIP_EXISTING:
             if isinstance(existing_config, str):
                 current_url = existing_config
             elif isinstance(existing_config, dict):
@@ -575,7 +659,10 @@ def add_repo(
 
             if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
                 try:
-                    save_config_yaml(config_file_path, raw_config)
+                    if config_file_path.suffix.lower() == ".json":
+                        save_config_json(config_file_path, raw_config)
+                    else:
+                        save_config_yaml(config_file_path, raw_config)
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -625,7 +712,10 @@ def add_repo(
             return
 
         try:
-            save_config_yaml(config_file_path, raw_config)
+            if config_file_path.suffix.lower() == ".json":
+                save_config_json(config_file_path, raw_config)
+            else:
+                save_config_yaml(config_file_path, raw_config)
             log.info(
                 "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
                 Fore.GREEN,
@@ -688,7 +778,17 @@ def add_repo(
         return
 
     existing_config = workspace_section_view.get(name)
-    if existing_config is not None:
+    no_merge_add_action = _classify_add_action(existing_config)
+
+    if no_merge_add_action == AddAction.SKIP_LOCKED:
+        reason = _get_lock_reason(existing_config)
+        log.warning(
+            "Repository '%s' is locked%s — skipping",
+            name,
+            f" ({reason})" if reason else "",
+        )
+        return
+    elif no_merge_add_action == AddAction.SKIP_EXISTING:
         if isinstance(existing_config, str):
             current_url = existing_config
         elif isinstance(existing_config, dict):
