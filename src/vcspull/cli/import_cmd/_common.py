@@ -468,6 +468,10 @@ def _run_import(
         Include projects shared into a group from other namespaces (GitLab only)
     skip_groups : list[str] | None
         Exclude repos whose owner path contains any of these group name segments
+    overwrite : bool
+        Overwrite existing config entries whose URL has changed
+        (default: False).  Entries with ``options.lock.import`` or
+        ``options.allow_overwrite: false`` are exempt.
 
     Returns
     -------

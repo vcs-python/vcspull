@@ -154,7 +154,10 @@ class RepoOptionsDict(TypedDict, total=False):
     """
 
     allow_overwrite: bool
-    """Shorthand for ``lock: {import: true}``. Locks only the import operation."""
+    """If ``False``, shorthand for ``lock: {import: true}``.
+
+    Locks only the import operation.
+    """
 
     lock_reason: str | None
     """Human-readable reason shown in log output when an op is skipped due to lock."""
