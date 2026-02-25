@@ -85,6 +85,106 @@ class WorktreeConfigDict(TypedDict):
     """Reason for locking. If provided, implies lock=True."""
 
 
+RepoLockDict = TypedDict(
+    "RepoLockDict",
+    {
+        "add": bool,
+        "discover": bool,
+        "fmt": bool,
+        "import": bool,
+        "merge": bool,
+    },
+    total=False,
+)
+"""Per-operation lock flags for a repository entry.
+
+Unspecified keys default to ``False`` (not locked).
+
+Note: Distinct from ``WorktreeConfigDict.lock`` which prevents git worktree
+removal at the filesystem level. ``RepoLockDict`` controls vcspull config
+mutation policy only.
+
+Examples
+--------
+Lock only import::
+
+    options:
+      lock:
+        import: true
+
+Lock import and fmt::
+
+    options:
+      lock:
+        import: true
+        fmt: true
+"""
+
+
+class RepoOptionsDict(TypedDict, total=False):
+    """Mutation policy stored under the ``options:`` key in a repo entry.
+
+    Note: ``lock`` here controls vcspull config mutation. It is distinct from
+    ``WorktreeConfigDict.lock`` which prevents git worktree removal.
+
+    Examples
+    --------
+    Lock all operations::
+
+        options:
+          lock: true
+          lock_reason: "pinned to upstream"
+
+    Lock only import (prevent ``--overwrite`` from replacing URL)::
+
+        options:
+          lock:
+            import: true
+
+    Shorthand form — equivalent to ``lock: {import: true}``::
+
+        options:
+          allow_overwrite: false
+    """
+
+    lock: bool | RepoLockDict
+    """``True`` locks all ops; a mapping locks specific ops only.
+
+    Unspecified keys in the mapping default to ``False`` (not locked).
+    """
+
+    allow_overwrite: bool
+    """Shorthand for ``lock: {import: true}``. Locks only the import operation."""
+
+    lock_reason: str | None
+    """Human-readable reason shown in log output when an op is skipped due to lock."""
+
+
+class RepoEntryDict(TypedDict):
+    """Raw per-repository entry as written to .vcspull.yaml.
+
+    Examples
+    --------
+    Minimal entry::
+
+        repo: git+git@github.com:user/myrepo.git
+
+    With lock options::
+
+        repo: git+git@github.com:user/myrepo.git
+        options:
+          lock:
+            import: true
+          lock_reason: "pinned to company fork"
+    """
+
+    repo: str
+    """VCS URL in vcspull format, e.g. ``git+git@github.com:user/repo.git``."""
+
+    options: NotRequired[RepoOptionsDict]
+    """Mutation policy. Nested under ``options:`` to avoid polluting VCS fields."""
+
+
 class RawConfigDict(t.TypedDict):
     """Configuration dictionary without any type marshalling or variable resolution."""
 
@@ -110,6 +210,7 @@ class ConfigDict(TypedDict):
     remotes: NotRequired[GitSyncRemoteDict | None]
     shell_command_after: NotRequired[list[str] | None]
     worktrees: NotRequired[list[WorktreeConfigDict] | None]
+    options: NotRequired[RepoOptionsDict]
 
 
 ConfigDir = dict[str, ConfigDict]
