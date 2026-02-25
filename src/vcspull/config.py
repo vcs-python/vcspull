@@ -943,7 +943,11 @@ def merge_duplicate_workspace_root_entries(
                     )
                 else:  # KEEP_EXISTING
                     reason = _get_lock_reason(merged[repo_name])
-                    qualifier = "locked " if reason else ""
+                    qualifier = (
+                        "locked "
+                        if _is_locked_for_op(merged[repo_name], "merge")
+                        else ""
+                    )
                     suffix = f" ({reason})" if reason else ""
                     conflicts.append(
                         f"'{label}': keeping {qualifier}entry for '{repo_name}'{suffix}"
