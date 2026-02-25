@@ -209,3 +209,86 @@ def test_load_configs_can_skip_merging_duplicates(
         message for message in caplog.messages if "duplicate" in message
     ]
     assert warning_messages, "Expected a warning about duplicate workspace roots"
+
+
+# ---------------------------------------------------------------------------
+# MergeAction classifier unit tests
+# ---------------------------------------------------------------------------
+
+from vcspull.config import MergeAction, _classify_merge_action  # noqa: E402
+
+_MERGE_HTTPS = "git+https://github.com/testuser/repo1.git"
+_MERGE_SSH = "git+git@github.com:testuser/repo1.git"
+
+
+class MergeActionFixture(t.NamedTuple):
+    """Fixture for _classify_merge_action unit tests."""
+
+    test_id: str
+    existing_entry: dict[str, t.Any] | str
+    incoming_entry: dict[str, t.Any] | str
+    expected_action: MergeAction
+    expected_winning_url: str
+
+
+MERGE_ACTION_FIXTURES: list[MergeActionFixture] = [
+    MergeActionFixture(
+        "keep-first-no-locks",
+        {"repo": _MERGE_HTTPS},
+        {"repo": _MERGE_SSH},
+        MergeAction.KEEP_EXISTING,
+        _MERGE_HTTPS,
+    ),
+    MergeActionFixture(
+        "keep-locked-incoming",
+        {"repo": _MERGE_HTTPS},
+        {"repo": _MERGE_SSH, "options": {"lock": True}},
+        MergeAction.KEEP_INCOMING,
+        _MERGE_SSH,
+    ),
+    MergeActionFixture(
+        "keep-locked-existing",
+        {"repo": _MERGE_HTTPS, "options": {"lock": True}},
+        {"repo": _MERGE_SSH},
+        MergeAction.KEEP_EXISTING,
+        _MERGE_HTTPS,
+    ),
+    MergeActionFixture(
+        "both-locked-keep-first",
+        {"repo": _MERGE_HTTPS, "options": {"lock": True}},
+        {"repo": _MERGE_SSH, "options": {"lock": True}},
+        MergeAction.KEEP_EXISTING,
+        _MERGE_HTTPS,
+    ),
+    MergeActionFixture(
+        "keep-locked-merge-specific",
+        {"repo": _MERGE_HTTPS},
+        {"repo": _MERGE_SSH, "options": {"lock": {"merge": True}}},
+        MergeAction.KEEP_INCOMING,
+        _MERGE_SSH,
+    ),
+    MergeActionFixture(
+        "import-lock-no-effect-on-merge",
+        {"repo": _MERGE_HTTPS},
+        {"repo": _MERGE_SSH, "options": {"lock": {"import": True}}},
+        MergeAction.KEEP_EXISTING,
+        _MERGE_HTTPS,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(MergeActionFixture._fields),
+    MERGE_ACTION_FIXTURES,
+    ids=[f.test_id for f in MERGE_ACTION_FIXTURES],
+)
+def test_classify_merge_action(
+    test_id: str,
+    existing_entry: dict[str, t.Any] | str,
+    incoming_entry: dict[str, t.Any] | str,
+    expected_action: MergeAction,
+    expected_winning_url: str,
+) -> None:
+    """Test _classify_merge_action covers all permutations."""
+    action = _classify_merge_action(existing_entry, incoming_entry)
+    assert action == expected_action

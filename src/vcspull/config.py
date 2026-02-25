@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import enum
 import fnmatch
 import logging
 import os
@@ -755,6 +756,154 @@ def save_config_yaml_with_items(
     _atomic_write(config_file_path, yaml_content)
 
 
+def _is_locked_for_op(entry: t.Any, op: str) -> bool:
+    """Return ``True`` if the repo config entry is locked for *op*.
+
+    Parameters
+    ----------
+    entry : Any
+        Raw repo config value (string, dict, or ``None``).
+    op : str
+        Operation name: ``"import"``, ``"add"``, ``"discover"``,
+        ``"fmt"``, or ``"merge"``.
+
+    Examples
+    --------
+    Global lock applies to all ops:
+
+    >>> _is_locked_for_op({"repo": "git+x", "options": {"lock": True}}, "import")
+    True
+    >>> _is_locked_for_op({"repo": "git+x", "options": {"lock": True}}, "fmt")
+    True
+
+    Per-op lock is scoped:
+
+    >>> entry = {"repo": "git+x", "options": {"lock": {"import": True}}}
+    >>> _is_locked_for_op(entry, "import")
+    True
+    >>> _is_locked_for_op(entry, "fmt")
+    False
+
+    ``allow_overwrite: false`` is shorthand for ``lock: {import: true}``:
+
+    >>> entry2 = {"repo": "git+x", "options": {"allow_overwrite": False}}
+    >>> _is_locked_for_op(entry2, "import")
+    True
+    >>> _is_locked_for_op(entry2, "add")
+    False
+
+    Plain string entries and entries without options are never locked:
+
+    >>> _is_locked_for_op("git+x", "import")
+    False
+    >>> _is_locked_for_op({"repo": "git+x"}, "import")
+    False
+
+    Explicit false is not locked:
+
+    >>> _is_locked_for_op({"repo": "git+x", "options": {"lock": False}}, "import")
+    False
+
+    String values for lock (not bool) are ignored — not locked:
+
+    >>> _is_locked_for_op({"repo": "git+x", "options": {"lock": "true"}}, "import")
+    False
+    """
+    if not isinstance(entry, dict):
+        return False
+    opts = entry.get("options")
+    if not isinstance(opts, dict):
+        return False
+    lock = opts.get("lock")
+    if lock is True:
+        return True
+    if isinstance(lock, dict) and lock.get(op, False) is True:
+        return True
+    return op == "import" and opts.get("allow_overwrite", True) is False
+
+
+def _get_lock_reason(entry: t.Any) -> str | None:
+    """Return the human-readable lock reason from a repo config entry.
+
+    Examples
+    --------
+    >>> entry = {"repo": "git+x", "options": {"lock": True, "lock_reason": "pinned"}}
+    >>> _get_lock_reason(entry)
+    'pinned'
+    >>> _get_lock_reason({"repo": "git+x"}) is None
+    True
+    >>> _get_lock_reason("git+x") is None
+    True
+    """
+    if not isinstance(entry, dict):
+        return None
+    opts = entry.get("options")
+    if not isinstance(opts, dict):
+        return None
+    return opts.get("lock_reason")
+
+
+class MergeAction(enum.Enum):
+    """Action for resolving a duplicate workspace-root repo conflict."""
+
+    KEEP_EXISTING = "keep_existing"
+    """First occurrence wins (standard behavior)."""
+
+    KEEP_INCOMING = "keep_incoming"
+    """Incoming locked entry displaces unlocked existing entry."""
+
+
+def _classify_merge_action(
+    existing_entry: t.Any,
+    incoming_entry: t.Any,
+) -> MergeAction:
+    """Classify the merge conflict resolution action.
+
+    Parameters
+    ----------
+    existing_entry : Any
+        The entry already stored (first occurrence).
+    incoming_entry : Any
+        The duplicate entry being merged in.
+
+    Examples
+    --------
+    Neither locked — keep existing (first-occurrence-wins):
+
+    >>> _classify_merge_action({"repo": "git+a"}, {"repo": "git+b"})
+    <MergeAction.KEEP_EXISTING: 'keep_existing'>
+
+    Incoming is locked — incoming wins:
+
+    >>> _classify_merge_action(
+    ...     {"repo": "git+a"},
+    ...     {"repo": "git+b", "options": {"lock": True}},
+    ... )
+    <MergeAction.KEEP_INCOMING: 'keep_incoming'>
+
+    Existing is locked — existing wins regardless:
+
+    >>> _classify_merge_action(
+    ...     {"repo": "git+a", "options": {"lock": True}},
+    ...     {"repo": "git+b"},
+    ... )
+    <MergeAction.KEEP_EXISTING: 'keep_existing'>
+
+    Both locked — first-occurrence-wins:
+
+    >>> _classify_merge_action(
+    ...     {"repo": "git+a", "options": {"lock": True}},
+    ...     {"repo": "git+b", "options": {"lock": True}},
+    ... )
+    <MergeAction.KEEP_EXISTING: 'keep_existing'>
+    """
+    existing_locked = _is_locked_for_op(existing_entry, "merge")
+    incoming_locked = _is_locked_for_op(incoming_entry, "merge")
+    if incoming_locked and not existing_locked:
+        return MergeAction.KEEP_INCOMING
+    return MergeAction.KEEP_EXISTING
+
+
 def merge_duplicate_workspace_root_entries(
     label: str,
     occurrences: list[t.Any],
@@ -783,12 +932,22 @@ def merge_duplicate_workspace_root_entries(
             if repo_name not in merged:
                 merged[repo_name] = copy.deepcopy(repo_config)
             elif merged[repo_name] != repo_config:
-                conflicts.append(
-                    (
-                        f"Workspace root '{label}' contains conflicting definitions "
-                        f"for repository '{repo_name}'. Keeping the existing entry."
-                    ),
-                )
+                action = _classify_merge_action(merged[repo_name], repo_config)
+                if action == MergeAction.KEEP_INCOMING:
+                    merged[repo_name] = copy.deepcopy(repo_config)
+                    reason = _get_lock_reason(repo_config)
+                    suffix = f" ({reason})" if reason else ""
+                    conflicts.append(
+                        f"'{label}': locked entry for '{repo_name}'"
+                        f" displaced earlier definition{suffix}"
+                    )
+                else:  # KEEP_EXISTING
+                    reason = _get_lock_reason(merged[repo_name])
+                    qualifier = "locked " if reason else ""
+                    suffix = f" ({reason})" if reason else ""
+                    conflicts.append(
+                        f"'{label}': keeping {qualifier}entry for '{repo_name}'{suffix}"
+                    )
 
     return merged, conflicts, change_count
 
