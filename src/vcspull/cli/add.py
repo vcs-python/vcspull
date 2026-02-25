@@ -818,6 +818,44 @@ def add_repo(
             name,
             f" ({reason})" if reason else "",
         )
+        if config_was_relabelled:
+            if dry_run:
+                log.info(
+                    "%s→%s Would save workspace label adjustments to %s%s%s.",
+                    Fore.YELLOW,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    display_config_path,
+                    Style.RESET_ALL,
+                )
+            else:
+                try:
+                    if config_file_path.suffix.lower() == ".json":
+                        save_config_json(
+                            config_file_path,
+                            _collapse_ordered_items_to_dict(ordered_items),
+                        )
+                    else:
+                        items = [(e["label"], e["section"]) for e in ordered_items]
+                        save_config_yaml_with_items(
+                            config_file_path,
+                            items,
+                        )
+                    log.info(
+                        "%s✓%s Workspace label adjustments saved to %s%s%s.",
+                        Fore.GREEN,
+                        Style.RESET_ALL,
+                        Fore.BLUE,
+                        display_config_path,
+                        Style.RESET_ALL,
+                    )
+                except Exception:
+                    log.exception(
+                        "Error saving config to %s",
+                        PrivatePath(config_file_path),
+                    )
+                    if log.isEnabledFor(logging.DEBUG):
+                        traceback.print_exc()
         return
     elif no_merge_add_action == AddAction.SKIP_EXISTING:
         if isinstance(existing_config, str):
