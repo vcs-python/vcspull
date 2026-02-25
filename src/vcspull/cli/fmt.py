@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import enum
 import logging
 import pathlib
 import traceback
@@ -14,14 +15,24 @@ from colorama import Fore, Style
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
+    _is_locked_for_op,
     find_config_files,
     find_home_config_files,
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
+    save_config_json,
     save_config_yaml,
 )
 
 log = logging.getLogger(__name__)
+
+
+class FmtAction(enum.Enum):
+    """Action resolved for each repo entry during ``vcspull fmt``."""
+
+    NORMALIZE = "normalize"
+    NO_CHANGE = "no_change"
+    SKIP_LOCKED = "skip_locked"
 
 
 def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
@@ -65,6 +76,30 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
     -------
     dict
         Normalized repository configuration with 'repo' key
+
+    Examples
+    --------
+    String entries are wrapped:
+
+    >>> from vcspull.cli.fmt import normalize_repo_config
+    >>> normalize_repo_config("git+https://example.com/r.git")
+    {'repo': 'git+https://example.com/r.git'}
+
+    Dict with ``url`` key is normalized to ``repo``:
+
+    >>> normalize_repo_config({"url": "git+https://example.com/r.git"})
+    {'repo': 'git+https://example.com/r.git'}
+
+    Dict already using ``repo`` key passes through unchanged:
+
+    >>> normalize_repo_config({"repo": "git+https://example.com/r.git"})
+    {'repo': 'git+https://example.com/r.git'}
+
+    When both ``url`` and ``repo`` keys are present, both are preserved
+    (deduplication is left to the caller):
+
+    >>> normalize_repo_config({"url": "git+https://example.com/u.git", "repo": "git+https://example.com/r.git"})
+    {'url': 'git+https://example.com/u.git', 'repo': 'git+https://example.com/r.git'}
     """
     if isinstance(repo_data, str):
         # Convert compact format to verbose format
@@ -79,6 +114,53 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
         return repo_data
     # Return as-is for other types
     return t.cast("dict[str, t.Any]", repo_data)
+
+
+def _classify_fmt_action(repo_data: t.Any) -> FmtAction:
+    """Classify the fmt action for a single repository entry.
+
+    Parameters
+    ----------
+    repo_data : Any
+        Repository configuration value (string, dict, or other).
+
+    Examples
+    --------
+    String entries need normalization:
+
+    >>> _classify_fmt_action("git+ssh://x")
+    <FmtAction.NORMALIZE: 'normalize'>
+
+    Dict with ``url`` key needs normalization:
+
+    >>> _classify_fmt_action({"url": "git+ssh://x"})
+    <FmtAction.NORMALIZE: 'normalize'>
+
+    Already normalized dict:
+
+    >>> _classify_fmt_action({"repo": "git+ssh://x"})
+    <FmtAction.NO_CHANGE: 'no_change'>
+
+    Locked entry is preserved verbatim:
+
+    >>> _classify_fmt_action({"repo": "git+ssh://x", "options": {"lock": True}})
+    <FmtAction.SKIP_LOCKED: 'skip_locked'>
+    >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"fmt": True}}}
+    >>> _classify_fmt_action(entry)
+    <FmtAction.SKIP_LOCKED: 'skip_locked'>
+
+    Locked for import only — fmt still normalizes:
+
+    >>> entry = {"url": "git+ssh://x", "options": {"lock": {"import": True}}}
+    >>> _classify_fmt_action(entry)
+    <FmtAction.NORMALIZE: 'normalize'>
+    """
+    if _is_locked_for_op(repo_data, "fmt"):
+        return FmtAction.SKIP_LOCKED
+    normalized = normalize_repo_config(repo_data)
+    if normalized != repo_data:
+        return FmtAction.NORMALIZE
+    return FmtAction.NO_CHANGE
 
 
 def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]:
@@ -97,39 +179,36 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
     changes = 0
     formatted: dict[str, t.Any] = {}
 
-    # Sort directories
-    sorted_dirs = sorted(config_data.keys())
-
-    for directory in sorted_dirs:
+    for directory in sorted(config_data.keys()):
         repos = config_data[directory]
 
         if not isinstance(repos, dict):
-            # Not a repository section, keep as-is
             formatted[directory] = repos
             continue
 
-        # Sort repositories within each directory
-        sorted_repos = sorted(repos.keys())
         formatted_dir: dict[str, t.Any] = {}
 
-        for repo_name in sorted_repos:
+        for repo_name in sorted(repos.keys()):
             repo_data = repos[repo_name]
-            normalized = normalize_repo_config(repo_data)
+            action = _classify_fmt_action(repo_data)
+            if action == FmtAction.SKIP_LOCKED:
+                formatted_dir[repo_name] = copy.deepcopy(repo_data)
+            else:
+                normalized = (
+                    normalize_repo_config(repo_data)
+                    if action == FmtAction.NORMALIZE
+                    else repo_data
+                )
+                if normalized != repo_data:
+                    changes += 1
+                formatted_dir[repo_name] = normalized
 
-            # Check if normalization changed anything
-            if normalized != repo_data:
-                changes += 1
-
-            formatted_dir[repo_name] = normalized
-
-        # Check if sorting changed the order
-        if list(repos.keys()) != sorted_repos:
+        if list(repos.keys()) != list(formatted_dir.keys()):
             changes += 1
 
         formatted[directory] = formatted_dir
 
-    # Check if directory sorting changed the order
-    if list(config_data.keys()) != sorted_dirs:
+    if list(config_data.keys()) != sorted(config_data.keys()):
         changes += 1
 
     return formatted, changes
@@ -357,7 +436,10 @@ def format_single_config(
     if write:
         # Save formatted config
         try:
-            save_config_yaml(config_file_path, formatted_config)
+            if config_file_path.suffix.lower() == ".json":
+                save_config_json(config_file_path, formatted_config)
+            else:
+                save_config_yaml(config_file_path, formatted_config)
             log.info(
                 "%s✓%s Successfully formatted %s%s%s",
                 Fore.GREEN,
