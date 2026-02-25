@@ -248,6 +248,37 @@ def _aggregate_from_ordered_items(
     return aggregated
 
 
+def _collapse_ordered_items_to_dict(
+    ordered_items: list[dict[str, t.Any]],
+) -> dict[str, t.Any]:
+    """Collapse ordered items into a flat dict for JSON serialization.
+
+    JSON does not support duplicate keys, so sections with the same
+    workspace label are merged (last-write-wins).
+
+    Examples
+    --------
+    >>> _collapse_ordered_items_to_dict([
+    ...     {"label": "~/code/", "section": {"repo1": {"repo": "git+x"}}},
+    ...     {"label": "~/work/", "section": {"repo2": {"repo": "git+y"}}},
+    ... ])
+    {'~/code/': {'repo1': {'repo': 'git+x'}}, '~/work/': {'repo2': {'repo': 'git+y'}}}
+    """
+    result: dict[str, t.Any] = {}
+    for entry in ordered_items:
+        label = entry["label"]
+        section = entry["section"]
+        if (
+            label in result
+            and isinstance(result[label], dict)
+            and isinstance(section, dict)
+        ):
+            result[label].update(section)
+        else:
+            result[label] = section
+    return result
+
+
 def _collect_duplicate_sections(
     items: list[dict[str, t.Any]],
 ) -> dict[str, list[t.Any]]:
@@ -818,10 +849,17 @@ def add_repo(
                 )
             else:
                 try:
-                    save_config_yaml_with_items(
-                        config_file_path,
-                        [(entry["label"], entry["section"]) for entry in ordered_items],
-                    )
+                    if config_file_path.suffix.lower() == ".json":
+                        save_config_json(
+                            config_file_path,
+                            _collapse_ordered_items_to_dict(ordered_items),
+                        )
+                    else:
+                        items = [(e["label"], e["section"]) for e in ordered_items]
+                        save_config_yaml_with_items(
+                            config_file_path,
+                            items,
+                        )
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -871,10 +909,16 @@ def add_repo(
         return
 
     try:
-        save_config_yaml_with_items(
-            config_file_path,
-            [(entry["label"], entry["section"]) for entry in ordered_items],
-        )
+        if config_file_path.suffix.lower() == ".json":
+            save_config_json(
+                config_file_path,
+                _collapse_ordered_items_to_dict(ordered_items),
+            )
+        else:
+            save_config_yaml_with_items(
+                config_file_path,
+                [(entry["label"], entry["section"]) for entry in ordered_items],
+            )
         log.info(
             "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
             Fore.GREEN,
