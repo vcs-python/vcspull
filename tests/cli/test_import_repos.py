@@ -2274,6 +2274,13 @@ IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
         True,
         ImportAction.OVERWRITE,
     ),
+    ImportActionFixture(
+        "non-dict-non-str-entry",
+        42,
+        _SSH,
+        False,
+        ImportAction.SKIP_EXISTING,
+    ),
 ]
 
 

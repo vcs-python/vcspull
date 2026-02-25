@@ -142,14 +142,23 @@ def _classify_import_action(
     ...     overwrite=True,
     ... )
     <ImportAction.SKIP_LOCKED: 'skip_locked'>
+
+    Non-dict, non-str entries fall back to empty URL (treated as different):
+
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://x", existing_entry=42, overwrite=False
+    ... )
+    <ImportAction.SKIP_EXISTING: 'skip_existing'>
     """
     if existing_entry is None:
         return ImportAction.ADD
     # url-first resolution (matches extract_repos() semantics)
     if isinstance(existing_entry, str):
         existing_url = existing_entry
-    else:
+    elif isinstance(existing_entry, dict):
         existing_url = existing_entry.get("url") or existing_entry.get("repo") or ""
+    else:
+        existing_url = ""
     # SKIP_UNCHANGED fires before lock check: nothing to overwrite when URL matches
     if existing_url == incoming_url:
         return ImportAction.SKIP_UNCHANGED
