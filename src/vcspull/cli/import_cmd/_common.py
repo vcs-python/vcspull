@@ -650,7 +650,7 @@ def _run_import(
     formatter.finalize()
 
     # Confirm with user
-    if not yes and output_mode.value == "human":
+    if not dry_run and not yes and output_mode.value == "human":
         if not sys.stdin.isatty():
             log.info(
                 "%s Non-interactive mode: use --yes to skip confirmation.",
