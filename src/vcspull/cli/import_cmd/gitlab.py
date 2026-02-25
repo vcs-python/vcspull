@@ -121,4 +121,5 @@ def handle_gitlab(args: argparse.Namespace) -> int:
         flatten_groups=getattr(args, "flatten_groups", False),
         with_shared=getattr(args, "with_shared", False),
         skip_groups=getattr(args, "skip_groups", None),
+        overwrite=getattr(args, "overwrite", False),
     )

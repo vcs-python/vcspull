@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import pathlib
@@ -20,6 +21,8 @@ from vcspull._internal.remotes import (
     ServiceUnavailableError,
 )
 from vcspull.cli.import_cmd._common import (
+    ImportAction,
+    _classify_import_action,
     _resolve_config_file,
     _run_import,
 )
@@ -613,10 +616,10 @@ def test_import_repos_all_existing(
     workspace.mkdir()
     config_file = tmp_path / ".vcspull.yaml"
 
-    # Create existing config with repo1
+    # Create existing config with repo1 using SSH URL (matches default import URL)
     existing_config = {
         "~/repos/": {
-            "repo1": {"repo": "git+https://github.com/testuser/repo1.git"},
+            "repo1": {"repo": "git+git@github.com:testuser/repo1.git"},
         }
     }
     save_config_yaml(config_file, existing_config)
@@ -2144,3 +2147,447 @@ def test_run_import_forwards_with_shared_and_skip_groups(
     assert importer.captured_options is not None
     assert importer.captured_options.with_shared is True
     assert importer.captured_options.skip_groups == ["bots", "archived"]
+
+
+# ---------------------------------------------------------------------------
+# ImportAction classifier unit tests
+# ---------------------------------------------------------------------------
+
+_SSH = "git+git@github.com:testuser/repo1.git"
+_HTTPS = "git+https://github.com/testuser/repo1.git"
+
+
+class ImportActionFixture(t.NamedTuple):
+    """Fixture for _classify_import_action unit tests."""
+
+    test_id: str
+    existing_entry: dict[str, t.Any] | str | None
+    incoming_url: str
+    overwrite: bool
+    expected_action: ImportAction
+
+
+IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
+    ImportActionFixture("add-no-overwrite", None, _SSH, False, ImportAction.ADD),
+    ImportActionFixture("add-with-overwrite", None, _SSH, True, ImportAction.ADD),
+    ImportActionFixture(
+        "skip-unchanged-no-overwrite",
+        {"repo": _SSH},
+        _SSH,
+        False,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "skip-unchanged-with-overwrite",
+        {"repo": _SSH},
+        _SSH,
+        True,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "skip-unchanged-locked-no-overwrite",
+        {"repo": _SSH, "options": {"lock": True}},
+        _SSH,
+        False,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "skip-unchanged-locked-with-overwrite",
+        {"repo": _SSH, "options": {"lock": True}},
+        _SSH,
+        True,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "url-key-takes-precedence",
+        {"repo": _HTTPS, "url": _SSH},
+        _SSH,
+        False,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "skip-existing-no-overwrite",
+        {"repo": _HTTPS},
+        _SSH,
+        False,
+        ImportAction.SKIP_EXISTING,
+    ),
+    ImportActionFixture(
+        "overwrite-with-overwrite",
+        {"repo": _HTTPS},
+        _SSH,
+        True,
+        ImportAction.OVERWRITE,
+    ),
+    ImportActionFixture(
+        "skip-locked-global-lock",
+        {"repo": _HTTPS, "options": {"lock": True}},
+        _SSH,
+        True,
+        ImportAction.SKIP_LOCKED,
+    ),
+    ImportActionFixture(
+        "skip-locked-allow-overwrite-false",
+        {"repo": _HTTPS, "options": {"allow_overwrite": False}},
+        _SSH,
+        True,
+        ImportAction.SKIP_LOCKED,
+    ),
+    ImportActionFixture(
+        "skip-locked-import-specific",
+        {"repo": _HTTPS, "options": {"lock": {"import": True}}},
+        _SSH,
+        True,
+        ImportAction.SKIP_LOCKED,
+    ),
+    ImportActionFixture(
+        "not-locked-add-specific",
+        {"repo": _HTTPS, "options": {"lock": {"add": True}}},
+        _SSH,
+        True,
+        ImportAction.OVERWRITE,
+    ),
+    ImportActionFixture(
+        "str-entry-skip-existing",
+        _HTTPS,
+        _SSH,
+        False,
+        ImportAction.SKIP_EXISTING,
+    ),
+    ImportActionFixture(
+        "str-entry-overwrite",
+        _HTTPS,
+        _SSH,
+        True,
+        ImportAction.OVERWRITE,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ImportActionFixture._fields),
+    IMPORT_ACTION_FIXTURES,
+    ids=[f.test_id for f in IMPORT_ACTION_FIXTURES],
+)
+def test_classify_import_action(
+    test_id: str,
+    existing_entry: dict[str, t.Any] | str | None,
+    incoming_url: str,
+    overwrite: bool,
+    expected_action: ImportAction,
+) -> None:
+    """Test _classify_import_action covers all permutations."""
+    action = _classify_import_action(
+        incoming_url=incoming_url,
+        existing_entry=existing_entry,
+        overwrite=overwrite,
+    )
+    assert action == expected_action
+
+
+# ---------------------------------------------------------------------------
+# --overwrite integration tests
+# ---------------------------------------------------------------------------
+
+
+def test_import_overwrite_updates_url(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --overwrite updates an existing entry when URL has changed."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
+    assert "Overwrote" in caplog.text
+
+
+def test_import_no_overwrite_skips_changed_url(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Without --overwrite, changed URLs are silently skipped."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=False,
+    )
+
+    assert "use --overwrite" in caplog.text
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
+
+
+def test_import_overwrite_respects_lock_true(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--overwrite must not overwrite an entry with options.lock: true."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _HTTPS, "options": {"lock": True}}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # URL must NOT have changed
+    assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
+    assert "Skipping locked" in caplog.text
+
+
+def test_import_overwrite_respects_allow_overwrite_false(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--overwrite must not overwrite an entry with options.allow_overwrite: false."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _HTTPS,
+                    "options": {"allow_overwrite": False},
+                }
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
+    assert "Skipping locked" in caplog.text
+
+
+def test_import_overwrite_preserves_metadata(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--overwrite preserves existing metadata (options, etc.) when updating URL."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _HTTPS,
+                    "options": {"lock": {"fmt": True}},
+                }
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert entry["repo"] == _SSH
+    # Options must be preserved
+    assert entry.get("options", {}).get("lock", {}).get("fmt") is True
+
+
+def test_import_overwrite_saves_config_when_only_overwrites(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Config must be saved when overwritten_count > 0 even if added_count == 0."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=True,
+    )
+
+    # Verify the URL was updated (content check is more reliable than mtime on
+    # filesystems with coarse timestamp granularity, e.g. NTFS on WSL2).
+    content = config_file.read_text(encoding="utf-8")
+    assert _SSH in content, "Config must be saved with SSH URL after overwrite"
+    assert _HTTPS not in content, "Old HTTPS URL must be replaced"
+
+
+def test_import_parser_has_overwrite_flag() -> None:
+    """The shared parent parser must expose --overwrite / --force."""
+    from vcspull.cli.import_cmd._common import _create_shared_parent
+
+    parser = argparse.ArgumentParser(parents=[_create_shared_parent()])
+    args = parser.parse_args(["--overwrite"])
+    assert args.overwrite is True
+
+    args2 = parser.parse_args(["--force"])
+    assert args2.overwrite is True
+
+    args3 = parser.parse_args([])
+    assert args3.overwrite is False

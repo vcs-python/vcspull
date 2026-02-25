@@ -7,6 +7,7 @@ and the ``_run_import()`` function that all per-service handlers delegate to.
 from __future__ import annotations
 
 import argparse
+import enum
 import logging
 import pathlib
 import sys
@@ -26,6 +27,8 @@ from vcspull._internal.remotes import (
     ServiceUnavailableError,
 )
 from vcspull.config import (
+    _get_lock_reason,
+    _is_locked_for_op,
     find_home_config_files,
     save_config_json,
     save_config_yaml,
@@ -47,6 +50,114 @@ class Importer(t.Protocol):
     def fetch_repos(self, options: ImportOptions) -> t.Iterator[RemoteRepo]:
         """Yield repositories matching *options*."""
         ...
+
+
+class ImportAction(enum.Enum):
+    """Action resolved for each repo candidate during ``vcspull import``."""
+
+    ADD = "add"
+    SKIP_UNCHANGED = "skip_unchanged"
+    SKIP_EXISTING = "skip_existing"
+    OVERWRITE = "overwrite"
+    SKIP_LOCKED = "skip_locked"
+
+
+def _classify_import_action(
+    *,
+    incoming_url: str,
+    existing_entry: t.Any,
+    overwrite: bool,
+) -> ImportAction:
+    """Classify the import action for a single repository.
+
+    Parameters
+    ----------
+    incoming_url : str
+        URL from the remote service (already formatted with ``git+`` prefix).
+    existing_entry : Any
+        Current config entry for this repo name, or ``None`` if not in config.
+    overwrite : bool
+        Whether ``--overwrite``/``--force`` was passed.
+
+    Examples
+    --------
+    New repo is always added:
+
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://x", existing_entry=None, overwrite=False
+    ... )
+    <ImportAction.ADD: 'add'>
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://x", existing_entry=None, overwrite=True
+    ... )
+    <ImportAction.ADD: 'add'>
+
+    Same URL is always a no-op — even when locked or overwrite is set:
+
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://x",
+    ...     existing_entry={"repo": "git+ssh://x"},
+    ...     overwrite=True,
+    ... )
+    <ImportAction.SKIP_UNCHANGED: 'skip_unchanged'>
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://x",
+    ...     existing_entry={"repo": "git+ssh://x", "options": {"lock": True}},
+    ...     overwrite=True,
+    ... )
+    <ImportAction.SKIP_UNCHANGED: 'skip_unchanged'>
+
+    ``url`` key takes precedence over ``repo`` key (matches extract_repos semantics):
+
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://new",
+    ...     existing_entry={"repo": "git+ssh://old", "url": "git+ssh://new"},
+    ...     overwrite=False,
+    ... )
+    <ImportAction.SKIP_UNCHANGED: 'skip_unchanged'>
+
+    Different URL without overwrite is skipped:
+
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://x",
+    ...     existing_entry={"repo": "git+https://x"},
+    ...     overwrite=False,
+    ... )
+    <ImportAction.SKIP_EXISTING: 'skip_existing'>
+
+    Different URL with overwrite is overwritten (unless locked):
+
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://x",
+    ...     existing_entry={"repo": "git+https://x"},
+    ...     overwrite=True,
+    ... )
+    <ImportAction.OVERWRITE: 'overwrite'>
+
+    Overwrite is blocked by lock (only when URL differs):
+
+    >>> _classify_import_action(
+    ...     incoming_url="git+ssh://x",
+    ...     existing_entry={"repo": "git+https://x", "options": {"lock": True}},
+    ...     overwrite=True,
+    ... )
+    <ImportAction.SKIP_LOCKED: 'skip_locked'>
+    """
+    if existing_entry is None:
+        return ImportAction.ADD
+    # url-first resolution (matches extract_repos() semantics)
+    if isinstance(existing_entry, str):
+        existing_url = existing_entry
+    else:
+        existing_url = existing_entry.get("url") or existing_entry.get("repo") or ""
+    # SKIP_UNCHANGED fires before lock check: nothing to overwrite when URL matches
+    if existing_url == incoming_url:
+        return ImportAction.SKIP_UNCHANGED
+    if overwrite and _is_locked_for_op(existing_entry, "import"):
+        return ImportAction.SKIP_LOCKED
+    if overwrite:
+        return ImportAction.OVERWRITE
+    return ImportAction.SKIP_EXISTING
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +266,18 @@ def _create_shared_parent() -> argparse.ArgumentParser:
         action="store_true",
         dest="use_https",
         help="Use HTTPS clone URLs instead of SSH (default: SSH)",
+    )
+    output_group.add_argument(
+        "--overwrite",
+        "--force",
+        dest="overwrite",
+        action="store_true",
+        help=(
+            "Overwrite existing config entries whose URL has changed. "
+            "Preserves all metadata (options, remotes, shell_command_after). "
+            "Repos with options.lock.import or "
+            "options.allow_overwrite: false are exempt."
+        ),
     )
     output_group.add_argument(
         "--color",
@@ -283,6 +406,7 @@ def _run_import(
     flatten_groups: bool = False,
     with_shared: bool = False,
     skip_groups: list[str] | None = None,
+    overwrite: bool = False,
 ) -> int:
     """Run the import workflow for a single service.
 
@@ -525,15 +649,6 @@ def _run_import(
 
     formatter.finalize()
 
-    # Handle dry-run
-    if dry_run:
-        log.info(
-            "\n%s Dry run complete. Would write to %s",
-            colors.warning("→"),
-            colors.muted(display_config_path),
-        )
-        return 0
-
     # Confirm with user
     if not yes and output_mode.value == "human":
         if not sys.stdin.isatty():
@@ -575,8 +690,8 @@ def _run_import(
     # Add repositories to config
     checked_labels: set[str] = set()
     error_labels: set[str] = set()
-    added_count = 0
-    skipped_count = 0
+    added_count = overwritten_count = skip_unchanged_count = 0
+    skip_existing_count = skip_locked_count = 0
 
     for repo in repos:
         # Determine workspace for this repo
@@ -632,42 +747,104 @@ def _run_import(
         if repo_workspace_label not in raw_config:
             raw_config[repo_workspace_label] = {}
 
-        if repo.name in raw_config[repo_workspace_label]:
-            skipped_count += 1
-            continue
+        incoming_url = repo.to_vcspull_url(use_ssh=not use_https)
+        existing_raw: t.Any = raw_config[repo_workspace_label].get(repo.name)
+        action = _classify_import_action(
+            incoming_url=incoming_url,
+            existing_entry=existing_raw,
+            overwrite=overwrite,
+        )
 
-        raw_config[repo_workspace_label][repo.name] = {
-            "repo": repo.to_vcspull_url(use_ssh=not use_https),
-        }
-        added_count += 1
+        if action == ImportAction.ADD:
+            if not dry_run:
+                raw_config[repo_workspace_label][repo.name] = {"repo": incoming_url}
+            else:
+                log.info("[DRY-RUN] Would add: %s → %s", repo.name, incoming_url)
+            added_count += 1
+        elif action == ImportAction.OVERWRITE:
+            if not dry_run:
+                updated = dict(existing_raw) if isinstance(existing_raw, dict) else {}
+                updated["repo"] = incoming_url
+                updated.pop("url", None)
+                raw_config[repo_workspace_label][repo.name] = updated
+            else:
+                log.info("[DRY-RUN] Would overwrite: %s", repo.name)
+            overwritten_count += 1
+        elif action == ImportAction.SKIP_UNCHANGED:
+            skip_unchanged_count += 1
+        elif action == ImportAction.SKIP_EXISTING:
+            skip_existing_count += 1
+        elif action == ImportAction.SKIP_LOCKED:
+            reason = _get_lock_reason(existing_raw)
+            log.info(
+                "%s Skipping locked repo %s%s",
+                colors.warning("⊘"),
+                repo.name,
+                f" ({reason})" if reason else "",
+            )
+            skip_locked_count += 1
 
     if error_labels:
         return 1
 
-    if added_count == 0:
+    if dry_run:
         log.info(
-            "%s All repositories already exist in config. Nothing to add.",
-            colors.success("✓"),
+            "\n%s Dry run complete. Would write to %s",
+            colors.warning("→"),
+            colors.muted(display_config_path),
         )
         return 0
 
-    # Save config
+    if added_count == 0 and overwritten_count == 0:
+        if skip_existing_count == 0 and skip_locked_count == 0:
+            log.info(
+                "%s All repositories already exist in config. Nothing to add.",
+                colors.success("✓"),
+            )
+        if skip_existing_count > 0:
+            log.info(
+                "%s Skipped %s existing repositories (use --overwrite to update URLs)",
+                colors.warning("!"),
+                colors.info(str(skip_existing_count)),
+            )
+        if skip_locked_count > 0:
+            log.info(
+                "%s Skipped %s locked repositories",
+                colors.warning("!"),
+                colors.info(str(skip_locked_count)),
+            )
+        return 0
+
     try:
         if config_file_path.suffix.lower() == ".json":
             save_config_json(config_file_path, raw_config)
         else:
             save_config_yaml(config_file_path, raw_config)
-        log.info(
-            "%s Added %s repositories to %s",
-            colors.success("✓"),
-            colors.info(str(added_count)),
-            colors.muted(display_config_path),
-        )
-        if skipped_count > 0:
+        if added_count > 0:
             log.info(
-                "%s Skipped %s existing repositories",
+                "%s Added %s repositories to %s",
+                colors.success("✓"),
+                colors.info(str(added_count)),
+                colors.muted(display_config_path),
+            )
+        if overwritten_count > 0:
+            log.info(
+                "%s Overwrote %s existing repositories in %s",
+                colors.success("✓"),
+                colors.info(str(overwritten_count)),
+                colors.muted(display_config_path),
+            )
+        if skip_existing_count > 0:
+            log.info(
+                "%s Skipped %s existing repositories (use --overwrite to update URLs)",
                 colors.warning("!"),
-                colors.info(str(skipped_count)),
+                colors.info(str(skip_existing_count)),
+            )
+        if skip_locked_count > 0:
+            log.info(
+                "%s Skipped %s locked repositories",
+                colors.warning("!"),
+                colors.info(str(skip_locked_count)),
             )
     except OSError:
         log.exception("Error saving config to %s", display_config_path)
