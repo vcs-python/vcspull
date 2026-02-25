@@ -2174,7 +2174,7 @@ class ImportActionFixture(t.NamedTuple):
     """Fixture for _classify_import_action unit tests."""
 
     test_id: str
-    existing_entry: dict[str, t.Any] | str | None
+    existing_entry: t.Any
     incoming_url: str
     overwrite: bool
     expected_action: ImportAction
