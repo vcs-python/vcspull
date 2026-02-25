@@ -33,6 +33,93 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### New features
+
+#### `vcspull import`: Add `--overwrite` / `--force` to update changed URLs (#520)
+
+Previously, `vcspull import` skipped any repository that was already present in
+the config, even when the remote URL had changed (e.g. after an HTTPS → SSH
+migration or a namespace move). The only workaround was to delete the config
+entry and re-run.
+
+Pass `--overwrite` (or the shorter `--force`) to update changed URLs in-place:
+
+```console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --overwrite
+```
+
+Existing entry metadata — `options`, `remotes`, `shell_command_after`,
+`worktrees` — is preserved on overwrite. Only the `repo` URL field is replaced.
+Repos whose URL has not changed are silently skipped regardless of the flag.
+
+The flag is available on all six import providers: `github` / `gh`, `gitlab` /
+`gl`, `codeberg` / `cb`, `gitea`, `forgejo`, and `codecommit` / `cc`.
+
+#### `options.lock`: Per-repo, per-operation mutation guard (#520)
+
+Any repository entry can carry an `options.lock` block that prevents specific
+vcspull operations from mutating it. This is useful for pinned forks, company
+mirrors, or any repo whose config should only be changed manually.
+
+Lock all operations:
+
+```yaml
+~/code/:
+  myrepo:
+    repo: git+git@github.com:me/myrepo.git
+    options:
+      lock: true
+      lock_reason: "pinned to company fork — update manually"
+```
+
+Lock only specific operations:
+
+```yaml
+~/code/:
+  other-repo:
+    repo: git+git@github.com:me/other.git
+    options:
+      lock:
+        import: true    # --overwrite cannot replace this URL
+        fmt: true       # vcspull fmt preserves the entry verbatim
+      lock_reason: "locked for import and fmt"
+```
+
+Shorthand — equivalent to `lock: {import: true}`:
+
+```yaml
+~/code/:
+  shorthand-repo:
+    repo: git+git@github.com:me/pinned.git
+    options:
+      allow_overwrite: false
+```
+
+Lock semantics:
+
+- `lock: true` — all five operations are blocked (`import`, `add`, `discover`,
+  `fmt`, `merge`)
+- `lock: {op: true}` — only the named operations are blocked; unspecified keys
+  default to `false`
+- `allow_overwrite: false` — concise shorthand, equivalent to
+  `lock: {import: true}`
+- `lock_reason` — human-readable string shown in log output when a repo is
+  skipped due to a lock
+
+Lock awareness has been added to all config-mutation commands: `import`,
+`add`, `discover`, `fmt`, and the duplicate-workspace-root `merge` resolver.
+
+### Bug fixes
+
+#### `vcspull add`, `vcspull discover`, `vcspull fmt`: Fix JSON configs saved as YAML (#520)
+
+All three commands called `save_config_yaml()` unconditionally, silently
+corrupting `.json` config files by overwriting them with YAML content. Each
+save site now checks the file extension and calls the correct serialiser.
+
 ## vcspull v1.57.0 (2026-02-22)
 
 ### Breaking changes
