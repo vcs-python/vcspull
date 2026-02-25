@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import enum
 import logging
 import os
 import pathlib
@@ -15,16 +16,61 @@ from colorama import Fore, Style
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
+    _get_lock_reason,
+    _is_locked_for_op,
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
+    save_config_json,
     save_config_yaml,
     workspace_root_label,
 )
 
 log = logging.getLogger(__name__)
+
+
+class DiscoverAction(enum.Enum):
+    """Action resolved for each discovered repo during ``vcspull discover``."""
+
+    ADD = "add"
+    SKIP_EXISTING = "skip_existing"
+    SKIP_LOCKED = "skip_locked"
+
+
+def _classify_discover_action(existing_entry: t.Any) -> DiscoverAction:
+    """Classify the discover action for a single repository.
+
+    Parameters
+    ----------
+    existing_entry : Any
+        Current config entry, or ``None`` if not yet in config.
+
+    Examples
+    --------
+    Not in config — always add:
+
+    >>> _classify_discover_action(None)
+    <DiscoverAction.ADD: 'add'>
+
+    Already in config:
+
+    >>> _classify_discover_action({"repo": "git+ssh://x"})
+    <DiscoverAction.SKIP_EXISTING: 'skip_existing'>
+
+    Locked for discover:
+
+    >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"discover": True}}}
+    >>> _classify_discover_action(entry)
+    <DiscoverAction.SKIP_LOCKED: 'skip_locked'>
+    """
+    if existing_entry is None:
+        return DiscoverAction.ADD
+    if _is_locked_for_op(existing_entry, "discover"):
+        return DiscoverAction.SKIP_LOCKED
+    return DiscoverAction.SKIP_EXISTING
+
 
 ConfigScope = t.Literal["system", "user", "project", "external"]
 
@@ -523,7 +569,21 @@ def discover_repos(
             raw_config.setdefault(workspace_label, {})
 
         target_section = raw_config.get(workspace_label, {})
-        if isinstance(target_section, dict) and name in target_section:
+        existing_entry = (
+            target_section.get(name) if isinstance(target_section, dict) else None
+        )
+        discover_action = _classify_discover_action(existing_entry)
+        if discover_action in {
+            DiscoverAction.SKIP_EXISTING,
+            DiscoverAction.SKIP_LOCKED,
+        }:
+            if discover_action == DiscoverAction.SKIP_LOCKED:
+                reason = _get_lock_reason(existing_entry)
+                log.debug(
+                    "Skipping locked repo '%s'%s",
+                    name,
+                    f" ({reason})" if reason else "",
+                )
             existing_repos.append((name, url, workspace_path))
         else:
             repos_to_add.append((name, url, workspace_path))
@@ -595,7 +655,10 @@ def discover_repos(
             )
         if changes_made and not dry_run:
             try:
-                save_config_yaml(config_file_path, raw_config)
+                if config_file_path.suffix.lower() == ".json":
+                    save_config_json(config_file_path, raw_config)
+                else:
+                    save_config_yaml(config_file_path, raw_config)
                 log.info(
                     "%s✓%s Successfully updated %s%s%s.",
                     Fore.GREEN,
@@ -696,7 +759,10 @@ def discover_repos(
 
     if changes_made:
         try:
-            save_config_yaml(config_file_path, raw_config)
+            if config_file_path.suffix.lower() == ".json":
+                save_config_json(config_file_path, raw_config)
+            else:
+                save_config_yaml(config_file_path, raw_config)
             log.info(
                 "%s✓%s Successfully updated %s%s%s.",
                 Fore.GREEN,

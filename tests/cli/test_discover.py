@@ -994,3 +994,61 @@ def test_discover_skips_non_dict_workspace(
     )
 
     assert expected_warning in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# DiscoverAction classifier unit tests
+# ---------------------------------------------------------------------------
+
+import typing as t  # noqa: E402
+
+from vcspull.cli.discover import DiscoverAction, _classify_discover_action  # noqa: E402
+
+_DISC_SSH = "git+git@github.com:testuser/repo1.git"
+
+
+class DiscoverActionFixture(t.NamedTuple):
+    """Fixture for _classify_discover_action unit tests."""
+
+    test_id: str
+    existing_entry: dict[str, t.Any] | str | None
+    expected_action: DiscoverAction
+
+
+DISCOVER_ACTION_FIXTURES: list[DiscoverActionFixture] = [
+    DiscoverActionFixture("add-new", None, DiscoverAction.ADD),
+    DiscoverActionFixture(
+        "skip-existing", {"repo": _DISC_SSH}, DiscoverAction.SKIP_EXISTING
+    ),
+    DiscoverActionFixture(
+        "skip-locked-global",
+        {"repo": _DISC_SSH, "options": {"lock": True}},
+        DiscoverAction.SKIP_LOCKED,
+    ),
+    DiscoverActionFixture(
+        "skip-locked-discover-specific",
+        {"repo": _DISC_SSH, "options": {"lock": {"discover": True}}},
+        DiscoverAction.SKIP_LOCKED,
+    ),
+    DiscoverActionFixture(
+        "not-locked-import-only",
+        {"repo": _DISC_SSH, "options": {"lock": {"import": True}}},
+        DiscoverAction.SKIP_EXISTING,
+    ),
+    DiscoverActionFixture("str-entry", _DISC_SSH, DiscoverAction.SKIP_EXISTING),
+]
+
+
+@pytest.mark.parametrize(
+    list(DiscoverActionFixture._fields),
+    DISCOVER_ACTION_FIXTURES,
+    ids=[f.test_id for f in DISCOVER_ACTION_FIXTURES],
+)
+def test_classify_discover_action(
+    test_id: str,
+    existing_entry: dict[str, t.Any] | str | None,
+    expected_action: DiscoverAction,
+) -> None:
+    """Test _classify_discover_action covers all permutations."""
+    action = _classify_discover_action(existing_entry)
+    assert action == expected_action
