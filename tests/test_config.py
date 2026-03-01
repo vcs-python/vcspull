@@ -228,7 +228,6 @@ class MergeActionFixture(t.NamedTuple):
     existing_entry: dict[str, t.Any] | str
     incoming_entry: dict[str, t.Any] | str
     expected_action: MergeAction
-    expected_winning_url: str
 
 
 MERGE_ACTION_FIXTURES: list[MergeActionFixture] = [
@@ -237,42 +236,36 @@ MERGE_ACTION_FIXTURES: list[MergeActionFixture] = [
         {"repo": _MERGE_HTTPS},
         {"repo": _MERGE_SSH},
         MergeAction.KEEP_EXISTING,
-        _MERGE_HTTPS,
     ),
     MergeActionFixture(
         "keep-locked-incoming",
         {"repo": _MERGE_HTTPS},
         {"repo": _MERGE_SSH, "options": {"lock": True}},
         MergeAction.KEEP_INCOMING,
-        _MERGE_SSH,
     ),
     MergeActionFixture(
         "keep-locked-existing",
         {"repo": _MERGE_HTTPS, "options": {"lock": True}},
         {"repo": _MERGE_SSH},
         MergeAction.KEEP_EXISTING,
-        _MERGE_HTTPS,
     ),
     MergeActionFixture(
         "both-locked-keep-first",
         {"repo": _MERGE_HTTPS, "options": {"lock": True}},
         {"repo": _MERGE_SSH, "options": {"lock": True}},
         MergeAction.KEEP_EXISTING,
-        _MERGE_HTTPS,
     ),
     MergeActionFixture(
         "keep-locked-merge-specific",
         {"repo": _MERGE_HTTPS},
         {"repo": _MERGE_SSH, "options": {"lock": {"merge": True}}},
         MergeAction.KEEP_INCOMING,
-        _MERGE_SSH,
     ),
     MergeActionFixture(
         "import-lock-no-effect-on-merge",
         {"repo": _MERGE_HTTPS},
         {"repo": _MERGE_SSH, "options": {"lock": {"import": True}}},
         MergeAction.KEEP_EXISTING,
-        _MERGE_HTTPS,
     ),
 ]
 
@@ -287,7 +280,6 @@ def test_classify_merge_action(
     existing_entry: dict[str, t.Any] | str,
     incoming_entry: dict[str, t.Any] | str,
     expected_action: MergeAction,
-    expected_winning_url: str,
 ) -> None:
     """Test _classify_merge_action covers all permutations."""
     action = _classify_merge_action(existing_entry, incoming_entry)
