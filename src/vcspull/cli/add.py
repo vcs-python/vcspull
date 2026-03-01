@@ -562,7 +562,7 @@ def add_repo(
                 continue
             try:
                 path_key = canonicalize_workspace_path(label, cwd=cwd)
-            except Exception:
+            except (OSError, ValueError):
                 continue
             workspace_map[path_key] = label
 
@@ -597,7 +597,7 @@ def add_repo(
                 continue
             try:
                 path_key = canonicalize_workspace_path(entry["label"], cwd=cwd)
-            except Exception:
+            except (OSError, ValueError):
                 continue
             if path_key == workspace_path:
                 matching_indexes.append(idx)
