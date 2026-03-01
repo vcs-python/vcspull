@@ -109,6 +109,20 @@ repositories stay intact. When it collapses multiple sections, the command logs
 a summary of the merge. Prefer to inspect duplicates yourself? Add
 `--no-merge` to keep every section untouched.
 
+## Locked entries
+
+Repositories whose configuration includes a lock on the `add` operation are
+skipped with a warning. For example, if a repo has `options.lock: true` or
+`options.lock.add: true`, `vcspull add` will not overwrite it:
+
+```vcspull-console
+$ vcspull add ~/code/internal-fork
+⚠ Repository 'internal-fork' is locked (pinned to company mirror) — skipping
+```
+
+The `lock_reason` (if set) is included in the warning. See {ref}`config-lock`
+for full lock configuration.
+
 ## After adding repositories
 
 1. Run `vcspull fmt --write` to normalize your configuration (see

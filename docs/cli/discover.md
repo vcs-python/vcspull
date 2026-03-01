@@ -225,6 +225,13 @@ Skipped flask (already exists)
 
 You can choose to skip or overwrite the existing entry.
 
+## Locked entries
+
+Repositories locked for the `discover` operation (`options.lock: true` or
+`options.lock.discover: true`) are silently skipped during scanning. A debug-level
+log message is emitted, so pass `-v` or `--log-level debug` to see which entries
+were skipped due to locks. See {ref}`config-lock` for full lock configuration.
+
 ## Migration from vcspull import --scan
 
 If you previously used `vcspull import --scan`:

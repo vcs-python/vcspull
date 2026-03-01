@@ -200,6 +200,54 @@ $ vcspull import gh myuser \
     --yes
 ```
 
+## Updating existing entries
+
+By default, repositories that already exist in your configuration are
+**skipped** — even if the remote URL has changed. This prevents accidental
+overwrites when re-importing from a service.
+
+To replace the URL of existing entries, pass `--overwrite` (or its alias
+`--force`):
+
+```console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --overwrite
+```
+
+When overwriting, vcspull replaces only the `repo` URL. All other metadata is
+preserved:
+
+- `options` (including locks)
+- `remotes`
+- `shell_command_after`
+- `worktrees`
+
+### Lock-aware behavior
+
+Repositories protected by a lock are **exempt** from `--overwrite`. The
+following configurations all prevent an import overwrite:
+
+- `options.lock: true`
+- `options.lock.import: true`
+- `options.allow_overwrite: false`
+
+Locked repositories are skipped with an informational message showing the
+`lock_reason` (if set). For example, this entry cannot be overwritten:
+
+```yaml
+~/code/:
+  internal-fork:
+    repo: "git+ssh://git@corp.example.com/team/internal-fork.git"
+    options:
+      lock:
+        import: true
+      lock_reason: "pinned to company mirror"
+```
+
+See {ref}`config-lock` for full lock configuration.
+
 ## Configuration file selection
 
 vcspull writes to `~/.vcspull.yaml` by default. Override with `-f/--file`:
