@@ -22,8 +22,8 @@ from vcspull.config import (
     expand_dir,
     find_home_config_files,
     merge_duplicate_workspace_roots,
+    save_config,
     save_config_json,
-    save_config_yaml,
     save_config_yaml_with_items,
     workspace_root_label,
 )
@@ -650,10 +650,7 @@ def add_repo(
             )
             if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
                 try:
-                    if config_file_path.suffix.lower() == ".json":
-                        save_config_json(config_file_path, raw_config)
-                    else:
-                        save_config_yaml(config_file_path, raw_config)
+                    save_config(config_file_path, raw_config)
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -690,10 +687,7 @@ def add_repo(
 
             if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
                 try:
-                    if config_file_path.suffix.lower() == ".json":
-                        save_config_json(config_file_path, raw_config)
-                    else:
-                        save_config_yaml(config_file_path, raw_config)
+                    save_config(config_file_path, raw_config)
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -743,10 +737,7 @@ def add_repo(
             return
 
         try:
-            if config_file_path.suffix.lower() == ".json":
-                save_config_json(config_file_path, raw_config)
-            else:
-                save_config_yaml(config_file_path, raw_config)
+            save_config(config_file_path, raw_config)
             log.info(
                 "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
                 Fore.GREEN,

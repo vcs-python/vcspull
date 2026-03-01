@@ -20,8 +20,7 @@ from vcspull.config import (
     find_home_config_files,
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
-    save_config_json,
-    save_config_yaml,
+    save_config,
 )
 
 log = logging.getLogger(__name__)
@@ -436,10 +435,7 @@ def format_single_config(
     if write:
         # Save formatted config
         try:
-            if config_file_path.suffix.lower() == ".json":
-                save_config_json(config_file_path, formatted_config)
-            else:
-                save_config_yaml(config_file_path, formatted_config)
+            save_config(config_file_path, formatted_config)
             log.info(
                 "%s✓%s Successfully formatted %s%s%s",
                 Fore.GREEN,

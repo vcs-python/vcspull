@@ -23,8 +23,7 @@ from vcspull.config import (
     find_home_config_files,
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
-    save_config_json,
-    save_config_yaml,
+    save_config,
     workspace_root_label,
 )
 
@@ -655,10 +654,7 @@ def discover_repos(
             )
         if changes_made and not dry_run:
             try:
-                if config_file_path.suffix.lower() == ".json":
-                    save_config_json(config_file_path, raw_config)
-                else:
-                    save_config_yaml(config_file_path, raw_config)
+                save_config(config_file_path, raw_config)
                 log.info(
                     "%s✓%s Successfully updated %s%s%s.",
                     Fore.GREEN,
@@ -759,10 +755,7 @@ def discover_repos(
 
     if changes_made:
         try:
-            if config_file_path.suffix.lower() == ".json":
-                save_config_json(config_file_path, raw_config)
-            else:
-                save_config_yaml(config_file_path, raw_config)
+            save_config(config_file_path, raw_config)
             log.info(
                 "%s✓%s Successfully updated %s%s%s.",
                 Fore.GREEN,

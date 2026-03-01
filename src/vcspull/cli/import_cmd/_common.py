@@ -30,8 +30,7 @@ from vcspull.config import (
     _get_lock_reason,
     _is_locked_for_op,
     find_home_config_files,
-    save_config_json,
-    save_config_yaml,
+    save_config,
     workspace_root_label,
 )
 from vcspull.exc import MultipleConfigWarning
@@ -829,10 +828,7 @@ def _run_import(
         return 0
 
     try:
-        if config_file_path.suffix.lower() == ".json":
-            save_config_json(config_file_path, raw_config)
-        else:
-            save_config_yaml(config_file_path, raw_config)
+        save_config(config_file_path, raw_config)
         if added_count > 0:
             log.info(
                 "%s Added %s repositories to %s",

@@ -790,7 +790,7 @@ def test_discover_normalization_only_save(
     def _fake_save(path: pathlib.Path, data: dict[str, t.Any]) -> None:
         save_calls.append((path, data))
 
-    monkeypatch.setattr("vcspull.cli.discover.save_config_yaml", _fake_save)
+    monkeypatch.setattr("vcspull.cli.discover.save_config", _fake_save)
 
     discover_repos(
         scan_dir_str=str(scan_dir),
@@ -979,10 +979,10 @@ def test_discover_skips_non_dict_workspace(
     )
 
     def _fail_save(path: pathlib.Path, data: dict[str, t.Any]) -> None:
-        error_message = "save_config_yaml should not be called when skipping repo"
+        error_message = "save_config should not be called when skipping repo"
         raise AssertionError(error_message)
 
-    monkeypatch.setattr("vcspull.cli.discover.save_config_yaml", _fail_save)
+    monkeypatch.setattr("vcspull.cli.discover.save_config", _fail_save)
 
     discover_repos(
         scan_dir_str=str(scan_dir),

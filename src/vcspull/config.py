@@ -733,6 +733,38 @@ def save_config_json(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
     _atomic_write(config_file_path, json_content)
 
 
+def save_config(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
+    """Save configuration data, dispatching by file extension.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Path to the configuration file to write
+    data : dict
+        Configuration data to save
+
+    Examples
+    --------
+    >>> import pathlib, tempfile, json
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "test.json"
+    ...     save_config(p, {"~/code/": {"repo": {"repo": "git+https://x"}}})
+    ...     loaded = json.loads(p.read_text())
+    ...     loaded["~/code/"]["repo"]["repo"]
+    'git+https://x'
+
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "test.yaml"
+    ...     save_config(p, {"~/code/": {"repo": {"repo": "git+https://x"}}})
+    ...     "repo" in p.read_text()
+    True
+    """
+    if config_file_path.suffix.lower() == ".json":
+        save_config_json(config_file_path, data)
+    else:
+        save_config_yaml(config_file_path, data)
+
+
 def save_config_yaml_with_items(
     config_file_path: pathlib.Path,
     items: list[tuple[str, t.Any]],
