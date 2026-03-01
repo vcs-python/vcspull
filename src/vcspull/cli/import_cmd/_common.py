@@ -962,6 +962,12 @@ def _run_import(
                 if isinstance(live, dict):
                     live.setdefault("metadata", {})["imported_from"] = import_source
                     provenance_tagged_count += 1
+                elif isinstance(live, str):
+                    raw_config[repo_workspace_label][repo.name] = {
+                        "repo": live,
+                        "metadata": {"imported_from": import_source},
+                    }
+                    provenance_tagged_count += 1
         elif action == ImportAction.SKIP_EXISTING:
             skip_existing_count += 1
         elif action == ImportAction.SKIP_PINNED:

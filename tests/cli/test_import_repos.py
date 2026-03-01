@@ -3453,6 +3453,56 @@ def test_import_skip_unchanged_tags_provenance(
     assert entry["metadata"]["imported_from"] == "github:testuser"
 
 
+def test_import_skip_unchanged_tags_provenance_string_entry(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """SKIP_UNCHANGED converts string entries to dict form for provenance."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry as a plain string (not dict form)
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": _SSH}},
+    )
+
+    # Same URL → SKIP_UNCHANGED, should convert to dict and stamp provenance
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert isinstance(entry, dict), "String entry should be converted to dict form"
+    assert entry["repo"] == _SSH
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
 # ---------------------------------------------------------------------------
 # --prune standalone flag tests
 # ---------------------------------------------------------------------------
