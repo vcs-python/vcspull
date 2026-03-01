@@ -3597,6 +3597,114 @@ def test_import_provenance_survives_non_dict_metadata(
     assert entry["metadata"]["imported_from"] == "github:testuser"
 
 
+def test_import_provenance_survives_null_metadata(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Provenance stamping replaces null metadata with a proper dict (SKIP path)."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry with metadata: null (YAML null → Python None)
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _SSH, "metadata": None}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert isinstance(entry["metadata"], dict)
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_update_url_survives_null_metadata(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Provenance stamping replaces null metadata with a proper dict (UPDATE path)."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry with a different URL and metadata: null
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": "git+git@github.com:testuser/repo1-OLD.git",
+                    "metadata": None,
+                },
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert isinstance(entry["metadata"], dict)
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+    assert entry["repo"] == _SSH
+
+
 # ---------------------------------------------------------------------------
 # --prune standalone flag tests
 # ---------------------------------------------------------------------------

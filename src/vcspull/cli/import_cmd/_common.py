@@ -953,7 +953,7 @@ def _run_import(
                 updated["repo"] = incoming_url
                 updated.pop("url", None)
                 if import_source:
-                    if not isinstance(updated.get("metadata"), (dict, type(None))):
+                    if not isinstance(updated.get("metadata"), dict):
                         updated["metadata"] = {}
                     metadata = updated.setdefault("metadata", {})
                     metadata["imported_from"] = import_source
@@ -966,7 +966,7 @@ def _run_import(
             if not dry_run and import_source:
                 live = raw_config[repo_workspace_label].get(repo.name)
                 if isinstance(live, dict):
-                    if not isinstance(live.get("metadata"), (dict, type(None))):
+                    if not isinstance(live.get("metadata"), dict):
                         live["metadata"] = {}
                     live.setdefault("metadata", {})["imported_from"] = import_source
                     provenance_tagged_count += 1
