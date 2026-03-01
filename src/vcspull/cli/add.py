@@ -254,7 +254,8 @@ def _collapse_ordered_items_to_dict(
     """Collapse ordered items into a flat dict for JSON serialization.
 
     JSON does not support duplicate keys, so sections with the same
-    workspace label are merged (last-write-wins).
+    workspace label are merged at the repo level via ``dict.update()``
+    (last occurrence of a repo name wins).
 
     Examples
     --------
