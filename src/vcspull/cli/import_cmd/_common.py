@@ -1056,11 +1056,17 @@ def _run_import(
                 "[DRY-RUN] Skipped %s pinned repositories",
                 colors.info(str(skip_pinned_count)),
             )
-        log.info(
-            "\n%s Dry run complete. Would write to %s",
-            colors.warning("→"),
-            colors.muted(display_config_path),
-        )
+        if added_count > 0 or updated_url_count > 0 or pruned_count > 0:
+            log.info(
+                "\n%s Dry run complete. Would write to %s",
+                colors.warning("→"),
+                colors.muted(display_config_path),
+            )
+        else:
+            log.info(
+                "%s Dry run complete. No changes to write.",
+                colors.success("✓"),
+            )
         return 0
 
     if (
