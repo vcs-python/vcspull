@@ -7,6 +7,7 @@ and the ``_run_import()`` function that all per-service handlers delegate to.
 from __future__ import annotations
 
 import argparse
+import copy
 import enum
 import logging
 import pathlib
@@ -775,7 +776,11 @@ def _run_import(
             added_count += 1
         elif action == ImportAction.OVERWRITE:
             if not dry_run:
-                updated = dict(existing_raw) if isinstance(existing_raw, dict) else {}
+                updated = (
+                    copy.deepcopy(existing_raw)
+                    if isinstance(existing_raw, dict)
+                    else {}
+                )
                 updated["repo"] = incoming_url
                 updated.pop("url", None)
                 raw_config[repo_workspace_label][repo.name] = updated
