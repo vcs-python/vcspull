@@ -240,10 +240,7 @@ def test_pin_matrix_add(
     config_file = tmp_path / ".vcspull.yaml"
 
     # Pre-populate config with existing entry
-    config_file.write_text(
-        yaml.dump({"~/code/": {"myrepo": _entry(_OLD_URL, options)}}),
-        encoding="utf-8",
-    )
+    save_config_yaml(config_file, {"~/code/": {"myrepo": _entry(_OLD_URL, options)}})
 
     # Try to add same repo name with a different URL
     add_repo(
@@ -304,10 +301,7 @@ def test_pin_matrix_discover(
     config_file = tmp_path / ".vcspull.yaml"
 
     # Pre-populate config with existing entry at old URL
-    config_file.write_text(
-        yaml.dump({"~/code/": {"myrepo": _entry(_OLD_URL, options)}}),
-        encoding="utf-8",
-    )
+    save_config_yaml(config_file, {"~/code/": {"myrepo": _entry(_OLD_URL, options)}})
 
     discover_repos(
         scan_dir_str=str(scan_dir),
@@ -367,10 +361,7 @@ def test_pin_matrix_fmt(
         # Compact string entry — fmt normalizes to {"repo": url}
         entry_data = _OLD_URL
 
-    config_file.write_text(
-        yaml.dump({"~/projects/": {"myrepo": entry_data}}),
-        encoding="utf-8",
-    )
+    save_config_yaml(config_file, {"~/projects/": {"myrepo": entry_data}})
 
     format_config_file(str(config_file), write=True, format_all=False)
 
@@ -509,10 +500,7 @@ def test_pin_reason_in_log(
 
     elif operation == "add":
         config_file = tmp_path / ".vcspull.yaml"
-        config_file.write_text(
-            yaml.dump({"~/code/": {"myrepo": entry}}),
-            encoding="utf-8",
-        )
+        save_config_yaml(config_file, {"~/code/": {"myrepo": entry}})
         add_repo(
             name="myrepo",
             url=_NEW_URL,
@@ -529,10 +517,7 @@ def test_pin_reason_in_log(
         repo_path = scan_dir / "myrepo"
         _init_git_repo(repo_path, _NEW_URL)
         config_file = tmp_path / ".vcspull.yaml"
-        config_file.write_text(
-            yaml.dump({"~/code/": {"myrepo": entry}}),
-            encoding="utf-8",
-        )
+        save_config_yaml(config_file, {"~/code/": {"myrepo": entry}})
         discover_repos(
             scan_dir_str=str(scan_dir),
             config_file_path_str=str(config_file),
@@ -550,10 +535,7 @@ def test_pin_reason_in_log(
     elif operation == "fmt":
         config_file = tmp_path / ".vcspull.yaml"
         fmt_entry = {"url": _OLD_URL, "options": pin_options}
-        config_file.write_text(
-            yaml.dump({"~/projects/": {"myrepo": fmt_entry}}),
-            encoding="utf-8",
-        )
+        save_config_yaml(config_file, {"~/projects/": {"myrepo": fmt_entry}})
         format_config_file(str(config_file), write=True, format_all=False)
         # fmt silently preserves pinned entries; verify pin_reason survives
         with config_file.open() as f:
