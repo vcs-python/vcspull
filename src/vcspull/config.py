@@ -857,6 +857,9 @@ def _is_locked_for_op(entry: t.Any, op: str) -> bool:
 def _get_lock_reason(entry: t.Any) -> str | None:
     """Return the human-readable lock reason from a repo config entry.
 
+    Non-string values are coerced to :func:`str` so callers can safely
+    interpolate the result into log messages.
+
     Examples
     --------
     >>> entry = {"repo": "git+x", "options": {"lock": True, "lock_reason": "pinned"}}
@@ -866,13 +869,21 @@ def _get_lock_reason(entry: t.Any) -> str | None:
     True
     >>> _get_lock_reason("git+x") is None
     True
+
+    Non-string lock_reason is coerced:
+
+    >>> _get_lock_reason({"repo": "git+x", "options": {"lock_reason": 42}})
+    '42'
     """
     if not isinstance(entry, dict):
         return None
     opts = entry.get("options")
     if not isinstance(opts, dict):
         return None
-    return opts.get("lock_reason")
+    reason = opts.get("lock_reason")
+    if reason is None:
+        return None
+    return str(reason)
 
 
 class MergeAction(enum.Enum):
