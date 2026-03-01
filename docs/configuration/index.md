@@ -229,6 +229,26 @@ inside individual `worktrees` entries and passes `--lock` to
 `git worktree add`. See {ref}`cli-worktree` for worktree locking.
 ```
 
+## Import provenance
+
+When repositories are imported with `--sync` or `--prune`, vcspull records
+which service and owner the import came from. This is stored in a
+`metadata.imported_from` field:
+
+```yaml
+~/code/:
+  my-project:
+    repo: "git+git@github.com:myorg/my-project.git"
+    metadata:
+      imported_from: "github:myorg"
+```
+
+The `metadata` block is managed by vcspull — you generally don't need to edit
+it by hand. It is used to scope pruning: when re-importing with `--sync`,
+only entries tagged with the matching source are candidates for removal.
+
+See {ref}`cli-import` for full details on `--sync` and `--prune`.
+
 ## Caveats
 
 (git-remote-ssh-git)=

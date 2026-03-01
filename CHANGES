@@ -35,14 +35,14 @@ _Notes on upcoming releases will be added here_
 
 ### New features
 
-#### `vcspull import`: Add `--sync` to update changed URLs (#520)
+#### `vcspull import`: Add `--sync` for bidirectional config sync (#520)
 
 Previously, `vcspull import` skipped any repository that was already present in
 the config, even when the remote URL had changed (e.g. after an HTTPS → SSH
-migration or a namespace move). The only workaround was to delete the config
-entry and re-run.
+migration or a namespace move). Repos removed from the remote also stayed in
+config forever.
 
-Pass `--sync` to update changed URLs in-place:
+Pass `--sync` to fully reconcile your config with the remote:
 
 ```console
 $ vcspull import gh myorg \
@@ -51,12 +51,52 @@ $ vcspull import gh myorg \
     --sync
 ```
 
+`--sync` does three things:
+- **Add** new repositories (same as without `--sync`)
+- **Update URLs** for existing entries whose URL has changed
+- **Prune** entries that are no longer on the remote
+
 Existing entry metadata — `options`, `remotes`, `shell_command_after`,
-`worktrees` — is preserved on sync. Only the `repo` URL field is replaced.
-Repos whose URL has not changed are silently skipped regardless of the flag.
+`worktrees` — is preserved when updating URLs. Only the `repo` URL field is
+replaced. Repos whose URL has not changed are silently skipped.
+
+Pruning is scoped by provenance: each imported repo is tagged with
+`metadata.imported_from` (e.g. `"github:myorg"`), and only entries matching
+the current import source are candidates for removal. Manually added repos
+and repos imported from other sources are never pruned.
+
+Pruning is config-only — cloned directories on disk are not deleted.
+
+Pinned entries (`options.pin.import: true`) are exempt from both URL updates
+and pruning.
 
 The flag is available on all six import providers: `github` / `gh`, `gitlab` /
 `gl`, `codeberg` / `cb`, `gitea`, `forgejo`, and `codecommit` / `cc`.
+
+#### `vcspull import`: Add `--prune` for standalone stale entry removal (#520)
+
+`--prune` removes stale config entries (tagged by a previous import) that are
+no longer on the remote, without updating URLs for existing entries:
+
+```console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --prune
+```
+
+Use `--prune` when you want to clean up stale entries without changing any
+URLs. Use `--sync` for full reconciliation (URL updates + pruning).
+
+Preview what would be pruned without modifying config:
+
+```console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --prune \
+    --dry-run
+```
 
 #### `options.pin`: Per-repo, per-operation mutation guard (#520)
 

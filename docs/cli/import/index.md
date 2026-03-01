@@ -224,8 +224,8 @@ Import 1 new repository to ~/.vcspull.yaml? [y/N]: y
 ! Skipped 7 existing repositories
 ```
 
-Pass `--sync` to update changed URLs and remove entries no longer on the
-remote:
+Pass `--sync` to fully reconcile your config with the remote — update changed
+URLs, and remove entries no longer on the remote:
 
 ```console
 $ vcspull import gh myorg \
@@ -233,6 +233,12 @@ $ vcspull import gh myorg \
     --workspace ~/code/ \
     --sync
 ```
+
+`--sync` does three things:
+
+1. **Add** new repositories (same as without `--sync`)
+2. **Update URLs** for existing entries whose URL has changed
+3. **Prune** entries that are no longer on the remote
 
 When syncing, vcspull replaces only the `repo` URL. All other metadata is
 preserved:
@@ -267,10 +273,67 @@ is updated to SSH while `remotes` and `shell_command_after` are kept:
       - make setup
 ```
 
+### Provenance tracking
+
+When `--sync` (or `--prune`) is used, vcspull tags each imported repo with
+a `metadata.imported_from` field recording the import source:
+
+```yaml
+~/code/:
+  api-server:
+    repo: "git+git@github.com:myorg/api-server.git"
+    metadata:
+      imported_from: "github:myorg"
+```
+
+The tag format is `"{service}:{target}"` — e.g. `"github:myorg"`,
+`"gitlab:mygroup"`, `"codeberg:myuser"`.
+
+Provenance tags scope the prune step: only entries tagged with the **same**
+import source are candidates for removal. This means:
+
+- Manually added repos (no `metadata.imported_from`) are never pruned
+- Repos imported from a different source (e.g. `"github:other-org"`) are
+  never pruned when syncing `"github:myorg"`
+
+Pruning is **config-only** — cloned directories on disk are not deleted.
+
+### Pruning stale entries
+
+To remove stale entries without updating URLs, use `--prune`:
+
+```console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --prune
+```
+
+Preview what would be pruned with `--dry-run`:
+
+```console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --prune \
+    --dry-run
+```
+
+`--sync` and `--prune` can be combined — `--sync` alone already includes
+pruning, so `--sync --prune` behaves identically to `--sync`.
+
+| Flags | Add new | Update URLs | Prune stale |
+|-------|---------|-------------|-------------|
+| (none) | yes | no | no |
+| `--sync` | yes | yes | yes |
+| `--prune` | yes | no | yes |
+| `--sync --prune` | yes | yes | yes |
+
 ### Pin-aware behavior
 
-Repositories protected by a pin are **exempt** from `--sync`. The
-following configurations all prevent a sync URL update:
+Repositories protected by a pin are **exempt** from both URL updates and
+pruning. The following configurations all prevent `--sync` from modifying
+an entry:
 
 - `options.pin: true` — blocks all operations
 - `options.pin.import: true` — blocks import only
@@ -294,7 +357,7 @@ Import 7 repositories to ~/.vcspull.yaml? [y/N]: y
 ! Skipped 1 pinned repository
 ```
 
-For example, this entry cannot be updated regardless of `--sync`:
+For example, this entry cannot be updated or pruned regardless of `--sync`:
 
 ```yaml
 ~/code/:
