@@ -3759,6 +3759,57 @@ def test_import_prune_respects_pin(
     assert "Skipping pruning pinned repo" in caplog.text
 
 
+def test_import_prune_pinned_skip_count_in_summary(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Prune-phase SKIP_PINNED increments skip_pinned_count for the summary."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "pinned-repo": {
+                    "repo": _SSH,
+                    "options": {"pin": True},
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    assert "Skipped 1 pinned repositories" in caplog.text
+
+
 def test_import_prune_dry_run(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,

@@ -1014,6 +1014,7 @@ def _run_import(
                         repo_name,
                         f" ({reason})" if reason else "",
                     )
+                    skip_pinned_count += 1
 
     if error_labels:
         return 1
