@@ -1139,6 +1139,59 @@ def test_import_repos_dry_run_tolerates_non_dict_config(
     assert "dry-run will preview against empty config" in caplog.text
 
 
+def test_import_repos_skip_unchanged_counter(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that SKIP_UNCHANGED repos are counted in summary output."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    workspace_label = workspace_root_label(
+        workspace, cwd=pathlib.Path.cwd(), home=tmp_path
+    )
+
+    config_file = tmp_path / ".vcspull.yaml"
+    # Pre-populate with a repo whose URL matches what the importer returns
+    save_config_yaml(
+        config_file,
+        {
+            workspace_label: {
+                "repo1": {"repo": "git+git@github.com:testuser/repo1.git"},
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+    assert "1 repositories unchanged" in caplog.text
+
+
 def test_import_no_args_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
     """Test that 'vcspull import' without args shows help."""
     from vcspull.cli import cli

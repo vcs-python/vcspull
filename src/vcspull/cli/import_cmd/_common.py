@@ -752,7 +752,7 @@ def _run_import(
     checked_labels: set[str] = set()
     error_labels: set[str] = set()
     added_count = overwritten_count = 0
-    skip_existing_count = skip_pinned_count = 0
+    skip_existing_count = skip_pinned_count = skip_unchanged_count = 0
 
     for repo in repos:
         # Determine workspace for this repo
@@ -852,7 +852,7 @@ def _run_import(
                 log.info("[DRY-RUN] Would overwrite: %s", repo.name)
             overwritten_count += 1
         elif action == ImportAction.SKIP_UNCHANGED:
-            pass
+            skip_unchanged_count += 1
         elif action == ImportAction.SKIP_EXISTING:
             skip_existing_count += 1
         elif action == ImportAction.SKIP_PINNED:
@@ -881,6 +881,12 @@ def _run_import(
             log.info(
                 "%s All repositories already exist in config. Nothing to add.",
                 colors.success("✓"),
+            )
+        if skip_unchanged_count > 0:
+            log.info(
+                "%s %s repositories unchanged",
+                colors.muted("•"),
+                colors.info(str(skip_unchanged_count)),
             )
         if skip_existing_count > 0:
             log.info(
@@ -911,6 +917,12 @@ def _run_import(
                 colors.success("✓"),
                 colors.info(str(overwritten_count)),
                 colors.muted(display_config_path),
+            )
+        if skip_unchanged_count > 0:
+            log.info(
+                "%s %s repositories unchanged",
+                colors.muted("•"),
+                colors.info(str(skip_unchanged_count)),
             )
         if skip_existing_count > 0:
             log.info(
