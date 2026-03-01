@@ -26,7 +26,7 @@ from vcspull.cli.import_cmd._common import (
     _resolve_config_file,
     _run_import,
 )
-from vcspull.config import save_config_yaml, workspace_root_label
+from vcspull.config import save_config_json, save_config_yaml, workspace_root_label
 
 # Get the actual _common module for monkeypatching
 import_common_mod = sys.modules["vcspull.cli.import_cmd._common"]
@@ -2323,6 +2323,51 @@ def test_import_overwrite_updates_url(
     config_file = tmp_path / ".vcspull.yaml"
 
     save_config_yaml(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
+    assert "Overwrote" in caplog.text
+
+
+def test_import_overwrite_updates_url_json(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --overwrite updates an existing entry in a JSON config file."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.json"
+
+    # Write initial JSON config with HTTPS URL
+    save_config_json(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
 
     importer = MockImporter(repos=[_make_repo("repo1")])
     _run_import(
