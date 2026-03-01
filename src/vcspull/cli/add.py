@@ -307,6 +307,21 @@ def _collect_duplicate_sections(
     }
 
 
+def _save_ordered_items(
+    config_file_path: pathlib.Path,
+    ordered_items: list[dict[str, t.Any]],
+) -> None:
+    """Persist ordered items in the format matching the config file extension."""
+    if config_file_path.suffix.lower() == ".json":
+        save_config_json(
+            config_file_path,
+            _collapse_ordered_items_to_dict(ordered_items),
+        )
+    else:
+        items = [(entry["label"], entry["section"]) for entry in ordered_items]
+        save_config_yaml_with_items(config_file_path, items)
+
+
 def handle_add_command(args: argparse.Namespace) -> None:
     """Entry point for the ``vcspull add`` CLI command."""
     repo_input = getattr(args, "repo_path", None)
@@ -844,17 +859,7 @@ def add_repo(
                 )
             else:
                 try:
-                    if config_file_path.suffix.lower() == ".json":
-                        save_config_json(
-                            config_file_path,
-                            _collapse_ordered_items_to_dict(ordered_items),
-                        )
-                    else:
-                        items = [(e["label"], e["section"]) for e in ordered_items]
-                        save_config_yaml_with_items(
-                            config_file_path,
-                            items,
-                        )
+                    _save_ordered_items(config_file_path, ordered_items)
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -901,17 +906,7 @@ def add_repo(
                 )
             else:
                 try:
-                    if config_file_path.suffix.lower() == ".json":
-                        save_config_json(
-                            config_file_path,
-                            _collapse_ordered_items_to_dict(ordered_items),
-                        )
-                    else:
-                        items = [(e["label"], e["section"]) for e in ordered_items]
-                        save_config_yaml_with_items(
-                            config_file_path,
-                            items,
-                        )
+                    _save_ordered_items(config_file_path, ordered_items)
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -961,16 +956,7 @@ def add_repo(
         return
 
     try:
-        if config_file_path.suffix.lower() == ".json":
-            save_config_json(
-                config_file_path,
-                _collapse_ordered_items_to_dict(ordered_items),
-            )
-        else:
-            save_config_yaml_with_items(
-                config_file_path,
-                [(entry["label"], entry["section"]) for entry in ordered_items],
-            )
+        _save_ordered_items(config_file_path, ordered_items)
         log.info(
             "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
             Fore.GREEN,
