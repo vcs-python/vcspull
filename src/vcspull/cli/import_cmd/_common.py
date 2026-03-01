@@ -62,6 +62,7 @@ class ImportAction(enum.Enum):
     SKIP_EXISTING = "skip_existing"
     UPDATE_URL = "update_url"
     SKIP_PINNED = "skip_pinned"
+    PRUNE = "prune"
 
 
 def _classify_import_action(
@@ -169,6 +170,83 @@ def _classify_import_action(
     if sync:
         return ImportAction.UPDATE_URL
     return ImportAction.SKIP_EXISTING
+
+
+def _classify_prune_action(
+    *,
+    existing_entry: dict[str, t.Any] | str | t.Any,
+    imported_from_tag: str,
+) -> ImportAction:
+    """Classify whether an existing config entry should be pruned.
+
+    Parameters
+    ----------
+    existing_entry : dict | str | Any
+        Current config entry for this repo name.
+    imported_from_tag : str
+        The provenance tag to match against, e.g. ``"github:myorg"``.
+
+    Examples
+    --------
+    String entries (no metadata) are never pruned:
+
+    >>> _classify_prune_action(
+    ...     existing_entry="git+ssh://x", imported_from_tag="github:org"
+    ... )
+    <ImportAction.SKIP_EXISTING: 'skip_existing'>
+
+    Entry with matching tag is pruned:
+
+    >>> _classify_prune_action(
+    ...     existing_entry={
+    ...         "repo": "git+ssh://x",
+    ...         "metadata": {"imported_from": "github:org"},
+    ...     },
+    ...     imported_from_tag="github:org",
+    ... )
+    <ImportAction.PRUNE: 'prune'>
+
+    Entry with different tag is not pruned:
+
+    >>> _classify_prune_action(
+    ...     existing_entry={
+    ...         "repo": "git+ssh://x",
+    ...         "metadata": {"imported_from": "github:other"},
+    ...     },
+    ...     imported_from_tag="github:org",
+    ... )
+    <ImportAction.SKIP_EXISTING: 'skip_existing'>
+
+    Pinned entry with matching tag is not pruned:
+
+    >>> _classify_prune_action(
+    ...     existing_entry={
+    ...         "repo": "git+ssh://x",
+    ...         "options": {"pin": True},
+    ...         "metadata": {"imported_from": "github:org"},
+    ...     },
+    ...     imported_from_tag="github:org",
+    ... )
+    <ImportAction.SKIP_PINNED: 'skip_pinned'>
+
+    Entry without metadata is not pruned:
+
+    >>> _classify_prune_action(
+    ...     existing_entry={"repo": "git+ssh://x"},
+    ...     imported_from_tag="github:org",
+    ... )
+    <ImportAction.SKIP_EXISTING: 'skip_existing'>
+    """
+    if not isinstance(existing_entry, dict):
+        return ImportAction.SKIP_EXISTING
+    metadata = existing_entry.get("metadata")
+    if not isinstance(metadata, dict):
+        return ImportAction.SKIP_EXISTING
+    if metadata.get("imported_from") != imported_from_tag:
+        return ImportAction.SKIP_EXISTING
+    if is_pinned_for_op(existing_entry, "import"):
+        return ImportAction.SKIP_PINNED
+    return ImportAction.PRUNE
 
 
 # ---------------------------------------------------------------------------
@@ -417,6 +495,7 @@ def _run_import(
     with_shared: bool = False,
     skip_groups: list[str] | None = None,
     sync: bool = False,
+    import_source: str | None = None,
 ) -> int:
     """Run the import workflow for a single service.
 
@@ -473,6 +552,10 @@ def _run_import(
         Sync existing config entries whose URL has changed
         (default: False).  Entries with ``options.pin.import`` or
         ``options.allow_overwrite: false`` are exempt.
+    import_source : str | None
+        Provenance tag for imported repos, e.g. ``"github:myorg"``.
+        When provided, repos are tagged with ``metadata.imported_from``
+        and stale tagged entries are pruned when ``sync`` is True.
 
     Returns
     -------
@@ -833,7 +916,10 @@ def _run_import(
 
         if action == ImportAction.ADD:
             if not dry_run:
-                raw_config[repo_workspace_label][repo.name] = {"repo": incoming_url}
+                entry: dict[str, t.Any] = {"repo": incoming_url}
+                if import_source:
+                    entry["metadata"] = {"imported_from": import_source}
+                raw_config[repo_workspace_label][repo.name] = entry
             else:
                 log.info("[DRY-RUN] Would add: %s → %s", repo.name, incoming_url)
             added_count += 1
@@ -846,6 +932,9 @@ def _run_import(
                 )
                 updated["repo"] = incoming_url
                 updated.pop("url", None)
+                if import_source:
+                    metadata = updated.setdefault("metadata", {})
+                    metadata["imported_from"] = import_source
                 raw_config[repo_workspace_label][repo.name] = updated
             else:
                 log.info("[DRY-RUN] Would update URL: %s", repo.name)
@@ -864,6 +953,38 @@ def _run_import(
             )
             skip_pinned_count += 1
 
+    # Prune stale entries tagged by previous imports from this source
+    pruned_count = 0
+    if sync and import_source:
+        fetched_repo_names = {repo.name for repo in repos}
+        for _ws_label, ws_entries in list(raw_config.items()):
+            if not isinstance(ws_entries, dict):
+                continue
+            for repo_name in list(ws_entries):
+                if repo_name in fetched_repo_names:
+                    continue
+                prune_action = _classify_prune_action(
+                    existing_entry=ws_entries[repo_name],
+                    imported_from_tag=import_source,
+                )
+                if prune_action == ImportAction.PRUNE:
+                    if not dry_run:
+                        del ws_entries[repo_name]
+                    else:
+                        log.info(
+                            "[DRY-RUN] Would prune: %s (no longer on remote)",
+                            repo_name,
+                        )
+                    pruned_count += 1
+                elif prune_action == ImportAction.SKIP_PINNED:
+                    reason = get_pin_reason(ws_entries[repo_name])
+                    log.info(
+                        "%s Skipping pruning pinned repo: %s%s",
+                        colors.warning("⊘"),
+                        repo_name,
+                        f" ({reason})" if reason else "",
+                    )
+
     if error_labels:
         return 1
 
@@ -875,7 +996,7 @@ def _run_import(
         )
         return 0
 
-    if added_count == 0 and updated_url_count == 0:
+    if added_count == 0 and updated_url_count == 0 and pruned_count == 0:
         if skip_existing_count == 0 and skip_pinned_count == 0:
             log.info(
                 "%s All repositories already exist in config. Nothing to add.",
@@ -930,6 +1051,13 @@ def _run_import(
                 " (use --sync to update changed URLs)",
                 colors.warning("!"),
                 colors.info(str(skip_existing_count)),
+            )
+        if pruned_count > 0:
+            log.info(
+                "%s Pruned %s repositories from %s",
+                colors.success("✓"),
+                colors.info(str(pruned_count)),
+                colors.muted(display_config_path),
             )
         if skip_pinned_count > 0:
             log.info(

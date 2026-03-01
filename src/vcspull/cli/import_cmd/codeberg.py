@@ -82,4 +82,5 @@ def handle_codeberg(args: argparse.Namespace) -> int:
         color=getattr(args, "color", "auto"),
         use_https=getattr(args, "use_https", False),
         sync=getattr(args, "sync", False),
+        import_source=f"codeberg:{args.target}",
     )
