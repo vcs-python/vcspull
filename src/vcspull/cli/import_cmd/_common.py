@@ -1101,6 +1101,13 @@ def _run_import(
                 colors.info(str(updated_url_count)),
                 colors.muted(display_config_path),
             )
+        if provenance_tagged_count > 0:
+            log.info(
+                "%s Tagged %s repositories with import provenance in %s",
+                colors.muted("•"),
+                colors.info(str(provenance_tagged_count)),
+                colors.muted(display_config_path),
+            )
         if skip_unchanged_count > 0:
             log.info(
                 "%s %s repositories unchanged",

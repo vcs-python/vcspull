@@ -3503,6 +3503,50 @@ def test_import_skip_unchanged_tags_provenance_string_entry(
     assert entry["metadata"]["imported_from"] == "github:testuser"
 
 
+def test_import_provenance_tagging_logs_message(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Provenance-only save emits a log message about tagged repositories."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry with matching URL — will be SKIP_UNCHANGED
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _SSH}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    assert "Tagged 1 repositories with import provenance" in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # --prune standalone flag tests
 # ---------------------------------------------------------------------------
