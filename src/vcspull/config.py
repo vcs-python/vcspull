@@ -788,6 +788,10 @@ def save_config_yaml_with_items(
     _atomic_write(config_file_path, yaml_content)
 
 
+_VALID_OPS: frozenset[str] = frozenset({"import", "add", "discover", "fmt", "merge"})
+"""Valid operation names for pin checking."""
+
+
 def is_pinned_for_op(entry: t.Any, op: str) -> bool:
     """Return ``True`` if the repo config entry is pinned for *op*.
 
@@ -840,7 +844,15 @@ def is_pinned_for_op(entry: t.Any, op: str) -> bool:
 
     >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": "true"}}, "import")
     False
+
+    Invalid op raises AssertionError:
+
+    >>> is_pinned_for_op({"repo": "git+x"}, "bogus")
+    Traceback (most recent call last):
+        ...
+    AssertionError: Unknown op: 'bogus'
     """
+    assert op in _VALID_OPS, f"Unknown op: {op!r}"
     if not isinstance(entry, dict):
         return False
     opts = entry.get("options")
