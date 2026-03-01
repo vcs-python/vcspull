@@ -2198,15 +2198,15 @@ IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
         ImportAction.SKIP_UNCHANGED,
     ),
     ImportActionFixture(
-        "skip-unchanged-locked-no-overwrite",
-        {"repo": _SSH, "options": {"lock": True}},
+        "skip-unchanged-pinned-no-overwrite",
+        {"repo": _SSH, "options": {"pin": True}},
         _SSH,
         False,
         ImportAction.SKIP_UNCHANGED,
     ),
     ImportActionFixture(
-        "skip-unchanged-locked-with-overwrite",
-        {"repo": _SSH, "options": {"lock": True}},
+        "skip-unchanged-pinned-with-overwrite",
+        {"repo": _SSH, "options": {"pin": True}},
         _SSH,
         True,
         ImportAction.SKIP_UNCHANGED,
@@ -2233,29 +2233,29 @@ IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
         ImportAction.OVERWRITE,
     ),
     ImportActionFixture(
-        "skip-locked-global-lock",
-        {"repo": _HTTPS, "options": {"lock": True}},
+        "skip-pinned-global-pin",
+        {"repo": _HTTPS, "options": {"pin": True}},
         _SSH,
         True,
-        ImportAction.SKIP_LOCKED,
+        ImportAction.SKIP_PINNED,
     ),
     ImportActionFixture(
-        "skip-locked-allow-overwrite-false",
+        "skip-pinned-allow-overwrite-false",
         {"repo": _HTTPS, "options": {"allow_overwrite": False}},
         _SSH,
         True,
-        ImportAction.SKIP_LOCKED,
+        ImportAction.SKIP_PINNED,
     ),
     ImportActionFixture(
-        "skip-locked-import-specific",
-        {"repo": _HTTPS, "options": {"lock": {"import": True}}},
+        "skip-pinned-import-specific",
+        {"repo": _HTTPS, "options": {"pin": {"import": True}}},
         _SSH,
         True,
-        ImportAction.SKIP_LOCKED,
+        ImportAction.SKIP_PINNED,
     ),
     ImportActionFixture(
-        "not-locked-add-specific",
-        {"repo": _HTTPS, "options": {"lock": {"add": True}}},
+        "not-pinned-add-specific",
+        {"repo": _HTTPS, "options": {"pin": {"add": True}}},
         _SSH,
         True,
         ImportAction.OVERWRITE,
@@ -2490,12 +2490,12 @@ def test_import_no_overwrite_skips_changed_url(
     assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
 
 
-def test_import_overwrite_respects_lock_true(
+def test_import_overwrite_respects_pin_true(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """--overwrite must not overwrite an entry with options.lock: true."""
+    """--overwrite must not overwrite an entry with options.pin: true."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -2504,7 +2504,7 @@ def test_import_overwrite_respects_lock_true(
 
     save_config_yaml(
         config_file,
-        {"~/repos/": {"repo1": {"repo": _HTTPS, "options": {"lock": True}}}},
+        {"~/repos/": {"repo1": {"repo": _HTTPS, "options": {"pin": True}}}},
     )
 
     importer = MockImporter(repos=[_make_repo("repo1")])
@@ -2535,7 +2535,7 @@ def test_import_overwrite_respects_lock_true(
     assert final_config is not None
     # URL must NOT have changed
     assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
-    assert "Skipping locked" in caplog.text
+    assert "Skipping pinned" in caplog.text
 
 
 def test_import_overwrite_respects_allow_overwrite_false(
@@ -2589,7 +2589,7 @@ def test_import_overwrite_respects_allow_overwrite_false(
     final_config = ConfigReader._from_file(config_file)
     assert final_config is not None
     assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
-    assert "Skipping locked" in caplog.text
+    assert "Skipping pinned" in caplog.text
 
 
 def test_import_overwrite_preserves_metadata(
@@ -2608,7 +2608,7 @@ def test_import_overwrite_preserves_metadata(
             "~/repos/": {
                 "repo1": {
                     "repo": _HTTPS,
-                    "options": {"lock": {"fmt": True}},
+                    "options": {"pin": {"fmt": True}},
                 }
             }
         },
@@ -2643,7 +2643,7 @@ def test_import_overwrite_preserves_metadata(
     entry = final_config["~/repos/"]["repo1"]
     assert entry["repo"] == _SSH
     # Options must be preserved
-    assert entry.get("options", {}).get("lock", {}).get("fmt") is True
+    assert entry.get("options", {}).get("pin", {}).get("fmt") is True
 
 
 def test_import_overwrite_saves_config_when_only_overwrites(

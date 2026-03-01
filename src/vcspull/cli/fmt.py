@@ -17,7 +17,7 @@ from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     find_config_files,
     find_home_config_files,
-    is_locked_for_op,
+    is_pinned_for_op,
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
     save_config,
@@ -31,7 +31,7 @@ class FmtAction(enum.Enum):
 
     NORMALIZE = "normalize"
     NO_CHANGE = "no_change"
-    SKIP_LOCKED = "skip_locked"
+    SKIP_PINNED = "skip_pinned"
 
 
 def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
@@ -132,7 +132,7 @@ def _classify_fmt_action(repo_data: t.Any) -> tuple[FmtAction, t.Any]:
     tuple[FmtAction, Any]
         The resolved action and the resulting repo data.  For
         ``NORMALIZE`` the second element is the normalized dict; for
-        ``NO_CHANGE`` and ``SKIP_LOCKED`` it is the original *repo_data*.
+        ``NO_CHANGE`` and ``SKIP_PINNED`` it is the original *repo_data*.
 
     Examples
     --------
@@ -151,29 +151,29 @@ def _classify_fmt_action(repo_data: t.Any) -> tuple[FmtAction, t.Any]:
     >>> _classify_fmt_action({"repo": "git+ssh://x"})
     (<FmtAction.NO_CHANGE: 'no_change'>, {'repo': 'git+ssh://x'})
 
-    Locked entry is preserved verbatim:
+    Pinned entry is preserved verbatim:
 
-    >>> locked = {"repo": "git+ssh://x", "options": {"lock": True}}
-    >>> action, data = _classify_fmt_action(locked)
+    >>> pinned = {"repo": "git+ssh://x", "options": {"pin": True}}
+    >>> action, data = _classify_fmt_action(pinned)
     >>> action
-    <FmtAction.SKIP_LOCKED: 'skip_locked'>
-    >>> data == locked
+    <FmtAction.SKIP_PINNED: 'skip_pinned'>
+    >>> data == pinned
     True
-    >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"fmt": True}}}
+    >>> entry = {"repo": "git+ssh://x", "options": {"pin": {"fmt": True}}}
     >>> _classify_fmt_action(entry)[0]
-    <FmtAction.SKIP_LOCKED: 'skip_locked'>
+    <FmtAction.SKIP_PINNED: 'skip_pinned'>
 
-    Locked for import only — fmt still normalizes:
+    Pinned for import only — fmt still normalizes:
 
-    >>> entry = {"url": "git+ssh://x", "options": {"lock": {"import": True}}}
+    >>> entry = {"url": "git+ssh://x", "options": {"pin": {"import": True}}}
     >>> action, data = _classify_fmt_action(entry)
     >>> action
     <FmtAction.NORMALIZE: 'normalize'>
     >>> data["repo"]
     'git+ssh://x'
     """
-    if is_locked_for_op(repo_data, "fmt"):
-        return FmtAction.SKIP_LOCKED, repo_data
+    if is_pinned_for_op(repo_data, "fmt"):
+        return FmtAction.SKIP_PINNED, repo_data
     normalized = normalize_repo_config(repo_data)
     if normalized != repo_data:
         return FmtAction.NORMALIZE, normalized
@@ -208,7 +208,7 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
         for repo_name in sorted(repos.keys()):
             repo_data = repos[repo_name]
             action, result = _classify_fmt_action(repo_data)
-            if action == FmtAction.SKIP_LOCKED:
+            if action == FmtAction.SKIP_PINNED:
                 formatted_dir[repo_name] = copy.deepcopy(result)
             else:
                 if result != repo_data:

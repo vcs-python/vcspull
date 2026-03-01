@@ -237,7 +237,7 @@ $ vcspull import gh myorg \
 When overwriting, vcspull replaces only the `repo` URL. All other metadata is
 preserved:
 
-- `options` (including locks)
+- `options` (including pins)
 - `remotes`
 - `shell_command_after`
 - `worktrees`
@@ -267,17 +267,17 @@ is updated to SSH while `remotes` and `shell_command_after` are kept:
       - make setup
 ```
 
-### Lock-aware behavior
+### Pin-aware behavior
 
-Repositories protected by a lock are **exempt** from `--overwrite`. The
+Repositories protected by a pin are **exempt** from `--overwrite`. The
 following configurations all prevent an import overwrite:
 
-- `options.lock: true` — blocks all operations
-- `options.lock.import: true` — blocks import only
-- `options.allow_overwrite: false` — shorthand for `lock: {import: true}`
+- `options.pin: true` — blocks all operations
+- `options.pin.import: true` — blocks import only
+- `options.allow_overwrite: false` — shorthand for `pin: {import: true}`
 
-Locked repositories are skipped with an informational message showing the
-`lock_reason` (if set):
+Pinned repositories are skipped with an informational message showing the
+`pin_reason` (if set):
 
 ```vcspull-console
 $ vcspull import gh myorg \
@@ -291,7 +291,7 @@ $ vcspull import gh myorg \
   ... and 6 more
 Import 7 repositories to ~/.vcspull.yaml? [y/N]: y
 ✓ Updated 6 repositories in ~/.vcspull.yaml
-! Skipped 1 locked repository
+! Skipped 1 pinned repository
 ```
 
 For example, this entry cannot be overwritten regardless of `--overwrite`:
@@ -301,12 +301,12 @@ For example, this entry cannot be overwritten regardless of `--overwrite`:
   internal-fork:
     repo: "git+ssh://git@corp.example.com/team/internal-fork.git"
     options:
-      lock:
+      pin:
         import: true
-      lock_reason: "pinned to company mirror — update manually"
+      pin_reason: "pinned to company mirror — update manually"
 ```
 
-See {ref}`config-lock` for full lock configuration.
+See {ref}`config-pin` for full pin configuration.
 
 ## Configuration file selection
 

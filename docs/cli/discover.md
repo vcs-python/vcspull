@@ -225,9 +225,9 @@ Skipped flask (already exists)
 
 You can choose to skip or overwrite the existing entry.
 
-## Locked entries
+## Pinned entries
 
-Repositories locked for the `discover` operation are silently skipped during
+Repositories pinned for the `discover` operation are silently skipped during
 scanning. For example, given this configuration:
 
 ```yaml
@@ -235,15 +235,15 @@ scanning. For example, given this configuration:
   internal-fork:
     repo: "git+git@github.com:myorg/internal-fork.git"
     options:
-      lock:
+      pin:
         discover: true
-      lock_reason: "pinned to company fork — update manually"
+      pin_reason: "pinned to company fork — update manually"
 ```
 
 When `vcspull discover` encounters `internal-fork` on disk, it groups it with
 existing entries and does not prompt for it. A debug-level log message is
 emitted, so pass `--log-level debug` to see which entries were skipped due to
-locks:
+pins:
 
 ```console
 $ vcspull discover ~/code \
@@ -251,8 +251,8 @@ $ vcspull discover ~/code \
     --log-level debug
 ```
 
-Both `options.lock: true` (global) and `options.lock.discover: true`
-(per-operation) block discovery. See {ref}`config-lock` for full lock
+Both `options.pin: true` (global) and `options.pin.discover: true`
+(per-operation) block discovery. See {ref}`config-pin` for full pin
 configuration.
 
 ## Migration from vcspull import --scan

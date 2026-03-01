@@ -1019,18 +1019,18 @@ DISCOVER_ACTION_FIXTURES: list[DiscoverActionFixture] = [
         "skip-existing", {"repo": _DISC_SSH}, DiscoverAction.SKIP_EXISTING
     ),
     DiscoverActionFixture(
-        "skip-locked-global",
-        {"repo": _DISC_SSH, "options": {"lock": True}},
-        DiscoverAction.SKIP_LOCKED,
+        "skip-pinned-global",
+        {"repo": _DISC_SSH, "options": {"pin": True}},
+        DiscoverAction.SKIP_PINNED,
     ),
     DiscoverActionFixture(
-        "skip-locked-discover-specific",
-        {"repo": _DISC_SSH, "options": {"lock": {"discover": True}}},
-        DiscoverAction.SKIP_LOCKED,
+        "skip-pinned-discover-specific",
+        {"repo": _DISC_SSH, "options": {"pin": {"discover": True}}},
+        DiscoverAction.SKIP_PINNED,
     ),
     DiscoverActionFixture(
-        "not-locked-import-only",
-        {"repo": _DISC_SSH, "options": {"lock": {"import": True}}},
+        "not-pinned-import-only",
+        {"repo": _DISC_SSH, "options": {"pin": {"import": True}}},
         DiscoverAction.SKIP_EXISTING,
     ),
     DiscoverActionFixture("str-entry", _DISC_SSH, DiscoverAction.SKIP_EXISTING),

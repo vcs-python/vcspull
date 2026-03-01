@@ -232,39 +232,39 @@ class MergeActionFixture(t.NamedTuple):
 
 MERGE_ACTION_FIXTURES: list[MergeActionFixture] = [
     MergeActionFixture(
-        "keep-first-no-locks",
+        "keep-first-no-pins",
         {"repo": _MERGE_HTTPS},
         {"repo": _MERGE_SSH},
         MergeAction.KEEP_EXISTING,
     ),
     MergeActionFixture(
-        "keep-locked-incoming",
+        "keep-pinned-incoming",
         {"repo": _MERGE_HTTPS},
-        {"repo": _MERGE_SSH, "options": {"lock": True}},
+        {"repo": _MERGE_SSH, "options": {"pin": True}},
         MergeAction.KEEP_INCOMING,
     ),
     MergeActionFixture(
-        "keep-locked-existing",
-        {"repo": _MERGE_HTTPS, "options": {"lock": True}},
+        "keep-pinned-existing",
+        {"repo": _MERGE_HTTPS, "options": {"pin": True}},
         {"repo": _MERGE_SSH},
         MergeAction.KEEP_EXISTING,
     ),
     MergeActionFixture(
-        "both-locked-keep-first",
-        {"repo": _MERGE_HTTPS, "options": {"lock": True}},
-        {"repo": _MERGE_SSH, "options": {"lock": True}},
+        "both-pinned-keep-first",
+        {"repo": _MERGE_HTTPS, "options": {"pin": True}},
+        {"repo": _MERGE_SSH, "options": {"pin": True}},
         MergeAction.KEEP_EXISTING,
     ),
     MergeActionFixture(
-        "keep-locked-merge-specific",
+        "keep-pinned-merge-specific",
         {"repo": _MERGE_HTTPS},
-        {"repo": _MERGE_SSH, "options": {"lock": {"merge": True}}},
+        {"repo": _MERGE_SSH, "options": {"pin": {"merge": True}}},
         MergeAction.KEEP_INCOMING,
     ),
     MergeActionFixture(
-        "import-lock-no-effect-on-merge",
+        "import-pin-no-effect-on-merge",
         {"repo": _MERGE_HTTPS},
-        {"repo": _MERGE_SSH, "options": {"lock": {"import": True}}},
+        {"repo": _MERGE_SSH, "options": {"pin": {"import": True}}},
         MergeAction.KEEP_EXISTING,
     ),
 ]

@@ -58,37 +58,37 @@ Repos whose URL has not changed are silently skipped regardless of the flag.
 The flag is available on all six import providers: `github` / `gh`, `gitlab` /
 `gl`, `codeberg` / `cb`, `gitea`, `forgejo`, and `codecommit` / `cc`.
 
-#### `options.lock`: Per-repo, per-operation mutation guard (#520)
+#### `options.pin`: Per-repo, per-operation mutation guard (#520)
 
-Any repository entry can carry an `options.lock` block that prevents specific
+Any repository entry can carry an `options.pin` block that prevents specific
 vcspull operations from mutating it. This is useful for pinned forks, company
 mirrors, or any repo whose config should only be changed manually.
 
-Lock all operations:
+Pin all operations:
 
 ```yaml
 ~/code/:
   myrepo:
     repo: git+git@github.com:me/myrepo.git
     options:
-      lock: true
-      lock_reason: "pinned to company fork — update manually"
+      pin: true
+      pin_reason: "pinned to company fork — update manually"
 ```
 
-Lock only specific operations:
+Pin only specific operations:
 
 ```yaml
 ~/code/:
   other-repo:
     repo: git+git@github.com:me/other.git
     options:
-      lock:
+      pin:
         import: true    # --overwrite cannot replace this URL
         fmt: true       # vcspull fmt preserves the entry verbatim
-      lock_reason: "locked for import and fmt"
+      pin_reason: "pinned for import and fmt"
 ```
 
-Shorthand — equivalent to `lock: {import: true}`:
+Shorthand — equivalent to `pin: {import: true}`:
 
 ```yaml
 ~/code/:
@@ -98,18 +98,18 @@ Shorthand — equivalent to `lock: {import: true}`:
       allow_overwrite: false
 ```
 
-Lock semantics:
+Pin semantics:
 
-- `lock: true` — all five operations are blocked (`import`, `add`, `discover`,
+- `pin: true` — all five operations are blocked (`import`, `add`, `discover`,
   `fmt`, `merge`)
-- `lock: {op: true}` — only the named operations are blocked; unspecified keys
+- `pin: {op: true}` — only the named operations are blocked; unspecified keys
   default to `false`
 - `allow_overwrite: false` — concise shorthand, equivalent to
-  `lock: {import: true}`
-- `lock_reason` — human-readable string shown in log output when a repo is
-  skipped due to a lock
+  `pin: {import: true}`
+- `pin_reason` — human-readable string shown in log output when a repo is
+  skipped due to a pin
 
-Lock awareness has been added to all config-mutation commands: `import`,
+Pin awareness has been added to all config-mutation commands: `import`,
 `add`, `discover`, `fmt`, and the duplicate-workspace-root `merge` resolver.
 
 ### Bug fixes

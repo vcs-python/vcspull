@@ -19,8 +19,8 @@ from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
-    get_lock_reason,
-    is_locked_for_op,
+    get_pin_reason,
+    is_pinned_for_op,
     merge_duplicate_workspace_roots,
     save_config,
     save_config_json,
@@ -36,7 +36,7 @@ class AddAction(enum.Enum):
 
     ADD = "add"
     SKIP_EXISTING = "skip_existing"
-    SKIP_LOCKED = "skip_locked"
+    SKIP_PINNED = "skip_pinned"
 
 
 def _classify_add_action(existing_entry: t.Any) -> AddAction:
@@ -54,29 +54,29 @@ def _classify_add_action(existing_entry: t.Any) -> AddAction:
     >>> _classify_add_action(None)
     <AddAction.ADD: 'add'>
 
-    Already exists (unlocked):
+    Already exists (unpinned):
 
     >>> _classify_add_action({"repo": "git+ssh://x"})
     <AddAction.SKIP_EXISTING: 'skip_existing'>
 
-    Locked for add:
+    Pinned for add:
 
-    >>> _classify_add_action({"repo": "git+ssh://x", "options": {"lock": True}})
-    <AddAction.SKIP_LOCKED: 'skip_locked'>
-    >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"add": True}}}
+    >>> _classify_add_action({"repo": "git+ssh://x", "options": {"pin": True}})
+    <AddAction.SKIP_PINNED: 'skip_pinned'>
+    >>> entry = {"repo": "git+ssh://x", "options": {"pin": {"add": True}}}
     >>> _classify_add_action(entry)
-    <AddAction.SKIP_LOCKED: 'skip_locked'>
+    <AddAction.SKIP_PINNED: 'skip_pinned'>
 
-    Locked for import only — not locked for add:
+    Pinned for import only — not pinned for add:
 
-    >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"import": True}}}
+    >>> entry = {"repo": "git+ssh://x", "options": {"pin": {"import": True}}}
     >>> _classify_add_action(entry)
     <AddAction.SKIP_EXISTING: 'skip_existing'>
     """
     if existing_entry is None:
         return AddAction.ADD
-    if is_locked_for_op(existing_entry, "add"):
-        return AddAction.SKIP_LOCKED
+    if is_pinned_for_op(existing_entry, "add"):
+        return AddAction.SKIP_PINNED
     return AddAction.SKIP_EXISTING
 
 
@@ -652,10 +652,10 @@ def add_repo(
         existing_config = workspace_section.get(name)
         add_action = _classify_add_action(existing_config)
 
-        if add_action == AddAction.SKIP_LOCKED:
-            reason = get_lock_reason(existing_config)
+        if add_action == AddAction.SKIP_PINNED:
+            reason = get_pin_reason(existing_config)
             log.warning(
-                "Repository '%s' is locked%s — skipping",
+                "Repository '%s' is pinned%s — skipping",
                 name,
                 f" ({reason})" if reason else "",
             )
@@ -813,10 +813,10 @@ def add_repo(
     existing_config = workspace_section_view.get(name)
     no_merge_add_action = _classify_add_action(existing_config)
 
-    if no_merge_add_action == AddAction.SKIP_LOCKED:
-        reason = get_lock_reason(existing_config)
+    if no_merge_add_action == AddAction.SKIP_PINNED:
+        reason = get_pin_reason(existing_config)
         log.warning(
-            "Repository '%s' is locked%s — skipping",
+            "Repository '%s' is pinned%s — skipping",
             name,
             f" ({reason})" if reason else "",
         )

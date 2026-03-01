@@ -85,8 +85,8 @@ class WorktreeConfigDict(TypedDict):
     """Reason for locking. If provided, implies lock=True."""
 
 
-RepoLockDict = TypedDict(
-    "RepoLockDict",
+RepoPinDict = TypedDict(
+    "RepoPinDict",
     {
         "add": bool,
         "discover": bool,
@@ -96,26 +96,26 @@ RepoLockDict = TypedDict(
     },
     total=False,
 )
-"""Per-operation lock flags for a repository entry.
+"""Per-operation pin flags for a repository entry.
 
-Unspecified keys default to ``False`` (not locked).
+Unspecified keys default to ``False`` (not pinned).
 
 Note: Distinct from ``WorktreeConfigDict.lock`` which prevents git worktree
-removal at the filesystem level. ``RepoLockDict`` controls vcspull config
+removal at the filesystem level. ``RepoPinDict`` controls vcspull config
 mutation policy only.
 
 Examples
 --------
-Lock only import::
+Pin only import::
 
     options:
-      lock:
+      pin:
         import: true
 
-Lock import and fmt::
+Pin import and fmt::
 
     options:
-      lock:
+      pin:
         import: true
         fmt: true
 """
@@ -124,43 +124,43 @@ Lock import and fmt::
 class RepoOptionsDict(TypedDict, total=False):
     """Mutation policy stored under the ``options:`` key in a repo entry.
 
-    Note: ``lock`` here controls vcspull config mutation. It is distinct from
+    Note: ``pin`` here controls vcspull config mutation. It is distinct from
     ``WorktreeConfigDict.lock`` which prevents git worktree removal.
 
     Examples
     --------
-    Lock all operations::
+    Pin all operations::
 
         options:
-          lock: true
-          lock_reason: "pinned to upstream"
+          pin: true
+          pin_reason: "pinned to upstream"
 
-    Lock only import (prevent ``--overwrite`` from replacing URL)::
+    Pin only import (prevent ``--overwrite`` from replacing URL)::
 
         options:
-          lock:
+          pin:
             import: true
 
-    Shorthand form — equivalent to ``lock: {import: true}``::
+    Shorthand form — equivalent to ``pin: {import: true}``::
 
         options:
           allow_overwrite: false
     """
 
-    lock: bool | RepoLockDict
-    """``True`` locks all ops; a mapping locks specific ops only.
+    pin: bool | RepoPinDict
+    """``True`` pins all ops; a mapping pins specific ops only.
 
-    Unspecified keys in the mapping default to ``False`` (not locked).
+    Unspecified keys in the mapping default to ``False`` (not pinned).
     """
 
     allow_overwrite: bool
-    """If ``False``, shorthand for ``lock: {import: true}``.
+    """If ``False``, shorthand for ``pin: {import: true}``.
 
-    Locks only the import operation.
+    Pins only the import operation.
     """
 
-    lock_reason: str | None
-    """Human-readable reason shown in log output when an op is skipped due to lock."""
+    pin_reason: str | None
+    """Human-readable reason shown in log output when an op is skipped due to pin."""
 
 
 class RepoEntryDict(TypedDict):
@@ -172,13 +172,13 @@ class RepoEntryDict(TypedDict):
 
         repo: git+git@github.com:user/myrepo.git
 
-    With lock options::
+    With pin options::
 
         repo: git+git@github.com:user/myrepo.git
         options:
-          lock:
+          pin:
             import: true
-          lock_reason: "pinned to company fork"
+          pin_reason: "pinned to company fork"
     """
 
     repo: str

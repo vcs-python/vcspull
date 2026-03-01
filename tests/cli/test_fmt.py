@@ -592,23 +592,23 @@ FMT_ACTION_FIXTURES: list[FmtActionFixture] = [
     FmtActionFixture("normalize-url-key", {"url": _FMT_SSH}, FmtAction.NORMALIZE),
     FmtActionFixture("no-change-normal-dict", {"repo": _FMT_SSH}, FmtAction.NO_CHANGE),
     FmtActionFixture(
-        "skip-locked-global",
-        {"repo": _FMT_SSH, "options": {"lock": True}},
-        FmtAction.SKIP_LOCKED,
+        "skip-pinned-global",
+        {"repo": _FMT_SSH, "options": {"pin": True}},
+        FmtAction.SKIP_PINNED,
     ),
     FmtActionFixture(
-        "skip-locked-fmt-specific",
-        {"repo": _FMT_SSH, "options": {"lock": {"fmt": True}}},
-        FmtAction.SKIP_LOCKED,
+        "skip-pinned-fmt-specific",
+        {"repo": _FMT_SSH, "options": {"pin": {"fmt": True}}},
+        FmtAction.SKIP_PINNED,
     ),
     FmtActionFixture(
-        "not-locked-import-only",
-        {"url": _FMT_SSH, "options": {"lock": {"import": True}}},
+        "not-pinned-import-only",
+        {"url": _FMT_SSH, "options": {"pin": {"import": True}}},
         FmtAction.NORMALIZE,
     ),
     FmtActionFixture(
         "no-change-with-unrelated-options",
-        {"repo": _FMT_SSH, "options": {"lock": {"import": True}}},
+        {"repo": _FMT_SSH, "options": {"pin": {"import": True}}},
         FmtAction.NO_CHANGE,
     ),
 ]

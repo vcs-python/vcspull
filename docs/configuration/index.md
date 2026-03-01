@@ -108,44 +108,44 @@ Optional fields:
 
 See {ref}`cli-worktree` for full command documentation.
 
-(config-lock)=
+(config-pin)=
 
-## Repository locking
+## Repository pinning
 
-Repositories can be **locked** to prevent automated commands from modifying their
+Repositories can be **pinned** to prevent automated commands from modifying their
 configuration entries. This is useful for pinned forks, company mirrors, or any
 repository whose URL or config shape you manage by hand.
 
-Here is a configuration showing all three lock forms side by side:
+Here is a configuration showing all three pin forms side by side:
 
 ```yaml
 ~/code/:
-  # Global lock — blocks ALL operations (import, add, discover, fmt, merge)
+  # Global pin — blocks ALL operations (import, add, discover, fmt, merge)
   internal-fork:
     repo: "git+git@github.com:myorg/internal-fork.git"
     options:
-      lock: true
-      lock_reason: "pinned to company fork — update manually"
+      pin: true
+      pin_reason: "pinned to company fork — update manually"
 
-  # Per-operation lock — only import and fmt are blocked
+  # Per-operation pin — only import and fmt are blocked
   my-framework:
     repo: "git+git@github.com:myorg/my-framework.git"
     options:
-      lock:
+      pin:
         import: true
         fmt: true
-      lock_reason: "URL managed manually; formatting intentional"
+      pin_reason: "URL managed manually; formatting intentional"
 
-  # Shorthand — equivalent to lock: {import: true}
+  # Shorthand — equivalent to pin: {import: true}
   stable-dep:
     repo: "git+https://github.com/upstream/stable-dep.git"
     options:
       allow_overwrite: false
 ```
 
-### Lock all operations
+### Pin all operations
 
-Set `lock: true` inside `options` to block every mutation command. This is
+Set `pin: true` inside `options` to block every mutation command. This is
 the simplest form — no automated vcspull command can modify this entry:
 
 ```yaml
@@ -153,27 +153,27 @@ the simplest form — no automated vcspull command can modify this entry:
   internal-fork:
     repo: "git+git@github.com:myorg/internal-fork.git"
     options:
-      lock: true
-      lock_reason: "pinned to company fork — update manually"
+      pin: true
+      pin_reason: "pinned to company fork — update manually"
 ```
 
-### Lock specific operations
+### Pin specific operations
 
-Pass a mapping instead of a boolean to lock only the operations you care about.
-Unlisted keys default to `false` (unlocked):
+Pass a mapping instead of a boolean to pin only the operations you care about.
+Unlisted keys default to `false` (unpinned):
 
 ```yaml
 ~/code/:
   my-framework:
     repo: "git+git@github.com:myorg/my-framework.git"
     options:
-      lock:
+      pin:
         import: true
         fmt: true
-      lock_reason: "URL managed manually; formatting intentional"
+      pin_reason: "URL managed manually; formatting intentional"
 ```
 
-Available lock keys:
+Available pin keys:
 
 | Key        | Blocks                                                     |
 |------------|-----------------------------------------------------------|
@@ -186,7 +186,7 @@ Available lock keys:
 ### Shorthand: allow_overwrite
 
 `allow_overwrite: false` is a convenience shorthand equivalent to
-`lock: {import: true}`. It only guards against `vcspull import --overwrite`:
+`pin: {import: true}`. It only guards against `vcspull import --overwrite`:
 
 ```yaml
 ~/code/:
@@ -196,32 +196,32 @@ Available lock keys:
       allow_overwrite: false
 ```
 
-### Lock behavior
+### Pin behavior
 
-- **Defaults** — repositories are unlocked. All operations proceed normally
-  unless a lock is explicitly set.
-- **Boolean lock** — `lock: true` blocks all five operations (`import`, `add`,
+- **Defaults** — repositories are unpinned. All operations proceed normally
+  unless a pin is explicitly set.
+- **Boolean pin** — `pin: true` blocks all five operations (`import`, `add`,
   `discover`, `fmt`, `merge`).
-- **Per-operation lock** — only the listed keys are blocked; unlisted keys
-  default to `false` (unlocked).
-- **lock_reason** — an optional human-readable string shown in log output when
+- **Per-operation pin** — only the listed keys are blocked; unlisted keys
+  default to `false` (unpinned).
+- **pin_reason** — an optional human-readable string shown in log output when
   an operation is skipped. It is purely informational and does not imply
-  `lock: true` on its own.
-- **Advisory** — locks prevent automated commands from modifying the entry.
+  `pin: true` on its own.
+- **Advisory** — pins prevent automated commands from modifying the entry.
   You can still edit the configuration file by hand at any time.
 
-Each command handles locks differently:
+Each command handles pins differently:
 
-| Command | Lock effect | Log level |
-|---------|-------------|-----------|
+| Command | Pin effect | Log level |
+|---------|------------|-----------|
 | `vcspull import --overwrite` | Skips URL replacement | info |
 | `vcspull add` | Skips with warning | warning |
 | `vcspull discover` | Silently skips | debug |
 | `vcspull fmt` | Preserves entry verbatim | (silent) |
-| Workspace merge | Locked entry wins conflict | info |
+| Workspace merge | Pinned entry wins conflict | info |
 
 ```{note}
-The `lock` and `lock_reason` fields described here live under `options` and
+The `pin` and `pin_reason` fields described here live under `options` and
 guard the *configuration entry* against mutation by vcspull commands.
 
 This is different from the worktree-level `lock` / `lock_reason` that lives

@@ -15,7 +15,7 @@
 #   lock:        Lock the worktree to prevent accidental removal
 #                (passes --lock to `git worktree add`). This is a
 #                *worktree-level* lock — it is separate from the
-#                repo-level options.lock that guards configuration
+#                repo-level options.pin that guards configuration
 #                entries against mutation by vcspull commands.
 #   lock_reason: Reason for locking (implies lock: true)
 

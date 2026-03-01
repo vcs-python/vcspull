@@ -32,9 +32,9 @@ The formatter performs four main tasks:
 - Consolidates duplicate workspace roots into a single merged section while
   logging any conflicts.
 
-### Locked entries
+### Pinned entries
 
-Repositories locked for the `fmt` operation are preserved **verbatim** — no
+Repositories pinned for the `fmt` operation are preserved **verbatim** — no
 normalization, no key reordering, no string-to-dict expansion. For example,
 given this configuration:
 
@@ -43,7 +43,7 @@ given this configuration:
   pinned-dep:
     url: git+https://corp.example.com/team/pinned-dep.git
     options:
-      lock:
+      pin:
         fmt: true
   libvcs: git+https://github.com/vcspull/libvcs.git
 ```
@@ -58,11 +58,11 @@ keeps its original `url` key and field order:
   pinned-dep:
     url: git+https://corp.example.com/team/pinned-dep.git
     options:
-      lock:
+      pin:
         fmt: true
 ```
 
-See {ref}`config-lock` for full lock configuration.
+See {ref}`config-pin` for full pin configuration.
 
 For example:
 

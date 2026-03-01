@@ -19,8 +19,8 @@ from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
-    get_lock_reason,
-    is_locked_for_op,
+    get_pin_reason,
+    is_pinned_for_op,
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
     save_config,
@@ -35,7 +35,7 @@ class DiscoverAction(enum.Enum):
 
     ADD = "add"
     SKIP_EXISTING = "skip_existing"
-    SKIP_LOCKED = "skip_locked"
+    SKIP_PINNED = "skip_pinned"
 
 
 def _classify_discover_action(existing_entry: t.Any) -> DiscoverAction:
@@ -58,16 +58,16 @@ def _classify_discover_action(existing_entry: t.Any) -> DiscoverAction:
     >>> _classify_discover_action({"repo": "git+ssh://x"})
     <DiscoverAction.SKIP_EXISTING: 'skip_existing'>
 
-    Locked for discover:
+    Pinned for discover:
 
-    >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"discover": True}}}
+    >>> entry = {"repo": "git+ssh://x", "options": {"pin": {"discover": True}}}
     >>> _classify_discover_action(entry)
-    <DiscoverAction.SKIP_LOCKED: 'skip_locked'>
+    <DiscoverAction.SKIP_PINNED: 'skip_pinned'>
     """
     if existing_entry is None:
         return DiscoverAction.ADD
-    if is_locked_for_op(existing_entry, "discover"):
-        return DiscoverAction.SKIP_LOCKED
+    if is_pinned_for_op(existing_entry, "discover"):
+        return DiscoverAction.SKIP_PINNED
     return DiscoverAction.SKIP_EXISTING
 
 
@@ -574,12 +574,12 @@ def discover_repos(
         discover_action = _classify_discover_action(existing_entry)
         if discover_action in {
             DiscoverAction.SKIP_EXISTING,
-            DiscoverAction.SKIP_LOCKED,
+            DiscoverAction.SKIP_PINNED,
         }:
-            if discover_action == DiscoverAction.SKIP_LOCKED:
-                reason = get_lock_reason(existing_entry)
+            if discover_action == DiscoverAction.SKIP_PINNED:
+                reason = get_pin_reason(existing_entry)
                 log.debug(
-                    "Skipping locked repo '%s'%s",
+                    "Skipping pinned repo '%s'%s",
                     name,
                     f" ({reason})" if reason else "",
                 )

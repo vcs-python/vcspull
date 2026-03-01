@@ -28,8 +28,8 @@ from vcspull._internal.remotes import (
 )
 from vcspull.config import (
     find_home_config_files,
-    get_lock_reason,
-    is_locked_for_op,
+    get_pin_reason,
+    is_pinned_for_op,
     save_config,
     workspace_root_label,
 )
@@ -58,7 +58,7 @@ class ImportAction(enum.Enum):
     SKIP_UNCHANGED = "skip_unchanged"
     SKIP_EXISTING = "skip_existing"
     OVERWRITE = "overwrite"
-    SKIP_LOCKED = "skip_locked"
+    SKIP_PINNED = "skip_pinned"
 
 
 def _classify_import_action(
@@ -91,7 +91,7 @@ def _classify_import_action(
     ... )
     <ImportAction.ADD: 'add'>
 
-    Same URL is always a no-op — even when locked or overwrite is set:
+    Same URL is always a no-op — even when pinned or overwrite is set:
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
@@ -101,7 +101,7 @@ def _classify_import_action(
     <ImportAction.SKIP_UNCHANGED: 'skip_unchanged'>
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
-    ...     existing_entry={"repo": "git+ssh://x", "options": {"lock": True}},
+    ...     existing_entry={"repo": "git+ssh://x", "options": {"pin": True}},
     ...     overwrite=True,
     ... )
     <ImportAction.SKIP_UNCHANGED: 'skip_unchanged'>
@@ -124,7 +124,7 @@ def _classify_import_action(
     ... )
     <ImportAction.SKIP_EXISTING: 'skip_existing'>
 
-    Different URL with overwrite is overwritten (unless locked):
+    Different URL with overwrite is overwritten (unless pinned):
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
@@ -133,14 +133,14 @@ def _classify_import_action(
     ... )
     <ImportAction.OVERWRITE: 'overwrite'>
 
-    Overwrite is blocked by lock (only when URL differs):
+    Overwrite is blocked by pin (only when URL differs):
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
-    ...     existing_entry={"repo": "git+https://x", "options": {"lock": True}},
+    ...     existing_entry={"repo": "git+https://x", "options": {"pin": True}},
     ...     overwrite=True,
     ... )
-    <ImportAction.SKIP_LOCKED: 'skip_locked'>
+    <ImportAction.SKIP_PINNED: 'skip_pinned'>
 
     Non-dict, non-str entries fall back to empty URL (treated as different):
 
@@ -158,11 +158,11 @@ def _classify_import_action(
         existing_url = existing_entry.get("url") or existing_entry.get("repo") or ""
     else:
         existing_url = ""
-    # SKIP_UNCHANGED fires before lock check: nothing to overwrite when URL matches
+    # SKIP_UNCHANGED fires before pin check: nothing to overwrite when URL matches
     if existing_url == incoming_url:
         return ImportAction.SKIP_UNCHANGED
-    if overwrite and is_locked_for_op(existing_entry, "import"):
-        return ImportAction.SKIP_LOCKED
+    if overwrite and is_pinned_for_op(existing_entry, "import"):
+        return ImportAction.SKIP_PINNED
     if overwrite:
         return ImportAction.OVERWRITE
     return ImportAction.SKIP_EXISTING
@@ -283,8 +283,8 @@ def _create_shared_parent() -> argparse.ArgumentParser:
         help=(
             "Overwrite existing config entries whose URL has changed. "
             "Preserves all metadata (options, remotes, shell_command_after). "
-            "Repos with options.lock.import or "
-            "options.allow_overwrite: false are exempt."
+            "Overwrite respects pinned entries (options.pin.import). "
+            "Repos with options.allow_overwrite: false are also exempt."
         ),
     )
     output_group.add_argument(
@@ -469,7 +469,7 @@ def _run_import(
         Exclude repos whose owner path contains any of these group name segments
     overwrite : bool
         Overwrite existing config entries whose URL has changed
-        (default: False).  Entries with ``options.lock.import`` or
+        (default: False).  Entries with ``options.pin.import`` or
         ``options.allow_overwrite: false`` are exempt.
 
     Returns
@@ -703,7 +703,7 @@ def _run_import(
     checked_labels: set[str] = set()
     error_labels: set[str] = set()
     added_count = overwritten_count = 0
-    skip_existing_count = skip_locked_count = 0
+    skip_existing_count = skip_pinned_count = 0
 
     for repo in repos:
         # Determine workspace for this repo
@@ -786,15 +786,15 @@ def _run_import(
             pass
         elif action == ImportAction.SKIP_EXISTING:
             skip_existing_count += 1
-        elif action == ImportAction.SKIP_LOCKED:
-            reason = get_lock_reason(existing_raw)
+        elif action == ImportAction.SKIP_PINNED:
+            reason = get_pin_reason(existing_raw)
             log.info(
-                "%s Skipping locked repo %s%s",
+                "%s Skipping pinned repo %s%s",
                 colors.warning("⊘"),
                 repo.name,
                 f" ({reason})" if reason else "",
             )
-            skip_locked_count += 1
+            skip_pinned_count += 1
 
     if error_labels:
         return 1
@@ -808,7 +808,7 @@ def _run_import(
         return 0
 
     if added_count == 0 and overwritten_count == 0:
-        if skip_existing_count == 0 and skip_locked_count == 0:
+        if skip_existing_count == 0 and skip_pinned_count == 0:
             log.info(
                 "%s All repositories already exist in config. Nothing to add.",
                 colors.success("✓"),
@@ -819,11 +819,11 @@ def _run_import(
                 colors.warning("!"),
                 colors.info(str(skip_existing_count)),
             )
-        if skip_locked_count > 0:
+        if skip_pinned_count > 0:
             log.info(
-                "%s Skipped %s locked repositories",
+                "%s Skipped %s pinned repositories",
                 colors.warning("!"),
-                colors.info(str(skip_locked_count)),
+                colors.info(str(skip_pinned_count)),
             )
         return 0
 
@@ -849,11 +849,11 @@ def _run_import(
                 colors.warning("!"),
                 colors.info(str(skip_existing_count)),
             )
-        if skip_locked_count > 0:
+        if skip_pinned_count > 0:
             log.info(
-                "%s Skipped %s locked repositories",
+                "%s Skipped %s pinned repositories",
                 colors.warning("!"),
-                colors.info(str(skip_locked_count)),
+                colors.info(str(skip_pinned_count)),
             )
     except OSError:
         log.exception("Error saving config to %s", display_config_path)

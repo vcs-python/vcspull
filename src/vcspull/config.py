@@ -788,8 +788,8 @@ def save_config_yaml_with_items(
     _atomic_write(config_file_path, yaml_content)
 
 
-def is_locked_for_op(entry: t.Any, op: str) -> bool:
-    """Return ``True`` if the repo config entry is locked for *op*.
+def is_pinned_for_op(entry: t.Any, op: str) -> bool:
+    """Return ``True`` if the repo config entry is pinned for *op*.
 
     Parameters
     ----------
@@ -801,44 +801,44 @@ def is_locked_for_op(entry: t.Any, op: str) -> bool:
 
     Examples
     --------
-    Global lock applies to all ops:
+    Global pin applies to all ops:
 
-    >>> is_locked_for_op({"repo": "git+x", "options": {"lock": True}}, "import")
+    >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": True}}, "import")
     True
-    >>> is_locked_for_op({"repo": "git+x", "options": {"lock": True}}, "fmt")
+    >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": True}}, "fmt")
     True
 
-    Per-op lock is scoped:
+    Per-op pin is scoped:
 
-    >>> entry = {"repo": "git+x", "options": {"lock": {"import": True}}}
-    >>> is_locked_for_op(entry, "import")
+    >>> entry = {"repo": "git+x", "options": {"pin": {"import": True}}}
+    >>> is_pinned_for_op(entry, "import")
     True
-    >>> is_locked_for_op(entry, "fmt")
+    >>> is_pinned_for_op(entry, "fmt")
     False
 
-    ``allow_overwrite: false`` is shorthand for ``lock: {import: true}``:
+    ``allow_overwrite: false`` is shorthand for ``pin: {import: true}``:
 
     >>> entry2 = {"repo": "git+x", "options": {"allow_overwrite": False}}
-    >>> is_locked_for_op(entry2, "import")
+    >>> is_pinned_for_op(entry2, "import")
     True
-    >>> is_locked_for_op(entry2, "add")
+    >>> is_pinned_for_op(entry2, "add")
     False
 
-    Plain string entries and entries without options are never locked:
+    Plain string entries and entries without options are never pinned:
 
-    >>> is_locked_for_op("git+x", "import")
+    >>> is_pinned_for_op("git+x", "import")
     False
-    >>> is_locked_for_op({"repo": "git+x"}, "import")
-    False
-
-    Explicit false is not locked:
-
-    >>> is_locked_for_op({"repo": "git+x", "options": {"lock": False}}, "import")
+    >>> is_pinned_for_op({"repo": "git+x"}, "import")
     False
 
-    String values for lock (not bool) are ignored — not locked:
+    Explicit false is not pinned:
 
-    >>> is_locked_for_op({"repo": "git+x", "options": {"lock": "true"}}, "import")
+    >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": False}}, "import")
+    False
+
+    String values for pin (not bool) are ignored — not pinned:
+
+    >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": "true"}}, "import")
     False
     """
     if not isinstance(entry, dict):
@@ -846,33 +846,33 @@ def is_locked_for_op(entry: t.Any, op: str) -> bool:
     opts = entry.get("options")
     if not isinstance(opts, dict):
         return False
-    lock = opts.get("lock")
-    if lock is True:
+    pin = opts.get("pin")
+    if pin is True:
         return True
-    if isinstance(lock, dict) and lock.get(op, False) is True:
+    if isinstance(pin, dict) and pin.get(op, False) is True:
         return True
     return op == "import" and opts.get("allow_overwrite", True) is False
 
 
-def get_lock_reason(entry: t.Any) -> str | None:
-    """Return the human-readable lock reason from a repo config entry.
+def get_pin_reason(entry: t.Any) -> str | None:
+    """Return the human-readable pin reason from a repo config entry.
 
     Non-string values are coerced to :func:`str` so callers can safely
     interpolate the result into log messages.
 
     Examples
     --------
-    >>> entry = {"repo": "git+x", "options": {"lock": True, "lock_reason": "pinned"}}
-    >>> get_lock_reason(entry)
+    >>> entry = {"repo": "git+x", "options": {"pin": True, "pin_reason": "pinned"}}
+    >>> get_pin_reason(entry)
     'pinned'
-    >>> get_lock_reason({"repo": "git+x"}) is None
+    >>> get_pin_reason({"repo": "git+x"}) is None
     True
-    >>> get_lock_reason("git+x") is None
+    >>> get_pin_reason("git+x") is None
     True
 
-    Non-string lock_reason is coerced:
+    Non-string pin_reason is coerced:
 
-    >>> get_lock_reason({"repo": "git+x", "options": {"lock_reason": 42}})
+    >>> get_pin_reason({"repo": "git+x", "options": {"pin_reason": 42}})
     '42'
     """
     if not isinstance(entry, dict):
@@ -880,7 +880,7 @@ def get_lock_reason(entry: t.Any) -> str | None:
     opts = entry.get("options")
     if not isinstance(opts, dict):
         return None
-    reason = opts.get("lock_reason")
+    reason = opts.get("pin_reason")
     if reason is None:
         return None
     return str(reason)
@@ -893,7 +893,7 @@ class MergeAction(enum.Enum):
     """First occurrence wins (standard behavior)."""
 
     KEEP_INCOMING = "keep_incoming"
-    """Incoming locked entry displaces unlocked existing entry."""
+    """Incoming pinned entry displaces unpinned existing entry."""
 
 
 def _classify_merge_action(
@@ -911,38 +911,38 @@ def _classify_merge_action(
 
     Examples
     --------
-    Neither locked — keep existing (first-occurrence-wins):
+    Neither pinned — keep existing (first-occurrence-wins):
 
     >>> _classify_merge_action({"repo": "git+a"}, {"repo": "git+b"})
     <MergeAction.KEEP_EXISTING: 'keep_existing'>
 
-    Incoming is locked — incoming wins:
+    Incoming is pinned — incoming wins:
 
     >>> _classify_merge_action(
     ...     {"repo": "git+a"},
-    ...     {"repo": "git+b", "options": {"lock": True}},
+    ...     {"repo": "git+b", "options": {"pin": True}},
     ... )
     <MergeAction.KEEP_INCOMING: 'keep_incoming'>
 
-    Existing is locked — existing wins regardless:
+    Existing is pinned — existing wins regardless:
 
     >>> _classify_merge_action(
-    ...     {"repo": "git+a", "options": {"lock": True}},
+    ...     {"repo": "git+a", "options": {"pin": True}},
     ...     {"repo": "git+b"},
     ... )
     <MergeAction.KEEP_EXISTING: 'keep_existing'>
 
-    Both locked — first-occurrence-wins:
+    Both pinned — first-occurrence-wins:
 
     >>> _classify_merge_action(
-    ...     {"repo": "git+a", "options": {"lock": True}},
-    ...     {"repo": "git+b", "options": {"lock": True}},
+    ...     {"repo": "git+a", "options": {"pin": True}},
+    ...     {"repo": "git+b", "options": {"pin": True}},
     ... )
     <MergeAction.KEEP_EXISTING: 'keep_existing'>
     """
-    existing_locked = is_locked_for_op(existing_entry, "merge")
-    incoming_locked = is_locked_for_op(incoming_entry, "merge")
-    if incoming_locked and not existing_locked:
+    existing_pinned = is_pinned_for_op(existing_entry, "merge")
+    incoming_pinned = is_pinned_for_op(incoming_entry, "merge")
+    if incoming_pinned and not existing_pinned:
         return MergeAction.KEEP_INCOMING
     return MergeAction.KEEP_EXISTING
 
@@ -978,17 +978,17 @@ def merge_duplicate_workspace_root_entries(
                 action = _classify_merge_action(merged[repo_name], repo_config)
                 if action == MergeAction.KEEP_INCOMING:
                     merged[repo_name] = copy.deepcopy(repo_config)
-                    reason = get_lock_reason(repo_config)
+                    reason = get_pin_reason(repo_config)
                     suffix = f" ({reason})" if reason else ""
                     conflicts.append(
-                        f"'{label}': locked entry for '{repo_name}'"
+                        f"'{label}': pinned entry for '{repo_name}'"
                         f" displaced earlier definition{suffix}"
                     )
                 else:  # KEEP_EXISTING
-                    reason = get_lock_reason(merged[repo_name])
+                    reason = get_pin_reason(merged[repo_name])
                     qualifier = (
-                        "locked "
-                        if is_locked_for_op(merged[repo_name], "merge")
+                        "pinned "
+                        if is_pinned_for_op(merged[repo_name], "merge")
                         else ""
                     )
                     suffix = f" ({reason})" if reason else ""
