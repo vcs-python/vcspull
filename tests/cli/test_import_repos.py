@@ -4190,3 +4190,293 @@ def test_import_parser_has_prune_flag() -> None:
 
     args2 = parser.parse_args([])
     assert args2.prune is False
+
+
+def test_import_prune_without_import_source_does_nothing(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune without import_source silently skips the prune phase.
+
+    The guard ``if (sync or prune) and import_source:`` on line 993 of
+    ``_run_import`` means a falsy *import_source* causes the entire prune
+    block to be skipped.  The stale tagged entry must survive and the
+    command must still succeed with exit code 0.
+    """
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Pre-populate config with a stale tagged entry
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "stale-repo": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    # Remote returns a different repo, but import_source is None
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        # prune=True but import_source is None → prune phase skipped
+        prune=True,
+        import_source=None,
+    )
+
+    assert result == 0
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # stale-repo must NOT have been pruned (prune block was skipped)
+    assert "stale-repo" in final_config["~/repos/"]
+    # New repo should still be added normally
+    assert "repo1" in final_config["~/repos/"]
+    # No prune log message should appear
+    assert "Pruned" not in caplog.text
+
+
+def test_import_sync_prune_together_idempotent_with_sync_alone(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--sync --prune together produces the same result as --sync alone.
+
+    Since ``sync`` already implies prune via ``if (sync or prune)``, passing
+    both flags should be idempotent: stale entries removed, current entries
+    kept, and URLs updated.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    def _build_initial_config() -> dict[str, t.Any]:
+        """Return the initial config with one stale + one current entry."""
+        return {
+            "~/repos/": {
+                "stale-repo": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+                "current-repo": {
+                    "repo": _HTTPS.replace("repo1", "current-repo"),
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        }
+
+    # Remote returns current-repo only (stale-repo was deleted).
+    # current-repo's URL will be updated from HTTPS to SSH.
+
+    # ── Run 1: --sync alone ──
+    config_sync_only = tmp_path / "sync-only.yaml"
+    save_config_yaml(config_sync_only, _build_initial_config())
+    importer_sync = MockImporter(repos=[_make_repo("current-repo")])
+    _run_import(
+        importer_sync,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_sync_only),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        prune=False,
+        import_source="github:testuser",
+    )
+    result_sync_only = ConfigReader._from_file(config_sync_only)
+
+    # ── Run 2: --sync --prune together ──
+    config_both = tmp_path / "sync-prune.yaml"
+    save_config_yaml(config_both, _build_initial_config())
+    importer_both = MockImporter(repos=[_make_repo("current-repo")])
+    _run_import(
+        importer_both,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_both),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        prune=True,
+        import_source="github:testuser",
+    )
+    result_both = ConfigReader._from_file(config_both)
+
+    # Both runs should produce the same final config
+    assert result_sync_only is not None
+    assert result_both is not None
+
+    # stale-repo removed in both
+    assert "stale-repo" not in result_sync_only.get("~/repos/", {})
+    assert "stale-repo" not in result_both.get("~/repos/", {})
+
+    # current-repo kept in both with updated URL (SSH)
+    sync_entry = result_sync_only["~/repos/"]["current-repo"]
+    both_entry = result_both["~/repos/"]["current-repo"]
+    assert sync_entry["repo"] == both_entry["repo"]
+    assert sync_entry["repo"] == _SSH.replace("repo1", "current-repo")
+
+    # Provenance tags match
+    assert sync_entry["metadata"]["imported_from"] == "github:testuser"
+    assert both_entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_prune_same_source_across_workspaces(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Same-name, same-source repos in different workspaces prune correctly.
+
+    Two workspaces (~/code/ and ~/projects/) each have a repo named
+    ``myrepo``, both tagged ``import_source: "github:testuser"``.
+
+    Case 1: Remote returns ``myrepo`` → NEITHER should be pruned because
+    the name is still present in the fetched set.
+
+    Case 2: Remote returns nothing → BOTH should be pruned (both are stale,
+    both match the tag).
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace_code = tmp_path / "code"
+    workspace_code.mkdir()
+    workspace_projects = tmp_path / "projects"
+    workspace_projects.mkdir()
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    def _build_two_workspace_config() -> dict[str, t.Any]:
+        """Return config with myrepo in two workspaces, same source tag."""
+        return {
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:testuser/myrepo.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+            "~/projects/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:testuser/myrepo.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+        }
+
+    # ── Case 1: remote still has myrepo → neither pruned ──
+    config_case1 = tmp_path / "case1.yaml"
+    save_config_yaml(config_case1, _build_two_workspace_config())
+
+    # MockImporter returns myrepo as a current remote repo
+    importer_case1 = MockImporter(repos=[_make_repo("myrepo")])
+    result1 = _run_import(
+        importer_case1,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace_code),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_case1),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+    assert result1 == 0
+
+    final_case1 = ConfigReader._from_file(config_case1)
+    assert final_case1 is not None
+    # myrepo still present in BOTH workspaces (name is in fetched set)
+    assert "myrepo" in final_case1["~/code/"]
+    assert "myrepo" in final_case1["~/projects/"]
+
+    # ── Case 2: remote returns empty set → both pruned ──
+    config_case2 = tmp_path / "case2.yaml"
+    save_config_yaml(config_case2, _build_two_workspace_config())
+
+    # MockImporter returns an empty list (myrepo is gone from remote)
+    importer_case2 = MockImporter(repos=[_make_repo("other-repo")])
+    result2 = _run_import(
+        importer_case2,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace_code),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_case2),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+    assert result2 == 0
+
+    final_case2 = ConfigReader._from_file(config_case2)
+    assert final_case2 is not None
+    # myrepo should be pruned from BOTH workspaces (both stale, both match tag)
+    assert "myrepo" not in final_case2.get("~/code/", {})
+    assert "myrepo" not in final_case2.get("~/projects/", {})
