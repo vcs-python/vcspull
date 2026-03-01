@@ -702,7 +702,7 @@ def _run_import(
                 raw_config = {}
                 duplicate_roots = {}
             else:
-                log.error(
+                log.error(  # noqa: TRY400
                     "%s Config file is not a valid mapping: %s",
                     colors.error("✗"),
                     display_config_path,
