@@ -1000,8 +1000,6 @@ def test_discover_skips_non_dict_workspace(
 # DiscoverAction classifier unit tests
 # ---------------------------------------------------------------------------
 
-import typing as t  # noqa: E402
-
 from vcspull.cli.discover import DiscoverAction, _classify_discover_action  # noqa: E402
 
 _DISC_SSH = "git+git@github.com:testuser/repo1.git"
