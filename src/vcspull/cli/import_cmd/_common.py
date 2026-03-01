@@ -850,6 +850,7 @@ def _run_import(
     error_labels: set[str] = set()
     added_count = updated_url_count = 0
     skip_existing_count = skip_pinned_count = skip_unchanged_count = 0
+    provenance_tagged_count = 0
 
     for repo in repos:
         # Determine workspace for this repo
@@ -956,6 +957,11 @@ def _run_import(
             updated_url_count += 1
         elif action == ImportAction.SKIP_UNCHANGED:
             skip_unchanged_count += 1
+            if not dry_run and import_source:
+                live = raw_config[repo_workspace_label].get(repo.name)
+                if isinstance(live, dict):
+                    live.setdefault("metadata", {})["imported_from"] = import_source
+                    provenance_tagged_count += 1
         elif action == ImportAction.SKIP_EXISTING:
             skip_existing_count += 1
         elif action == ImportAction.SKIP_PINNED:
@@ -1011,7 +1017,12 @@ def _run_import(
         )
         return 0
 
-    if added_count == 0 and updated_url_count == 0 and pruned_count == 0:
+    if (
+        added_count == 0
+        and updated_url_count == 0
+        and pruned_count == 0
+        and provenance_tagged_count == 0
+    ):
         if skip_existing_count == 0 and skip_pinned_count == 0:
             log.info(
                 "%s All repositories already exist in config. Nothing to add.",
