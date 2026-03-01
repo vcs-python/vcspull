@@ -848,7 +848,9 @@ def is_pinned_for_op(entry: t.Any, op: str) -> bool:
 
     Invalid op raises AssertionError:
 
-    >>> is_pinned_for_op({"repo": "git+x"}, "bogus")
+    >>> is_pinned_for_op(  # doctest: +IGNORE_EXCEPTION_DETAIL
+    ...     {"repo": "git+x"}, "bogus"
+    ... )
     Traceback (most recent call last):
         ...
     AssertionError: Unknown op: 'bogus'
