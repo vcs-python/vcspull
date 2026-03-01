@@ -311,7 +311,35 @@ def _save_ordered_items(
     config_file_path: pathlib.Path,
     ordered_items: list[dict[str, t.Any]],
 ) -> None:
-    """Persist ordered items in the format matching the config file extension."""
+    """Persist ordered items in the format matching the config file extension.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Path to config file (.yaml or .json).
+    ordered_items : list of dict
+        Each dict has ``"label"`` and ``"section"`` keys.
+
+    Examples
+    --------
+    YAML output:
+
+    >>> import pathlib
+    >>> config_file = tmp_path / "test.yaml"
+    >>> items = [{"label": "~/code/", "section": {"myrepo": "git+https://example.com/r.git"}}]
+    >>> _save_ordered_items(config_file, items)
+    >>> config_file.read_text().strip()  # doctest: +ELLIPSIS
+    '~/code/...'
+
+    JSON output:
+
+    >>> config_file = tmp_path / "test.json"
+    >>> _save_ordered_items(config_file, items)
+    >>> import json
+    >>> data = json.loads(config_file.read_text())
+    >>> "~/code/" in data
+    True
+    """
     if config_file_path.suffix.lower() == ".json":
         save_config_json(
             config_file_path,
