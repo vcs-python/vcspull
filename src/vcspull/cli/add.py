@@ -677,6 +677,15 @@ def add_repo(
                     )
                     if log.isEnabledFor(logging.DEBUG):
                         traceback.print_exc()
+            elif (duplicate_merge_changes > 0 or config_was_relabelled) and dry_run:
+                log.info(
+                    "%s→%s Would save workspace label adjustments to %s%s%s.",
+                    Fore.YELLOW,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    display_config_path,
+                    Style.RESET_ALL,
+                )
             return
         elif add_action == AddAction.SKIP_EXISTING:
             if isinstance(existing_config, str):
