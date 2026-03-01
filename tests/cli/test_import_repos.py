@@ -3722,6 +3722,67 @@ def test_import_prune_dry_run(
     assert "stale-repo" in final_config["~/repos/"]
 
 
+def test_import_dry_run_shows_summary_counts(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--dry-run displays summary counts (add, prune, unchanged)."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing: unchanged repo + stale repo (will be pruned)
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+                "stale-repo": {
+                    "repo": "git+git@github.com:testuser/stale-repo.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    # Remote has repo1 (unchanged) + repo2 (new). stale-repo is missing → prune.
+    importer = MockImporter(
+        repos=[_make_repo("repo1"), _make_repo("repo2")],
+    )
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    assert "[DRY-RUN] Would add 1 repositories" in caplog.text
+    assert "[DRY-RUN] Would prune 1 stale entries" in caplog.text
+    assert "[DRY-RUN] 1 repositories unchanged" in caplog.text
+    assert "Dry run complete" in caplog.text
+
+
 def test_import_parser_has_prune_flag() -> None:
     """The shared parent parser must expose --prune."""
     from vcspull.cli.import_cmd._common import _create_shared_parent

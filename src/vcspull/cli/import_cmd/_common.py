@@ -1010,6 +1010,36 @@ def _run_import(
         return 1
 
     if dry_run:
+        if added_count > 0:
+            log.info(
+                "[DRY-RUN] Would add %s repositories",
+                colors.info(str(added_count)),
+            )
+        if updated_url_count > 0:
+            log.info(
+                "[DRY-RUN] Would update %s repository URLs",
+                colors.info(str(updated_url_count)),
+            )
+        if pruned_count > 0:
+            log.info(
+                "[DRY-RUN] Would prune %s stale entries",
+                colors.info(str(pruned_count)),
+            )
+        if skip_unchanged_count > 0:
+            log.info(
+                "[DRY-RUN] %s repositories unchanged",
+                colors.info(str(skip_unchanged_count)),
+            )
+        if skip_existing_count > 0:
+            log.info(
+                "[DRY-RUN] Skipped %s existing repositories",
+                colors.info(str(skip_existing_count)),
+            )
+        if skip_pinned_count > 0:
+            log.info(
+                "[DRY-RUN] Skipped %s pinned repositories",
+                colors.info(str(skip_pinned_count)),
+            )
         log.info(
             "\n%s Dry run complete. Would write to %s",
             colors.warning("→"),
