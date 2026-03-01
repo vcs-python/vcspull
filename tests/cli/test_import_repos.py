@@ -4288,6 +4288,72 @@ def test_import_sync_same_name_from_remote_not_pruned(
     assert entry["metadata"]["imported_from"] == "github:testuser"
 
 
+def test_import_prune_cross_workspace_same_source_same_name(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Stale entry in workspace B is pruned even if workspace A has same name."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace_a = tmp_path / "code"
+    workspace_a.mkdir()
+    workspace_b = tmp_path / "work"
+    workspace_b.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Both workspaces have "myrepo" from the same import source
+    save_config_yaml(
+        config_file,
+        {
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:testuser/myrepo.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+            "~/work/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:testuser/myrepo.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+        },
+    )
+
+    # Remote returns myrepo only to workspace A — workspace B's entry is stale
+    importer = MockImporter(repos=[_make_repo("myrepo")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace_a),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+
+    # Workspace A keeps myrepo (it was imported there)
+    assert "myrepo" in final_config["~/code/"]
+    # Workspace B's stale myrepo should be pruned
+    assert "myrepo" not in final_config.get("~/work/", {})
+
+
 def test_import_parser_has_prune_flag() -> None:
     """The shared parent parser must expose --prune."""
     from vcspull.cli.import_cmd._common import _create_shared_parent

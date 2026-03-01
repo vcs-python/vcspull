@@ -855,6 +855,7 @@ def _run_import(
     added_count = updated_url_count = 0
     skip_existing_count = skip_pinned_count = skip_unchanged_count = 0
     provenance_tagged_count = 0
+    imported_workspace_repos: set[tuple[str, str]] = set()
 
     for repo in repos:
         # Determine workspace for this repo
@@ -933,6 +934,7 @@ def _run_import(
             existing_entry=existing_raw,
             sync=sync,
         )
+        imported_workspace_repos.add((repo_workspace_label, repo.name))
 
         if action == ImportAction.ADD:
             if not dry_run:
@@ -991,12 +993,11 @@ def _run_import(
     # Prune stale entries tagged by previous imports from this source
     pruned_count = 0
     if (sync or prune) and import_source:
-        fetched_repo_names = {repo.name for repo in repos}
-        for _ws_label, ws_entries in list(raw_config.items()):
+        for ws_label, ws_entries in list(raw_config.items()):
             if not isinstance(ws_entries, dict):
                 continue
             for repo_name in list(ws_entries):
-                if repo_name in fetched_repo_names:
+                if (ws_label, repo_name) in imported_workspace_repos:
                     continue
                 prune_action = _classify_prune_action(
                     existing_entry=ws_entries[repo_name],
