@@ -1053,6 +1053,92 @@ def test_import_repos_workspace_normalization_no_duplicate_section(
     assert "~/code/" not in saved or saved.get("~/code/") is None
 
 
+def test_import_repos_dry_run_tolerates_malformed_config(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --dry-run previews even when config file is malformed.
+
+    Instead of returning exit code 1, dry-run should warn and preview
+    against an empty config.
+    """
+    caplog.set_level(logging.WARNING)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text("invalid: yaml: content: [", encoding="utf-8")
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+    assert "dry-run will preview against empty config" in caplog.text
+
+
+def test_import_repos_dry_run_tolerates_non_dict_config(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --dry-run handles a YAML list (non-dict) config gracefully."""
+    caplog.set_level(logging.WARNING)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text("- item1\n- item2\n", encoding="utf-8")
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+    assert "dry-run will preview against empty config" in caplog.text
+
+
 def test_import_no_args_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
     """Test that 'vcspull import' without args shows help."""
     from vcspull.cli import cli

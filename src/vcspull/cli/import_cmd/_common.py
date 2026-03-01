@@ -692,23 +692,52 @@ def _run_import(
             )
             raw_config = raw_config or {}
         except TypeError:
-            log.error(
-                "%s Config file is not a valid mapping: %s",
-                colors.error("✗"),
-                display_config_path,
-            )
-            return 1
+            if dry_run:
+                log.warning(
+                    "%s Config file is not a valid mapping: %s "
+                    "(dry-run will preview against empty config)",
+                    colors.warning("!"),
+                    display_config_path,
+                )
+                raw_config = {}
+                duplicate_roots = {}
+            else:
+                log.error(
+                    "%s Config file is not a valid mapping: %s",
+                    colors.error("✗"),
+                    display_config_path,
+                )
+                return 1
         except Exception:
-            log.exception("Error loading config file")
-            return 1
+            if dry_run:
+                log.warning(
+                    "Error loading config file %s "
+                    "(dry-run will preview against empty config)",
+                    display_config_path,
+                )
+                raw_config = {}
+                duplicate_roots = {}
+            else:
+                log.exception("Error loading config file")
+                return 1
 
         if not isinstance(raw_config, dict):
-            log.error(
-                "%s Config file is not a valid mapping: %s",
-                colors.error("✗"),
-                display_config_path,
-            )
-            return 1
+            if dry_run:
+                log.warning(
+                    "%s Config file is not a valid mapping: %s "
+                    "(dry-run will preview against empty config)",
+                    colors.warning("!"),
+                    display_config_path,
+                )
+                raw_config = {}
+                duplicate_roots = {}
+            else:
+                log.error(
+                    "%s Config file is not a valid mapping: %s",
+                    colors.error("✗"),
+                    display_config_path,
+                )
+                return 1
 
         # Merge duplicate workspace root sections so repos from all
         # occurrences are preserved (PyYAML only keeps the last key).
