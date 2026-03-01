@@ -28,6 +28,7 @@ from vcspull._internal.remotes import (
     ServiceUnavailableError,
 )
 from vcspull.config import (
+    canonicalize_workspace_path,
     find_home_config_files,
     get_pin_reason,
     is_pinned_for_op,
@@ -757,6 +758,22 @@ def _run_import(
         repo_workspace_label = workspace_root_label(
             repo_workspace_path, cwd=cwd, home=home
         )
+
+        # Normalize against existing config keys so that e.g. "~/code"
+        # and "~/code/" (or absolute vs tilde forms) map to the same
+        # section instead of creating a duplicate.
+        if repo_workspace_label not in raw_config:
+            canonical = canonicalize_workspace_path(repo_workspace_label, cwd=cwd)
+            for existing_label in raw_config:
+                try:
+                    existing_canonical = canonicalize_workspace_path(
+                        existing_label, cwd=cwd
+                    )
+                except (OSError, ValueError):
+                    continue
+                if existing_canonical == canonical:
+                    repo_workspace_label = existing_label
+                    break
 
         if repo_workspace_label not in checked_labels:
             if repo_workspace_label in raw_config and not isinstance(
