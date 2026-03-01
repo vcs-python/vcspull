@@ -95,7 +95,10 @@ def _classify_import_action(
     ... )
     <ImportAction.ADD: 'add'>
 
-    Same URL is always a no-op — even when pinned or sync is set:
+    Same URL is always classified as unchanged — even when pinned or sync is set.
+
+    Note: ``_run_import`` may still stamp provenance metadata on unchanged entries
+    when ``import_source`` is provided.
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
