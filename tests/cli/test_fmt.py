@@ -625,5 +625,5 @@ def test_classify_fmt_action(
     expected_action: FmtAction,
 ) -> None:
     """Test _classify_fmt_action covers all permutations."""
-    action = _classify_fmt_action(repo_data)
+    action, _result = _classify_fmt_action(repo_data)
     assert action == expected_action

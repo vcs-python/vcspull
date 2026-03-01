@@ -115,51 +115,69 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
     return t.cast("dict[str, t.Any]", repo_data)
 
 
-def _classify_fmt_action(repo_data: t.Any) -> FmtAction:
+def _classify_fmt_action(repo_data: t.Any) -> tuple[FmtAction, t.Any]:
     """Classify the fmt action for a single repository entry.
+
+    Returns the action and the (possibly normalized) data so that
+    callers do not need to call :func:`normalize_repo_config` a second
+    time.
 
     Parameters
     ----------
     repo_data : Any
         Repository configuration value (string, dict, or other).
 
+    Returns
+    -------
+    tuple[FmtAction, Any]
+        The resolved action and the resulting repo data.  For
+        ``NORMALIZE`` the second element is the normalized dict; for
+        ``NO_CHANGE`` and ``SKIP_LOCKED`` it is the original *repo_data*.
+
     Examples
     --------
     String entries need normalization:
 
     >>> _classify_fmt_action("git+ssh://x")
-    <FmtAction.NORMALIZE: 'normalize'>
+    (<FmtAction.NORMALIZE: 'normalize'>, {'repo': 'git+ssh://x'})
 
     Dict with ``url`` key needs normalization:
 
     >>> _classify_fmt_action({"url": "git+ssh://x"})
-    <FmtAction.NORMALIZE: 'normalize'>
+    (<FmtAction.NORMALIZE: 'normalize'>, {'repo': 'git+ssh://x'})
 
     Already normalized dict:
 
     >>> _classify_fmt_action({"repo": "git+ssh://x"})
-    <FmtAction.NO_CHANGE: 'no_change'>
+    (<FmtAction.NO_CHANGE: 'no_change'>, {'repo': 'git+ssh://x'})
 
     Locked entry is preserved verbatim:
 
-    >>> _classify_fmt_action({"repo": "git+ssh://x", "options": {"lock": True}})
+    >>> locked = {"repo": "git+ssh://x", "options": {"lock": True}}
+    >>> action, data = _classify_fmt_action(locked)
+    >>> action
     <FmtAction.SKIP_LOCKED: 'skip_locked'>
+    >>> data == locked
+    True
     >>> entry = {"repo": "git+ssh://x", "options": {"lock": {"fmt": True}}}
-    >>> _classify_fmt_action(entry)
+    >>> _classify_fmt_action(entry)[0]
     <FmtAction.SKIP_LOCKED: 'skip_locked'>
 
     Locked for import only — fmt still normalizes:
 
     >>> entry = {"url": "git+ssh://x", "options": {"lock": {"import": True}}}
-    >>> _classify_fmt_action(entry)
+    >>> action, data = _classify_fmt_action(entry)
+    >>> action
     <FmtAction.NORMALIZE: 'normalize'>
+    >>> data["repo"]
+    'git+ssh://x'
     """
     if _is_locked_for_op(repo_data, "fmt"):
-        return FmtAction.SKIP_LOCKED
+        return FmtAction.SKIP_LOCKED, repo_data
     normalized = normalize_repo_config(repo_data)
     if normalized != repo_data:
-        return FmtAction.NORMALIZE
-    return FmtAction.NO_CHANGE
+        return FmtAction.NORMALIZE, normalized
+    return FmtAction.NO_CHANGE, repo_data
 
 
 def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]:
@@ -189,18 +207,13 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
 
         for repo_name in sorted(repos.keys()):
             repo_data = repos[repo_name]
-            action = _classify_fmt_action(repo_data)
+            action, result = _classify_fmt_action(repo_data)
             if action == FmtAction.SKIP_LOCKED:
-                formatted_dir[repo_name] = copy.deepcopy(repo_data)
+                formatted_dir[repo_name] = copy.deepcopy(result)
             else:
-                normalized = (
-                    normalize_repo_config(repo_data)
-                    if action == FmtAction.NORMALIZE
-                    else repo_data
-                )
-                if normalized != repo_data:
+                if result != repo_data:
                     changes += 1
-                formatted_dir[repo_name] = normalized
+                formatted_dir[repo_name] = result
 
         if list(repos.keys()) != list(formatted_dir.keys()):
             changes += 1
