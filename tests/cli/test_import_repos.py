@@ -58,6 +58,105 @@ def _make_repo(
     )
 
 
+def _run_import_defaults(
+    importer: t.Any,
+    *,
+    service_name: str = "github",
+    target: str = "testuser",
+    workspace: str = "",
+    mode: str = "user",
+    language: str | None = None,
+    topics: str | None = None,
+    min_stars: int = 0,
+    include_archived: bool = False,
+    include_forks: bool = False,
+    limit: int = 100,
+    config_path_str: str | None = None,
+    dry_run: bool = False,
+    yes: bool = True,
+    output_json: bool = False,
+    output_ndjson: bool = False,
+    color: str = "never",
+    **extra_kwargs: t.Any,
+) -> int:
+    """Call _run_import with test-friendly defaults for 9 filter/display kwargs.
+
+    The 9 kwargs with test-friendly defaults are: ``language``, ``topics``,
+    ``min_stars``, ``include_archived``, ``include_forks``, ``limit``,
+    ``output_json``, ``output_ndjson``, and ``color``.  Callers only need
+    to supply kwargs that differ from these defaults.
+
+    Parameters
+    ----------
+    importer : t.Any
+        Mock importer instance (satisfies the Importer protocol).
+    service_name : str
+        Service name, defaults to ``"github"``.
+    target : str
+        Target user/org/query, defaults to ``"testuser"``.
+    workspace : str
+        Workspace root directory path.
+    mode : str
+        Import mode, defaults to ``"user"``.
+    language : str | None
+        Language filter, defaults to ``None``.
+    topics : str | None
+        Topics filter, defaults to ``None``.
+    min_stars : int
+        Minimum star count, defaults to ``0``.
+    include_archived : bool
+        Include archived repos, defaults to ``False``.
+    include_forks : bool
+        Include forked repos, defaults to ``False``.
+    limit : int
+        Repo fetch limit, defaults to ``100``.
+    config_path_str : str | None
+        Config file path, defaults to ``None``.
+    dry_run : bool
+        Dry-run mode, defaults to ``False``.
+    yes : bool
+        Auto-confirm, defaults to ``True``.
+    output_json : bool
+        JSON output, defaults to ``False``.
+    output_ndjson : bool
+        NDJSON output, defaults to ``False``.
+    color : str
+        Color mode, defaults to ``"never"``.
+    **extra_kwargs : t.Any
+        Forwarded to ``_run_import`` (e.g. ``use_https``, ``flatten_groups``).
+
+    Returns
+    -------
+    int
+        Exit code from ``_run_import``.
+
+    Examples
+    --------
+    >>> _run_import_defaults.__name__
+    '_run_import_defaults'
+    """
+    return _run_import(
+        importer,
+        service_name=service_name,
+        target=target,
+        workspace=workspace,
+        mode=mode,
+        language=language,
+        topics=topics,
+        min_stars=min_stars,
+        include_archived=include_archived,
+        include_forks=include_forks,
+        limit=limit,
+        config_path_str=config_path_str,
+        dry_run=dry_run,
+        yes=yes,
+        output_json=output_json,
+        output_ndjson=output_ndjson,
+        color=color,
+        **extra_kwargs,
+    )
+
+
 class MockImporter:
     """Reusable mock importer for tests."""
 
@@ -404,24 +503,16 @@ def test_import_repos(
 
     importer = MockImporter(repos=mock_repos, error=mock_error)
 
-    _run_import(
+    _run_import_defaults(
         importer,
         service_name=service_name,
         target=target,
         workspace=str(workspace),
         mode=mode,
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
         dry_run=dry_run,
         yes=yes,
         output_json=output_json,
-        output_ndjson=False,
-        color="never",
     )
 
     for expected_text in expected_log_contains:
@@ -462,24 +553,11 @@ def test_import_repos_user_abort(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
         yes=False,  # Require confirmation
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "Aborted by user" in caplog.text
@@ -512,24 +590,11 @@ def test_import_repos_eoferror_aborts(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
         yes=False,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "Aborted by user" in caplog.text
@@ -556,24 +621,11 @@ def test_import_repos_non_tty_aborts(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    result = _run_import(
+    result = _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
         yes=False,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert result == 1, "Non-interactive abort must return non-zero exit code"
@@ -606,24 +658,10 @@ def test_import_repos_skips_existing(
 
     importer = MockImporter(repos=[_make_repo("repo1"), _make_repo("repo2")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "Added 1 repositories" in caplog.text
@@ -659,24 +697,10 @@ def test_import_repos_all_existing(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "All repositories already exist" in caplog.text
@@ -694,24 +718,12 @@ def test_import_repos_json_output(
 
     importer = MockImporter(repos=[_make_repo("repo1", stars=50)])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
         output_json=True,
-        output_ndjson=False,
-        color="never",
     )
 
     captured = capsys.readouterr()
@@ -735,24 +747,12 @@ def test_import_repos_ndjson_output(
 
     importer = MockImporter(repos=[_make_repo("repo1"), _make_repo("repo2")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
-        output_json=False,
         output_ndjson=True,
-        color="never",
     )
 
     captured = capsys.readouterr()
@@ -787,12 +787,9 @@ def test_import_repos_topics_filter(
             received_options.append(options)
             return iter([])
 
-    _run_import(
+    _run_import_defaults(
         CapturingImporter(),
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
         language="Python",
         topics="cli,tool,python",
         min_stars=50,
@@ -801,10 +798,6 @@ def test_import_repos_topics_filter(
         limit=200,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert len(received_options) == 1
@@ -834,24 +827,13 @@ def test_import_repos_codecommit_no_target_required(
         repos=[_make_repo("aws-repo")],
     )
 
-    _run_import(
+    _run_import_defaults(
         importer,
         service_name="codecommit",
         target="",  # Empty target is OK for CodeCommit
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     # Should succeed and find repos
@@ -877,24 +859,11 @@ def test_import_repos_many_repos_truncates_preview(
 
     importer = MockImporter(repos=many_repos)
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "Found 15 repositories" in caplog.text
@@ -919,24 +888,10 @@ def test_import_repos_config_load_error(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "Error loading config" in caplog.text
@@ -1223,87 +1178,59 @@ def test_import_no_args_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
     assert "Import repositories from remote services" in captured.out
 
 
-def test_import_repos_defaults_to_ssh_urls(
-    tmp_path: pathlib.Path,
-    monkeypatch: MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Test _run_import writes SSH URLs to config by default."""
-    import yaml
+class UrlSchemeFixture(t.NamedTuple):
+    """Fixture for SSH vs HTTPS URL scheme test cases."""
 
-    caplog.set_level(logging.INFO)
-
-    monkeypatch.setenv("HOME", str(tmp_path))
-    workspace = tmp_path / "repos"
-    workspace.mkdir()
-    config_file = tmp_path / ".vcspull.yaml"
-
-    importer = MockImporter(repos=[_make_repo("myrepo")])
-
-    _run_import(
-        importer,
-        service_name="github",
-        target="testuser",
-        workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
-        config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
-    )
-
-    assert config_file.exists()
-    with config_file.open() as f:
-        config = yaml.safe_load(f)
-
-    repo_url = config["~/repos/"]["myrepo"]["repo"]
-    assert repo_url == "git+git@github.com:testuser/myrepo.git"
+    test_id: str
+    use_https: bool
+    expected_url: str
 
 
-def test_import_repos_https_flag(
-    tmp_path: pathlib.Path,
-    monkeypatch: MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Test _run_import writes HTTPS URLs when use_https=True."""
-    import yaml
-
-    caplog.set_level(logging.INFO)
-
-    monkeypatch.setenv("HOME", str(tmp_path))
-    workspace = tmp_path / "repos"
-    workspace.mkdir()
-    config_file = tmp_path / ".vcspull.yaml"
-
-    importer = MockImporter(repos=[_make_repo("myrepo")])
-
-    _run_import(
-        importer,
-        service_name="github",
-        target="testuser",
-        workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
-        config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
+URL_SCHEME_FIXTURES: list[UrlSchemeFixture] = [
+    UrlSchemeFixture(
+        test_id="defaults-to-ssh-urls",
+        use_https=False,
+        expected_url="git+git@github.com:testuser/myrepo.git",
+    ),
+    UrlSchemeFixture(
+        test_id="https-flag-writes-https-urls",
         use_https=True,
+        expected_url="git+https://github.com/testuser/myrepo.git",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(UrlSchemeFixture._fields),
+    URL_SCHEME_FIXTURES,
+    ids=[f.test_id for f in URL_SCHEME_FIXTURES],
+)
+def test_import_repos_url_scheme(
+    test_id: str,
+    use_https: bool,
+    expected_url: str,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _run_import writes SSH or HTTPS URLs based on use_https flag."""
+    import yaml
+
+    del test_id
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    importer = MockImporter(repos=[_make_repo("myrepo")])
+
+    _run_import_defaults(
+        importer,
+        workspace=str(workspace),
+        config_path_str=str(config_file),
+        use_https=use_https,
     )
 
     assert config_file.exists()
@@ -1311,27 +1238,50 @@ def test_import_repos_https_flag(
         config = yaml.safe_load(f)
 
     repo_url = config["~/repos/"]["myrepo"]["repo"]
-    assert repo_url == "git+https://github.com/testuser/myrepo.git"
+    assert repo_url == expected_url
 
 
-def test_import_https_flag_via_cli() -> None:
-    """Test that --https flag is recognized by the CLI parser."""
+class UrlSchemeCliFixture(t.NamedTuple):
+    """Fixture for SSH vs HTTPS CLI flag test cases."""
+
+    test_id: str
+    extra_args: list[str]
+    expected_use_https: bool
+
+
+URL_SCHEME_CLI_FIXTURES: list[UrlSchemeCliFixture] = [
+    UrlSchemeCliFixture(
+        test_id="https-flag-via-cli",
+        extra_args=["--https"],
+        expected_use_https=True,
+    ),
+    UrlSchemeCliFixture(
+        test_id="ssh-default-via-cli",
+        extra_args=[],
+        expected_use_https=False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(UrlSchemeCliFixture._fields),
+    URL_SCHEME_CLI_FIXTURES,
+    ids=[f.test_id for f in URL_SCHEME_CLI_FIXTURES],
+)
+def test_import_url_scheme_via_cli(
+    test_id: str,
+    extra_args: list[str],
+    expected_use_https: bool,
+) -> None:
+    """Test that --https flag controls use_https in the CLI parser."""
+    del test_id
     from vcspull.cli import create_parser
 
     parser = create_parser(return_subparsers=False)
     args = parser.parse_args(
-        ["import", "github", "testuser", "-w", "/tmp/repos", "--https"]
+        ["import", "github", "testuser", "-w", "/tmp/repos", *extra_args]
     )
-    assert args.use_https is True
-
-
-def test_import_ssh_default_via_cli() -> None:
-    """Test that SSH is the default (no --https flag)."""
-    from vcspull.cli import create_parser
-
-    parser = create_parser(return_subparsers=False)
-    args = parser.parse_args(["import", "github", "testuser", "-w", "/tmp/repos"])
-    assert args.use_https is False
+    assert args.use_https is expected_use_https
 
 
 def test_import_flatten_groups_flag_via_cli() -> None:
@@ -1391,24 +1341,10 @@ def test_import_repos_rejects_unsupported_config_type(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.toml"),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "Unsupported config file type" in caplog.text
@@ -1440,24 +1376,10 @@ def test_import_repos_catches_multiple_config_warning(
         raise_multiple_config,
     )
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=None,
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "Multiple configs" in caplog.text
@@ -1477,101 +1399,75 @@ def test_import_repos_invalid_limit(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
         limit=-1,
         config_path_str=str(tmp_path / "config.yaml"),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "limit must be >= 0" in caplog.text
 
 
-def test_import_repos_returns_nonzero_on_error(
+class ExitCodeFixture(t.NamedTuple):
+    """Fixture for exit-code test cases (error vs success)."""
+
+    test_id: str
+    mock_repos: list[RemoteRepo]
+    mock_error: Exception | None
+    expected_zero: bool
+
+
+EXIT_CODE_FIXTURES: list[ExitCodeFixture] = [
+    ExitCodeFixture(
+        test_id="returns-nonzero-on-error",
+        mock_repos=[],
+        mock_error=AuthenticationError("Bad credentials"),
+        expected_zero=False,
+    ),
+    ExitCodeFixture(
+        test_id="returns-zero-on-success",
+        mock_repos=[_make_repo("repo1")],
+        mock_error=None,
+        expected_zero=True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ExitCodeFixture._fields),
+    EXIT_CODE_FIXTURES,
+    ids=[f.test_id for f in EXIT_CODE_FIXTURES],
+)
+def test_import_repos_exit_code(
+    test_id: str,
+    mock_repos: list[RemoteRepo],
+    mock_error: Exception | None,
+    expected_zero: bool,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test _run_import returns non-zero exit code on error."""
-    caplog.set_level(logging.ERROR)
+    """Test _run_import returns correct exit code on error vs success."""
+    del test_id
+    caplog.set_level(logging.DEBUG)
 
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    importer = MockImporter(error=AuthenticationError("Bad credentials"))
+    importer = MockImporter(repos=mock_repos, error=mock_error)
 
-    result = _run_import(
+    result = _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
-    assert result != 0
-
-
-def test_import_repos_returns_zero_on_success(
-    tmp_path: pathlib.Path,
-    monkeypatch: MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Test _run_import returns 0 on success."""
-    caplog.set_level(logging.INFO)
-
-    monkeypatch.setenv("HOME", str(tmp_path))
-    workspace = tmp_path / "repos"
-    workspace.mkdir()
-
-    importer = MockImporter(repos=[_make_repo("repo1")])
-
-    result = _run_import(
-        importer,
-        service_name="github",
-        target="testuser",
-        workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
-        config_path_str=str(tmp_path / "config.yaml"),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
-    )
-
-    assert result == 0
+    if expected_zero:
+        assert result == 0
+    else:
+        assert result != 0
 
 
 def test_import_repos_json_config_write(
@@ -1589,24 +1485,10 @@ def test_import_repos_json_config_write(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    result = _run_import(
+    result = _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert result == 0
@@ -1634,24 +1516,10 @@ def test_import_repos_rejects_non_dict_config(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    _run_import(
+    _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert "not a valid mapping" in caplog.text
@@ -1675,24 +1543,10 @@ def test_import_repos_non_mapping_workspace_returns_error(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    result = _run_import(
+    result = _run_import_defaults(
         importer,
-        service_name="github",
-        target="testuser",
         workspace=str(workspace),
-        mode="user",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     assert result == 1
@@ -1853,24 +1707,13 @@ def test_import_nested_groups(
 
     importer = MockImporter(service_name="GitLab", repos=mock_repos)
 
-    _run_import(
+    _run_import_defaults(
         importer,
         service_name="gitlab",
         target=target,
         workspace=str(workspace),
         mode=mode,
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(config_file),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
         flatten_groups=flatten_groups,
     )
 
@@ -1955,24 +1798,14 @@ def test_import_repos_language_warning(
     )
     importer = MockImporter(service_name=display_name)
 
-    _run_import(
+    _run_import_defaults(
         importer,
         service_name=service_name,
         target="testuser" if service_name != "codecommit" else "",
         workspace=str(workspace),
-        mode="user",
         language=language,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     if expect_warning:
@@ -2054,24 +1887,15 @@ def test_import_repos_unsupported_filter_warning(
     display_name = "CodeCommit" if service_name == "codecommit" else "GitHub"
     importer = MockImporter(service_name=display_name)
 
-    _run_import(
+    _run_import_defaults(
         importer,
         service_name=service_name,
         target="testuser" if service_name != "codecommit" else "",
         workspace=str(workspace),
-        mode="user",
-        language=None,
         topics=topics,
         min_stars=min_stars,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
     )
 
     if expect_topics_warning:
@@ -2147,24 +1971,13 @@ def test_import_repos_with_shared_mode_warning(
 
     importer = MockImporter(service_name="GitLab")
 
-    _run_import(
+    _run_import_defaults(
         importer,
         service_name="gitlab",
-        target="testuser",
         workspace=str(workspace),
         mode=mode,
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
         with_shared=with_shared,
     )
 
@@ -2388,24 +2201,13 @@ def test_run_import_rejects_skip_group_with_slash(
     workspace = tmp_path / "repos"
     workspace.mkdir()
 
-    result = _run_import(
+    result = _run_import_defaults(
         MockImporter(),
         service_name="gitlab",
         target="my-group",
         workspace=str(workspace),
         mode="org",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
-        dry_run=False,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
         skip_groups=["bots/subteam"],
     )
 
@@ -2425,24 +2227,14 @@ def test_run_import_forwards_with_shared_and_skip_groups(
 
     importer = CapturingMockImporter()
 
-    _run_import(
+    _run_import_defaults(
         importer,
         service_name="gitlab",
         target="my-group",
         workspace=str(workspace),
         mode="org",
-        language=None,
-        topics=None,
-        min_stars=0,
-        include_archived=False,
-        include_forks=False,
-        limit=100,
         config_path_str=str(tmp_path / "config.yaml"),
         dry_run=True,
-        yes=True,
-        output_json=False,
-        output_ndjson=False,
-        color="never",
         with_shared=True,
         skip_groups=["bots", "archived"],
     )
