@@ -81,5 +81,5 @@ def handle_codeberg(args: argparse.Namespace) -> int:
         output_ndjson=getattr(args, "output_ndjson", False),
         color=getattr(args, "color", "auto"),
         use_https=getattr(args, "use_https", False),
-        overwrite=getattr(args, "overwrite", False),
+        sync=getattr(args, "sync", False),
     )

@@ -135,7 +135,7 @@ class RepoOptionsDict(TypedDict, total=False):
           pin: true
           pin_reason: "pinned to upstream"
 
-    Pin only import (prevent ``--overwrite`` from replacing URL)::
+    Pin only import (prevent ``--sync`` from replacing URL)::
 
         options:
           pin:

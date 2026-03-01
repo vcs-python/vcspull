@@ -177,7 +177,7 @@ Available pin keys:
 
 | Key        | Blocks                                                     |
 |------------|-----------------------------------------------------------|
-| `import`   | `vcspull import --overwrite` from replacing this URL       |
+| `import`   | `vcspull import --sync` from replacing this URL            |
 | `add`      | `vcspull add` from overwriting this entry                  |
 | `discover` | `vcspull discover` from overwriting this entry             |
 | `fmt`      | `vcspull fmt` from normalizing this entry                  |
@@ -186,7 +186,7 @@ Available pin keys:
 ### Shorthand: allow_overwrite
 
 `allow_overwrite: false` is a convenience shorthand equivalent to
-`pin: {import: true}`. It only guards against `vcspull import --overwrite`:
+`pin: {import: true}`. It only guards against `vcspull import --sync`:
 
 ```yaml
 ~/code/:
@@ -214,7 +214,7 @@ Each command handles pins differently:
 
 | Command | Pin effect | Log level |
 |---------|------------|-----------|
-| `vcspull import --overwrite` | Skips URL replacement | info |
+| `vcspull import --sync` | Skips URL replacement | info |
 | `vcspull add` | Skips with warning | warning |
 | `vcspull discover` | Silently skips | debug |
 | `vcspull fmt` | Preserves entry verbatim | (silent) |

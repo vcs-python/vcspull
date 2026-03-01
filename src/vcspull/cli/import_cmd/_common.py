@@ -60,7 +60,7 @@ class ImportAction(enum.Enum):
     ADD = "add"
     SKIP_UNCHANGED = "skip_unchanged"
     SKIP_EXISTING = "skip_existing"
-    OVERWRITE = "overwrite"
+    UPDATE_URL = "update_url"
     SKIP_PINNED = "skip_pinned"
 
 
@@ -68,7 +68,7 @@ def _classify_import_action(
     *,
     incoming_url: str,
     existing_entry: t.Any,
-    overwrite: bool,
+    sync: bool,
 ) -> ImportAction:
     """Classify the import action for a single repository.
 
@@ -78,34 +78,34 @@ def _classify_import_action(
         URL from the remote service (already formatted with ``git+`` prefix).
     existing_entry : Any
         Current config entry for this repo name, or ``None`` if not in config.
-    overwrite : bool
-        Whether ``--overwrite``/``--force`` was passed.
+    sync : bool
+        Whether ``--sync`` was passed.
 
     Examples
     --------
     New repo is always added:
 
     >>> _classify_import_action(
-    ...     incoming_url="git+ssh://x", existing_entry=None, overwrite=False
+    ...     incoming_url="git+ssh://x", existing_entry=None, sync=False
     ... )
     <ImportAction.ADD: 'add'>
     >>> _classify_import_action(
-    ...     incoming_url="git+ssh://x", existing_entry=None, overwrite=True
+    ...     incoming_url="git+ssh://x", existing_entry=None, sync=True
     ... )
     <ImportAction.ADD: 'add'>
 
-    Same URL is always a no-op — even when pinned or overwrite is set:
+    Same URL is always a no-op — even when pinned or sync is set:
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
     ...     existing_entry={"repo": "git+ssh://x"},
-    ...     overwrite=True,
+    ...     sync=True,
     ... )
     <ImportAction.SKIP_UNCHANGED: 'skip_unchanged'>
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
     ...     existing_entry={"repo": "git+ssh://x", "options": {"pin": True}},
-    ...     overwrite=True,
+    ...     sync=True,
     ... )
     <ImportAction.SKIP_UNCHANGED: 'skip_unchanged'>
 
@@ -114,41 +114,41 @@ def _classify_import_action(
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://new",
     ...     existing_entry={"repo": "git+ssh://old", "url": "git+ssh://new"},
-    ...     overwrite=False,
+    ...     sync=False,
     ... )
     <ImportAction.SKIP_UNCHANGED: 'skip_unchanged'>
 
-    Different URL without overwrite is skipped:
+    Different URL without sync is skipped:
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
     ...     existing_entry={"repo": "git+https://x"},
-    ...     overwrite=False,
+    ...     sync=False,
     ... )
     <ImportAction.SKIP_EXISTING: 'skip_existing'>
 
-    Different URL with overwrite is overwritten (unless pinned):
+    Different URL with sync updates the URL (unless pinned):
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
     ...     existing_entry={"repo": "git+https://x"},
-    ...     overwrite=True,
+    ...     sync=True,
     ... )
-    <ImportAction.OVERWRITE: 'overwrite'>
+    <ImportAction.UPDATE_URL: 'update_url'>
 
-    Overwrite is blocked by pin (only when URL differs):
+    URL update is blocked by pin (only when URL differs):
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
     ...     existing_entry={"repo": "git+https://x", "options": {"pin": True}},
-    ...     overwrite=True,
+    ...     sync=True,
     ... )
     <ImportAction.SKIP_PINNED: 'skip_pinned'>
 
     Non-dict, non-str entries fall back to empty URL (treated as different):
 
     >>> _classify_import_action(
-    ...     incoming_url="git+ssh://x", existing_entry=42, overwrite=False
+    ...     incoming_url="git+ssh://x", existing_entry=42, sync=False
     ... )
     <ImportAction.SKIP_EXISTING: 'skip_existing'>
     """
@@ -161,13 +161,13 @@ def _classify_import_action(
         existing_url = existing_entry.get("url") or existing_entry.get("repo") or ""
     else:
         existing_url = ""
-    # SKIP_UNCHANGED fires before pin check: nothing to overwrite when URL matches
+    # SKIP_UNCHANGED fires before pin check: nothing to update when URL matches
     if existing_url == incoming_url:
         return ImportAction.SKIP_UNCHANGED
-    if overwrite and is_pinned_for_op(existing_entry, "import"):
+    if sync and is_pinned_for_op(existing_entry, "import"):
         return ImportAction.SKIP_PINNED
-    if overwrite:
-        return ImportAction.OVERWRITE
+    if sync:
+        return ImportAction.UPDATE_URL
     return ImportAction.SKIP_EXISTING
 
 
@@ -279,15 +279,14 @@ def _create_shared_parent() -> argparse.ArgumentParser:
         help="Use HTTPS clone URLs instead of SSH (default: SSH)",
     )
     output_group.add_argument(
-        "--overwrite",
-        "--force",
-        dest="overwrite",
+        "--sync",
+        dest="sync",
         action="store_true",
         help=(
-            "Overwrite existing config entries whose URL has changed. "
+            "Sync config with remote: update URLs for existing entries whose "
+            "URL has changed, and remove entries no longer on the remote. "
             "Preserves all metadata (options, remotes, shell_command_after). "
-            "Overwrite respects pinned entries (options.pin.import). "
-            "Repos with options.allow_overwrite: false are also exempt."
+            "Respects pinned entries (options.pin.import)."
         ),
     )
     output_group.add_argument(
@@ -417,7 +416,7 @@ def _run_import(
     flatten_groups: bool = False,
     with_shared: bool = False,
     skip_groups: list[str] | None = None,
-    overwrite: bool = False,
+    sync: bool = False,
 ) -> int:
     """Run the import workflow for a single service.
 
@@ -470,8 +469,8 @@ def _run_import(
         Include projects shared into a group from other namespaces (GitLab only)
     skip_groups : list[str] | None
         Exclude repos whose owner path contains any of these group name segments
-    overwrite : bool
-        Overwrite existing config entries whose URL has changed
+    sync : bool
+        Sync existing config entries whose URL has changed
         (default: False).  Entries with ``options.pin.import`` or
         ``options.allow_overwrite: false`` are exempt.
 
@@ -751,7 +750,7 @@ def _run_import(
     # Add repositories to config
     checked_labels: set[str] = set()
     error_labels: set[str] = set()
-    added_count = overwritten_count = 0
+    added_count = updated_url_count = 0
     skip_existing_count = skip_pinned_count = skip_unchanged_count = 0
 
     for repo in repos:
@@ -829,7 +828,7 @@ def _run_import(
         action = _classify_import_action(
             incoming_url=incoming_url,
             existing_entry=existing_raw,
-            overwrite=overwrite,
+            sync=sync,
         )
 
         if action == ImportAction.ADD:
@@ -838,7 +837,7 @@ def _run_import(
             else:
                 log.info("[DRY-RUN] Would add: %s → %s", repo.name, incoming_url)
             added_count += 1
-        elif action == ImportAction.OVERWRITE:
+        elif action == ImportAction.UPDATE_URL:
             if not dry_run:
                 updated = (
                     copy.deepcopy(existing_raw)
@@ -849,8 +848,8 @@ def _run_import(
                 updated.pop("url", None)
                 raw_config[repo_workspace_label][repo.name] = updated
             else:
-                log.info("[DRY-RUN] Would overwrite: %s", repo.name)
-            overwritten_count += 1
+                log.info("[DRY-RUN] Would update URL: %s", repo.name)
+            updated_url_count += 1
         elif action == ImportAction.SKIP_UNCHANGED:
             skip_unchanged_count += 1
         elif action == ImportAction.SKIP_EXISTING:
@@ -876,7 +875,7 @@ def _run_import(
         )
         return 0
 
-    if added_count == 0 and overwritten_count == 0:
+    if added_count == 0 and updated_url_count == 0:
         if skip_existing_count == 0 and skip_pinned_count == 0:
             log.info(
                 "%s All repositories already exist in config. Nothing to add.",
@@ -890,7 +889,8 @@ def _run_import(
             )
         if skip_existing_count > 0:
             log.info(
-                "%s Skipped %s existing repositories (use --overwrite to update URLs)",
+                "%s Skipped %s existing repositories"
+                " (use --sync to update changed URLs)",
                 colors.warning("!"),
                 colors.info(str(skip_existing_count)),
             )
@@ -911,11 +911,11 @@ def _run_import(
                 colors.info(str(added_count)),
                 colors.muted(display_config_path),
             )
-        if overwritten_count > 0:
+        if updated_url_count > 0:
             log.info(
-                "%s Overwrote %s existing repositories in %s",
+                "%s Updated %s repository URLs in %s",
                 colors.success("✓"),
-                colors.info(str(overwritten_count)),
+                colors.info(str(updated_url_count)),
                 colors.muted(display_config_path),
             )
         if skip_unchanged_count > 0:
@@ -926,7 +926,8 @@ def _run_import(
             )
         if skip_existing_count > 0:
             log.info(
-                "%s Skipped %s existing repositories (use --overwrite to update URLs)",
+                "%s Skipped %s existing repositories"
+                " (use --sync to update changed URLs)",
                 colors.warning("!"),
                 colors.info(str(skip_existing_count)),
             )

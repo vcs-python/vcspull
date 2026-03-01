@@ -2446,36 +2446,36 @@ class ImportActionFixture(t.NamedTuple):
     test_id: str
     existing_entry: t.Any
     incoming_url: str
-    overwrite: bool
+    sync: bool
     expected_action: ImportAction
 
 
 IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
-    ImportActionFixture("add-no-overwrite", None, _SSH, False, ImportAction.ADD),
-    ImportActionFixture("add-with-overwrite", None, _SSH, True, ImportAction.ADD),
+    ImportActionFixture("add-no-sync", None, _SSH, False, ImportAction.ADD),
+    ImportActionFixture("add-with-sync", None, _SSH, True, ImportAction.ADD),
     ImportActionFixture(
-        "skip-unchanged-no-overwrite",
+        "skip-unchanged-no-sync",
         {"repo": _SSH},
         _SSH,
         False,
         ImportAction.SKIP_UNCHANGED,
     ),
     ImportActionFixture(
-        "skip-unchanged-with-overwrite",
+        "skip-unchanged-with-sync",
         {"repo": _SSH},
         _SSH,
         True,
         ImportAction.SKIP_UNCHANGED,
     ),
     ImportActionFixture(
-        "skip-unchanged-pinned-no-overwrite",
+        "skip-unchanged-pinned-no-sync",
         {"repo": _SSH, "options": {"pin": True}},
         _SSH,
         False,
         ImportAction.SKIP_UNCHANGED,
     ),
     ImportActionFixture(
-        "skip-unchanged-pinned-with-overwrite",
+        "skip-unchanged-pinned-with-sync",
         {"repo": _SSH, "options": {"pin": True}},
         _SSH,
         True,
@@ -2489,18 +2489,18 @@ IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
         ImportAction.SKIP_UNCHANGED,
     ),
     ImportActionFixture(
-        "skip-existing-no-overwrite",
+        "skip-existing-no-sync",
         {"repo": _HTTPS},
         _SSH,
         False,
         ImportAction.SKIP_EXISTING,
     ),
     ImportActionFixture(
-        "overwrite-with-overwrite",
+        "update-url-with-sync",
         {"repo": _HTTPS},
         _SSH,
         True,
-        ImportAction.OVERWRITE,
+        ImportAction.UPDATE_URL,
     ),
     ImportActionFixture(
         "skip-pinned-global-pin",
@@ -2528,7 +2528,7 @@ IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
         {"repo": _HTTPS, "options": {"pin": {"add": True}}},
         _SSH,
         True,
-        ImportAction.OVERWRITE,
+        ImportAction.UPDATE_URL,
     ),
     ImportActionFixture(
         "str-entry-skip-existing",
@@ -2538,11 +2538,11 @@ IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
         ImportAction.SKIP_EXISTING,
     ),
     ImportActionFixture(
-        "str-entry-overwrite",
+        "str-entry-update-url",
         _HTTPS,
         _SSH,
         True,
-        ImportAction.OVERWRITE,
+        ImportAction.UPDATE_URL,
     ),
     ImportActionFixture(
         "non-dict-non-str-entry",
@@ -2563,29 +2563,29 @@ def test_classify_import_action(
     test_id: str,
     existing_entry: dict[str, t.Any] | str | None,
     incoming_url: str,
-    overwrite: bool,
+    sync: bool,
     expected_action: ImportAction,
 ) -> None:
     """Test _classify_import_action covers all permutations."""
     action = _classify_import_action(
         incoming_url=incoming_url,
         existing_entry=existing_entry,
-        overwrite=overwrite,
+        sync=sync,
     )
     assert action == expected_action
 
 
 # ---------------------------------------------------------------------------
-# --overwrite integration tests
+# --sync integration tests
 # ---------------------------------------------------------------------------
 
 
-def test_import_overwrite_updates_url(
+def test_import_sync_updates_url(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test --overwrite updates an existing entry when URL has changed."""
+    """Test --sync updates an existing entry when URL has changed."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -2613,7 +2613,7 @@ def test_import_overwrite_updates_url(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=True,
+        sync=True,
     )
 
     from vcspull._internal.config_reader import ConfigReader
@@ -2621,15 +2621,15 @@ def test_import_overwrite_updates_url(
     final_config = ConfigReader._from_file(config_file)
     assert final_config is not None
     assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
-    assert "Overwrote" in caplog.text
+    assert "Updated" in caplog.text
 
 
-def test_import_overwrite_updates_url_json(
+def test_import_sync_updates_url_json(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test --overwrite updates an existing entry in a JSON config file."""
+    """Test --sync updates an existing entry in a JSON config file."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -2658,7 +2658,7 @@ def test_import_overwrite_updates_url_json(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=True,
+        sync=True,
     )
 
     from vcspull._internal.config_reader import ConfigReader
@@ -2666,15 +2666,15 @@ def test_import_overwrite_updates_url_json(
     final_config = ConfigReader._from_file(config_file)
     assert final_config is not None
     assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
-    assert "Overwrote" in caplog.text
+    assert "Updated" in caplog.text
 
 
-def test_import_overwrite_string_entry_to_dict(
+def test_import_sync_string_entry_to_dict(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test --overwrite converts a string-format config entry to dict format."""
+    """Test --sync converts a string-format config entry to dict format."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -2703,7 +2703,7 @@ def test_import_overwrite_string_entry_to_dict(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=True,
+        sync=True,
     )
 
     from vcspull._internal.config_reader import ConfigReader
@@ -2712,15 +2712,15 @@ def test_import_overwrite_string_entry_to_dict(
     assert final_config is not None
     # String entry should be converted to dict format with new URL
     assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
-    assert "Overwrote" in caplog.text
+    assert "Updated" in caplog.text
 
 
-def test_import_no_overwrite_skips_changed_url(
+def test_import_no_sync_skips_changed_url(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Without --overwrite, changed URLs are silently skipped."""
+    """Without --sync, changed URLs are silently skipped."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -2748,10 +2748,10 @@ def test_import_no_overwrite_skips_changed_url(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=False,
+        sync=False,
     )
 
-    assert "use --overwrite" in caplog.text
+    assert "use --sync" in caplog.text
 
     from vcspull._internal.config_reader import ConfigReader
 
@@ -2760,12 +2760,12 @@ def test_import_no_overwrite_skips_changed_url(
     assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
 
 
-def test_import_overwrite_respects_pin_true(
+def test_import_sync_respects_pin_true(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """--overwrite must not overwrite an entry with options.pin: true."""
+    """--sync must not update URL for an entry with options.pin: true."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -2796,7 +2796,7 @@ def test_import_overwrite_respects_pin_true(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=True,
+        sync=True,
     )
 
     from vcspull._internal.config_reader import ConfigReader
@@ -2808,12 +2808,12 @@ def test_import_overwrite_respects_pin_true(
     assert "Skipping pinned" in caplog.text
 
 
-def test_import_overwrite_skip_pinned_shows_pin_reason(
+def test_import_sync_skip_pinned_shows_pin_reason(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """--overwrite skip log must include pin_reason when set."""
+    """--sync skip log must include pin_reason when set."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -2854,19 +2854,19 @@ def test_import_overwrite_skip_pinned_shows_pin_reason(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=True,
+        sync=True,
     )
 
     assert "Skipping pinned" in caplog.text
     assert "pinned to company fork" in caplog.text
 
 
-def test_import_overwrite_respects_allow_overwrite_false(
+def test_import_sync_respects_allow_overwrite_false(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """--overwrite must not overwrite an entry with options.allow_overwrite: false."""
+    """--sync must not update URL for an entry with options.allow_overwrite: false."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -2904,7 +2904,7 @@ def test_import_overwrite_respects_allow_overwrite_false(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=True,
+        sync=True,
     )
 
     from vcspull._internal.config_reader import ConfigReader
@@ -2915,11 +2915,11 @@ def test_import_overwrite_respects_allow_overwrite_false(
     assert "Skipping pinned" in caplog.text
 
 
-def test_import_overwrite_preserves_metadata(
+def test_import_sync_preserves_metadata(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """--overwrite preserves existing metadata (options, etc.) when updating URL."""
+    """--sync preserves existing metadata (options, etc.) when updating URL."""
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
     workspace.mkdir()
@@ -2956,7 +2956,7 @@ def test_import_overwrite_preserves_metadata(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=True,
+        sync=True,
     )
 
     from vcspull._internal.config_reader import ConfigReader
@@ -2969,12 +2969,12 @@ def test_import_overwrite_preserves_metadata(
     assert entry.get("options", {}).get("pin", {}).get("fmt") is True
 
 
-def test_import_overwrite_saves_config_when_only_overwrites(
+def test_import_sync_saves_config_when_only_url_updates(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Config must be saved when overwritten_count > 0 even if added_count == 0."""
+    """Config must be saved when updated_url_count > 0 even if added_count == 0."""
     caplog.set_level(logging.INFO)
     monkeypatch.setenv("HOME", str(tmp_path))
     workspace = tmp_path / "repos"
@@ -3002,26 +3002,23 @@ def test_import_overwrite_saves_config_when_only_overwrites(
         output_json=False,
         output_ndjson=False,
         color="never",
-        overwrite=True,
+        sync=True,
     )
 
     # Verify the URL was updated (content check is more reliable than mtime on
     # filesystems with coarse timestamp granularity, e.g. NTFS on WSL2).
     content = config_file.read_text(encoding="utf-8")
-    assert _SSH in content, "Config must be saved with SSH URL after overwrite"
+    assert _SSH in content, "Config must be saved with SSH URL after sync"
     assert _HTTPS not in content, "Old HTTPS URL must be replaced"
 
 
-def test_import_parser_has_overwrite_flag() -> None:
-    """The shared parent parser must expose --overwrite / --force."""
+def test_import_parser_has_sync_flag() -> None:
+    """The shared parent parser must expose --sync."""
     from vcspull.cli.import_cmd._common import _create_shared_parent
 
     parser = argparse.ArgumentParser(parents=[_create_shared_parent()])
-    args = parser.parse_args(["--overwrite"])
-    assert args.overwrite is True
+    args = parser.parse_args(["--sync"])
+    assert args.sync is True
 
-    args2 = parser.parse_args(["--force"])
-    assert args2.overwrite is True
-
-    args3 = parser.parse_args([])
-    assert args3.overwrite is False
+    args2 = parser.parse_args([])
+    assert args2.sync is False

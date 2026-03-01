@@ -200,14 +200,14 @@ $ vcspull import gh myuser \
     --yes
 ```
 
-## Updating existing entries
+## Syncing existing entries
 
 By default, repositories that already exist in your configuration are
 **skipped** — even if the remote URL has changed. This prevents accidental
-overwrites when re-importing from a service.
+updates when re-importing from a service.
 
 For example, suppose your team migrated from HTTPS to SSH. Without
-`--overwrite`, the old HTTPS URLs stay in your config:
+`--sync`, the old HTTPS URLs stay in your config:
 
 ```vcspull-console
 $ vcspull import gh myorg \
@@ -224,17 +224,17 @@ Import 1 new repository to ~/.vcspull.yaml? [y/N]: y
 ! Skipped 7 existing repositories
 ```
 
-Pass `--overwrite` (or its alias `--force`) to replace the URL of existing
-entries:
+Pass `--sync` to update changed URLs and remove entries no longer on the
+remote:
 
 ```console
 $ vcspull import gh myorg \
     --mode org \
     --workspace ~/code/ \
-    --overwrite
+    --sync
 ```
 
-When overwriting, vcspull replaces only the `repo` URL. All other metadata is
+When syncing, vcspull replaces only the `repo` URL. All other metadata is
 preserved:
 
 - `options` (including pins)
@@ -254,7 +254,7 @@ For example, given this config before the import:
       - make setup
 ```
 
-After `vcspull import gh myorg --workspace ~/code/ --overwrite`, the `repo` URL
+After `vcspull import gh myorg --workspace ~/code/ --sync`, the `repo` URL
 is updated to SSH while `remotes` and `shell_command_after` are kept:
 
 ```yaml
@@ -269,8 +269,8 @@ is updated to SSH while `remotes` and `shell_command_after` are kept:
 
 ### Pin-aware behavior
 
-Repositories protected by a pin are **exempt** from `--overwrite`. The
-following configurations all prevent an import overwrite:
+Repositories protected by a pin are **exempt** from `--sync`. The
+following configurations all prevent a sync URL update:
 
 - `options.pin: true` — blocks all operations
 - `options.pin.import: true` — blocks import only
@@ -283,7 +283,7 @@ Pinned repositories are skipped with an informational message showing the
 $ vcspull import gh myorg \
     --mode org \
     --workspace ~/code/ \
-    --overwrite
+    --sync
 → Fetching repositories from GitHub...
 ✓ Found 8 repositories
   ↻ api-server (URL changed)
@@ -294,7 +294,7 @@ Import 7 repositories to ~/.vcspull.yaml? [y/N]: y
 ! Skipped 1 pinned repository
 ```
 
-For example, this entry cannot be overwritten regardless of `--overwrite`:
+For example, this entry cannot be updated regardless of `--sync`:
 
 ```yaml
 ~/code/:

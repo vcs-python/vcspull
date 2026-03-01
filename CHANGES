@@ -35,24 +35,24 @@ _Notes on upcoming releases will be added here_
 
 ### New features
 
-#### `vcspull import`: Add `--overwrite` / `--force` to update changed URLs (#520)
+#### `vcspull import`: Add `--sync` to update changed URLs (#520)
 
 Previously, `vcspull import` skipped any repository that was already present in
 the config, even when the remote URL had changed (e.g. after an HTTPS → SSH
 migration or a namespace move). The only workaround was to delete the config
 entry and re-run.
 
-Pass `--overwrite` (or the shorter `--force`) to update changed URLs in-place:
+Pass `--sync` to update changed URLs in-place:
 
 ```console
 $ vcspull import gh myorg \
     --mode org \
     --workspace ~/code/ \
-    --overwrite
+    --sync
 ```
 
 Existing entry metadata — `options`, `remotes`, `shell_command_after`,
-`worktrees` — is preserved on overwrite. Only the `repo` URL field is replaced.
+`worktrees` — is preserved on sync. Only the `repo` URL field is replaced.
 Repos whose URL has not changed are silently skipped regardless of the flag.
 
 The flag is available on all six import providers: `github` / `gh`, `gitlab` /
@@ -83,7 +83,7 @@ Pin only specific operations:
     repo: git+git@github.com:me/other.git
     options:
       pin:
-        import: true    # --overwrite cannot replace this URL
+        import: true    # --sync cannot replace this URL
         fmt: true       # vcspull fmt preserves the entry verbatim
       pin_reason: "pinned for import and fmt"
 ```

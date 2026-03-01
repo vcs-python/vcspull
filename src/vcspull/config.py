@@ -820,7 +820,8 @@ def is_pinned_for_op(entry: t.Any, op: str) -> bool:
     >>> is_pinned_for_op(entry, "fmt")
     False
 
-    ``allow_overwrite: false`` is shorthand for ``pin: {import: true}``:
+    ``allow_overwrite: false`` is shorthand for ``pin: {import: true}``
+    (guards against ``--sync``):
 
     >>> entry2 = {"repo": "git+x", "options": {"allow_overwrite": False}}
     >>> is_pinned_for_op(entry2, "import")
