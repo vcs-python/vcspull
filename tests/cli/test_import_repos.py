@@ -3783,6 +3783,208 @@ def test_import_dry_run_shows_summary_counts(
     assert "Dry run complete" in caplog.text
 
 
+# ---------------------------------------------------------------------------
+# Collision / cross-source prune tests
+# ---------------------------------------------------------------------------
+
+
+def test_import_sync_prune_same_name_different_sources(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Pruning source A leaves source B entry with the same repo name intact."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace_a = tmp_path / "code"
+    workspace_a.mkdir()
+    workspace_b = tmp_path / "work"
+    workspace_b.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Two workspaces, each with "shared-name" from different sources
+    save_config_yaml(
+        config_file,
+        {
+            "~/code/": {
+                "shared-name": {
+                    "repo": "git+git@github.com:org-a/shared-name.git",
+                    "metadata": {"imported_from": "github:org-a"},
+                },
+            },
+            "~/work/": {
+                "shared-name": {
+                    "repo": "git+git@github.com:org-b/shared-name.git",
+                    "metadata": {"imported_from": "github:org-b"},
+                },
+            },
+        },
+    )
+
+    # Sync with org-a, but org-a no longer has "shared-name" → prune from org-a
+    importer = MockImporter(repos=[_make_repo("other-repo", owner="org-a")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="org-a",
+        workspace=str(workspace_a),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:org-a",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+
+    # org-a's shared-name should be pruned
+    assert "shared-name" not in final_config.get("~/code/", {})
+    # org-b's shared-name should be untouched
+    assert "shared-name" in final_config["~/work/"]
+    entry_b = final_config["~/work/"]["shared-name"]
+    assert entry_b["metadata"]["imported_from"] == "github:org-b"
+
+
+def test_import_prune_cross_workspace_same_name(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Pruning one workspace leaves the other workspace's same-name entry intact."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace_code = tmp_path / "code"
+    workspace_code.mkdir()
+    workspace_work = tmp_path / "work"
+    workspace_work.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Both workspaces have "myrepo" with different import tags
+    save_config_yaml(
+        config_file,
+        {
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:user-a/myrepo.git",
+                    "metadata": {"imported_from": "github:user-a"},
+                },
+            },
+            "~/work/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:user-b/myrepo.git",
+                    "metadata": {"imported_from": "github:user-b"},
+                },
+            },
+        },
+    )
+
+    # Prune user-a: remote has other-repo but not myrepo → myrepo stale
+    importer = MockImporter(repos=[_make_repo("other-repo", owner="user-a")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="user-a",
+        workspace=str(workspace_code),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:user-a",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+
+    # user-a's entry should be pruned
+    assert "myrepo" not in final_config.get("~/code/", {})
+    # user-b's entry should be untouched
+    assert "myrepo" in final_config["~/work/"]
+    assert (
+        final_config["~/work/"]["myrepo"]["metadata"]["imported_from"]
+        == "github:user-b"
+    )
+
+
+def test_import_sync_same_name_from_remote_not_pruned(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A repo matching fetched_repo_names is NOT pruned even if URL changed."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing repo with old URL, tagged from same source
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo-x": {
+                    "repo": "git+git@github.com:testuser/repo-x-OLD.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+        },
+    )
+
+    # Remote still has "repo-x" (new URL) → UPDATE_URL, NOT prune
+    importer = MockImporter(repos=[_make_repo("repo-x")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+
+    # repo-x should still exist (not pruned) with updated URL
+    assert "repo-x" in final_config["~/repos/"]
+    entry = final_config["~/repos/"]["repo-x"]
+    assert entry["repo"] == _SSH.replace("repo1", "repo-x")
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
 def test_import_parser_has_prune_flag() -> None:
     """The shared parent parser must expose --prune."""
     from vcspull.cli.import_cmd._common import _create_shared_parent
