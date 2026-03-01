@@ -14,7 +14,7 @@ import pathlib
 import sys
 import typing as t
 
-from vcspull._internal.config_reader import ConfigReader
+from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull._internal.remotes import (
     AuthenticationError,
@@ -31,6 +31,7 @@ from vcspull.config import (
     find_home_config_files,
     get_pin_reason,
     is_pinned_for_op,
+    merge_duplicate_workspace_roots,
     save_config,
     workspace_root_label,
 )
@@ -685,7 +686,17 @@ def _run_import(
     raw_config: dict[str, t.Any]
     if config_file_path.exists():
         try:
-            raw_config = ConfigReader._from_file(config_file_path) or {}
+            raw_config, duplicate_roots, _top_level_items = (
+                DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
+            )
+            raw_config = raw_config or {}
+        except TypeError:
+            log.error(
+                "%s Config file is not a valid mapping: %s",
+                colors.error("✗"),
+                display_config_path,
+            )
+            return 1
         except Exception:
             log.exception("Error loading config file")
             return 1
@@ -697,6 +708,13 @@ def _run_import(
                 display_config_path,
             )
             return 1
+
+        # Merge duplicate workspace root sections so repos from all
+        # occurrences are preserved (PyYAML only keeps the last key).
+        if duplicate_roots:
+            raw_config, _conflicts, _changes, _details = (
+                merge_duplicate_workspace_roots(raw_config, duplicate_roots)
+            )
     else:
         raw_config = {}
 

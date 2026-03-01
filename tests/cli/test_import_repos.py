@@ -922,6 +922,69 @@ def test_import_repos_config_load_error(
     assert "Error loading config" in caplog.text
 
 
+def test_import_repos_duplicate_workspace_roots_preserved(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _run_import preserves repos from duplicate workspace root sections.
+
+    PyYAML's default SafeLoader silently drops duplicate keys, so a config
+    with two ``~/code/`` sections would lose repos from the first section.
+    Using DuplicateAwareConfigReader + merge_duplicate_workspace_roots
+    ensures all repos are preserved.
+    """
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    config_file = tmp_path / ".vcspull.yaml"
+    # Manually write duplicate workspace roots (can't use yaml.dump for this)
+    config_file.write_text(
+        "~/code/:\n"
+        "  existing-repo-a:\n"
+        "    repo: git+https://github.com/user/existing-repo-a.git\n"
+        "~/code/:\n"
+        "  existing-repo-b:\n"
+        "    repo: git+https://github.com/user/existing-repo-b.git\n",
+        encoding="utf-8",
+    )
+
+    # Import a new repo into a different workspace
+    importer = MockImporter(repos=[_make_repo("new-repo")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+
+    # Reload and verify both original repos are still present
+    saved = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+    assert "existing-repo-a" in saved["~/code/"]
+    assert "existing-repo-b" in saved["~/code/"]
+
+
 def test_import_no_args_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
     """Test that 'vcspull import' without args shows help."""
     from vcspull.cli import cli
