@@ -377,7 +377,8 @@ def _create_shared_parent() -> argparse.ArgumentParser:
         help=(
             "Remove config entries tagged by a previous import that are "
             "no longer on the remote. Does not update URLs for existing "
-            "entries (use --sync for that). Respects pinned entries."
+            "entries (use --sync for that). Implied by --sync. "
+            "Respects pinned entries."
         ),
     )
     output_group.add_argument(
