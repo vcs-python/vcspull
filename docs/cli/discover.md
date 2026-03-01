@@ -227,10 +227,33 @@ You can choose to skip or overwrite the existing entry.
 
 ## Locked entries
 
-Repositories locked for the `discover` operation (`options.lock: true` or
-`options.lock.discover: true`) are silently skipped during scanning. A debug-level
-log message is emitted, so pass `-v` or `--log-level debug` to see which entries
-were skipped due to locks. See {ref}`config-lock` for full lock configuration.
+Repositories locked for the `discover` operation are silently skipped during
+scanning. For example, given this configuration:
+
+```yaml
+~/code/:
+  internal-fork:
+    repo: "git+git@github.com:myorg/internal-fork.git"
+    options:
+      lock:
+        discover: true
+      lock_reason: "pinned to company fork — update manually"
+```
+
+When `vcspull discover` encounters `internal-fork` on disk, it groups it with
+existing entries and does not prompt for it. A debug-level log message is
+emitted, so pass `--log-level debug` to see which entries were skipped due to
+locks:
+
+```console
+$ vcspull discover ~/code \
+    --recursive \
+    --log-level debug
+```
+
+Both `options.lock: true` (global) and `options.lock.discover: true`
+(per-operation) block discovery. See {ref}`config-lock` for full lock
+configuration.
 
 ## Migration from vcspull import --scan
 

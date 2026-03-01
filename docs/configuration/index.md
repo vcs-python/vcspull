@@ -116,27 +116,56 @@ Repositories can be **locked** to prevent automated commands from modifying thei
 configuration entries. This is useful for pinned forks, company mirrors, or any
 repository whose URL or config shape you manage by hand.
 
+Here is a configuration showing all three lock forms side by side:
+
+```yaml
+~/code/:
+  # Global lock — blocks ALL operations (import, add, discover, fmt, merge)
+  internal-fork:
+    repo: "git+git@github.com:myorg/internal-fork.git"
+    options:
+      lock: true
+      lock_reason: "pinned to company fork — update manually"
+
+  # Per-operation lock — only import and fmt are blocked
+  my-framework:
+    repo: "git+git@github.com:myorg/my-framework.git"
+    options:
+      lock:
+        import: true
+        fmt: true
+      lock_reason: "URL managed manually; formatting intentional"
+
+  # Shorthand — equivalent to lock: {import: true}
+  stable-dep:
+    repo: "git+https://github.com/upstream/stable-dep.git"
+    options:
+      allow_overwrite: false
+```
+
 ### Lock all operations
 
-Set `lock: true` inside `options` to block every mutation command:
+Set `lock: true` inside `options` to block every mutation command. This is
+the simplest form — no automated vcspull command can modify this entry:
 
 ```yaml
 ~/code/:
   internal-fork:
-    repo: "git+ssh://git@corp.example.com/team/internal-fork.git"
+    repo: "git+git@github.com:myorg/internal-fork.git"
     options:
       lock: true
-      lock_reason: "pinned to company mirror"
+      lock_reason: "pinned to company fork — update manually"
 ```
 
 ### Lock specific operations
 
-Pass a mapping instead of a boolean to lock only the operations you care about:
+Pass a mapping instead of a boolean to lock only the operations you care about.
+Unlisted keys default to `false` (unlocked):
 
 ```yaml
 ~/code/:
   my-framework:
-    repo: "git+https://github.com/myorg/my-framework.git"
+    repo: "git+git@github.com:myorg/my-framework.git"
     options:
       lock:
         import: true
@@ -180,6 +209,16 @@ Available lock keys:
   `lock: true` on its own.
 - **Advisory** — locks prevent automated commands from modifying the entry.
   You can still edit the configuration file by hand at any time.
+
+Each command handles locks differently:
+
+| Command | Lock effect | Log level |
+|---------|-------------|-----------|
+| `vcspull import --overwrite` | Skips URL replacement | info |
+| `vcspull add` | Skips with warning | warning |
+| `vcspull discover` | Silently skips | debug |
+| `vcspull fmt` | Preserves entry verbatim | (silent) |
+| Workspace merge | Locked entry wins conflict | info |
 
 ```{note}
 The `lock` and `lock_reason` fields described here live under `options` and

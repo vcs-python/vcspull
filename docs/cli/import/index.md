@@ -206,8 +206,26 @@ By default, repositories that already exist in your configuration are
 **skipped** — even if the remote URL has changed. This prevents accidental
 overwrites when re-importing from a service.
 
-To replace the URL of existing entries, pass `--overwrite` (or its alias
-`--force`):
+For example, suppose your team migrated from HTTPS to SSH. Without
+`--overwrite`, the old HTTPS URLs stay in your config:
+
+```vcspull-console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/
+→ Fetching repositories from GitHub...
+✓ Found 8 repositories
+  + new-project [Python]
+  ⊘ api-server (already in config)
+  ⊘ web-frontend (already in config)
+  ... and 5 more
+Import 1 new repository to ~/.vcspull.yaml? [y/N]: y
+✓ Added 1 repository to ~/.vcspull.yaml
+! Skipped 7 existing repositories
+```
+
+Pass `--overwrite` (or its alias `--force`) to replace the URL of existing
+entries:
 
 ```console
 $ vcspull import gh myorg \
@@ -224,17 +242,59 @@ preserved:
 - `shell_command_after`
 - `worktrees`
 
+For example, given this config before the import:
+
+```yaml
+~/code/:
+  api-server:
+    repo: "git+https://github.com/myorg/api-server.git"
+    remotes:
+      upstream: "git+https://github.com/upstream/api-server.git"
+    shell_command_after:
+      - make setup
+```
+
+After `vcspull import gh myorg --workspace ~/code/ --overwrite`, the `repo` URL
+is updated to SSH while `remotes` and `shell_command_after` are kept:
+
+```yaml
+~/code/:
+  api-server:
+    repo: "git+git@github.com:myorg/api-server.git"
+    remotes:
+      upstream: "git+https://github.com/upstream/api-server.git"
+    shell_command_after:
+      - make setup
+```
+
 ### Lock-aware behavior
 
 Repositories protected by a lock are **exempt** from `--overwrite`. The
 following configurations all prevent an import overwrite:
 
-- `options.lock: true`
-- `options.lock.import: true`
-- `options.allow_overwrite: false`
+- `options.lock: true` — blocks all operations
+- `options.lock.import: true` — blocks import only
+- `options.allow_overwrite: false` — shorthand for `lock: {import: true}`
 
 Locked repositories are skipped with an informational message showing the
-`lock_reason` (if set). For example, this entry cannot be overwritten:
+`lock_reason` (if set):
+
+```vcspull-console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --overwrite
+→ Fetching repositories from GitHub...
+✓ Found 8 repositories
+  ↻ api-server (URL changed)
+  ⊘ internal-fork (pinned to company mirror)
+  ... and 6 more
+Import 7 repositories to ~/.vcspull.yaml? [y/N]: y
+✓ Updated 6 repositories in ~/.vcspull.yaml
+! Skipped 1 locked repository
+```
+
+For example, this entry cannot be overwritten regardless of `--overwrite`:
 
 ```yaml
 ~/code/:
@@ -243,7 +303,7 @@ Locked repositories are skipped with an informational message showing the
     options:
       lock:
         import: true
-      lock_reason: "pinned to company mirror"
+      lock_reason: "pinned to company mirror — update manually"
 ```
 
 See {ref}`config-lock` for full lock configuration.

@@ -17,14 +17,14 @@
         url: git+git@github.com:tony/tmux-config.git
 ~/pinned/:
     # Global lock — no automated command can modify this entry
-    company-fork:
-        repo: git+ssh://git@corp.example.com/team/company-fork.git
+    internal-fork:
+        repo: git+git@github.com:myorg/internal-fork.git
         options:
             lock: true
-            lock_reason: "pinned to company mirror"
+            lock_reason: "pinned to company fork — update manually"
     # Per-operation lock — only import and fmt are blocked
     my-framework:
-        repo: git+https://github.com/myorg/my-framework.git
+        repo: git+git@github.com:myorg/my-framework.git
         options:
             lock:
                 import: true
