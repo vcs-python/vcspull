@@ -89,5 +89,6 @@ def handle_forgejo(args: argparse.Namespace) -> int:
         color=getattr(args, "color", "auto"),
         use_https=getattr(args, "use_https", False),
         sync=getattr(args, "sync", False),
+        prune=getattr(args, "prune", False),
         import_source=f"forgejo:{args.target}",
     )

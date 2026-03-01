@@ -3402,3 +3402,284 @@ def test_import_sync_updates_provenance_tag(
     entry = final_config["~/repos/"]["repo1"]
     assert entry["repo"] == _SSH
     assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+# ---------------------------------------------------------------------------
+# --prune standalone flag tests
+# ---------------------------------------------------------------------------
+
+
+def test_import_prune_removes_stale_tagged_repo(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune alone removes stale tagged entry."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "stale-repo": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "stale-repo" not in final_config["~/repos/"]
+    assert "repo1" in final_config["~/repos/"]
+    assert "Pruned 1 repositories" in caplog.text
+
+
+def test_import_prune_does_not_update_urls(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--prune alone does NOT update a changed URL."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _HTTPS}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # URL should NOT have changed (prune doesn't update URLs)
+    assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
+
+
+def test_import_prune_preserves_untagged_repo(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--prune does not remove manually added repos (no imported_from tag)."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "manual-repo": {"repo": "git+https://example.com/manual.git"},
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "manual-repo" in final_config["~/repos/"]
+
+
+def test_import_prune_respects_pin(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune does not prune pinned repos."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "pinned-repo": {
+                    "repo": _SSH,
+                    "options": {"pin": True},
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "pinned-repo" in final_config["~/repos/"]
+    assert "Skipping pruning pinned repo" in caplog.text
+
+
+def test_import_prune_dry_run(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune --dry-run previews prune candidates without deleting them."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "stale-repo": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    assert "Would prune: stale-repo" in caplog.text
+
+    # Config should NOT have been modified (dry-run)
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "stale-repo" in final_config["~/repos/"]
+
+
+def test_import_parser_has_prune_flag() -> None:
+    """The shared parent parser must expose --prune."""
+    from vcspull.cli.import_cmd._common import _create_shared_parent
+
+    parser = argparse.ArgumentParser(parents=[_create_shared_parent()])
+    args = parser.parse_args(["--prune"])
+    assert args.prune is True
+
+    args2 = parser.parse_args([])
+    assert args2.prune is False

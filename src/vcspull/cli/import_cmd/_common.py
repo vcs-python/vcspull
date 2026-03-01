@@ -368,6 +368,16 @@ def _create_shared_parent() -> argparse.ArgumentParser:
         ),
     )
     output_group.add_argument(
+        "--prune",
+        dest="prune",
+        action="store_true",
+        help=(
+            "Remove config entries tagged by a previous import that are "
+            "no longer on the remote. Does not update URLs for existing "
+            "entries (use --sync for that). Respects pinned entries."
+        ),
+    )
+    output_group.add_argument(
         "--color",
         choices=["auto", "always", "never"],
         default="auto",
@@ -495,6 +505,7 @@ def _run_import(
     with_shared: bool = False,
     skip_groups: list[str] | None = None,
     sync: bool = False,
+    prune: bool = False,
     import_source: str | None = None,
 ) -> int:
     """Run the import workflow for a single service.
@@ -552,6 +563,10 @@ def _run_import(
         Sync existing config entries whose URL has changed
         (default: False).  Entries with ``options.pin.import`` or
         ``options.allow_overwrite: false`` are exempt.
+    prune : bool
+        Remove config entries tagged by a previous import that are
+        no longer on the remote (default: False).  Does not update
+        URLs for existing entries; use ``sync`` for that.
     import_source : str | None
         Provenance tag for imported repos, e.g. ``"github:myorg"``.
         When provided, repos are tagged with ``metadata.imported_from``
@@ -955,7 +970,7 @@ def _run_import(
 
     # Prune stale entries tagged by previous imports from this source
     pruned_count = 0
-    if sync and import_source:
+    if (sync or prune) and import_source:
         fetched_repo_names = {repo.name for repo in repos}
         for _ws_label, ws_entries in list(raw_config.items()):
             if not isinstance(ws_entries, dict):
