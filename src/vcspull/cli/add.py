@@ -16,11 +16,11 @@ from colorama import Fore, Style
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
-    _get_lock_reason,
-    _is_locked_for_op,
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
+    get_lock_reason,
+    is_locked_for_op,
     merge_duplicate_workspace_roots,
     save_config,
     save_config_json,
@@ -75,7 +75,7 @@ def _classify_add_action(existing_entry: t.Any) -> AddAction:
     """
     if existing_entry is None:
         return AddAction.ADD
-    if _is_locked_for_op(existing_entry, "add"):
+    if is_locked_for_op(existing_entry, "add"):
         return AddAction.SKIP_LOCKED
     return AddAction.SKIP_EXISTING
 
@@ -653,7 +653,7 @@ def add_repo(
         add_action = _classify_add_action(existing_config)
 
         if add_action == AddAction.SKIP_LOCKED:
-            reason = _get_lock_reason(existing_config)
+            reason = get_lock_reason(existing_config)
             log.warning(
                 "Repository '%s' is locked%s — skipping",
                 name,
@@ -814,7 +814,7 @@ def add_repo(
     no_merge_add_action = _classify_add_action(existing_config)
 
     if no_merge_add_action == AddAction.SKIP_LOCKED:
-        reason = _get_lock_reason(existing_config)
+        reason = get_lock_reason(existing_config)
         log.warning(
             "Repository '%s' is locked%s — skipping",
             name,

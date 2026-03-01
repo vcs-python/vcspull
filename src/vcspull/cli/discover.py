@@ -16,11 +16,11 @@ from colorama import Fore, Style
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
-    _get_lock_reason,
-    _is_locked_for_op,
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
+    get_lock_reason,
+    is_locked_for_op,
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
     save_config,
@@ -66,7 +66,7 @@ def _classify_discover_action(existing_entry: t.Any) -> DiscoverAction:
     """
     if existing_entry is None:
         return DiscoverAction.ADD
-    if _is_locked_for_op(existing_entry, "discover"):
+    if is_locked_for_op(existing_entry, "discover"):
         return DiscoverAction.SKIP_LOCKED
     return DiscoverAction.SKIP_EXISTING
 
@@ -577,7 +577,7 @@ def discover_repos(
             DiscoverAction.SKIP_LOCKED,
         }:
             if discover_action == DiscoverAction.SKIP_LOCKED:
-                reason = _get_lock_reason(existing_entry)
+                reason = get_lock_reason(existing_entry)
                 log.debug(
                     "Skipping locked repo '%s'%s",
                     name,

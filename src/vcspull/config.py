@@ -788,7 +788,7 @@ def save_config_yaml_with_items(
     _atomic_write(config_file_path, yaml_content)
 
 
-def _is_locked_for_op(entry: t.Any, op: str) -> bool:
+def is_locked_for_op(entry: t.Any, op: str) -> bool:
     """Return ``True`` if the repo config entry is locked for *op*.
 
     Parameters
@@ -803,42 +803,42 @@ def _is_locked_for_op(entry: t.Any, op: str) -> bool:
     --------
     Global lock applies to all ops:
 
-    >>> _is_locked_for_op({"repo": "git+x", "options": {"lock": True}}, "import")
+    >>> is_locked_for_op({"repo": "git+x", "options": {"lock": True}}, "import")
     True
-    >>> _is_locked_for_op({"repo": "git+x", "options": {"lock": True}}, "fmt")
+    >>> is_locked_for_op({"repo": "git+x", "options": {"lock": True}}, "fmt")
     True
 
     Per-op lock is scoped:
 
     >>> entry = {"repo": "git+x", "options": {"lock": {"import": True}}}
-    >>> _is_locked_for_op(entry, "import")
+    >>> is_locked_for_op(entry, "import")
     True
-    >>> _is_locked_for_op(entry, "fmt")
+    >>> is_locked_for_op(entry, "fmt")
     False
 
     ``allow_overwrite: false`` is shorthand for ``lock: {import: true}``:
 
     >>> entry2 = {"repo": "git+x", "options": {"allow_overwrite": False}}
-    >>> _is_locked_for_op(entry2, "import")
+    >>> is_locked_for_op(entry2, "import")
     True
-    >>> _is_locked_for_op(entry2, "add")
+    >>> is_locked_for_op(entry2, "add")
     False
 
     Plain string entries and entries without options are never locked:
 
-    >>> _is_locked_for_op("git+x", "import")
+    >>> is_locked_for_op("git+x", "import")
     False
-    >>> _is_locked_for_op({"repo": "git+x"}, "import")
+    >>> is_locked_for_op({"repo": "git+x"}, "import")
     False
 
     Explicit false is not locked:
 
-    >>> _is_locked_for_op({"repo": "git+x", "options": {"lock": False}}, "import")
+    >>> is_locked_for_op({"repo": "git+x", "options": {"lock": False}}, "import")
     False
 
     String values for lock (not bool) are ignored — not locked:
 
-    >>> _is_locked_for_op({"repo": "git+x", "options": {"lock": "true"}}, "import")
+    >>> is_locked_for_op({"repo": "git+x", "options": {"lock": "true"}}, "import")
     False
     """
     if not isinstance(entry, dict):
@@ -854,7 +854,7 @@ def _is_locked_for_op(entry: t.Any, op: str) -> bool:
     return op == "import" and opts.get("allow_overwrite", True) is False
 
 
-def _get_lock_reason(entry: t.Any) -> str | None:
+def get_lock_reason(entry: t.Any) -> str | None:
     """Return the human-readable lock reason from a repo config entry.
 
     Non-string values are coerced to :func:`str` so callers can safely
@@ -863,16 +863,16 @@ def _get_lock_reason(entry: t.Any) -> str | None:
     Examples
     --------
     >>> entry = {"repo": "git+x", "options": {"lock": True, "lock_reason": "pinned"}}
-    >>> _get_lock_reason(entry)
+    >>> get_lock_reason(entry)
     'pinned'
-    >>> _get_lock_reason({"repo": "git+x"}) is None
+    >>> get_lock_reason({"repo": "git+x"}) is None
     True
-    >>> _get_lock_reason("git+x") is None
+    >>> get_lock_reason("git+x") is None
     True
 
     Non-string lock_reason is coerced:
 
-    >>> _get_lock_reason({"repo": "git+x", "options": {"lock_reason": 42}})
+    >>> get_lock_reason({"repo": "git+x", "options": {"lock_reason": 42}})
     '42'
     """
     if not isinstance(entry, dict):
@@ -940,8 +940,8 @@ def _classify_merge_action(
     ... )
     <MergeAction.KEEP_EXISTING: 'keep_existing'>
     """
-    existing_locked = _is_locked_for_op(existing_entry, "merge")
-    incoming_locked = _is_locked_for_op(incoming_entry, "merge")
+    existing_locked = is_locked_for_op(existing_entry, "merge")
+    incoming_locked = is_locked_for_op(incoming_entry, "merge")
     if incoming_locked and not existing_locked:
         return MergeAction.KEEP_INCOMING
     return MergeAction.KEEP_EXISTING
@@ -978,17 +978,17 @@ def merge_duplicate_workspace_root_entries(
                 action = _classify_merge_action(merged[repo_name], repo_config)
                 if action == MergeAction.KEEP_INCOMING:
                     merged[repo_name] = copy.deepcopy(repo_config)
-                    reason = _get_lock_reason(repo_config)
+                    reason = get_lock_reason(repo_config)
                     suffix = f" ({reason})" if reason else ""
                     conflicts.append(
                         f"'{label}': locked entry for '{repo_name}'"
                         f" displaced earlier definition{suffix}"
                     )
                 else:  # KEEP_EXISTING
-                    reason = _get_lock_reason(merged[repo_name])
+                    reason = get_lock_reason(merged[repo_name])
                     qualifier = (
                         "locked "
-                        if _is_locked_for_op(merged[repo_name], "merge")
+                        if is_locked_for_op(merged[repo_name], "merge")
                         else ""
                     )
                     suffix = f" ({reason})" if reason else ""

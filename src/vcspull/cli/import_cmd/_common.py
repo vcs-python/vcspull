@@ -27,9 +27,9 @@ from vcspull._internal.remotes import (
     ServiceUnavailableError,
 )
 from vcspull.config import (
-    _get_lock_reason,
-    _is_locked_for_op,
     find_home_config_files,
+    get_lock_reason,
+    is_locked_for_op,
     save_config,
     workspace_root_label,
 )
@@ -161,7 +161,7 @@ def _classify_import_action(
     # SKIP_UNCHANGED fires before lock check: nothing to overwrite when URL matches
     if existing_url == incoming_url:
         return ImportAction.SKIP_UNCHANGED
-    if overwrite and _is_locked_for_op(existing_entry, "import"):
+    if overwrite and is_locked_for_op(existing_entry, "import"):
         return ImportAction.SKIP_LOCKED
     if overwrite:
         return ImportAction.OVERWRITE
@@ -787,7 +787,7 @@ def _run_import(
         elif action == ImportAction.SKIP_EXISTING:
             skip_existing_count += 1
         elif action == ImportAction.SKIP_LOCKED:
-            reason = _get_lock_reason(existing_raw)
+            reason = get_lock_reason(existing_raw)
             log.info(
                 "%s Skipping locked repo %s%s",
                 colors.warning("⊘"),

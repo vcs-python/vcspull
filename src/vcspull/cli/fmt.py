@@ -15,9 +15,9 @@ from colorama import Fore, Style
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
-    _is_locked_for_op,
     find_config_files,
     find_home_config_files,
+    is_locked_for_op,
     merge_duplicate_workspace_roots,
     normalize_workspace_roots,
     save_config,
@@ -172,7 +172,7 @@ def _classify_fmt_action(repo_data: t.Any) -> tuple[FmtAction, t.Any]:
     >>> data["repo"]
     'git+ssh://x'
     """
-    if _is_locked_for_op(repo_data, "fmt"):
+    if is_locked_for_op(repo_data, "fmt"):
         return FmtAction.SKIP_LOCKED, repo_data
     normalized = normalize_repo_config(repo_data)
     if normalized != repo_data:
