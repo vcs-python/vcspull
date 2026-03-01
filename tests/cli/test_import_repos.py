@@ -2538,6 +2538,59 @@ def test_import_overwrite_respects_pin_true(
     assert "Skipping pinned" in caplog.text
 
 
+def test_import_overwrite_skip_pinned_shows_pin_reason(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--overwrite skip log must include pin_reason when set."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _HTTPS,
+                    "options": {
+                        "pin": True,
+                        "pin_reason": "pinned to company fork",
+                    },
+                }
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=True,
+    )
+
+    assert "Skipping pinned" in caplog.text
+    assert "pinned to company fork" in caplog.text
+
+
 def test_import_overwrite_respects_allow_overwrite_false(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
