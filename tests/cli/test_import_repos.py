@@ -2399,6 +2399,52 @@ def test_import_overwrite_updates_url_json(
     assert "Overwrote" in caplog.text
 
 
+def test_import_overwrite_string_entry_to_dict(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --overwrite converts a string-format config entry to dict format."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Initial config uses string-format entry (not dict)
+    save_config_yaml(config_file, {"~/repos/": {"repo1": _HTTPS}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        overwrite=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # String entry should be converted to dict format with new URL
+    assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
+    assert "Overwrote" in caplog.text
+
+
 def test_import_no_overwrite_skips_changed_url(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
