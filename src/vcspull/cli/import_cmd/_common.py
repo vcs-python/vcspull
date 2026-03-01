@@ -702,7 +702,7 @@ def _run_import(
     # Add repositories to config
     checked_labels: set[str] = set()
     error_labels: set[str] = set()
-    added_count = overwritten_count = skip_unchanged_count = 0
+    added_count = overwritten_count = 0
     skip_existing_count = skip_locked_count = 0
 
     for repo in repos:
@@ -783,7 +783,7 @@ def _run_import(
                 log.info("[DRY-RUN] Would overwrite: %s", repo.name)
             overwritten_count += 1
         elif action == ImportAction.SKIP_UNCHANGED:
-            skip_unchanged_count += 1
+            pass
         elif action == ImportAction.SKIP_EXISTING:
             skip_existing_count += 1
         elif action == ImportAction.SKIP_LOCKED:
