@@ -287,7 +287,9 @@ def _collapse_ordered_items_to_dict(
         ):
             result[label].update(section)
         else:
-            result[label] = section.copy() if isinstance(section, dict) else section
+            result[label] = (
+                copy.deepcopy(section) if isinstance(section, dict) else section
+            )
     return result
 
 
