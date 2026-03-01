@@ -15,7 +15,14 @@ import pytest
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
-from vcspull.cli.add import add_repo, create_add_subparser, handle_add_command
+from vcspull.cli.add import (
+    AddAction,
+    _classify_add_action,
+    _collapse_ordered_items_to_dict,
+    add_repo,
+    create_add_subparser,
+    handle_add_command,
+)
 
 if t.TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -1143,8 +1150,6 @@ def test_handle_add_command_preserves_existing_dot_workspace_section(
 # AddAction classifier unit tests
 # ---------------------------------------------------------------------------
 
-from vcspull.cli.add import AddAction, _classify_add_action  # noqa: E402
-
 _ADD_SSH = "git+git@github.com:testuser/repo1.git"
 
 
@@ -1191,3 +1196,355 @@ def test_classify_add_action(
     """Test _classify_add_action covers all permutations."""
     action = _classify_add_action(existing_entry)
     assert action == expected_action
+
+
+# ---------------------------------------------------------------------------
+# add_repo skip-path coverage (SKIP_PINNED, SKIP_EXISTING)
+# ---------------------------------------------------------------------------
+
+
+class AddRepoSkipFixture(t.NamedTuple):
+    """Fixture for add_repo skip scenarios (SKIP_PINNED, SKIP_EXISTING)."""
+
+    test_id: str
+    preexisting_config: dict[str, t.Any]
+    add_name: str
+    add_url: str
+    merge_duplicates: bool
+    dry_run: bool
+    workspace_root_path: str | None
+    chdir_subpath: str | None
+    expected_log_fragments: list[str]
+    expected_in_config: dict[str, t.Any]
+
+
+ADD_REPO_SKIP_FIXTURES: list[AddRepoSkipFixture] = [
+    AddRepoSkipFixture(
+        test_id="skip-pinned-merge",
+        preexisting_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                    "options": {"pin": True, "pin_reason": "company fork"},
+                },
+            },
+        },
+        add_name="myrepo",
+        add_url="git+https://github.com/other/myrepo.git",
+        merge_duplicates=True,
+        dry_run=False,
+        workspace_root_path="~/code/",
+        chdir_subpath=None,
+        expected_log_fragments=["is pinned", "company fork"],
+        expected_in_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                    "options": {"pin": True, "pin_reason": "company fork"},
+                },
+            },
+        },
+    ),
+    AddRepoSkipFixture(
+        test_id="skip-pinned-no-merge",
+        preexisting_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                    "options": {"pin": True},
+                },
+            },
+        },
+        add_name="myrepo",
+        add_url="git+https://github.com/other/myrepo.git",
+        merge_duplicates=False,
+        dry_run=False,
+        workspace_root_path="~/code/",
+        chdir_subpath=None,
+        expected_log_fragments=["is pinned"],
+        expected_in_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                    "options": {"pin": True},
+                },
+            },
+        },
+    ),
+    AddRepoSkipFixture(
+        test_id="skip-pinned-relabel-saves",
+        preexisting_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                    "options": {"pin": True},
+                },
+            },
+        },
+        add_name="myrepo",
+        add_url="git+https://github.com/other/myrepo.git",
+        merge_duplicates=True,
+        dry_run=False,
+        workspace_root_path="./",
+        chdir_subpath="code",
+        expected_log_fragments=["is pinned", "adjustments saved"],
+        expected_in_config={
+            "./": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                    "options": {"pin": True},
+                },
+            },
+        },
+    ),
+    AddRepoSkipFixture(
+        test_id="skip-existing-no-merge",
+        preexisting_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                },
+            },
+        },
+        add_name="myrepo",
+        add_url="git+https://github.com/other/myrepo.git",
+        merge_duplicates=False,
+        dry_run=False,
+        workspace_root_path="~/code/",
+        chdir_subpath=None,
+        expected_log_fragments=["already exists"],
+        expected_in_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                },
+            },
+        },
+    ),
+    AddRepoSkipFixture(
+        test_id="skip-pinned-no-merge-relabel-saves",
+        preexisting_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                    "options": {"pin": True},
+                },
+            },
+        },
+        add_name="myrepo",
+        add_url="git+https://github.com/other/myrepo.git",
+        merge_duplicates=False,
+        dry_run=False,
+        workspace_root_path="./",
+        chdir_subpath="code",
+        expected_log_fragments=["is pinned", "adjustments saved"],
+        expected_in_config={
+            "./": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                    "options": {"pin": True},
+                },
+            },
+        },
+    ),
+    AddRepoSkipFixture(
+        test_id="skip-existing-no-merge-relabel-saves",
+        preexisting_config={
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                },
+            },
+        },
+        add_name="myrepo",
+        add_url="git+https://github.com/other/myrepo.git",
+        merge_duplicates=False,
+        dry_run=False,
+        workspace_root_path="./",
+        chdir_subpath="code",
+        expected_log_fragments=["already exists", "adjustments saved"],
+        expected_in_config={
+            "./": {
+                "myrepo": {
+                    "repo": "git+https://github.com/user/myrepo.git",
+                },
+            },
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(AddRepoSkipFixture._fields),
+    ADD_REPO_SKIP_FIXTURES,
+    ids=[f.test_id for f in ADD_REPO_SKIP_FIXTURES],
+)
+def test_add_repo_skip(
+    test_id: str,
+    preexisting_config: dict[str, t.Any],
+    add_name: str,
+    add_url: str,
+    merge_duplicates: bool,
+    dry_run: bool,
+    workspace_root_path: str | None,
+    chdir_subpath: str | None,
+    expected_log_fragments: list[str],
+    expected_in_config: dict[str, t.Any],
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that add_repo skips pinned/existing repos and handles relabelling."""
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(
+        yaml.dump(preexisting_config),
+        encoding="utf-8",
+    )
+
+    if chdir_subpath:
+        target_dir = tmp_path / chdir_subpath
+        target_dir.mkdir(parents=True, exist_ok=True)
+        monkeypatch.chdir(target_dir)
+    else:
+        monkeypatch.chdir(tmp_path)
+
+    add_repo(
+        name=add_name,
+        url=add_url,
+        config_file_path_str=str(config_file),
+        path=None,
+        workspace_root_path=workspace_root_path,
+        dry_run=dry_run,
+        merge_duplicates=merge_duplicates,
+    )
+
+    log_output = caplog.text
+    for fragment in expected_log_fragments:
+        assert fragment in log_output, (
+            f"Expected '{fragment}' in log output for {test_id}, got: {log_output}"
+        )
+
+    with config_file.open(encoding="utf-8") as fh:
+        actual_config = yaml.safe_load(fh)
+
+    for workspace, repos in expected_in_config.items():
+        assert workspace in actual_config, (
+            f"Expected workspace '{workspace}' in config for {test_id}"
+        )
+        for repo_name, repo_data in repos.items():
+            assert repo_name in actual_config[workspace], (
+                f"Expected repo '{repo_name}' in workspace '{workspace}' for {test_id}"
+            )
+            assert actual_config[workspace][repo_name] == repo_data
+
+
+# ---------------------------------------------------------------------------
+# add_repo no-merge JSON save dispatch
+# ---------------------------------------------------------------------------
+
+
+def test_add_repo_no_merge_json_save(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that add_repo saves JSON correctly in the no-merge success path."""
+    import json
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.json"
+    initial_data = {
+        "~/code/": {
+            "myrepo": {"repo": "git+https://github.com/user/myrepo.git"},
+        },
+    }
+    config_file.write_text(json.dumps(initial_data, indent=2), encoding="utf-8")
+
+    add_repo(
+        name="newrepo",
+        url="git+https://github.com/user/newrepo.git",
+        config_file_path_str=str(config_file),
+        path=None,
+        workspace_root_path="~/code/",
+        dry_run=False,
+        merge_duplicates=False,
+    )
+
+    assert "Successfully added" in caplog.text
+
+    with config_file.open(encoding="utf-8") as fh:
+        result = json.load(fh)
+
+    assert "~/code/" in result
+    assert "myrepo" in result["~/code/"]
+    assert "newrepo" in result["~/code/"]
+
+
+# ---------------------------------------------------------------------------
+# _collapse_ordered_items_to_dict unit tests
+# ---------------------------------------------------------------------------
+
+
+class CollapseOrderedItemsFixture(t.NamedTuple):
+    """Fixture for _collapse_ordered_items_to_dict unit tests."""
+
+    test_id: str
+    ordered_items: list[dict[str, t.Any]]
+    expected_labels: list[str]
+    expected_repo_keys: dict[str, set[str]]
+
+
+COLLAPSE_ORDERED_ITEMS_FIXTURES: list[CollapseOrderedItemsFixture] = [
+    CollapseOrderedItemsFixture(
+        test_id="merge-duplicate-labels",
+        ordered_items=[
+            {"label": "~/code/", "section": {"repo1": {"repo": "git+a"}}},
+            {"label": "~/code/", "section": {"repo2": {"repo": "git+b"}}},
+        ],
+        expected_labels=["~/code/"],
+        expected_repo_keys={"~/code/": {"repo1", "repo2"}},
+    ),
+    CollapseOrderedItemsFixture(
+        test_id="distinct-labels",
+        ordered_items=[
+            {"label": "~/code/", "section": {"repo1": {"repo": "git+a"}}},
+            {"label": "~/work/", "section": {"repo2": {"repo": "git+b"}}},
+        ],
+        expected_labels=["~/code/", "~/work/"],
+        expected_repo_keys={
+            "~/code/": {"repo1"},
+            "~/work/": {"repo2"},
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(CollapseOrderedItemsFixture._fields),
+    COLLAPSE_ORDERED_ITEMS_FIXTURES,
+    ids=[f.test_id for f in COLLAPSE_ORDERED_ITEMS_FIXTURES],
+)
+def test_collapse_ordered_items_to_dict(
+    test_id: str,
+    ordered_items: list[dict[str, t.Any]],
+    expected_labels: list[str],
+    expected_repo_keys: dict[str, set[str]],
+) -> None:
+    """Test _collapse_ordered_items_to_dict merges/separates labels correctly."""
+    result = _collapse_ordered_items_to_dict(ordered_items)
+
+    assert list(result.keys()) == expected_labels
+
+    for label, expected_keys in expected_repo_keys.items():
+        assert label in result
+        assert set(result[label].keys()) == expected_keys
