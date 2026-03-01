@@ -679,7 +679,7 @@ def add_repo(
 
             log.warning(
                 "Repository '%s' already exists under '%s'. Current URL: %s. "
-                "To update, remove and re-add, or edit the YAML file manually.",
+                "To update, remove and re-add, or edit the config file manually.",
                 name,
                 workspace_label,
                 current_url,
@@ -860,7 +860,7 @@ def add_repo(
 
         log.warning(
             "Repository '%s' already exists under '%s'. Current URL: %s. "
-            "To update, remove and re-add, or edit the YAML file manually.",
+            "To update, remove and re-add, or edit the config file manually.",
             name,
             workspace_label,
             current_url,
