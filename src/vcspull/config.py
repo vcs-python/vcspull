@@ -846,16 +846,18 @@ def is_pinned_for_op(entry: t.Any, op: str) -> bool:
     >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": "true"}}, "import")
     False
 
-    Invalid op raises AssertionError:
+    Invalid op raises ValueError:
 
     >>> is_pinned_for_op(  # doctest: +IGNORE_EXCEPTION_DETAIL
     ...     {"repo": "git+x"}, "bogus"
     ... )
     Traceback (most recent call last):
         ...
-    AssertionError: Unknown op: 'bogus'
+    ValueError: Unknown op: 'bogus'
     """
-    assert op in _VALID_OPS, f"Unknown op: {op!r}"
+    if op not in _VALID_OPS:
+        msg = f"Unknown op: {op!r}"
+        raise ValueError(msg)
     if not isinstance(entry, dict):
         return False
     opts = entry.get("options")
