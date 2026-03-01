@@ -258,11 +258,22 @@ def _collapse_ordered_items_to_dict(
 
     Examples
     --------
+    Distinct labels pass through unchanged:
+
     >>> _collapse_ordered_items_to_dict([
     ...     {"label": "~/code/", "section": {"repo1": {"repo": "git+x"}}},
     ...     {"label": "~/work/", "section": {"repo2": {"repo": "git+y"}}},
     ... ])
     {'~/code/': {'repo1': {'repo': 'git+x'}}, '~/work/': {'repo2': {'repo': 'git+y'}}}
+
+    Duplicate labels are merged (repos from both sections appear):
+
+    >>> result = _collapse_ordered_items_to_dict([
+    ...     {"label": "~/code/", "section": {"repo1": {"repo": "git+a"}}},
+    ...     {"label": "~/code/", "section": {"repo2": {"repo": "git+b"}}},
+    ... ])
+    >>> sorted(result["~/code/"].keys())
+    ['repo1', 'repo2']
     """
     result: dict[str, t.Any] = {}
     for entry in ordered_items:
