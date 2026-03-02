@@ -88,4 +88,8 @@ def handle_forgejo(args: argparse.Namespace) -> int:
         output_ndjson=getattr(args, "output_ndjson", False),
         color=getattr(args, "color", "auto"),
         use_https=getattr(args, "use_https", False),
+        sync=getattr(args, "sync", False),
+        prune=getattr(args, "prune", False),
+        prune_untracked=getattr(args, "prune_untracked", False),
+        import_source=f"forgejo:{args.target}",
     )

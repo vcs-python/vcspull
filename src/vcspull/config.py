@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import enum
 import fnmatch
 import logging
 import os
@@ -732,6 +733,38 @@ def save_config_json(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
     _atomic_write(config_file_path, json_content)
 
 
+def save_config(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
+    """Save configuration data, dispatching by file extension.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Path to the configuration file to write
+    data : dict
+        Configuration data to save
+
+    Examples
+    --------
+    >>> import pathlib, tempfile, json
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "test.json"
+    ...     save_config(p, {"~/code/": {"repo": {"repo": "git+https://x"}}})
+    ...     loaded = json.loads(p.read_text())
+    ...     loaded["~/code/"]["repo"]["repo"]
+    'git+https://x'
+
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "test.yaml"
+    ...     save_config(p, {"~/code/": {"repo": {"repo": "git+https://x"}}})
+    ...     "repo" in p.read_text()
+    True
+    """
+    if config_file_path.suffix.lower() == ".json":
+        save_config_json(config_file_path, data)
+    else:
+        save_config_yaml(config_file_path, data)
+
+
 def save_config_yaml_with_items(
     config_file_path: pathlib.Path,
     items: list[tuple[str, t.Any]],
@@ -753,6 +786,182 @@ def save_config_yaml_with_items(
         yaml_content += "\n"
 
     _atomic_write(config_file_path, yaml_content)
+
+
+_VALID_OPS: frozenset[str] = frozenset({"import", "add", "discover", "fmt", "merge"})
+"""Valid operation names for pin checking."""
+
+
+def is_pinned_for_op(entry: t.Any, op: str) -> bool:
+    """Return ``True`` if the repo config entry is pinned for *op*.
+
+    Parameters
+    ----------
+    entry : Any
+        Raw repo config value (string, dict, or ``None``).
+    op : str
+        Operation name: ``"import"``, ``"add"``, ``"discover"``,
+        ``"fmt"``, or ``"merge"``.
+
+    Examples
+    --------
+    Global pin applies to all ops:
+
+    >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": True}}, "import")
+    True
+    >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": True}}, "fmt")
+    True
+
+    Per-op pin is scoped:
+
+    >>> entry = {"repo": "git+x", "options": {"pin": {"import": True}}}
+    >>> is_pinned_for_op(entry, "import")
+    True
+    >>> is_pinned_for_op(entry, "fmt")
+    False
+
+    ``allow_overwrite: false`` is shorthand for ``pin: {import: true}``
+    (guards against ``--sync``):
+
+    >>> entry2 = {"repo": "git+x", "options": {"allow_overwrite": False}}
+    >>> is_pinned_for_op(entry2, "import")
+    True
+    >>> is_pinned_for_op(entry2, "add")
+    False
+
+    Plain string entries and entries without options are never pinned:
+
+    >>> is_pinned_for_op("git+x", "import")
+    False
+    >>> is_pinned_for_op({"repo": "git+x"}, "import")
+    False
+
+    Explicit false is not pinned:
+
+    >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": False}}, "import")
+    False
+
+    String values for pin (not bool) are ignored — not pinned:
+
+    >>> is_pinned_for_op({"repo": "git+x", "options": {"pin": "true"}}, "import")
+    False
+
+    Invalid op raises ValueError:
+
+    >>> is_pinned_for_op(  # doctest: +IGNORE_EXCEPTION_DETAIL
+    ...     {"repo": "git+x"}, "bogus"
+    ... )
+    Traceback (most recent call last):
+        ...
+    ValueError: Unknown op: 'bogus'
+    """
+    if op not in _VALID_OPS:
+        msg = f"Unknown op: {op!r}"
+        raise ValueError(msg)
+    if not isinstance(entry, dict):
+        return False
+    opts = entry.get("options")
+    if not isinstance(opts, dict):
+        return False
+    pin = opts.get("pin")
+    if pin is True:
+        return True
+    if isinstance(pin, dict) and pin.get(op, False) is True:
+        return True
+    return op == "import" and opts.get("allow_overwrite", True) is False
+
+
+def get_pin_reason(entry: t.Any) -> str | None:
+    """Return the human-readable pin reason from a repo config entry.
+
+    Non-string values are coerced to :func:`str` so callers can safely
+    interpolate the result into log messages.
+
+    Examples
+    --------
+    >>> entry = {"repo": "git+x", "options": {"pin": True, "pin_reason": "pinned"}}
+    >>> get_pin_reason(entry)
+    'pinned'
+    >>> get_pin_reason({"repo": "git+x"}) is None
+    True
+    >>> get_pin_reason("git+x") is None
+    True
+
+    Non-string pin_reason is coerced:
+
+    >>> get_pin_reason({"repo": "git+x", "options": {"pin_reason": 42}})
+    '42'
+    """
+    if not isinstance(entry, dict):
+        return None
+    opts = entry.get("options")
+    if not isinstance(opts, dict):
+        return None
+    reason = opts.get("pin_reason")
+    if reason is None:
+        return None
+    return str(reason)
+
+
+class MergeAction(enum.Enum):
+    """Action for resolving a duplicate workspace-root repo conflict."""
+
+    KEEP_EXISTING = "keep_existing"
+    """First occurrence wins (standard behavior)."""
+
+    KEEP_INCOMING = "keep_incoming"
+    """Incoming pinned entry displaces unpinned existing entry."""
+
+
+def _classify_merge_action(
+    existing_entry: t.Any,
+    incoming_entry: t.Any,
+) -> MergeAction:
+    """Classify the merge conflict resolution action.
+
+    Parameters
+    ----------
+    existing_entry : Any
+        The entry already stored (first occurrence).
+    incoming_entry : Any
+        The duplicate entry being merged in.
+
+    Examples
+    --------
+    Neither pinned — keep existing (first-occurrence-wins):
+
+    >>> _classify_merge_action({"repo": "git+a"}, {"repo": "git+b"})
+    <MergeAction.KEEP_EXISTING: 'keep_existing'>
+
+    Incoming is pinned — incoming wins:
+
+    >>> _classify_merge_action(
+    ...     {"repo": "git+a"},
+    ...     {"repo": "git+b", "options": {"pin": True}},
+    ... )
+    <MergeAction.KEEP_INCOMING: 'keep_incoming'>
+
+    Existing is pinned — existing wins regardless:
+
+    >>> _classify_merge_action(
+    ...     {"repo": "git+a", "options": {"pin": True}},
+    ...     {"repo": "git+b"},
+    ... )
+    <MergeAction.KEEP_EXISTING: 'keep_existing'>
+
+    Both pinned — first-occurrence-wins:
+
+    >>> _classify_merge_action(
+    ...     {"repo": "git+a", "options": {"pin": True}},
+    ...     {"repo": "git+b", "options": {"pin": True}},
+    ... )
+    <MergeAction.KEEP_EXISTING: 'keep_existing'>
+    """
+    existing_pinned = is_pinned_for_op(existing_entry, "merge")
+    incoming_pinned = is_pinned_for_op(incoming_entry, "merge")
+    if incoming_pinned and not existing_pinned:
+        return MergeAction.KEEP_INCOMING
+    return MergeAction.KEEP_EXISTING
 
 
 def merge_duplicate_workspace_root_entries(
@@ -783,12 +992,26 @@ def merge_duplicate_workspace_root_entries(
             if repo_name not in merged:
                 merged[repo_name] = copy.deepcopy(repo_config)
             elif merged[repo_name] != repo_config:
-                conflicts.append(
-                    (
-                        f"Workspace root '{label}' contains conflicting definitions "
-                        f"for repository '{repo_name}'. Keeping the existing entry."
-                    ),
-                )
+                action = _classify_merge_action(merged[repo_name], repo_config)
+                if action == MergeAction.KEEP_INCOMING:
+                    merged[repo_name] = copy.deepcopy(repo_config)
+                    reason = get_pin_reason(repo_config)
+                    suffix = f" ({reason})" if reason else ""
+                    conflicts.append(
+                        f"'{label}': pinned entry for '{repo_name}'"
+                        f" displaced earlier definition{suffix}"
+                    )
+                else:  # KEEP_EXISTING
+                    reason = get_pin_reason(merged[repo_name])
+                    qualifier = (
+                        "pinned "
+                        if is_pinned_for_op(merged[repo_name], "merge")
+                        else ""
+                    )
+                    suffix = f" ({reason})" if reason else ""
+                    conflicts.append(
+                        f"'{label}': keeping {qualifier}entry for '{repo_name}'{suffix}"
+                    )
 
     return merged, conflicts, change_count
 

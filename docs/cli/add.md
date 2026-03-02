@@ -109,6 +109,32 @@ repositories stay intact. When it collapses multiple sections, the command logs
 a summary of the merge. Prefer to inspect duplicates yourself? Add
 `--no-merge` to keep every section untouched.
 
+## Pinned entries
+
+Repositories whose configuration includes a pin on the `add` operation are
+skipped with a warning. For example, given this configuration:
+
+```yaml
+~/code/:
+  internal-fork:
+    repo: "git+git@github.com:myorg/internal-fork.git"
+    options:
+      pin: true
+      pin_reason: "pinned to company fork — update manually"
+```
+
+Attempting to add a repo that matches an existing pinned entry produces a
+warning and leaves the entry untouched:
+
+```vcspull-console
+$ vcspull add ~/code/internal-fork
+⚠ Repository 'internal-fork' is pinned (pinned to company fork — update manually) — skipping
+```
+
+Both `options.pin: true` (global) and `options.pin.add: true` (per-operation)
+block the `add` command. The `pin_reason` (if set) is included in the warning.
+See {ref}`config-pin` for full pin configuration.
+
 ## After adding repositories
 
 1. Run `vcspull fmt --write` to normalize your configuration (see

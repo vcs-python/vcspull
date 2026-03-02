@@ -85,6 +85,109 @@ class WorktreeConfigDict(TypedDict):
     """Reason for locking. If provided, implies lock=True."""
 
 
+RepoPinDict = TypedDict(
+    "RepoPinDict",
+    {
+        "add": bool,
+        "discover": bool,
+        "fmt": bool,
+        "import": bool,
+        "merge": bool,
+    },
+    total=False,
+)
+"""Per-operation pin flags for a repository entry.
+
+Unspecified keys default to ``False`` (not pinned).
+
+Note: Distinct from ``WorktreeConfigDict.lock`` which prevents git worktree
+removal at the filesystem level. ``RepoPinDict`` controls vcspull config
+mutation policy only.
+
+Examples
+--------
+Pin only import::
+
+    options:
+      pin:
+        import: true
+
+Pin import and fmt::
+
+    options:
+      pin:
+        import: true
+        fmt: true
+"""
+
+
+class RepoOptionsDict(TypedDict, total=False):
+    """Mutation policy stored under the ``options:`` key in a repo entry.
+
+    Note: ``pin`` here controls vcspull config mutation. It is distinct from
+    ``WorktreeConfigDict.lock`` which prevents git worktree removal.
+
+    Examples
+    --------
+    Pin all operations::
+
+        options:
+          pin: true
+          pin_reason: "pinned to upstream"
+
+    Pin only import (prevent ``--sync`` from replacing URL)::
+
+        options:
+          pin:
+            import: true
+
+    Shorthand form — equivalent to ``pin: {import: true}``::
+
+        options:
+          allow_overwrite: false
+    """
+
+    pin: bool | RepoPinDict
+    """``True`` pins all ops; a mapping pins specific ops only.
+
+    Unspecified keys in the mapping default to ``False`` (not pinned).
+    """
+
+    allow_overwrite: bool
+    """If ``False``, shorthand for ``pin: {import: true}``.
+
+    Pins only the import operation.
+    """
+
+    pin_reason: str | None
+    """Human-readable reason shown in log output when an op is skipped due to pin."""
+
+
+class RepoEntryDict(TypedDict):
+    """Raw per-repository entry as written to .vcspull.yaml.
+
+    Examples
+    --------
+    Minimal entry::
+
+        repo: git+git@github.com:user/myrepo.git
+
+    With pin options::
+
+        repo: git+git@github.com:user/myrepo.git
+        options:
+          pin:
+            import: true
+          pin_reason: "pinned to company fork"
+    """
+
+    repo: str
+    """VCS URL in vcspull format, e.g. ``git+git@github.com:user/repo.git``."""
+
+    options: NotRequired[RepoOptionsDict]
+    """Mutation policy. Nested under ``options:`` to avoid polluting VCS fields."""
+
+
 class RawConfigDict(t.TypedDict):
     """Configuration dictionary without any type marshalling or variable resolution."""
 
@@ -110,6 +213,7 @@ class ConfigDict(TypedDict):
     remotes: NotRequired[GitSyncRemoteDict | None]
     shell_command_after: NotRequired[list[str] | None]
     worktrees: NotRequired[list[WorktreeConfigDict] | None]
+    options: NotRequired[RepoOptionsDict]
 
 
 ConfigDir = dict[str, ConfigDict]

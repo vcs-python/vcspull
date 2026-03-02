@@ -15,3 +15,23 @@
         url: git+git@github.com:tony/vim-config.git
     .tmux:
         url: git+git@github.com:tony/tmux-config.git
+~/pinned/:
+    # Global pin — no automated command can modify this entry
+    internal-fork:
+        repo: git+git@github.com:myorg/internal-fork.git
+        options:
+            pin: true
+            pin_reason: "pinned to company fork — update manually"
+    # Per-operation pin — only import and fmt are blocked
+    my-framework:
+        repo: git+git@github.com:myorg/my-framework.git
+        options:
+            pin:
+                import: true
+                fmt: true
+            pin_reason: "URL managed manually; formatting intentional"
+    # Shorthand — equivalent to pin: {import: true}
+    stable-dep:
+        repo: git+https://github.com/upstream/stable-dep.git
+        options:
+            allow_overwrite: false

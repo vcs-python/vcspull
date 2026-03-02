@@ -32,6 +32,38 @@ The formatter performs four main tasks:
 - Consolidates duplicate workspace roots into a single merged section while
   logging any conflicts.
 
+### Pinned entries
+
+Repositories pinned for the `fmt` operation are preserved **verbatim** — no
+normalization, no key reordering, no string-to-dict expansion. For example,
+given this configuration:
+
+```yaml
+~/code/:
+  pinned-dep:
+    url: git+https://corp.example.com/team/pinned-dep.git
+    options:
+      pin:
+        fmt: true
+  libvcs: git+https://github.com/vcspull/libvcs.git
+```
+
+After `vcspull fmt --write`, only `libvcs` is normalized. The `pinned-dep` entry
+keeps its original `url` key and field order:
+
+```yaml
+~/code/:
+  libvcs:
+    repo: git+https://github.com/vcspull/libvcs.git
+  pinned-dep:
+    url: git+https://corp.example.com/team/pinned-dep.git
+    options:
+      pin:
+        fmt: true
+```
+
+See {ref}`config-pin` for full pin configuration.
+
 For example:
 
 ```yaml

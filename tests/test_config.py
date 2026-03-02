@@ -9,6 +9,11 @@ import typing as t
 import pytest
 
 from vcspull import config
+from vcspull.config import (
+    MergeAction,
+    _classify_merge_action,
+    merge_duplicate_workspace_root_entries,
+)
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -209,3 +214,154 @@ def test_load_configs_can_skip_merging_duplicates(
         message for message in caplog.messages if "duplicate" in message
     ]
     assert warning_messages, "Expected a warning about duplicate workspace roots"
+
+
+# ---------------------------------------------------------------------------
+# MergeAction classifier unit tests
+# ---------------------------------------------------------------------------
+
+_MERGE_HTTPS = "git+https://github.com/testuser/repo1.git"
+_MERGE_SSH = "git+git@github.com:testuser/repo1.git"
+
+
+class MergeActionFixture(t.NamedTuple):
+    """Fixture for _classify_merge_action unit tests."""
+
+    test_id: str
+    existing_entry: dict[str, t.Any] | str
+    incoming_entry: dict[str, t.Any] | str
+    expected_action: MergeAction
+
+
+MERGE_ACTION_FIXTURES: list[MergeActionFixture] = [
+    MergeActionFixture(
+        "keep-first-no-pins",
+        {"repo": _MERGE_HTTPS},
+        {"repo": _MERGE_SSH},
+        MergeAction.KEEP_EXISTING,
+    ),
+    MergeActionFixture(
+        "keep-pinned-incoming",
+        {"repo": _MERGE_HTTPS},
+        {"repo": _MERGE_SSH, "options": {"pin": True}},
+        MergeAction.KEEP_INCOMING,
+    ),
+    MergeActionFixture(
+        "keep-pinned-existing",
+        {"repo": _MERGE_HTTPS, "options": {"pin": True}},
+        {"repo": _MERGE_SSH},
+        MergeAction.KEEP_EXISTING,
+    ),
+    MergeActionFixture(
+        "both-pinned-keep-first",
+        {"repo": _MERGE_HTTPS, "options": {"pin": True}},
+        {"repo": _MERGE_SSH, "options": {"pin": True}},
+        MergeAction.KEEP_EXISTING,
+    ),
+    MergeActionFixture(
+        "keep-pinned-merge-specific",
+        {"repo": _MERGE_HTTPS},
+        {"repo": _MERGE_SSH, "options": {"pin": {"merge": True}}},
+        MergeAction.KEEP_INCOMING,
+    ),
+    MergeActionFixture(
+        "import-pin-no-effect-on-merge",
+        {"repo": _MERGE_HTTPS},
+        {"repo": _MERGE_SSH, "options": {"pin": {"import": True}}},
+        MergeAction.KEEP_EXISTING,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(MergeActionFixture._fields),
+    MERGE_ACTION_FIXTURES,
+    ids=[f.test_id for f in MERGE_ACTION_FIXTURES],
+)
+def test_classify_merge_action(
+    test_id: str,
+    existing_entry: dict[str, t.Any] | str,
+    incoming_entry: dict[str, t.Any] | str,
+    expected_action: MergeAction,
+) -> None:
+    """Test _classify_merge_action covers all permutations."""
+    action = _classify_merge_action(existing_entry, incoming_entry)
+    assert action == expected_action
+
+
+# ---------------------------------------------------------------------------
+# merge_duplicate_workspace_root_entries conflict branch tests
+# ---------------------------------------------------------------------------
+
+
+class MergeDuplicateConflictFixture(t.NamedTuple):
+    """Fixture for merge_duplicate_workspace_root_entries conflict branches."""
+
+    test_id: str
+    label: str
+    occurrences: list[dict[str, t.Any]]
+    expected_merged_keys: set[str]
+    expected_conflict_fragments: list[str]
+
+
+MERGE_DUPLICATE_CONFLICT_FIXTURES: list[MergeDuplicateConflictFixture] = [
+    MergeDuplicateConflictFixture(
+        test_id="keep-incoming-pinned",
+        label="~/code/",
+        occurrences=[
+            {"r": {"repo": "git+https://a.com/r.git"}},
+            {
+                "r": {
+                    "repo": "git+https://b.com/r.git",
+                    "options": {"pin": True},
+                },
+            },
+        ],
+        expected_merged_keys={"r"},
+        expected_conflict_fragments=["displaced"],
+    ),
+    MergeDuplicateConflictFixture(
+        test_id="keep-existing-pinned",
+        label="~/code/",
+        occurrences=[
+            {
+                "r": {
+                    "repo": "git+https://a.com/r.git",
+                    "options": {"pin": True},
+                },
+            },
+            {"r": {"repo": "git+https://b.com/r.git"}},
+        ],
+        expected_merged_keys={"r"},
+        expected_conflict_fragments=["keeping"],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(MergeDuplicateConflictFixture._fields),
+    MERGE_DUPLICATE_CONFLICT_FIXTURES,
+    ids=[f.test_id for f in MERGE_DUPLICATE_CONFLICT_FIXTURES],
+)
+def test_merge_duplicate_workspace_root_entries_conflicts(
+    test_id: str,
+    label: str,
+    occurrences: list[dict[str, t.Any]],
+    expected_merged_keys: set[str],
+    expected_conflict_fragments: list[str],
+) -> None:
+    """Test merge_duplicate_workspace_root_entries handles pin conflicts."""
+    merged, conflicts, change_count = merge_duplicate_workspace_root_entries(
+        label,
+        occurrences,
+    )
+
+    assert set(merged.keys()) == expected_merged_keys
+    assert change_count == max(len(occurrences) - 1, 0)
+
+    all_conflict_text = " ".join(conflicts)
+    for fragment in expected_conflict_fragments:
+        assert fragment in all_conflict_text, (
+            f"Expected '{fragment}' in conflicts for {test_id}, "
+            f"got: {all_conflict_text}"
+        )

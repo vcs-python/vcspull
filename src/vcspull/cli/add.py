@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import enum
 import logging
 import pathlib
 import subprocess
@@ -18,13 +19,65 @@ from vcspull.config import (
     canonicalize_workspace_path,
     expand_dir,
     find_home_config_files,
+    get_pin_reason,
+    is_pinned_for_op,
     merge_duplicate_workspace_roots,
-    save_config_yaml,
+    save_config,
+    save_config_json,
     save_config_yaml_with_items,
     workspace_root_label,
 )
 
 log = logging.getLogger(__name__)
+
+
+class AddAction(enum.Enum):
+    """Action resolved for a single repo during ``vcspull add``."""
+
+    ADD = "add"
+    SKIP_EXISTING = "skip_existing"
+    SKIP_PINNED = "skip_pinned"
+
+
+def _classify_add_action(existing_entry: t.Any) -> AddAction:
+    """Classify the add action for a single repository.
+
+    Parameters
+    ----------
+    existing_entry : Any
+        Current config entry for this repo name, or ``None`` if absent.
+
+    Examples
+    --------
+    Not in config:
+
+    >>> _classify_add_action(None)
+    <AddAction.ADD: 'add'>
+
+    Already exists (unpinned):
+
+    >>> _classify_add_action({"repo": "git+ssh://x"})
+    <AddAction.SKIP_EXISTING: 'skip_existing'>
+
+    Pinned for add:
+
+    >>> _classify_add_action({"repo": "git+ssh://x", "options": {"pin": True}})
+    <AddAction.SKIP_PINNED: 'skip_pinned'>
+    >>> entry = {"repo": "git+ssh://x", "options": {"pin": {"add": True}}}
+    >>> _classify_add_action(entry)
+    <AddAction.SKIP_PINNED: 'skip_pinned'>
+
+    Pinned for import only — not pinned for add:
+
+    >>> entry = {"repo": "git+ssh://x", "options": {"pin": {"import": True}}}
+    >>> _classify_add_action(entry)
+    <AddAction.SKIP_EXISTING: 'skip_existing'>
+    """
+    if existing_entry is None:
+        return AddAction.ADD
+    if is_pinned_for_op(existing_entry, "add"):
+        return AddAction.SKIP_PINNED
+    return AddAction.SKIP_EXISTING
 
 
 def create_add_subparser(parser: argparse.ArgumentParser) -> None:
@@ -195,6 +248,51 @@ def _aggregate_from_ordered_items(
     return aggregated
 
 
+def _collapse_ordered_items_to_dict(
+    ordered_items: list[dict[str, t.Any]],
+) -> dict[str, t.Any]:
+    """Collapse ordered items into a flat dict for JSON serialization.
+
+    JSON does not support duplicate keys, so sections with the same
+    workspace label are merged at the repo level via ``dict.update()``
+    (last occurrence of a repo name wins).
+
+    Examples
+    --------
+    Distinct labels pass through unchanged:
+
+    >>> _collapse_ordered_items_to_dict([
+    ...     {"label": "~/code/", "section": {"repo1": {"repo": "git+x"}}},
+    ...     {"label": "~/work/", "section": {"repo2": {"repo": "git+y"}}},
+    ... ])
+    {'~/code/': {'repo1': {'repo': 'git+x'}}, '~/work/': {'repo2': {'repo': 'git+y'}}}
+
+    Duplicate labels are merged (repos from both sections appear):
+
+    >>> result = _collapse_ordered_items_to_dict([
+    ...     {"label": "~/code/", "section": {"repo1": {"repo": "git+a"}}},
+    ...     {"label": "~/code/", "section": {"repo2": {"repo": "git+b"}}},
+    ... ])
+    >>> sorted(result["~/code/"].keys())
+    ['repo1', 'repo2']
+    """
+    result: dict[str, t.Any] = {}
+    for entry in ordered_items:
+        label = entry["label"]
+        section = entry["section"]
+        if (
+            label in result
+            and isinstance(result[label], dict)
+            and isinstance(section, dict)
+        ):
+            result[label].update(section)
+        else:
+            result[label] = (
+                copy.deepcopy(section) if isinstance(section, dict) else section
+            )
+    return result
+
+
 def _collect_duplicate_sections(
     items: list[dict[str, t.Any]],
 ) -> dict[str, list[t.Any]]:
@@ -207,6 +305,49 @@ def _collect_duplicate_sections(
     return {
         label: sections for label, sections in occurrences.items() if len(sections) > 1
     }
+
+
+def _save_ordered_items(
+    config_file_path: pathlib.Path,
+    ordered_items: list[dict[str, t.Any]],
+) -> None:
+    """Persist ordered items in the format matching the config file extension.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Path to config file (.yaml or .json).
+    ordered_items : list of dict
+        Each dict has ``"label"`` and ``"section"`` keys.
+
+    Examples
+    --------
+    YAML output:
+
+    >>> import pathlib
+    >>> config_file = tmp_path / "test.yaml"
+    >>> items = [{"label": "~/code/", "section": {"myrepo": "git+https://example.com/r.git"}}]
+    >>> _save_ordered_items(config_file, items)
+    >>> config_file.read_text().strip()  # doctest: +ELLIPSIS
+    '~/code/...'
+
+    JSON output:
+
+    >>> config_file = tmp_path / "test.json"
+    >>> _save_ordered_items(config_file, items)
+    >>> import json
+    >>> data = json.loads(config_file.read_text())
+    >>> "~/code/" in data
+    True
+    """
+    if config_file_path.suffix.lower() == ".json":
+        save_config_json(
+            config_file_path,
+            _collapse_ordered_items_to_dict(ordered_items),
+        )
+    else:
+        items = [(entry["label"], entry["section"]) for entry in ordered_items]
+        save_config_yaml_with_items(config_file_path, items)
 
 
 def handle_add_command(args: argparse.Namespace) -> None:
@@ -449,7 +590,7 @@ def add_repo(
                 continue
             try:
                 path_key = canonicalize_workspace_path(label, cwd=cwd)
-            except Exception:
+            except (OSError, ValueError):
                 continue
             workspace_map[path_key] = label
 
@@ -484,7 +625,7 @@ def add_repo(
                 continue
             try:
                 path_key = canonicalize_workspace_path(entry["label"], cwd=cwd)
-            except Exception:
+            except (OSError, ValueError):
                 continue
             if path_key == workspace_path:
                 matching_indexes.append(idx)
@@ -555,7 +696,44 @@ def add_repo(
             return
 
         existing_config = workspace_section.get(name)
-        if existing_config is not None:
+        add_action = _classify_add_action(existing_config)
+
+        if add_action == AddAction.SKIP_PINNED:
+            reason = get_pin_reason(existing_config)
+            log.warning(
+                "Repository '%s' is pinned%s — skipping",
+                name,
+                f" ({reason})" if reason else "",
+            )
+            if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
+                try:
+                    save_config(config_file_path, raw_config)
+                    log.info(
+                        "%s✓%s Workspace label adjustments saved to %s%s%s.",
+                        Fore.GREEN,
+                        Style.RESET_ALL,
+                        Fore.BLUE,
+                        display_config_path,
+                        Style.RESET_ALL,
+                    )
+                except Exception:
+                    log.exception(
+                        "Error saving config to %s",
+                        PrivatePath(config_file_path),
+                    )
+                    if log.isEnabledFor(logging.DEBUG):
+                        traceback.print_exc()
+            elif (duplicate_merge_changes > 0 or config_was_relabelled) and dry_run:
+                log.info(
+                    "%s→%s Would save workspace label adjustments to %s%s%s.",
+                    Fore.YELLOW,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    display_config_path,
+                    Style.RESET_ALL,
+                )
+            return
+        elif add_action == AddAction.SKIP_EXISTING:
             if isinstance(existing_config, str):
                 current_url = existing_config
             elif isinstance(existing_config, dict):
@@ -567,7 +745,7 @@ def add_repo(
 
             log.warning(
                 "Repository '%s' already exists under '%s'. Current URL: %s. "
-                "To update, remove and re-add, or edit the YAML file manually.",
+                "To update, remove and re-add, or edit the config file manually.",
                 name,
                 workspace_label,
                 current_url,
@@ -575,7 +753,7 @@ def add_repo(
 
             if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
                 try:
-                    save_config_yaml(config_file_path, raw_config)
+                    save_config(config_file_path, raw_config)
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -625,7 +803,7 @@ def add_repo(
             return
 
         try:
-            save_config_yaml(config_file_path, raw_config)
+            save_config(config_file_path, raw_config)
             log.info(
                 "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
                 Fore.GREEN,
@@ -688,7 +866,45 @@ def add_repo(
         return
 
     existing_config = workspace_section_view.get(name)
-    if existing_config is not None:
+    no_merge_add_action = _classify_add_action(existing_config)
+
+    if no_merge_add_action == AddAction.SKIP_PINNED:
+        reason = get_pin_reason(existing_config)
+        log.warning(
+            "Repository '%s' is pinned%s — skipping",
+            name,
+            f" ({reason})" if reason else "",
+        )
+        if config_was_relabelled:
+            if dry_run:
+                log.info(
+                    "%s→%s Would save workspace label adjustments to %s%s%s.",
+                    Fore.YELLOW,
+                    Style.RESET_ALL,
+                    Fore.BLUE,
+                    display_config_path,
+                    Style.RESET_ALL,
+                )
+            else:
+                try:
+                    _save_ordered_items(config_file_path, ordered_items)
+                    log.info(
+                        "%s✓%s Workspace label adjustments saved to %s%s%s.",
+                        Fore.GREEN,
+                        Style.RESET_ALL,
+                        Fore.BLUE,
+                        display_config_path,
+                        Style.RESET_ALL,
+                    )
+                except Exception:
+                    log.exception(
+                        "Error saving config to %s",
+                        PrivatePath(config_file_path),
+                    )
+                    if log.isEnabledFor(logging.DEBUG):
+                        traceback.print_exc()
+        return
+    elif no_merge_add_action == AddAction.SKIP_EXISTING:
         if isinstance(existing_config, str):
             current_url = existing_config
         elif isinstance(existing_config, dict):
@@ -700,7 +916,7 @@ def add_repo(
 
         log.warning(
             "Repository '%s' already exists under '%s'. Current URL: %s. "
-            "To update, remove and re-add, or edit the YAML file manually.",
+            "To update, remove and re-add, or edit the config file manually.",
             name,
             workspace_label,
             current_url,
@@ -718,10 +934,7 @@ def add_repo(
                 )
             else:
                 try:
-                    save_config_yaml_with_items(
-                        config_file_path,
-                        [(entry["label"], entry["section"]) for entry in ordered_items],
-                    )
+                    _save_ordered_items(config_file_path, ordered_items)
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -771,10 +984,7 @@ def add_repo(
         return
 
     try:
-        save_config_yaml_with_items(
-            config_file_path,
-            [(entry["label"], entry["section"]) for entry in ordered_items],
-        )
+        _save_ordered_items(config_file_path, ordered_items)
         log.info(
             "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
             Fore.GREEN,

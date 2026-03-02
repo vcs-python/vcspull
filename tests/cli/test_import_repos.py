@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import pathlib
@@ -20,10 +21,12 @@ from vcspull._internal.remotes import (
     ServiceUnavailableError,
 )
 from vcspull.cli.import_cmd._common import (
+    ImportAction,
+    _classify_import_action,
     _resolve_config_file,
     _run_import,
 )
-from vcspull.config import save_config_yaml, workspace_root_label
+from vcspull.config import save_config_json, save_config_yaml, workspace_root_label
 
 # Get the actual _common module for monkeypatching
 import_common_mod = sys.modules["vcspull.cli.import_cmd._common"]
@@ -209,6 +212,19 @@ IMPORT_REPOS_FIXTURES: list[ImportReposFixture] = [
         mode="user",
         dry_run=True,
         yes=True,
+        output_json=False,
+        mock_repos=[_make_repo("repo1"), _make_repo("repo2")],
+        mock_error=None,
+        expected_log_contains=["Found 2 repositories", "Dry run complete"],
+        expected_config_repos=0,
+    ),
+    ImportReposFixture(
+        test_id="dry-run-without-yes-skips-confirmation",
+        service_name="github",
+        target="testuser",
+        mode="user",
+        dry_run=True,
+        yes=False,
         output_json=False,
         mock_repos=[_make_repo("repo1"), _make_repo("repo2")],
         mock_error=None,
@@ -613,10 +629,10 @@ def test_import_repos_all_existing(
     workspace.mkdir()
     config_file = tmp_path / ".vcspull.yaml"
 
-    # Create existing config with repo1
+    # Create existing config with repo1 using SSH URL (matches default import URL)
     existing_config = {
         "~/repos/": {
-            "repo1": {"repo": "git+https://github.com/testuser/repo1.git"},
+            "repo1": {"repo": "git+git@github.com:testuser/repo1.git"},
         }
     }
     save_config_yaml(config_file, existing_config)
@@ -904,6 +920,276 @@ def test_import_repos_config_load_error(
     )
 
     assert "Error loading config" in caplog.text
+
+
+def test_import_repos_duplicate_workspace_roots_preserved(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _run_import preserves repos from duplicate workspace root sections.
+
+    PyYAML's default SafeLoader silently drops duplicate keys, so a config
+    with two ``~/code/`` sections would lose repos from the first section.
+    Using DuplicateAwareConfigReader + merge_duplicate_workspace_roots
+    ensures all repos are preserved.
+    """
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    config_file = tmp_path / ".vcspull.yaml"
+    # Manually write duplicate workspace roots (can't use yaml.dump for this)
+    config_file.write_text(
+        "~/code/:\n"
+        "  existing-repo-a:\n"
+        "    repo: git+https://github.com/user/existing-repo-a.git\n"
+        "~/code/:\n"
+        "  existing-repo-b:\n"
+        "    repo: git+https://github.com/user/existing-repo-b.git\n",
+        encoding="utf-8",
+    )
+
+    # Import a new repo into a different workspace
+    importer = MockImporter(repos=[_make_repo("new-repo")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+
+    # Reload and verify both original repos are still present
+    saved = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+    assert "existing-repo-a" in saved["~/code/"]
+    assert "existing-repo-b" in saved["~/code/"]
+
+
+def test_import_repos_workspace_normalization_no_duplicate_section(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test _run_import normalizes workspace labels to avoid duplicates.
+
+    When existing config has ``~/code`` (no trailing slash) and the import
+    workspace resolves to ``~/code/``, repos should be added under the
+    existing ``~/code`` section instead of creating a new ``~/code/`` section.
+    """
+    import yaml
+
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    # Create the workspace directory that the label refers to
+    code_dir = tmp_path / "code"
+    code_dir.mkdir()
+
+    config_file = tmp_path / ".vcspull.yaml"
+    # Existing config uses ~/code (no trailing slash)
+    save_config_yaml(
+        config_file,
+        {
+            "~/code": {
+                "existing-repo": {
+                    "repo": "git+https://github.com/user/existing-repo.git"
+                },
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("new-repo")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        # workspace resolves to ~/code/ (with trailing slash via label)
+        workspace=str(code_dir),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+
+    saved = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+    # Both repos should be under the same section — no duplicate key created
+    assert "~/code" in saved
+    assert "existing-repo" in saved["~/code"]
+    assert "new-repo" in saved["~/code"]
+    # No separate ~/code/ section
+    assert "~/code/" not in saved or saved.get("~/code/") is None
+
+
+def test_import_repos_dry_run_tolerates_malformed_config(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --dry-run previews even when config file is malformed.
+
+    Instead of returning exit code 1, dry-run should warn and preview
+    against an empty config.
+    """
+    caplog.set_level(logging.WARNING)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text("invalid: yaml: content: [", encoding="utf-8")
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+    assert "dry-run will preview against empty config" in caplog.text
+
+
+def test_import_repos_dry_run_tolerates_non_dict_config(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --dry-run handles a YAML list (non-dict) config gracefully."""
+    caplog.set_level(logging.WARNING)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text("- item1\n- item2\n", encoding="utf-8")
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+    assert "dry-run will preview against empty config" in caplog.text
+
+
+def test_import_repos_skip_unchanged_counter(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that SKIP_UNCHANGED repos are counted in summary output."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+
+    workspace_label = workspace_root_label(
+        workspace, cwd=pathlib.Path.cwd(), home=tmp_path
+    )
+
+    config_file = tmp_path / ".vcspull.yaml"
+    # Pre-populate with a repo whose URL matches what the importer returns
+    save_config_yaml(
+        config_file,
+        {
+            workspace_label: {
+                "repo1": {"repo": "git+git@github.com:testuser/repo1.git"},
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+    )
+
+    assert result == 0
+    assert "1 repositories unchanged" in caplog.text
 
 
 def test_import_no_args_shows_help(capsys: pytest.CaptureFixture[str]) -> None:
@@ -2144,3 +2430,2502 @@ def test_run_import_forwards_with_shared_and_skip_groups(
     assert importer.captured_options is not None
     assert importer.captured_options.with_shared is True
     assert importer.captured_options.skip_groups == ["bots", "archived"]
+
+
+# ---------------------------------------------------------------------------
+# ImportAction classifier unit tests
+# ---------------------------------------------------------------------------
+
+_SSH = "git+git@github.com:testuser/repo1.git"
+_HTTPS = "git+https://github.com/testuser/repo1.git"
+
+
+class ImportActionFixture(t.NamedTuple):
+    """Fixture for _classify_import_action unit tests."""
+
+    test_id: str
+    existing_entry: t.Any
+    incoming_url: str
+    sync: bool
+    expected_action: ImportAction
+
+
+IMPORT_ACTION_FIXTURES: list[ImportActionFixture] = [
+    ImportActionFixture("add-no-sync", None, _SSH, False, ImportAction.ADD),
+    ImportActionFixture("add-with-sync", None, _SSH, True, ImportAction.ADD),
+    ImportActionFixture(
+        "skip-unchanged-no-sync",
+        {"repo": _SSH},
+        _SSH,
+        False,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "skip-unchanged-with-sync",
+        {"repo": _SSH},
+        _SSH,
+        True,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "skip-unchanged-pinned-no-sync",
+        {"repo": _SSH, "options": {"pin": True}},
+        _SSH,
+        False,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "skip-unchanged-pinned-with-sync",
+        {"repo": _SSH, "options": {"pin": True}},
+        _SSH,
+        True,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "url-key-takes-precedence",
+        {"repo": _HTTPS, "url": _SSH},
+        _SSH,
+        False,
+        ImportAction.SKIP_UNCHANGED,
+    ),
+    ImportActionFixture(
+        "skip-existing-no-sync",
+        {"repo": _HTTPS},
+        _SSH,
+        False,
+        ImportAction.SKIP_EXISTING,
+    ),
+    ImportActionFixture(
+        "update-url-with-sync",
+        {"repo": _HTTPS},
+        _SSH,
+        True,
+        ImportAction.UPDATE_URL,
+    ),
+    ImportActionFixture(
+        "skip-pinned-global-pin",
+        {"repo": _HTTPS, "options": {"pin": True}},
+        _SSH,
+        True,
+        ImportAction.SKIP_PINNED,
+    ),
+    ImportActionFixture(
+        "skip-pinned-allow-overwrite-false",
+        {"repo": _HTTPS, "options": {"allow_overwrite": False}},
+        _SSH,
+        True,
+        ImportAction.SKIP_PINNED,
+    ),
+    ImportActionFixture(
+        "skip-pinned-import-specific",
+        {"repo": _HTTPS, "options": {"pin": {"import": True}}},
+        _SSH,
+        True,
+        ImportAction.SKIP_PINNED,
+    ),
+    ImportActionFixture(
+        "not-pinned-add-specific",
+        {"repo": _HTTPS, "options": {"pin": {"add": True}}},
+        _SSH,
+        True,
+        ImportAction.UPDATE_URL,
+    ),
+    ImportActionFixture(
+        "str-entry-skip-existing",
+        _HTTPS,
+        _SSH,
+        False,
+        ImportAction.SKIP_EXISTING,
+    ),
+    ImportActionFixture(
+        "str-entry-update-url",
+        _HTTPS,
+        _SSH,
+        True,
+        ImportAction.UPDATE_URL,
+    ),
+    ImportActionFixture(
+        "non-dict-non-str-entry",
+        42,
+        _SSH,
+        False,
+        ImportAction.SKIP_EXISTING,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ImportActionFixture._fields),
+    IMPORT_ACTION_FIXTURES,
+    ids=[f.test_id for f in IMPORT_ACTION_FIXTURES],
+)
+def test_classify_import_action(
+    test_id: str,
+    existing_entry: dict[str, t.Any] | str | None,
+    incoming_url: str,
+    sync: bool,
+    expected_action: ImportAction,
+) -> None:
+    """Test _classify_import_action covers all permutations."""
+    action = _classify_import_action(
+        incoming_url=incoming_url,
+        existing_entry=existing_entry,
+        sync=sync,
+    )
+    assert action == expected_action
+
+
+# ---------------------------------------------------------------------------
+# --sync integration tests
+# ---------------------------------------------------------------------------
+
+
+def test_import_sync_updates_url(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --sync updates an existing entry when URL has changed."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
+    assert "Updated" in caplog.text
+
+
+def test_import_sync_updates_url_json(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --sync updates an existing entry in a JSON config file."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.json"
+
+    # Write initial JSON config with HTTPS URL
+    save_config_json(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
+    assert "Updated" in caplog.text
+
+
+def test_import_sync_string_entry_to_dict(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test --sync converts a string-format config entry to dict format."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Initial config uses string-format entry (not dict)
+    save_config_yaml(config_file, {"~/repos/": {"repo1": _HTTPS}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # String entry should be converted to dict format with new URL
+    assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
+    assert "Updated" in caplog.text
+
+
+def test_import_no_sync_skips_changed_url(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Without --sync, changed URLs are silently skipped."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=False,
+    )
+
+    assert "use --sync" in caplog.text
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
+
+
+def test_import_sync_respects_pin_true(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--sync must not update URL for an entry with options.pin: true."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _HTTPS, "options": {"pin": True}}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # URL must NOT have changed
+    assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
+    assert "Skipping pinned" in caplog.text
+
+
+def test_import_sync_skip_pinned_shows_pin_reason(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--sync skip log must include pin_reason when set."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _HTTPS,
+                    "options": {
+                        "pin": True,
+                        "pin_reason": "pinned to company fork",
+                    },
+                }
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+    )
+
+    assert "Skipping pinned" in caplog.text
+    assert "pinned to company fork" in caplog.text
+
+
+def test_import_sync_respects_allow_overwrite_false(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--sync must not update URL for an entry with options.allow_overwrite: false."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _HTTPS,
+                    "options": {"allow_overwrite": False},
+                }
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
+    assert "Skipping pinned" in caplog.text
+
+
+def test_import_sync_preserves_metadata(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--sync preserves existing metadata (options, etc.) when updating URL."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _HTTPS,
+                    "options": {"pin": {"fmt": True}},
+                }
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert entry["repo"] == _SSH
+    # Options must be preserved
+    assert entry.get("options", {}).get("pin", {}).get("fmt") is True
+
+
+def test_import_sync_saves_config_when_only_url_updates(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Config must be saved when updated_url_count > 0 even if added_count == 0."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(config_file, {"~/repos/": {"repo1": {"repo": _HTTPS}}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+    )
+
+    # Verify the URL was updated (content check is more reliable than mtime on
+    # filesystems with coarse timestamp granularity, e.g. NTFS on WSL2).
+    content = config_file.read_text(encoding="utf-8")
+    assert _SSH in content, "Config must be saved with SSH URL after sync"
+    assert _HTTPS not in content, "Old HTTPS URL must be replaced"
+
+
+def test_import_parser_has_sync_flag() -> None:
+    """The shared parent parser must expose --sync."""
+    from vcspull.cli.import_cmd._common import _create_shared_parent
+
+    parser = argparse.ArgumentParser(parents=[_create_shared_parent()])
+    args = parser.parse_args(["--sync"])
+    assert args.sync is True
+
+    args2 = parser.parse_args([])
+    assert args2.sync is False
+
+
+# ---------------------------------------------------------------------------
+# Provenance tracking and prune tests
+# ---------------------------------------------------------------------------
+
+
+def test_import_sync_tags_provenance(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--sync with import_source tags new repos with metadata.imported_from."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_sync_prunes_stale_tagged_repo(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--sync removes entries tagged with matching source that are no longer remote."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing config: old-repo was previously imported from github:testuser
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "old-repo": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    # Remote only has repo1 now (old-repo was deleted/renamed)
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "old-repo" not in final_config["~/repos/"]
+    assert "repo1" in final_config["~/repos/"]
+    assert "Pruned 1 repositories" in caplog.text
+
+
+def test_import_sync_preserves_manually_added_repo(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--sync does not prune repos without an imported_from tag."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # manual-repo has no metadata.imported_from
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "manual-repo": {"repo": "git+https://example.com/manual.git"},
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "manual-repo" in final_config["~/repos/"]
+    assert "repo1" in final_config["~/repos/"]
+
+
+def test_import_sync_preserves_differently_tagged_repo(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--sync does not prune repos tagged with a different source."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # other-org-repo was imported from a different org
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "other-org-repo": {
+                    "repo": "git+https://github.com/other/repo.git",
+                    "metadata": {"imported_from": "github:other-org"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "other-org-repo" in final_config["~/repos/"]
+
+
+def test_import_sync_respects_pin_on_prune(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--sync does not prune pinned entries even if they match the import source."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "pinned-repo": {
+                    "repo": _SSH,
+                    "options": {"pin": True},
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    # pinned-repo is not on the remote
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # Pinned repo must survive even though it's stale
+    assert "pinned-repo" in final_config["~/repos/"]
+    assert "Skipping pruning pinned repo" in caplog.text
+
+
+def test_import_sync_prune_dry_run(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--sync --dry-run previews prune candidates without deleting them."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "stale-repo": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    assert "Would prune: stale-repo" in caplog.text
+
+    # Config should NOT have been modified (dry-run)
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "stale-repo" in final_config["~/repos/"]
+
+
+def test_import_sync_updates_provenance_tag(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Re-importing with --sync updates imported_from tag if it was missing."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry without metadata
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _SSH}}},
+    )
+
+    # Re-import same repo (URL unchanged → SKIP_UNCHANGED, no tag update)
+    # But if the URL has changed, UPDATE_URL should also set the tag
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    # repo1's SSH URL is _SSH, existing has _SSH → SKIP_UNCHANGED
+    # Let's use HTTPS in existing so URL differs and UPDATE_URL fires
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _HTTPS}}},
+    )
+
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert entry["repo"] == _SSH
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_skip_unchanged_tags_provenance(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """SKIP_UNCHANGED entries get imported_from stamped when import_source is set."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry with matching URL but no metadata
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _SSH}}},
+    )
+
+    # Same URL → SKIP_UNCHANGED, but should still stamp provenance
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert isinstance(entry, dict)
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_skip_unchanged_tags_provenance_string_entry(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """SKIP_UNCHANGED converts string entries to dict form for provenance."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry as a plain string (not dict form)
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": _SSH}},
+    )
+
+    # Same URL → SKIP_UNCHANGED, should convert to dict and stamp provenance
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert isinstance(entry, dict), "String entry should be converted to dict form"
+    assert entry["repo"] == _SSH
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_provenance_tagging_logs_message(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Provenance-only save emits a log message about tagged repositories."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry with matching URL — will be SKIP_UNCHANGED
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _SSH}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    assert "Tagged 1 repositories with import provenance" in caplog.text
+
+
+def test_import_provenance_survives_non_dict_metadata(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Provenance stamping replaces non-dict metadata with a proper dict."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry with non-dict metadata — would crash without guard
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _SSH, "metadata": "legacy-string"}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert isinstance(entry["metadata"], dict)
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_provenance_survives_null_metadata(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Provenance stamping replaces null metadata with a proper dict (SKIP path)."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry with metadata: null (YAML null → Python None)
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _SSH, "metadata": None}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert isinstance(entry["metadata"], dict)
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_update_url_survives_null_metadata(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Provenance stamping replaces null metadata with a proper dict (UPDATE path)."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing entry with a different URL and metadata: null
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": "git+git@github.com:testuser/repo1-OLD.git",
+                    "metadata": None,
+                },
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    entry = final_config["~/repos/"]["repo1"]
+    assert isinstance(entry["metadata"], dict)
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+    assert entry["repo"] == _SSH
+
+
+# ---------------------------------------------------------------------------
+# --prune standalone flag tests
+# ---------------------------------------------------------------------------
+
+
+def test_import_prune_removes_stale_tagged_repo(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune alone removes stale tagged entry."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "stale-repo": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "stale-repo" not in final_config["~/repos/"]
+    assert "repo1" in final_config["~/repos/"]
+    assert "Pruned 1 repositories" in caplog.text
+
+
+def test_import_prune_does_not_update_urls(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--prune alone does NOT update a changed URL."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {"~/repos/": {"repo1": {"repo": _HTTPS}}},
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # URL should NOT have changed (prune doesn't update URLs)
+    assert final_config["~/repos/"]["repo1"]["repo"] == _HTTPS
+
+
+def test_import_prune_preserves_untagged_repo(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """--prune does not remove manually added repos (no imported_from tag)."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "manual-repo": {"repo": "git+https://example.com/manual.git"},
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "manual-repo" in final_config["~/repos/"]
+
+
+def test_import_prune_respects_pin(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune does not prune pinned repos."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "pinned-repo": {
+                    "repo": _SSH,
+                    "options": {"pin": True},
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "pinned-repo" in final_config["~/repos/"]
+    assert "Skipping pruning pinned repo" in caplog.text
+
+
+def test_import_prune_pinned_skip_count_in_summary(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Prune-phase SKIP_PINNED increments skip_pinned_count for the summary."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "pinned-repo": {
+                    "repo": _SSH,
+                    "options": {"pin": True},
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    assert "Skipped 1 pinned repositories" in caplog.text
+
+
+def test_import_prune_dry_run(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune --dry-run previews prune candidates without deleting them."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "stale-repo": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:testuser",
+    )
+
+    assert "Would prune: stale-repo" in caplog.text
+
+    # Config should NOT have been modified (dry-run)
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "stale-repo" in final_config["~/repos/"]
+
+
+def test_import_dry_run_shows_summary_counts(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--dry-run displays summary counts (add, prune, unchanged)."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing: unchanged repo + stale repo (will be pruned)
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+                "stale-repo": {
+                    "repo": "git+git@github.com:testuser/stale-repo.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            }
+        },
+    )
+
+    # Remote has repo1 (unchanged) + repo2 (new). stale-repo is missing → prune.
+    importer = MockImporter(
+        repos=[_make_repo("repo1"), _make_repo("repo2")],
+    )
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    assert "[DRY-RUN] Would add 1 repositories" in caplog.text
+    assert "[DRY-RUN] Would prune 1 stale entries" in caplog.text
+    assert "[DRY-RUN] 1 repositories unchanged" in caplog.text
+    assert "Dry run complete" in caplog.text
+
+
+def test_import_dry_run_no_changes_no_write_message(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Dry run with zero changes says 'No changes' instead of 'Would write'."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # All repos already match → SKIP_UNCHANGED, no adds/updates/prunes
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _SSH,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    assert "No changes to write" in caplog.text
+    assert "Would write to" not in caplog.text
+
+
+def test_import_dry_run_provenance_tag_shows_write_message(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Dry run reports 'Would write' when only provenance tagging is needed."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Repo URL matches but NO imported_from tag → provenance tagging needed
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _SSH,
+                },
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    assert "Would tag 1 repositories" in caplog.text
+    assert "Would write to" in caplog.text
+    assert "No changes to write" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Collision / cross-source prune tests
+# ---------------------------------------------------------------------------
+
+
+def test_import_sync_prune_same_name_different_sources(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Pruning source A leaves source B entry with the same repo name intact."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace_a = tmp_path / "code"
+    workspace_a.mkdir()
+    workspace_b = tmp_path / "work"
+    workspace_b.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Two workspaces, each with "shared-name" from different sources
+    save_config_yaml(
+        config_file,
+        {
+            "~/code/": {
+                "shared-name": {
+                    "repo": "git+git@github.com:org-a/shared-name.git",
+                    "metadata": {"imported_from": "github:org-a"},
+                },
+            },
+            "~/work/": {
+                "shared-name": {
+                    "repo": "git+git@github.com:org-b/shared-name.git",
+                    "metadata": {"imported_from": "github:org-b"},
+                },
+            },
+        },
+    )
+
+    # Sync with org-a, but org-a no longer has "shared-name" → prune from org-a
+    importer = MockImporter(repos=[_make_repo("other-repo", owner="org-a")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="org-a",
+        workspace=str(workspace_a),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:org-a",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+
+    # org-a's shared-name should be pruned
+    assert "shared-name" not in final_config.get("~/code/", {})
+    # org-b's shared-name should be untouched
+    assert "shared-name" in final_config["~/work/"]
+    entry_b = final_config["~/work/"]["shared-name"]
+    assert entry_b["metadata"]["imported_from"] == "github:org-b"
+
+
+def test_import_prune_cross_workspace_same_name(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Pruning one workspace leaves the other workspace's same-name entry intact."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace_code = tmp_path / "code"
+    workspace_code.mkdir()
+    workspace_work = tmp_path / "work"
+    workspace_work.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Both workspaces have "myrepo" with different import tags
+    save_config_yaml(
+        config_file,
+        {
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:user-a/myrepo.git",
+                    "metadata": {"imported_from": "github:user-a"},
+                },
+            },
+            "~/work/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:user-b/myrepo.git",
+                    "metadata": {"imported_from": "github:user-b"},
+                },
+            },
+        },
+    )
+
+    # Prune user-a: remote has other-repo but not myrepo → myrepo stale
+    importer = MockImporter(repos=[_make_repo("other-repo", owner="user-a")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="user-a",
+        workspace=str(workspace_code),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        import_source="github:user-a",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+
+    # user-a's entry should be pruned
+    assert "myrepo" not in final_config.get("~/code/", {})
+    # user-b's entry should be untouched
+    assert "myrepo" in final_config["~/work/"]
+    assert (
+        final_config["~/work/"]["myrepo"]["metadata"]["imported_from"]
+        == "github:user-b"
+    )
+
+
+def test_import_sync_same_name_from_remote_not_pruned(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A repo matching fetched_repo_names is NOT pruned even if URL changed."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Existing repo with old URL, tagged from same source
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo-x": {
+                    "repo": "git+git@github.com:testuser/repo-x-OLD.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+        },
+    )
+
+    # Remote still has "repo-x" (new URL) → UPDATE_URL, NOT prune
+    importer = MockImporter(repos=[_make_repo("repo-x")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+
+    # repo-x should still exist (not pruned) with updated URL
+    assert "repo-x" in final_config["~/repos/"]
+    entry = final_config["~/repos/"]["repo-x"]
+    assert entry["repo"] == _SSH.replace("repo1", "repo-x")
+    assert entry["metadata"]["imported_from"] == "github:testuser"
+
+
+def test_import_prune_cross_workspace_same_source_same_name(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Stale entry in workspace B is pruned even if workspace A has same name."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace_a = tmp_path / "code"
+    workspace_a.mkdir()
+    workspace_b = tmp_path / "work"
+    workspace_b.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Both workspaces have "myrepo" from the same import source
+    save_config_yaml(
+        config_file,
+        {
+            "~/code/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:testuser/myrepo.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+            "~/work/": {
+                "myrepo": {
+                    "repo": "git+git@github.com:testuser/myrepo.git",
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+            },
+        },
+    )
+
+    # Remote returns myrepo only to workspace A — workspace B's entry is stale
+    importer = MockImporter(repos=[_make_repo("myrepo")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace_a),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+
+    # Workspace A keeps myrepo (it was imported there)
+    assert "myrepo" in final_config["~/code/"]
+    # Workspace B's stale myrepo should be pruned
+    assert "myrepo" not in final_config.get("~/work/", {})
+
+
+def test_import_parser_has_prune_flag() -> None:
+    """The shared parent parser must expose --prune."""
+    from vcspull.cli.import_cmd._common import _create_shared_parent
+
+    parser = argparse.ArgumentParser(parents=[_create_shared_parent()])
+    args = parser.parse_args(["--prune"])
+    assert args.prune is True
+
+    args2 = parser.parse_args([])
+    assert args2.prune is False
+
+
+def test_import_parser_has_prune_untracked_flag() -> None:
+    """The shared parent parser must expose --prune-untracked."""
+    from vcspull.cli.import_cmd._common import _create_shared_parent
+
+    parser = argparse.ArgumentParser(parents=[_create_shared_parent()])
+    args = parser.parse_args(["--prune-untracked"])
+    assert args.prune_untracked is True
+
+    args2 = parser.parse_args([])
+    assert args2.prune_untracked is False
+
+
+# ---------------------------------------------------------------------------
+# --prune-untracked tests
+# ---------------------------------------------------------------------------
+
+
+def test_prune_untracked_removes_untagged_dict(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune-untracked removes dict entries without import provenance."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "manual-repo": {"repo": "git+https://example.com/manual.git"},
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        prune_untracked=True,
+        import_source="github:testuser",
+    )
+
+    assert result == 0
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "manual-repo" not in final_config.get("~/repos/", {})
+    assert "repo1" in final_config["~/repos/"]
+
+
+def test_prune_untracked_removes_string_entry(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune-untracked removes plain string entries (no metadata possible)."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "string-repo": "git+https://example.com/string.git",
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        prune_untracked=True,
+        import_source="github:testuser",
+    )
+
+    assert result == 0
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "string-repo" not in final_config.get("~/repos/", {})
+    assert "repo1" in final_config["~/repos/"]
+
+
+def test_prune_untracked_preserves_different_source(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune-untracked keeps entries tagged by a different import source."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "gitlab-repo": {
+                    "repo": "git+https://gitlab.com/other/repo.git",
+                    "metadata": {"imported_from": "gitlab:other"},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        prune_untracked=True,
+        import_source="github:testuser",
+    )
+
+    assert result == 0
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "gitlab-repo" in final_config["~/repos/"]
+    assert "repo1" in final_config["~/repos/"]
+
+
+def test_prune_untracked_preserves_pinned(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune-untracked keeps pinned entries even without provenance."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "pinned-repo": {
+                    "repo": "git+https://example.com/pinned.git",
+                    "options": {"pin": True},
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        prune_untracked=True,
+        import_source="github:testuser",
+    )
+
+    assert result == 0
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "pinned-repo" in final_config["~/repos/"]
+    assert "Skipping pruning pinned untracked repo: pinned-repo" in caplog.text
+
+
+def test_prune_untracked_preserves_other_workspace(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune-untracked only touches workspaces the import targets."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    other_workspace = tmp_path / "other"
+    other_workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {},
+            "~/other/": {
+                "unrelated-repo": {
+                    "repo": "git+https://example.com/unrelated.git",
+                },
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        prune_untracked=True,
+        import_source="github:testuser",
+    )
+
+    assert result == 0
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # Other workspace should be untouched
+    assert "unrelated-repo" in final_config["~/other/"]
+
+
+def test_prune_untracked_requires_sync_or_prune(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune-untracked alone (no --sync/--prune) returns error."""
+    caplog.set_level(logging.ERROR)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(config_file, {"~/repos/": {}})
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=False,
+        prune_untracked=True,
+        import_source="github:testuser",
+    )
+
+    assert result == 1
+    assert "--prune-untracked requires --sync or --prune" in caplog.text
+
+
+def test_prune_untracked_dry_run(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--prune-untracked --dry-run logs without modifying config."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "manual-repo": {"repo": "git+https://example.com/manual.git"},
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        prune=True,
+        prune_untracked=True,
+        import_source="github:testuser",
+    )
+
+    assert result == 0
+    assert "--prune-untracked: Would remove manual-repo" in caplog.text
+
+    # Config should NOT have been modified
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    assert "manual-repo" in final_config["~/repos/"]
+
+
+def test_prune_untracked_with_sync(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """--sync --prune-untracked: URLs updated AND untracked entries removed."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                # Existing repo with outdated URL (should be updated by --sync)
+                "repo1": {
+                    "repo": _HTTPS,
+                    "metadata": {"imported_from": "github:testuser"},
+                },
+                # Manual repo without provenance (should be removed)
+                "manual-repo": {
+                    "repo": "git+https://example.com/manual.git",
+                },
+            }
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    result = _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=False,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        prune_untracked=True,
+        import_source="github:testuser",
+    )
+
+    assert result == 0
+    from vcspull._internal.config_reader import ConfigReader
+
+    final_config = ConfigReader._from_file(config_file)
+    assert final_config is not None
+    # repo1 should have been updated to SSH URL (--sync updates URLs)
+    assert "repo1" in final_config["~/repos/"]
+    assert final_config["~/repos/"]["repo1"]["repo"] == _SSH
+    # manual-repo should have been removed (untracked)
+    assert "manual-repo" not in final_config.get("~/repos/", {})

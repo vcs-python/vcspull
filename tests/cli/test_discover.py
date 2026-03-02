@@ -790,7 +790,7 @@ def test_discover_normalization_only_save(
     def _fake_save(path: pathlib.Path, data: dict[str, t.Any]) -> None:
         save_calls.append((path, data))
 
-    monkeypatch.setattr("vcspull.cli.discover.save_config_yaml", _fake_save)
+    monkeypatch.setattr("vcspull.cli.discover.save_config", _fake_save)
 
     discover_repos(
         scan_dir_str=str(scan_dir),
@@ -979,10 +979,10 @@ def test_discover_skips_non_dict_workspace(
     )
 
     def _fail_save(path: pathlib.Path, data: dict[str, t.Any]) -> None:
-        error_message = "save_config_yaml should not be called when skipping repo"
+        error_message = "save_config should not be called when skipping repo"
         raise AssertionError(error_message)
 
-    monkeypatch.setattr("vcspull.cli.discover.save_config_yaml", _fail_save)
+    monkeypatch.setattr("vcspull.cli.discover.save_config", _fail_save)
 
     discover_repos(
         scan_dir_str=str(scan_dir),
@@ -994,3 +994,59 @@ def test_discover_skips_non_dict_workspace(
     )
 
     assert expected_warning in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# DiscoverAction classifier unit tests
+# ---------------------------------------------------------------------------
+
+from vcspull.cli.discover import DiscoverAction, _classify_discover_action  # noqa: E402
+
+_DISC_SSH = "git+git@github.com:testuser/repo1.git"
+
+
+class DiscoverActionFixture(t.NamedTuple):
+    """Fixture for _classify_discover_action unit tests."""
+
+    test_id: str
+    existing_entry: dict[str, t.Any] | str | None
+    expected_action: DiscoverAction
+
+
+DISCOVER_ACTION_FIXTURES: list[DiscoverActionFixture] = [
+    DiscoverActionFixture("add-new", None, DiscoverAction.ADD),
+    DiscoverActionFixture(
+        "skip-existing", {"repo": _DISC_SSH}, DiscoverAction.SKIP_EXISTING
+    ),
+    DiscoverActionFixture(
+        "skip-pinned-global",
+        {"repo": _DISC_SSH, "options": {"pin": True}},
+        DiscoverAction.SKIP_PINNED,
+    ),
+    DiscoverActionFixture(
+        "skip-pinned-discover-specific",
+        {"repo": _DISC_SSH, "options": {"pin": {"discover": True}}},
+        DiscoverAction.SKIP_PINNED,
+    ),
+    DiscoverActionFixture(
+        "not-pinned-import-only",
+        {"repo": _DISC_SSH, "options": {"pin": {"import": True}}},
+        DiscoverAction.SKIP_EXISTING,
+    ),
+    DiscoverActionFixture("str-entry", _DISC_SSH, DiscoverAction.SKIP_EXISTING),
+]
+
+
+@pytest.mark.parametrize(
+    list(DiscoverActionFixture._fields),
+    DISCOVER_ACTION_FIXTURES,
+    ids=[f.test_id for f in DISCOVER_ACTION_FIXTURES],
+)
+def test_classify_discover_action(
+    test_id: str,
+    existing_entry: dict[str, t.Any] | str | None,
+    expected_action: DiscoverAction,
+) -> None:
+    """Test _classify_discover_action covers all permutations."""
+    action = _classify_discover_action(existing_entry)
+    assert action == expected_action

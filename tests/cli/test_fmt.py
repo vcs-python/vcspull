@@ -568,3 +568,62 @@ def test_fmt_cli_integration(
     yaml_text = config_file.read_text(encoding="utf-8")
     assert yaml_text == snapshot_yaml
     assert expected_log_fragment in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# FmtAction classifier unit tests
+# ---------------------------------------------------------------------------
+
+from vcspull.cli.fmt import FmtAction, _classify_fmt_action  # noqa: E402
+
+_FMT_SSH = "git+git@github.com:testuser/repo1.git"
+
+
+class FmtActionFixture(t.NamedTuple):
+    """Fixture for _classify_fmt_action unit tests."""
+
+    test_id: str
+    repo_data: dict[str, t.Any] | str
+    expected_action: FmtAction
+
+
+FMT_ACTION_FIXTURES: list[FmtActionFixture] = [
+    FmtActionFixture("normalize-string", _FMT_SSH, FmtAction.NORMALIZE),
+    FmtActionFixture("normalize-url-key", {"url": _FMT_SSH}, FmtAction.NORMALIZE),
+    FmtActionFixture("no-change-normal-dict", {"repo": _FMT_SSH}, FmtAction.NO_CHANGE),
+    FmtActionFixture(
+        "skip-pinned-global",
+        {"repo": _FMT_SSH, "options": {"pin": True}},
+        FmtAction.SKIP_PINNED,
+    ),
+    FmtActionFixture(
+        "skip-pinned-fmt-specific",
+        {"repo": _FMT_SSH, "options": {"pin": {"fmt": True}}},
+        FmtAction.SKIP_PINNED,
+    ),
+    FmtActionFixture(
+        "not-pinned-import-only",
+        {"url": _FMT_SSH, "options": {"pin": {"import": True}}},
+        FmtAction.NORMALIZE,
+    ),
+    FmtActionFixture(
+        "no-change-with-unrelated-options",
+        {"repo": _FMT_SSH, "options": {"pin": {"import": True}}},
+        FmtAction.NO_CHANGE,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(FmtActionFixture._fields),
+    FMT_ACTION_FIXTURES,
+    ids=[f.test_id for f in FMT_ACTION_FIXTURES],
+)
+def test_classify_fmt_action(
+    test_id: str,
+    repo_data: dict[str, t.Any] | str,
+    expected_action: FmtAction,
+) -> None:
+    """Test _classify_fmt_action covers all permutations."""
+    action, _result = _classify_fmt_action(repo_data)
+    assert action == expected_action
