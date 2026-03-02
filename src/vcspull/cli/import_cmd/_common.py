@@ -1050,6 +1050,11 @@ def _run_import(
                 "[DRY-RUN] Would update %s repository URLs",
                 colors.info(str(updated_url_count)),
             )
+        if provenance_tagged_count > 0:
+            log.info(
+                "[DRY-RUN] Would tag %s repositories with import provenance",
+                colors.info(str(provenance_tagged_count)),
+            )
         if pruned_count > 0:
             log.info(
                 "[DRY-RUN] Would prune %s stale entries",
@@ -1069,11 +1074,6 @@ def _run_import(
             log.info(
                 "[DRY-RUN] Skipped %s pinned repositories",
                 colors.info(str(skip_pinned_count)),
-            )
-        if provenance_tagged_count > 0:
-            log.info(
-                "[DRY-RUN] Would tag %s repositories with import provenance",
-                colors.info(str(provenance_tagged_count)),
             )
         if (
             added_count > 0
