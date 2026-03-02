@@ -965,18 +965,28 @@ def _run_import(
             updated_url_count += 1
         elif action == ImportAction.SKIP_UNCHANGED:
             skip_unchanged_count += 1
-            if not dry_run and import_source:
+            if import_source:
                 live = raw_config[repo_workspace_label].get(repo.name)
                 if isinstance(live, dict):
-                    if not isinstance(live.get("metadata"), dict):
-                        live["metadata"] = {}
-                    live.setdefault("metadata", {})["imported_from"] = import_source
-                    provenance_tagged_count += 1
+                    existing_meta = live.get("metadata")
+                    needs_tag = (
+                        not isinstance(existing_meta, dict)
+                        or existing_meta.get("imported_from") != import_source
+                    )
+                    if needs_tag:
+                        if not dry_run:
+                            if not isinstance(existing_meta, dict):
+                                live["metadata"] = {}
+                            live.setdefault("metadata", {})["imported_from"] = (
+                                import_source
+                            )
+                        provenance_tagged_count += 1
                 elif isinstance(live, str):
-                    raw_config[repo_workspace_label][repo.name] = {
-                        "repo": live,
-                        "metadata": {"imported_from": import_source},
-                    }
+                    if not dry_run:
+                        raw_config[repo_workspace_label][repo.name] = {
+                            "repo": live,
+                            "metadata": {"imported_from": import_source},
+                        }
                     provenance_tagged_count += 1
         elif action == ImportAction.SKIP_EXISTING:
             skip_existing_count += 1
@@ -1056,7 +1066,17 @@ def _run_import(
                 "[DRY-RUN] Skipped %s pinned repositories",
                 colors.info(str(skip_pinned_count)),
             )
-        if added_count > 0 or updated_url_count > 0 or pruned_count > 0:
+        if provenance_tagged_count > 0:
+            log.info(
+                "[DRY-RUN] Would tag %s repositories with import provenance",
+                colors.info(str(provenance_tagged_count)),
+            )
+        if (
+            added_count > 0
+            or updated_url_count > 0
+            or pruned_count > 0
+            or provenance_tagged_count > 0
+        ):
             log.info(
                 "\n%s Dry run complete. Would write to %s",
                 colors.warning("→"),

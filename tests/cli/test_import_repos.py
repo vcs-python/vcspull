@@ -4138,6 +4138,58 @@ def test_import_dry_run_no_changes_no_write_message(
     assert "Would write to" not in caplog.text
 
 
+def test_import_dry_run_provenance_tag_shows_write_message(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Dry run reports 'Would write' when only provenance tagging is needed."""
+    caplog.set_level(logging.INFO)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    workspace = tmp_path / "repos"
+    workspace.mkdir()
+    config_file = tmp_path / ".vcspull.yaml"
+
+    # Repo URL matches but NO imported_from tag → provenance tagging needed
+    save_config_yaml(
+        config_file,
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _SSH,
+                },
+            },
+        },
+    )
+
+    importer = MockImporter(repos=[_make_repo("repo1")])
+    _run_import(
+        importer,
+        service_name="github",
+        target="testuser",
+        workspace=str(workspace),
+        mode="user",
+        language=None,
+        topics=None,
+        min_stars=0,
+        include_archived=False,
+        include_forks=False,
+        limit=100,
+        config_path_str=str(config_file),
+        dry_run=True,
+        yes=True,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        sync=True,
+        import_source="github:testuser",
+    )
+
+    assert "Would tag 1 repositories" in caplog.text
+    assert "Would write to" in caplog.text
+    assert "No changes to write" not in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # Collision / cross-source prune tests
 # ---------------------------------------------------------------------------
