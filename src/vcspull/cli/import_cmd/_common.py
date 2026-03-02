@@ -252,6 +252,91 @@ def _classify_prune_action(
     return ImportAction.PRUNE
 
 
+def _classify_untracked_prune_action(
+    *,
+    existing_entry: dict[str, t.Any] | str | t.Any,
+) -> ImportAction:
+    """Classify whether an untracked config entry should be pruned.
+
+    "Untracked" means the entry has no import provenance from *any* source.
+    This is the complement of :func:`_classify_prune_action`, which checks
+    for a *specific* source tag.
+
+    Parameters
+    ----------
+    existing_entry : dict | str | Any
+        Current config entry for this repo name.
+
+    Returns
+    -------
+    ImportAction
+        ``PRUNE`` for entries without provenance (untracked),
+        ``SKIP_PINNED`` for pinned entries,
+        ``SKIP_EXISTING`` for entries that have provenance from any source.
+
+    Examples
+    --------
+    String entries have no metadata — they are untracked:
+
+    >>> _classify_untracked_prune_action(existing_entry="git+ssh://x")
+    <ImportAction.PRUNE: 'prune'>
+
+    Dict entry without metadata is untracked:
+
+    >>> _classify_untracked_prune_action(
+    ...     existing_entry={"repo": "git+ssh://x"},
+    ... )
+    <ImportAction.PRUNE: 'prune'>
+
+    Dict entry with provenance from any source is tracked (kept):
+
+    >>> _classify_untracked_prune_action(
+    ...     existing_entry={
+    ...         "repo": "git+ssh://x",
+    ...         "metadata": {"imported_from": "github:org"},
+    ...     },
+    ... )
+    <ImportAction.SKIP_EXISTING: 'skip_existing'>
+
+    >>> _classify_untracked_prune_action(
+    ...     existing_entry={
+    ...         "repo": "git+ssh://x",
+    ...         "metadata": {"imported_from": "gitlab:other"},
+    ...     },
+    ... )
+    <ImportAction.SKIP_EXISTING: 'skip_existing'>
+
+    Pinned entry without provenance is protected:
+
+    >>> _classify_untracked_prune_action(
+    ...     existing_entry={
+    ...         "repo": "git+ssh://x",
+    ...         "options": {"pin": True},
+    ...     },
+    ... )
+    <ImportAction.SKIP_PINNED: 'skip_pinned'>
+
+    Pinned entry with provenance is also protected:
+
+    >>> _classify_untracked_prune_action(
+    ...     existing_entry={
+    ...         "repo": "git+ssh://x",
+    ...         "options": {"pin": True},
+    ...         "metadata": {"imported_from": "github:org"},
+    ...     },
+    ... )
+    <ImportAction.SKIP_PINNED: 'skip_pinned'>
+    """
+    if not isinstance(existing_entry, dict):
+        return ImportAction.PRUNE
+    if is_pinned_for_op(existing_entry, "import"):
+        return ImportAction.SKIP_PINNED
+    metadata = existing_entry.get("metadata")
+    if isinstance(metadata, dict) and metadata.get("imported_from"):
+        return ImportAction.SKIP_EXISTING
+    return ImportAction.PRUNE
+
+
 # ---------------------------------------------------------------------------
 # Parent parser factories
 # ---------------------------------------------------------------------------
@@ -379,6 +464,17 @@ def _create_shared_parent() -> argparse.ArgumentParser:
             "no longer on the remote. Does not update URLs for existing "
             "entries (use --sync for that). Implied by --sync. "
             "Respects pinned entries."
+        ),
+    )
+    output_group.add_argument(
+        "--prune-untracked",
+        dest="prune_untracked",
+        action="store_true",
+        help=(
+            "With --sync or --prune, also remove config entries in the "
+            "target workspace that lack import provenance (e.g. manually "
+            "added repos). Entries imported from other sources and pinned "
+            "entries are preserved. Requires --sync or --prune."
         ),
     )
     output_group.add_argument(
@@ -510,6 +606,7 @@ def _run_import(
     skip_groups: list[str] | None = None,
     sync: bool = False,
     prune: bool = False,
+    prune_untracked: bool = False,
     import_source: str | None = None,
 ) -> int:
     """Run the import workflow for a single service.
@@ -584,6 +681,13 @@ def _run_import(
     output_mode = get_output_mode(output_json, output_ndjson)
     formatter = OutputFormatter(output_mode)
     colors = Colors(get_color_mode(color))
+
+    if prune_untracked and not (sync or prune):
+        log.error(
+            "%s --prune-untracked requires --sync or --prune",
+            colors.error("✗"),
+        )
+        return 1
 
     # Build import options
     import_mode = ImportMode(mode)
@@ -1035,6 +1139,88 @@ def _run_import(
                         f" ({reason})" if reason else "",
                     )
                     skip_pinned_count += 1
+
+    # Prune untracked entries (no import provenance from any source)
+    untracked_pruned: list[tuple[str, str]] = []
+    if prune_untracked and import_source:
+        target_workspaces = {ws for ws, _name in imported_workspace_repos}
+        for ws_label in target_workspaces:
+            ws_entries = raw_config.get(ws_label)
+            if not isinstance(ws_entries, dict):
+                continue
+            for repo_name in list(ws_entries):
+                if (ws_label, repo_name) in imported_workspace_repos:
+                    continue
+                ut_action = _classify_untracked_prune_action(
+                    existing_entry=ws_entries[repo_name],
+                )
+                if ut_action == ImportAction.PRUNE:
+                    untracked_pruned.append((ws_label, repo_name))
+                elif ut_action == ImportAction.SKIP_PINNED:
+                    reason = get_pin_reason(ws_entries[repo_name])
+                    log.info(
+                        "%s Skipping pruning pinned untracked repo: %s%s",
+                        colors.warning("⊘"),
+                        repo_name,
+                        f" ({reason})" if reason else "",
+                    )
+                    skip_pinned_count += 1
+
+        if untracked_pruned:
+            if dry_run:
+                for _ws_label, repo_name in untracked_pruned:
+                    log.info(
+                        "[DRY-RUN] --prune-untracked: Would remove %s (untracked)",
+                        repo_name,
+                    )
+                pruned_count += len(untracked_pruned)
+            elif not yes:
+                # Confirmation prompt
+                by_ws: dict[str, list[str]] = {}
+                for ws_label, repo_name in untracked_pruned:
+                    by_ws.setdefault(ws_label, []).append(repo_name)
+                for ws_label, names in by_ws.items():
+                    log.warning(
+                        "%s --prune-untracked: %d untracked %s in %s:",
+                        colors.warning("⚠"),
+                        len(names),
+                        "entry" if len(names) == 1 else "entries",
+                        ws_label,
+                    )
+                    for name in names:
+                        log.warning("     %s", name)
+                log.warning(
+                    "   These entries have no import provenance.",
+                )
+                if not sys.stdin.isatty():
+                    log.info(
+                        "%s Non-interactive mode: use --yes to skip confirmation.",
+                        colors.error("✗"),
+                    )
+                else:
+                    try:
+                        confirm = input("   Remove? [y/N]: ").lower()
+                    except EOFError:
+                        confirm = ""
+                    if confirm in {"y", "yes"}:
+                        for ws_label, repo_name in untracked_pruned:
+                            ws_e = raw_config.get(ws_label)
+                            if isinstance(ws_e, dict) and repo_name in ws_e:
+                                del ws_e[repo_name]
+                        pruned_count += len(untracked_pruned)
+                    else:
+                        log.info(
+                            "Kept %d untracked %s.",
+                            len(untracked_pruned),
+                            "entry" if len(untracked_pruned) == 1 else "entries",
+                        )
+            else:
+                # --yes mode: proceed without confirmation
+                for ws_label, repo_name in untracked_pruned:
+                    ws_e = raw_config.get(ws_label)
+                    if isinstance(ws_e, dict) and repo_name in ws_e:
+                        del ws_e[repo_name]
+                pruned_count += len(untracked_pruned)
 
     if error_labels:
         return 1

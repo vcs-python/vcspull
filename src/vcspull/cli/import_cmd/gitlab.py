@@ -123,5 +123,6 @@ def handle_gitlab(args: argparse.Namespace) -> int:
         skip_groups=getattr(args, "skip_groups", None),
         sync=getattr(args, "sync", False),
         prune=getattr(args, "prune", False),
+        prune_untracked=getattr(args, "prune_untracked", False),
         import_source=f"gitlab:{args.target}",
     )

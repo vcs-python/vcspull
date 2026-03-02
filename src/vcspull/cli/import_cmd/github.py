@@ -92,5 +92,6 @@ def handle_github(args: argparse.Namespace) -> int:
         use_https=getattr(args, "use_https", False),
         sync=getattr(args, "sync", False),
         prune=getattr(args, "prune", False),
+        prune_untracked=getattr(args, "prune_untracked", False),
         import_source=f"github:{args.target}",
     )

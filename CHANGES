@@ -53,6 +53,22 @@ $ vcspull import gh myorg \
 Available on all six import providers. Pruning is config-only — cloned
 directories on disk are not deleted. See {ref}`cli-import` for details.
 
+#### `vcspull import`: Add `--prune-untracked` flag (#520)
+
+`--prune-untracked` expands `--sync` / `--prune` to also remove config
+entries in the target workspace that lack import provenance — repos added
+manually or before provenance tracking. Entries imported from other sources
+and pinned entries are preserved. A confirmation prompt lists exactly what
+would be removed.
+
+```console
+$ vcspull import gh myorg \
+    --workspace ~/code/ \
+    --sync \
+    --prune-untracked \
+    --dry-run
+```
+
 #### `options.pin`: Per-repo, per-operation mutation guard (#520)
 
 Any repository entry can carry an `options.pin` block that prevents specific
