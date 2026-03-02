@@ -322,12 +322,52 @@ $ vcspull import gh myorg \
 `--sync` and `--prune` can be combined — `--sync` alone already includes
 pruning, so `--sync --prune` behaves identically to `--sync`.
 
-| Flags | Add new | Update URLs | Prune stale |
-|-------|---------|-------------|-------------|
-| (none) | yes | no | no |
-| `--sync` | yes | yes | yes |
-| `--prune` | yes | no | yes |
-| `--sync --prune` | yes | yes | yes |
+| Flags | Add new | Update URLs | Prune stale | Prune untracked |
+|-------|---------|-------------|-------------|-----------------|
+| (none) | yes | no | no | no |
+| `--sync` | yes | yes | yes | no |
+| `--prune` | yes | no | yes | no |
+| `--sync --prune` | yes | yes | yes | no |
+| `--sync --prune-untracked` | yes | yes | yes | yes |
+| `--prune --prune-untracked` | yes | no | yes | yes |
+
+### Pruning untracked entries
+
+Standard `--sync` / `--prune` only removes entries tagged with the current
+import source. Manually added repos — entries without any
+`metadata.imported_from` tag — are left untouched. To also remove these
+"untracked" entries, add `--prune-untracked`:
+
+```console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --sync \
+    --prune-untracked
+```
+
+`--prune-untracked` requires `--sync` or `--prune` — it cannot be used alone.
+
+Safety rails:
+
+- **Pinned entries** are always preserved (regardless of provenance)
+- **Entries tagged from a different source** (e.g. `"gitlab:other"`) are
+  preserved — they are "tracked" by that other import
+- **Only workspaces the import targets** are scanned — entries in other
+  workspaces are untouched
+- A **confirmation prompt** lists exactly what would be removed before
+  proceeding (use `--yes` to skip, `--dry-run` to preview)
+
+Preview with dry-run:
+
+```console
+$ vcspull import gh myorg \
+    --mode org \
+    --workspace ~/code/ \
+    --prune \
+    --prune-untracked \
+    --dry-run
+```
 
 ### Pin-aware behavior
 
