@@ -955,6 +955,8 @@ def _run_import(
                 updated["repo"] = incoming_url
                 updated.pop("url", None)
                 if import_source:
+                    # None is not safe: setdefault returns existing None
+                    # instead of replacing it, causing TypeError.
                     if not isinstance(updated.get("metadata"), dict):
                         updated["metadata"] = {}
                     metadata = updated.setdefault("metadata", {})
@@ -975,6 +977,8 @@ def _run_import(
                     )
                     if needs_tag:
                         if not dry_run:
+                            # None is not safe: setdefault returns existing
+                            # None instead of replacing it, causing TypeError.
                             if not isinstance(existing_meta, dict):
                                 live["metadata"] = {}
                             live.setdefault("metadata", {})["imported_from"] = (
