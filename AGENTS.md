@@ -189,6 +189,103 @@ type
 PosixPath('.../repo')
 ```
 
+### Logging Standards
+
+These rules guide future logging changes; existing code may not yet conform.
+
+#### Logger setup
+
+- Use `logging.getLogger(__name__)` in every module
+- Add `NullHandler` in library `__init__.py` files
+- Never configure handlers, levels, or formatters in library code — that's the application's job
+
+#### Structured context via `extra`
+
+Pass structured data on every log call where useful for filtering, searching, or test assertions.
+
+**Core keys** (stable, scalar, safe at any log level):
+
+| Key | Type | Context |
+|-----|------|---------|
+| `vcs_cmd` | `str` | VCS command line |
+| `vcs_type` | `str` | VCS type (git, svn, hg) |
+| `vcs_url` | `str` | repository URL |
+| `vcs_exit_code` | `int` | VCS process exit code |
+| `vcs_repo_path` | `str` | local repository path |
+| `vcspull_config_path` | `str` | workspace config file path |
+
+**Heavy/optional keys** (DEBUG only, potentially large):
+
+| Key | Type | Context |
+|-----|------|---------|
+| `vcs_stdout` | `list[str]` | VCS stdout lines (truncate or cap; `%(vcs_stdout)s` produces repr) |
+| `vcs_stderr` | `list[str]` | VCS stderr lines (same caveats) |
+
+Treat established keys as compatibility-sensitive — downstream users may build dashboards and alerts on them. Change deliberately.
+
+#### Key naming rules
+
+- `snake_case`, not dotted; `vcs_` prefix
+- Prefer stable scalars; avoid ad-hoc objects
+- Heavy keys (`vcs_stdout`, `vcs_stderr`) are DEBUG-only; consider companion `vcs_stdout_len` fields or hard truncation (e.g. `stdout[:100]`)
+
+#### Lazy formatting
+
+`logger.debug("msg %s", val)` not f-strings. Two rationales:
+- Deferred string interpolation: skipped entirely when level is filtered
+- Aggregator message template grouping: `"Running %s"` is one signature grouped ×10,000; f-strings make each line unique
+
+When computing `val` itself is expensive, guard with `if logger.isEnabledFor(logging.DEBUG)`.
+
+#### stacklevel for wrappers
+
+Increment for each wrapper layer so `%(filename)s:%(lineno)d` and OTel `code.filepath` point to the real caller. Verify whenever call depth changes.
+
+#### LoggerAdapter for persistent context
+
+For objects with stable identity (Repository, Remote, Sync), use `LoggerAdapter` to avoid repeating the same `extra` on every call. Lead with the portable pattern (override `process()` to merge); `merge_extra=True` simplifies this on Python 3.13+.
+
+#### Log levels
+
+| Level | Use for | Examples |
+|-------|---------|----------|
+| `DEBUG` | Internal mechanics, VCS I/O | VCS command + stdout, URL parsing steps |
+| `INFO` | Repository lifecycle, user-visible operations | Repository cloned, sync completed |
+| `WARNING` | Recoverable issues, deprecation, user-actionable config | Deprecated VCS option, unrecognized remote |
+| `ERROR` | Failures that stop an operation | VCS command failed, invalid URL |
+
+Config discovery noise belongs in `DEBUG`; only surprising/user-actionable config issues → `WARNING`.
+
+#### Message style
+
+- Lowercase, past tense for events: `"repository cloned"`, `"vcs command failed"`
+- No trailing punctuation
+- Keep messages short; put details in `extra`, not the message string
+
+#### Exception logging
+
+- Use `logger.exception()` only inside `except` blocks when you are **not** re-raising
+- Use `logger.error(..., exc_info=True)` when you need the traceback outside an `except` block
+- Avoid `logger.exception()` followed by `raise` — this duplicates the traceback. Either add context via `extra` that would otherwise be lost, or let the exception propagate
+
+#### Testing logs
+
+Assert on `caplog.records` attributes, not string matching on `caplog.text`:
+- Scope capture: `caplog.at_level(logging.DEBUG, logger="vcspull.cli")`
+- Filter records rather than index by position: `[r for r in caplog.records if hasattr(r, "vcs_cmd")]`
+- Assert on schema: `record.vcs_exit_code == 0` not `"exit code 0" in caplog.text`
+- `caplog.record_tuples` cannot access extra fields — always use `caplog.records`
+
+#### Avoid
+
+- f-strings/`.format()` in log calls
+- Unguarded logging in hot loops (guard with `isEnabledFor()`)
+- Catch-log-reraise without adding new context
+- `print()` for diagnostics
+- Logging secret env var values (log key names only)
+- Non-scalar ad-hoc objects in `extra`
+- Requiring custom `extra` fields in format strings without safe defaults (missing keys raise `KeyError`)
+
 ### Testing
 
 **Use functional tests only**: Write tests as standalone functions (`test_*`), not classes. Avoid `class TestFoo:` groupings - use descriptive function names and file organization instead. This applies to pytest tests, not doctests.
