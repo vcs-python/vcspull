@@ -29,6 +29,7 @@ with (src_root / "vcspull" / "__about__.py").open() as fp:
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx_fonts",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
     "sphinx.ext.todo",
@@ -152,6 +153,57 @@ ogp_site_url = about["__docs__"]
 ogp_image = "_static/img/icons/icon-192x192.png"
 ogp_site_name = about["__title__"]
 
+# sphinx_fonts — self-hosted IBM Plex via Fontsource CDN
+sphinx_fonts = [
+    {
+        "family": "IBM Plex Sans",
+        "package": "@fontsource/ibm-plex-sans",
+        "version": "5.2.8",
+        "weights": [400, 500, 600, 700],
+        "styles": ["normal", "italic"],
+        "subset": "latin",
+    },
+    {
+        "family": "IBM Plex Mono",
+        "package": "@fontsource/ibm-plex-mono",
+        "version": "5.2.7",
+        "weights": [400],
+        "styles": ["normal", "italic"],
+        "subset": "latin",
+    },
+]
+
+sphinx_font_preload = [
+    ("IBM Plex Sans", 400, "normal"),  # body text
+    ("IBM Plex Sans", 700, "normal"),  # headings
+    ("IBM Plex Mono", 400, "normal"),  # code blocks
+]
+
+sphinx_font_fallbacks = [
+    {
+        "family": "IBM Plex Sans Fallback",
+        "src": 'local("Arial"), local("Helvetica Neue"), local("Helvetica")',
+        "size_adjust": "110.6%",
+        "ascent_override": "92.7%",
+        "descent_override": "24.9%",
+        "line_gap_override": "0%",
+    },
+    {
+        "family": "IBM Plex Mono Fallback",
+        "src": 'local("Courier New"), local("Courier")',
+        "size_adjust": "100%",
+        "ascent_override": "102.5%",
+        "descent_override": "27.5%",
+        "line_gap_override": "0%",
+    },
+]
+
+sphinx_font_css_variables = {
+    "--font-stack": '"IBM Plex Sans", "IBM Plex Sans Fallback", -apple-system, BlinkMacSystemFont, sans-serif',
+    "--font-stack--monospace": '"IBM Plex Mono", "IBM Plex Mono Fallback", SFMono-Regular, Menlo, Consolas, monospace',
+    "--font-stack--headings": "var(--font-stack)",
+}
+
 intersphinx_mapping = {
     "py": ("https://docs.python.org/", None),
     "libvcs": ("https://libvcs.git-pull.com/", None),
@@ -237,6 +289,7 @@ def remove_tabs_js(app: Sphinx, exc: Exception) -> None:
 
 def setup(app: Sphinx) -> None:
     """Sphinx setup hook."""
+    app.add_js_file("js/spa-nav.js", loading_method="defer")
     app.connect("build-finished", remove_tabs_js)
 
     # Register vcspull-specific lexers
