@@ -129,7 +129,8 @@ Each status entry includes:
 Filter with [jq] to find missing repositories:
 
 ```console
-$ vcspull status --json | jq '.[] | select(.reason == "status" and .exists == false)'
+$ vcspull status --json \
+    | jq '.[] | select(.reason == "status" and .exists == false)'
 ```
 
 Or extract just the summary:
@@ -160,13 +161,16 @@ $ vcspull status --ndjson | grep '"exists":false' | jq -r '.name'
 Monitor missing repositories:
 
 ```console
-$ vcspull status --json | jq -r '.[] | select(.reason == "status" and .exists == false) | .name'
+$ vcspull status --json \
+    | jq -r '.[] | select(.reason == "status" and .exists == false) | .name'
 ```
 
 Check which repositories need syncing:
 
 ```console
-$ vcspull status --json | jq -r '.[] | select(.reason == "status" and .exists == false) | .name' | xargs vcspull sync
+$ vcspull status --json \
+    | jq -r '.[] | select(.reason == "status" and .exists == false) | .name' \
+    | xargs vcspull sync
 ```
 
 Generate reports:
