@@ -208,7 +208,8 @@ for CI/CD:
 $ vcspull sync --dry-run "*"
 $ vcspull sync --dry-run --show-unchanged "workspace-*"
 $ vcspull sync --dry-run --json "*" | jq '.summary'
-$ vcspull sync --dry-run --ndjson "*" | jq --slurp 'map(select(.type == "summary"))'
+$ vcspull sync --dry-run --ndjson "*" \
+    | jq --slurp 'map(select(.type == "summary"))'
 ```
 
 Dry runs stream a progress line when stdout is a TTY, then print a concise plan
