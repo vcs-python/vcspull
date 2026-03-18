@@ -8,7 +8,6 @@ import enum
 import logging
 import pathlib
 import subprocess
-import traceback
 import typing as t
 
 from colorama import Fore, Style
@@ -549,8 +548,6 @@ def add_repo(
                 "Error loading YAML from %s. Aborting.",
                 PrivatePath(config_file_path),
             )
-            if log.isEnabledFor(logging.DEBUG):
-                traceback.print_exc()
             return
     else:
         raw_config = {}
@@ -767,8 +764,6 @@ def add_repo(
                         "Error saving config to %s",
                         PrivatePath(config_file_path),
                     )
-                    if log.isEnabledFor(logging.DEBUG):
-                        traceback.print_exc()
             elif (duplicate_merge_changes > 0 or config_was_relabelled) and dry_run:
                 log.info(
                     "%s→%s Would save workspace label adjustments to %s%s%s.",
@@ -826,8 +821,6 @@ def add_repo(
                 "Error saving config to %s",
                 PrivatePath(config_file_path),
             )
-            if log.isEnabledFor(logging.DEBUG):
-                traceback.print_exc()
         return
 
     ordered_items = _build_ordered_items(top_level_items, raw_config)
@@ -948,8 +941,6 @@ def add_repo(
                         "Error saving config to %s",
                         PrivatePath(config_file_path),
                     )
-                    if log.isEnabledFor(logging.DEBUG):
-                        traceback.print_exc()
         return
 
     target_section = ordered_items[target_index]["section"]
@@ -1007,5 +998,3 @@ def add_repo(
             "Error saving config to %s",
             PrivatePath(config_file_path),
         )
-        if log.isEnabledFor(logging.DEBUG):
-            traceback.print_exc()
