@@ -2,6 +2,17 @@
 
 # Configuration
 
+::::{grid} 1 1 2 2
+:gutter: 2 2 3 3
+
+:::{grid-item-card} Config Generation
+:link: generation
+:link-type: doc
+Import repos from forges and generate config automatically.
+:::
+
+::::
+
 ## URL Format
 
 Repo type and address is [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986) style URLs.
@@ -259,4 +270,10 @@ For git remotes using SSH authorization such as `git+git@github.com:tony/kaptan.
 
 ```console
 git+ssh://git@github.com/tony/kaptan.git
+```
+
+```{toctree}
+:hidden:
+
+generation
 ```

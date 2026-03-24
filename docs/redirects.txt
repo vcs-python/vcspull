@@ -1,2 +1,23 @@
 # "cli.md" "cli/index.md"  # dirhtml: same output path
 # "api.md" "api/index.md"  # dirhtml: same output path
+
+# api/internals/ -> internals/api/
+"api/internals/index.md" "internals/api/index.md"
+"api/internals/config_reader.md" "internals/api/config_reader.md"
+"api/internals/worktree_sync.md" "internals/api/worktree_sync.md"
+"api/internals/private_path.md" "internals/api/private_path.md"
+
+# api/cli/ -> internals/api/cli/
+"api/cli/index.md" "internals/api/cli/index.md"
+"api/cli/sync.md" "internals/api/cli/sync.md"
+"api/cli/add.md" "internals/api/cli/add.md"
+"api/cli/import.md" "internals/api/cli/import.md"
+"api/cli/discover.md" "internals/api/cli/discover.md"
+"api/cli/list.md" "internals/api/cli/list.md"
+"api/cli/search.md" "internals/api/cli/search.md"
+"api/cli/status.md" "internals/api/cli/status.md"
+"api/cli/worktree.md" "internals/api/cli/worktree.md"
+"api/cli/fmt.md" "internals/api/cli/fmt.md"
+
+# developing.md -> project/contributing.md
+"developing.md" "project/contributing.md"
