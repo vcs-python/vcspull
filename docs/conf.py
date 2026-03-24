@@ -40,9 +40,11 @@ extensions = [
     "sphinx_copybutton",
     "sphinxext.opengraph",
     "sphinxext.rediraffe",
+    "sphinx_design",
     "myst_parser",
     "linkify_issues",
 ]
+myst_heading_anchors = 4
 myst_enable_extensions = [
     "colon_fence",
     "substitution",
