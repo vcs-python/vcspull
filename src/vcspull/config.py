@@ -800,6 +800,15 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         Path to the configuration file to write
     data : dict
         Configuration data to save
+
+    Examples
+    --------
+    >>> import pathlib, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "cfg.yaml"
+    ...     save_config_yaml(p, {"~/code/": {"myrepo": "git+https://example.com/repo.git"}})
+    ...     "myrepo" in p.read_text(encoding="utf-8")
+    True
     """
     yaml_content = ConfigReader._dump(
         fmt="yaml",
@@ -818,6 +827,16 @@ def save_config_json(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         Path to the configuration file to write
     data : dict
         Configuration data to save
+
+    Examples
+    --------
+    >>> import json, pathlib, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "cfg.json"
+    ...     save_config_json(p, {"~/code/": {"myrepo": "git+https://example.com/repo.git"}})
+    ...     loaded = json.loads(p.read_text(encoding="utf-8"))
+    ...     "~/code/" in loaded
+    True
     """
     json_content = ConfigReader._dump(
         fmt="json",
