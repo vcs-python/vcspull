@@ -37,6 +37,20 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Bug fixes
+
+#### `config`: Preserve symlinks when writing config files (#538)
+
+Config files that are symbolic links (e.g. `~/.vcspull.yaml` pointing to a
+dotfiles directory) were being silently replaced by regular files on every
+write, destroying the symlink. The write now goes through the link — a temp
+file is created next to the real target, renamed into place, and the symlink
+directory entry is preserved.
+
+Format detection now also inspects the symlink target's extension, so a
+`.yaml` symlink pointing to a `.json` file serialises correctly as JSON rather
+than overwriting the target with YAML.
+
 ## vcspull v1.58.0 (2026-03-01)
 
 ### New features
