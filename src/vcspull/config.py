@@ -357,9 +357,9 @@ def find_home_config_files(
     check_yaml = "yaml" in filetype
     check_json = "json" in filetype
 
-    yaml_config = pathlib.Path("~/.vcspull.yaml").expanduser()
+    yaml_config = pathlib.Path("~/.vcspull.yaml").expanduser().resolve()
     has_yaml_config = check_yaml and yaml_config.exists()
-    json_config = pathlib.Path("~/.vcspull.json").expanduser()
+    json_config = pathlib.Path("~/.vcspull.json").expanduser().resolve()
     has_json_config = check_json and json_config.exists()
 
     if not has_yaml_config and not has_json_config:
