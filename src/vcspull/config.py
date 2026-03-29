@@ -363,6 +363,11 @@ def find_home_config_files(
     -------
     list of pathlib.Path
         Resolved paths to discovered config files
+
+    Examples
+    --------
+    >>> find_home_config_files()
+    []
     """
     if filetype is None:
         filetype = ["json", "yaml"]
