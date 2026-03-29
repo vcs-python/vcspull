@@ -678,6 +678,26 @@ def _atomic_write(target: pathlib.Path, content: str) -> None:
         Destination file path (may be a symlink)
     content : str
         Content to write
+
+    Examples
+    --------
+    >>> import pathlib, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "test.txt"
+    ...     _atomic_write(p, "hello")
+    ...     p.read_text(encoding="utf-8")
+    'hello'
+
+    Symlinks are preserved — the real target is updated:
+
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     real = pathlib.Path(tmp) / "real.txt"
+    ...     _ = real.write_text("old", encoding="utf-8")
+    ...     link = pathlib.Path(tmp) / "link.txt"
+    ...     link.symlink_to(real)
+    ...     _atomic_write(link, "new")
+    ...     link.is_symlink(), link.read_text(encoding="utf-8")
+    (True, 'new')
     """
     # Resolve symlinks so the temp file lives next to the real
     # destination and the rename replaces the real file, not the symlink.
