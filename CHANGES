@@ -37,6 +37,8 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+## vcspull v1.58.1 (2026-03-29)
+
 ### Bug fixes
 
 #### `config`: Preserve symlinks when writing config files (#538)
