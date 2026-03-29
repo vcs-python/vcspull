@@ -54,6 +54,48 @@ def expand_dir(
     return dir_
 
 
+def normalize_config_file_path(
+    path: pathlib.Path,
+    cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
+) -> pathlib.Path:
+    """Return absolute config file path without resolving symlinks.
+
+    Symlink entry names are preserved intact so that downstream operations
+    (e.g. atomic writes) can resolve them as needed, while the logical path
+    is used for display and identity.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Config file path to normalize.
+    cwd : pathlib.Path, optional
+        Current working dir (used to resolve relative paths). Defaults to
+        :py:meth:`pathlib.Path.cwd`.
+
+    Returns
+    -------
+    pathlib.Path
+        Absolute config file path with symlink names preserved.
+
+    Examples
+    --------
+    >>> normalize_config_file_path(pathlib.Path("~/cfg.yaml")).name
+    'cfg.yaml'
+    >>> normalize_config_file_path(
+    ...     pathlib.Path("configs/vcspull.yaml"),
+    ...     cwd=pathlib.Path("/tmp/project"),
+    ... )  # doctest: +ELLIPSIS
+    PosixPath('.../configs/vcspull.yaml')
+    """
+    path = pathlib.Path(os.path.expandvars(str(path))).expanduser()
+    if callable(cwd):
+        cwd = cwd()
+
+    if not path.is_absolute():
+        path = pathlib.Path(os.path.normpath(cwd / path))
+    return path
+
+
 def _validate_worktrees_config(
     worktrees_raw: t.Any,
     repo_name: str,
@@ -351,8 +393,9 @@ def find_home_config_files(
 ) -> list[pathlib.Path]:
     """Return configs of ``.vcspull.{yaml,json}`` in user's home directory.
 
-    Paths are resolved through symlinks so callers receive the real
-    filesystem location, consistent with the ``-f`` flag codepath.
+    The returned path preserves the logical home entry name so callers
+    keep the config type implied by ``.yaml`` or ``.json`` even when the
+    file is a symlink.
 
     Parameters
     ----------
@@ -362,7 +405,7 @@ def find_home_config_files(
     Returns
     -------
     list of pathlib.Path
-        Resolved paths to discovered config files
+        Absolute paths to discovered config files
 
     Examples
     --------
@@ -376,9 +419,9 @@ def find_home_config_files(
     check_yaml = "yaml" in filetype
     check_json = "json" in filetype
 
-    yaml_config = pathlib.Path("~/.vcspull.yaml").expanduser().resolve()
+    yaml_config = normalize_config_file_path(pathlib.Path("~/.vcspull.yaml"))
     has_yaml_config = check_yaml and yaml_config.exists()
-    json_config = pathlib.Path("~/.vcspull.json").expanduser().resolve()
+    json_config = normalize_config_file_path(pathlib.Path("~/.vcspull.json"))
     has_json_config = check_json and json_config.exists()
 
     if not has_yaml_config and not has_json_config:

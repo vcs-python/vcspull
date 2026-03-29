@@ -188,6 +188,29 @@ def test_resolve_config_file(
     assert result.name == expected_suffix
 
 
+def test_resolve_config_file_preserves_symlink_suffix(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Explicit config paths should keep symlink suffixes for format detection."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    dotfiles_dir = tmp_path / "dotfiles"
+    dotfiles_dir.mkdir()
+
+    real_config = dotfiles_dir / "vcspull-config"
+    real_config.write_text("~/repos/: {}\n", encoding="utf-8")
+
+    symlink = tmp_path / ".vcspull.yaml"
+    symlink.symlink_to(real_config)
+
+    result = _resolve_config_file(str(symlink))
+
+    assert result == symlink
+    assert result.suffix == ".yaml"
+    assert result.resolve() == real_config.resolve()
+
+
 class ImportReposFixture(t.NamedTuple):
     """Fixture for _run_import test cases."""
 

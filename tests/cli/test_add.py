@@ -330,6 +330,43 @@ def test_add_repo_creates_new_file(
     assert "newrepo" in config["~/"]
 
 
+def test_add_repo_uses_home_symlink_config_without_losing_yaml_suffix(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Default home config symlinks should still load and save as YAML."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    dotfiles_dir = tmp_path / "dotfiles"
+    dotfiles_dir.mkdir()
+
+    real_config = dotfiles_dir / "vcspull-config"
+    real_config.write_text("~/code/: {}\n", encoding="utf-8")
+
+    symlink = tmp_path / ".vcspull.yaml"
+    symlink.symlink_to(real_config)
+
+    repo_path = tmp_path / "code" / "newrepo"
+    repo_path.mkdir(parents=True)
+
+    add_repo(
+        name="newrepo",
+        url="git+https://github.com/user/newrepo.git",
+        config_file_path_str=None,
+        path=str(repo_path),
+        workspace_root_path="~/code/",
+        dry_run=False,
+    )
+
+    assert symlink.is_symlink()
+    assert symlink.resolve() == real_config.resolve()
+
+    config_text = real_config.read_text(encoding="utf-8")
+    assert "newrepo" in config_text
+    assert "git+https://github.com/user/newrepo.git" in config_text
+
+
 def test_add_repo_invalid_config_logs_private_path(
     user_path: pathlib.Path,
     caplog: pytest.LogCaptureFixture,

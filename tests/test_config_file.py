@@ -244,11 +244,13 @@ def test_find_home_config_files_both_types_still_raises(
         config.find_home_config_files()
 
 
-def test_find_home_config_files_resolves_symlink(tmp_path: pathlib.Path) -> None:
-    """Symlinked ~/.vcspull.yaml should be resolved to the real target path."""
+def test_find_home_config_files_preserves_symlink_suffix(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Symlinked home configs should keep the logical suffix for format detection."""
     dotfiles_dir = tmp_path / ".dot-config"
     dotfiles_dir.mkdir()
-    real_file = dotfiles_dir / ".vcspull.yaml"
+    real_file = dotfiles_dir / "vcspull-config"
     real_file.write_text("~/code/: {}\n", encoding="utf-8")
 
     symlink = tmp_path / ".vcspull.yaml"
@@ -259,9 +261,10 @@ def test_find_home_config_files_resolves_symlink(tmp_path: pathlib.Path) -> None
         results = config.find_home_config_files()
 
         assert len(results) == 1
-        # Must be the resolved (real) path, not the symlink
-        assert results[0] == real_file.resolve()
-        assert not results[0].is_symlink()
+        assert results[0] == symlink
+        assert results[0].suffix == ".yaml"
+        assert results[0].is_symlink()
+        assert results[0].resolve() == real_file.resolve()
 
 
 def test_in_dir(

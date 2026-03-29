@@ -33,6 +33,7 @@ from vcspull.config import (
     get_pin_reason,
     is_pinned_for_op,
     merge_duplicate_workspace_roots,
+    normalize_config_file_path,
     save_config,
     workspace_root_label,
 )
@@ -560,10 +561,10 @@ def _resolve_config_file(config_path_str: str | None) -> pathlib.Path:
     Returns
     -------
     pathlib.Path
-        Resolved config file path
+        Absolute config file path
     """
     if config_path_str:
-        path = pathlib.Path(config_path_str).expanduser().resolve()
+        path = normalize_config_file_path(pathlib.Path(config_path_str))
         if path.suffix.lower() not in {".yaml", ".yml", ".json"}:
             msg = f"Unsupported config file type: {path.suffix}"
             raise ValueError(msg)
