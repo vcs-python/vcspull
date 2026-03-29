@@ -8,6 +8,8 @@ import typing as t
 import pytest
 
 from vcspull.config import (
+    _atomic_write,
+    save_config,
     save_config_json,
     save_config_yaml,
     save_config_yaml_with_items,
@@ -171,3 +173,69 @@ def test_save_config_json_atomic_preserves_permissions(
     save_config_json(config_path, data)
 
     assert config_path.stat().st_mode & 0o777 == 0o644
+
+
+def test_atomic_write_through_symlink_preserves_symlink(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Writing through a symlink should update the target and keep the link."""
+    target_dir = tmp_path / "dotfiles"
+    target_dir.mkdir()
+    real_file = target_dir / ".vcspull.yaml"
+    real_file.write_text("~/old/: {}\n", encoding="utf-8")
+
+    link_path = tmp_path / ".vcspull.yaml"
+    link_path.symlink_to(real_file)
+
+    _atomic_write(link_path, "~/new/:\n  repo: {}\n")
+
+    # Symlink must still be a symlink pointing to the original target
+    assert link_path.is_symlink()
+    assert link_path.resolve() == real_file.resolve()
+
+    # Real file has the new content
+    assert real_file.read_text(encoding="utf-8") == "~/new/:\n  repo: {}\n"
+
+    # No temp files left in either directory
+    for d in (tmp_path, target_dir):
+        leftovers = [f for f in d.iterdir() if ".tmp" in f.name]
+        assert leftovers == []
+
+
+def test_atomic_write_through_symlink_preserves_permissions(
+    tmp_path: pathlib.Path,
+) -> None:
+    """File permissions of the real target should survive a symlink write."""
+    target_dir = tmp_path / "dotfiles"
+    target_dir.mkdir()
+    real_file = target_dir / ".vcspull.yaml"
+    real_file.write_text("~/old/: {}\n", encoding="utf-8")
+    real_file.chmod(0o600)
+
+    link_path = tmp_path / ".vcspull.yaml"
+    link_path.symlink_to(real_file)
+
+    _atomic_write(link_path, "~/new/:\n  repo: {}\n")
+
+    assert real_file.stat().st_mode & 0o777 == 0o600
+    assert link_path.is_symlink()
+
+
+def test_save_config_via_symlink_preserves_link(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Full save_config path should preserve symlinks end-to-end."""
+    target_dir = tmp_path / "dotfiles"
+    target_dir.mkdir()
+    real_file = target_dir / ".vcspull.yaml"
+    real_file.write_text("~/old/: {}\n", encoding="utf-8")
+
+    link_path = tmp_path / ".vcspull.yaml"
+    link_path.symlink_to(real_file)
+
+    data = {"~/code/": {"myrepo": {"repo": "git+https://example.com/repo.git"}}}
+    save_config(link_path, data)
+
+    assert link_path.is_symlink()
+    assert link_path.resolve() == real_file.resolve()
+    assert "myrepo" in real_file.read_text(encoding="utf-8")
