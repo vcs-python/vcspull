@@ -18,7 +18,11 @@ from libvcs.sync.git import GitRemote
 from vcspull.validator import is_valid_config
 
 from . import exc
-from ._internal.config_reader import ConfigReader, DuplicateAwareConfigReader
+from ._internal.config_reader import (
+    ConfigReader,
+    DuplicateAwareConfigReader,
+    config_format_from_path,
+)
 from .types import ConfigDict, RawConfigDict, WorktreeConfigDict
 from .util import get_config_dir, update_dict
 
@@ -839,17 +843,17 @@ def save_config(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> Non
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     p = pathlib.Path(tmp) / "test.json"
     ...     save_config(p, {"~/code/": {"repo": {"repo": "git+https://x"}}})
-    ...     loaded = json.loads(p.read_text())
+    ...     loaded = json.loads(p.read_text(encoding="utf-8"))
     ...     loaded["~/code/"]["repo"]["repo"]
     'git+https://x'
 
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     p = pathlib.Path(tmp) / "test.yaml"
     ...     save_config(p, {"~/code/": {"repo": {"repo": "git+https://x"}}})
-    ...     "repo" in p.read_text()
+    ...     "repo" in p.read_text(encoding="utf-8")
     True
     """
-    if config_file_path.suffix.lower() == ".json":
+    if config_format_from_path(config_file_path) == "json":
         save_config_json(config_file_path, data)
     else:
         save_config_yaml(config_file_path, data)

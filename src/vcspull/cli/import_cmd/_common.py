@@ -14,7 +14,10 @@ import pathlib
 import sys
 import typing as t
 
-from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.config_reader import (
+    DuplicateAwareConfigReader,
+    config_format_from_path,
+)
 from vcspull._internal.private_path import PrivatePath
 from vcspull._internal.remotes import (
     AuthenticationError,
@@ -565,7 +568,7 @@ def _resolve_config_file(config_path_str: str | None) -> pathlib.Path:
     """
     if config_path_str:
         path = normalize_config_file_path(pathlib.Path(config_path_str))
-        if path.suffix.lower() not in {".yaml", ".yml", ".json"}:
+        if config_format_from_path(path) is None:
             msg = f"Unsupported config file type: {path.suffix}"
             raise ValueError(msg)
         return path

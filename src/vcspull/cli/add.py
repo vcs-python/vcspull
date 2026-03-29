@@ -13,7 +13,10 @@ import typing as t
 
 from colorama import Fore, Style
 
-from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.config_reader import (
+    DuplicateAwareConfigReader,
+    config_format_from_path,
+)
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     canonicalize_workspace_path,
@@ -341,7 +344,7 @@ def _save_ordered_items(
     >>> "~/code/" in data
     True
     """
-    if config_file_path.suffix.lower() == ".json":
+    if config_format_from_path(config_file_path) == "json":
         save_config_json(
             config_file_path,
             _collapse_ordered_items_to_dict(ordered_items),

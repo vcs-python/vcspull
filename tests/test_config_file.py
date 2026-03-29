@@ -9,7 +9,7 @@ import textwrap
 import pytest
 
 from vcspull import config, exc
-from vcspull._internal.config_reader import ConfigReader
+from vcspull._internal.config_reader import ConfigReader, config_format_from_path
 from vcspull.config import expand_dir, extract_repos
 from vcspull.validator import is_valid_config
 
@@ -265,6 +265,19 @@ def test_find_home_config_files_preserves_symlink_suffix(
         assert results[0].suffix == ".yaml"
         assert results[0].is_symlink()
         assert results[0].resolve() == real_file.resolve()
+
+
+def test_config_format_from_path_prefers_supported_symlink_target(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Symlink targets with supported suffixes should determine the config format."""
+    real_json = tmp_path / "vcspull.json"
+    real_json.write_text("{}\n", encoding="utf-8")
+
+    mismatch = tmp_path / ".vcspull.yaml"
+    mismatch.symlink_to(real_json)
+
+    assert config_format_from_path(mismatch) == "json"
 
 
 def test_in_dir(

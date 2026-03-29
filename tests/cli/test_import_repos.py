@@ -188,26 +188,23 @@ def test_resolve_config_file(
     assert result.name == expected_suffix
 
 
-def test_resolve_config_file_preserves_symlink_suffix(
+def test_resolve_config_file_accepts_extensionless_symlink_alias(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Explicit config paths should keep symlink suffixes for format detection."""
+    """Explicit alias paths should inherit a supported target config format."""
     monkeypatch.setenv("HOME", str(tmp_path))
 
-    dotfiles_dir = tmp_path / "dotfiles"
-    dotfiles_dir.mkdir()
-
-    real_config = dotfiles_dir / "vcspull-config"
+    real_config = tmp_path / ".vcspull.yaml"
     real_config.write_text("~/repos/: {}\n", encoding="utf-8")
 
-    symlink = tmp_path / ".vcspull.yaml"
-    symlink.symlink_to(real_config)
+    alias_path = tmp_path / "vcspull-config"
+    alias_path.symlink_to(real_config)
 
-    result = _resolve_config_file(str(symlink))
+    result = _resolve_config_file(str(alias_path))
 
-    assert result == symlink
-    assert result.suffix == ".yaml"
+    assert result == alias_path
+    assert result.suffix == ""
     assert result.resolve() == real_config.resolve()
 
 
