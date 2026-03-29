@@ -349,7 +349,21 @@ def extract_repos(
 def find_home_config_files(
     filetype: list[str] | None = None,
 ) -> list[pathlib.Path]:
-    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
+    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory.
+
+    Paths are resolved through symlinks so callers receive the real
+    filesystem location, consistent with the ``-f`` flag codepath.
+
+    Parameters
+    ----------
+    filetype : list of str, optional
+        File types to search for (default ``["json", "yaml"]``)
+
+    Returns
+    -------
+    list of pathlib.Path
+        Resolved paths to discovered config files
+    """
     if filetype is None:
         filetype = ["json", "yaml"]
     configs: list[pathlib.Path] = []
