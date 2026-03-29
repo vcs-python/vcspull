@@ -668,20 +668,28 @@ def is_config_file(
 def _atomic_write(target: pathlib.Path, content: str) -> None:
     """Write content to a file atomically via temp-file-then-rename.
 
+    If *target* is a symbolic link the write goes through the symlink:
+    the temporary file is created next to the resolved destination and
+    the rename replaces the resolved path, leaving the symlink intact.
+
     Parameters
     ----------
     target : pathlib.Path
-        Destination file path
+        Destination file path (may be a symlink)
     content : str
         Content to write
     """
+    # Resolve symlinks so the temp file lives next to the real
+    # destination and the rename replaces the real file, not the symlink.
+    resolved = target.resolve()
+
     original_mode: int | None = None
-    if target.exists():
-        original_mode = target.stat().st_mode
+    if resolved.exists():
+        original_mode = resolved.stat().st_mode
 
     fd, tmp_path = tempfile.mkstemp(
-        dir=target.parent,
-        prefix=f".{target.name}.",
+        dir=resolved.parent,
+        prefix=f".{resolved.name}.",
         suffix=".tmp",
     )
     try:
@@ -689,7 +697,7 @@ def _atomic_write(target: pathlib.Path, content: str) -> None:
             f.write(content)
         if original_mode is not None:
             pathlib.Path(tmp_path).chmod(original_mode)
-        pathlib.Path(tmp_path).replace(target)
+        pathlib.Path(tmp_path).replace(resolved)
     except BaseException:
         # Clean up the temp file on any failure
         with contextlib.suppress(OSError):
