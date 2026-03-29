@@ -882,7 +882,34 @@ def save_config_yaml_with_items(
     config_file_path: pathlib.Path,
     items: list[tuple[str, t.Any]],
 ) -> None:
-    """Persist configuration data while preserving duplicate top-level sections."""
+    """Persist configuration data while preserving duplicate top-level sections.
+
+    Unlike :func:`save_config_yaml`, which loses duplicate keys when given a
+    plain ``dict``, this function accepts ordered ``(label, data)`` pairs so
+    that two workspace-root entries with the same key are each serialised as a
+    separate YAML block.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Destination config file (may be a symlink; the real target is updated).
+    items : list of tuple[str, Any]
+        Ordered ``(section_label, section_data)`` pairs. Each pair becomes one
+        YAML document block in the output.
+
+    Examples
+    --------
+    >>> import pathlib, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "cfg.yaml"
+    ...     save_config_yaml_with_items(p, [
+    ...         ("~/code/", {"flask": "git+https://github.com/pallets/flask.git"}),
+    ...         ("~/code/", {"django": "git+https://github.com/django/django.git"}),
+    ...     ])
+    ...     content = p.read_text(encoding="utf-8")
+    ...     "flask" in content and "django" in content
+    True
+    """
     documents: list[str] = []
 
     for label, section in items:
