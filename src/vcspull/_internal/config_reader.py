@@ -8,6 +8,56 @@ import typing as t
 import yaml
 
 FormatLiteral = t.Literal["json", "yaml"]
+_SUPPORTED_CONFIG_SUFFIXES: dict[str, FormatLiteral] = {
+    ".json": "json",
+    ".yaml": "yaml",
+    ".yml": "yaml",
+}
+
+
+def config_format_from_path(path: pathlib.Path) -> FormatLiteral | None:
+    """Return config format inferred from a path or symlink target.
+
+    The visible path remains the config identity, but symlinks may point
+    at a differently named target. When the target advertises a supported
+    config suffix, prefer that format; otherwise fall back to the visible
+    path suffix.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Path to inspect.
+
+    Returns
+    -------
+    FormatLiteral | None
+        ``"json"`` or ``"yaml"`` when a supported suffix is found,
+        otherwise ``None``.
+
+    Examples
+    --------
+    >>> config_format_from_path(pathlib.Path("config.yaml"))
+    'yaml'
+    >>> import tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     root = pathlib.Path(tmp)
+    ...     target = root / "config.json"
+    ...     _ = target.write_text("{}", encoding="utf-8")
+    ...     link = root / ".vcspull.yaml"
+    ...     link.symlink_to(target)
+    ...     config_format_from_path(link)
+    'json'
+    """
+    path_format = _SUPPORTED_CONFIG_SUFFIXES.get(path.suffix.lower())
+
+    target_format: FormatLiteral | None = None
+    if path.is_symlink():
+        resolved = path.resolve(strict=False)
+        target_format = _SUPPORTED_CONFIG_SUFFIXES.get(resolved.suffix.lower())
+
+    return target_format or path_format
+
+
 RawConfigData: t.TypeAlias = dict[t.Any, t.Any]
 
 
@@ -114,14 +164,12 @@ class ConfigReader:
         #    the formatter helpers directly;
         # 3) Keep this basic loader but add an opt-in path for duplicate-aware
         #    parsing so commands like ``vcspull add`` can avoid data loss.
-        # Revisit once the new ``vcspull add`` flow lands so both commands share
-        # the same duplication safeguards.
+        # ``vcspull add`` now uses ``DuplicateAwareConfigReader`` for reading
+        # (see ``cli/add.py``). This basic loader remains for simpler read
+        # contexts. Option 1 (shared utility) is the cleanest long-term path.
 
-        if path.suffix in {".yaml", ".yml"}:
-            fmt: FormatLiteral = "yaml"
-        elif path.suffix == ".json":
-            fmt = "json"
-        else:
+        fmt = config_format_from_path(path)
+        if fmt is None:
             msg = f"{path.suffix} not supported in {path}"
             raise NotImplementedError(msg)
 
@@ -335,7 +383,7 @@ class DuplicateAwareConfigReader(ConfigReader):
         cls,
         path: pathlib.Path,
     ) -> tuple[dict[str, t.Any], dict[str, list[t.Any]], list[tuple[str, t.Any]]]:
-        if path.suffix.lower() in {".yaml", ".yml"}:
+        if config_format_from_path(path) == "yaml":
             content = path.read_text(encoding="utf-8")
             return cls._load_yaml_with_duplicates(content)
 

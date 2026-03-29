@@ -18,7 +18,11 @@ from libvcs.sync.git import GitRemote
 from vcspull.validator import is_valid_config
 
 from . import exc
-from ._internal.config_reader import ConfigReader, DuplicateAwareConfigReader
+from ._internal.config_reader import (
+    ConfigReader,
+    DuplicateAwareConfigReader,
+    config_format_from_path,
+)
 from .types import ConfigDict, RawConfigDict, WorktreeConfigDict
 from .util import get_config_dir, update_dict
 
@@ -52,6 +56,48 @@ def expand_dir(
         dir_ = pathlib.Path(os.path.normpath(cwd / dir_))
         assert dir_ == pathlib.Path(cwd, dir_).resolve(strict=False)
     return dir_
+
+
+def normalize_config_file_path(
+    path: pathlib.Path,
+    cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
+) -> pathlib.Path:
+    """Return absolute config file path without resolving symlinks.
+
+    Symlink entry names are preserved intact so that downstream operations
+    (e.g. atomic writes) can resolve them as needed, while the logical path
+    is used for display and identity.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Config file path to normalize.
+    cwd : pathlib.Path, optional
+        Current working dir (used to resolve relative paths). Defaults to
+        :py:meth:`pathlib.Path.cwd`.
+
+    Returns
+    -------
+    pathlib.Path
+        Absolute config file path with symlink names preserved.
+
+    Examples
+    --------
+    >>> normalize_config_file_path(pathlib.Path("~/cfg.yaml")).name
+    'cfg.yaml'
+    >>> normalize_config_file_path(
+    ...     pathlib.Path("configs/vcspull.yaml"),
+    ...     cwd=pathlib.Path("/tmp/project"),
+    ... )  # doctest: +ELLIPSIS
+    PosixPath('.../configs/vcspull.yaml')
+    """
+    path = pathlib.Path(os.path.expandvars(str(path))).expanduser()
+    if callable(cwd):
+        cwd = cwd()
+
+    if not path.is_absolute():
+        path = pathlib.Path(os.path.normpath(cwd / path))
+    return path
 
 
 def _validate_worktrees_config(
@@ -349,7 +395,27 @@ def extract_repos(
 def find_home_config_files(
     filetype: list[str] | None = None,
 ) -> list[pathlib.Path]:
-    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory."""
+    """Return configs of ``.vcspull.{yaml,json}`` in user's home directory.
+
+    The returned path preserves the logical home entry name so callers
+    keep the config type implied by ``.yaml`` or ``.json`` even when the
+    file is a symlink.
+
+    Parameters
+    ----------
+    filetype : list of str, optional
+        File types to search for (default ``["json", "yaml"]``)
+
+    Returns
+    -------
+    list of pathlib.Path
+        Absolute paths to discovered config files
+
+    Examples
+    --------
+    >>> find_home_config_files()
+    []
+    """
     if filetype is None:
         filetype = ["json", "yaml"]
     configs: list[pathlib.Path] = []
@@ -357,9 +423,9 @@ def find_home_config_files(
     check_yaml = "yaml" in filetype
     check_json = "json" in filetype
 
-    yaml_config = pathlib.Path("~/.vcspull.yaml").expanduser()
+    yaml_config = normalize_config_file_path(pathlib.Path("~/.vcspull.yaml"))
     has_yaml_config = check_yaml and yaml_config.exists()
-    json_config = pathlib.Path("~/.vcspull.json").expanduser()
+    json_config = normalize_config_file_path(pathlib.Path("~/.vcspull.json"))
     has_json_config = check_json and json_config.exists()
 
     if not has_yaml_config and not has_json_config:
@@ -668,20 +734,48 @@ def is_config_file(
 def _atomic_write(target: pathlib.Path, content: str) -> None:
     """Write content to a file atomically via temp-file-then-rename.
 
+    If *target* is a symbolic link the write goes through the symlink:
+    the temporary file is created next to the resolved destination and
+    the rename replaces the resolved path, leaving the symlink intact.
+
     Parameters
     ----------
     target : pathlib.Path
-        Destination file path
+        Destination file path (may be a symlink)
     content : str
         Content to write
+
+    Examples
+    --------
+    >>> import pathlib, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "test.txt"
+    ...     _atomic_write(p, "hello")
+    ...     p.read_text(encoding="utf-8")
+    'hello'
+
+    Symlinks are preserved — the real target is updated:
+
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     real = pathlib.Path(tmp) / "real.txt"
+    ...     _ = real.write_text("old", encoding="utf-8")
+    ...     link = pathlib.Path(tmp) / "link.txt"
+    ...     link.symlink_to(real)
+    ...     _atomic_write(link, "new")
+    ...     link.is_symlink(), link.read_text(encoding="utf-8")
+    (True, 'new')
     """
+    # Resolve symlinks so the temp file lives next to the real
+    # destination and the rename replaces the real file, not the symlink.
+    resolved = target.resolve()
+
     original_mode: int | None = None
-    if target.exists():
-        original_mode = target.stat().st_mode
+    if resolved.exists():
+        original_mode = resolved.stat().st_mode
 
     fd, tmp_path = tempfile.mkstemp(
-        dir=target.parent,
-        prefix=f".{target.name}.",
+        dir=resolved.parent,
+        prefix=f".{resolved.name}.",
         suffix=".tmp",
     )
     try:
@@ -689,7 +783,7 @@ def _atomic_write(target: pathlib.Path, content: str) -> None:
             f.write(content)
         if original_mode is not None:
             pathlib.Path(tmp_path).chmod(original_mode)
-        pathlib.Path(tmp_path).replace(target)
+        pathlib.Path(tmp_path).replace(resolved)
     except BaseException:
         # Clean up the temp file on any failure
         with contextlib.suppress(OSError):
@@ -706,6 +800,15 @@ def save_config_yaml(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         Path to the configuration file to write
     data : dict
         Configuration data to save
+
+    Examples
+    --------
+    >>> import pathlib, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "cfg.yaml"
+    ...     save_config_yaml(p, {"~/code/": {"myrepo": "git+https://example.com/repo.git"}})
+    ...     "myrepo" in p.read_text(encoding="utf-8")
+    True
     """
     yaml_content = ConfigReader._dump(
         fmt="yaml",
@@ -724,6 +827,16 @@ def save_config_json(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         Path to the configuration file to write
     data : dict
         Configuration data to save
+
+    Examples
+    --------
+    >>> import json, pathlib, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "cfg.json"
+    ...     save_config_json(p, {"~/code/": {"myrepo": "git+https://example.com/repo.git"}})
+    ...     loaded = json.loads(p.read_text(encoding="utf-8"))
+    ...     "~/code/" in loaded
+    True
     """
     json_content = ConfigReader._dump(
         fmt="json",
@@ -749,17 +862,17 @@ def save_config(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> Non
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     p = pathlib.Path(tmp) / "test.json"
     ...     save_config(p, {"~/code/": {"repo": {"repo": "git+https://x"}}})
-    ...     loaded = json.loads(p.read_text())
+    ...     loaded = json.loads(p.read_text(encoding="utf-8"))
     ...     loaded["~/code/"]["repo"]["repo"]
     'git+https://x'
 
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     p = pathlib.Path(tmp) / "test.yaml"
     ...     save_config(p, {"~/code/": {"repo": {"repo": "git+https://x"}}})
-    ...     "repo" in p.read_text()
+    ...     "repo" in p.read_text(encoding="utf-8")
     True
     """
-    if config_file_path.suffix.lower() == ".json":
+    if config_format_from_path(config_file_path) == "json":
         save_config_json(config_file_path, data)
     else:
         save_config_yaml(config_file_path, data)
@@ -769,7 +882,34 @@ def save_config_yaml_with_items(
     config_file_path: pathlib.Path,
     items: list[tuple[str, t.Any]],
 ) -> None:
-    """Persist configuration data while preserving duplicate top-level sections."""
+    """Persist configuration data while preserving duplicate top-level sections.
+
+    Unlike :func:`save_config_yaml`, which loses duplicate keys when given a
+    plain ``dict``, this function accepts ordered ``(label, data)`` pairs so
+    that two workspace-root entries with the same key are each serialised as a
+    separate YAML block.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Destination config file (may be a symlink; the real target is updated).
+    items : list of tuple[str, Any]
+        Ordered ``(section_label, section_data)`` pairs. Each pair becomes one
+        YAML document block in the output.
+
+    Examples
+    --------
+    >>> import pathlib, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     p = pathlib.Path(tmp) / "cfg.yaml"
+    ...     save_config_yaml_with_items(p, [
+    ...         ("~/code/", {"flask": "git+https://github.com/pallets/flask.git"}),
+    ...         ("~/code/", {"django": "git+https://github.com/django/django.git"}),
+    ...     ])
+    ...     content = p.read_text(encoding="utf-8")
+    ...     "flask" in content and "django" in content
+    True
+    """
     documents: list[str] = []
 
     for label, section in items:

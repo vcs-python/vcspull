@@ -188,6 +188,26 @@ def test_resolve_config_file(
     assert result.name == expected_suffix
 
 
+def test_resolve_config_file_accepts_extensionless_symlink_alias(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Explicit alias paths should inherit a supported target config format."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    real_config = tmp_path / ".vcspull.yaml"
+    real_config.write_text("~/repos/: {}\n", encoding="utf-8")
+
+    alias_path = tmp_path / "vcspull-config"
+    alias_path.symlink_to(real_config)
+
+    result = _resolve_config_file(str(alias_path))
+
+    assert result == alias_path
+    assert result.suffix == ""
+    assert result.resolve() == real_config.resolve()
+
+
 class ImportReposFixture(t.NamedTuple):
     """Fixture for _run_import test cases."""
 

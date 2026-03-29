@@ -9,7 +9,7 @@ import textwrap
 import pytest
 
 from vcspull import config, exc
-from vcspull._internal.config_reader import ConfigReader
+from vcspull._internal.config_reader import ConfigReader, config_format_from_path
 from vcspull.config import expand_dir, extract_repos
 from vcspull.validator import is_valid_config
 
@@ -242,6 +242,42 @@ def test_find_home_config_files_both_types_still_raises(
     with EnvironmentVarGuard() as env, pytest.raises(exc.MultipleConfigWarning):
         env.set("HOME", str(tmp_path))
         config.find_home_config_files()
+
+
+def test_find_home_config_files_preserves_symlink_suffix(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Symlinked home configs should keep the logical suffix for format detection."""
+    dotfiles_dir = tmp_path / ".dot-config"
+    dotfiles_dir.mkdir()
+    real_file = dotfiles_dir / "vcspull-config"
+    real_file.write_text("~/code/: {}\n", encoding="utf-8")
+
+    symlink = tmp_path / ".vcspull.yaml"
+    symlink.symlink_to(real_file)
+
+    with EnvironmentVarGuard() as env:
+        env.set("HOME", str(tmp_path))
+        results = config.find_home_config_files()
+
+        assert len(results) == 1
+        assert results[0] == symlink
+        assert results[0].suffix == ".yaml"
+        assert results[0].is_symlink()
+        assert results[0].resolve() == real_file.resolve()
+
+
+def test_config_format_from_path_prefers_supported_symlink_target(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Symlink targets with supported suffixes should determine the config format."""
+    real_json = tmp_path / "vcspull.json"
+    real_json.write_text("{}\n", encoding="utf-8")
+
+    mismatch = tmp_path / ".vcspull.yaml"
+    mismatch.symlink_to(real_json)
+
+    assert config_format_from_path(mismatch) == "json"
 
 
 def test_in_dir(

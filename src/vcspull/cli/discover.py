@@ -22,6 +22,7 @@ from vcspull.config import (
     get_pin_reason,
     is_pinned_for_op,
     merge_duplicate_workspace_roots,
+    normalize_config_file_path,
     normalize_workspace_roots,
     save_config,
     workspace_root_label,
@@ -327,7 +328,9 @@ def discover_repos(
 
     config_file_path: pathlib.Path
     if config_file_path_str:
-        config_file_path = pathlib.Path(config_file_path_str).expanduser().resolve()
+        config_file_path = normalize_config_file_path(
+            pathlib.Path(config_file_path_str)
+        )
     else:
         home_configs = find_home_config_files(filetype=["yaml"])
         if not home_configs:

@@ -19,6 +19,7 @@ from vcspull.config import (
     find_home_config_files,
     is_pinned_for_op,
     merge_duplicate_workspace_roots,
+    normalize_config_file_path,
     normalize_workspace_roots,
     save_config,
 )
@@ -570,7 +571,9 @@ def format_config_file(
     else:
         # Format single config file
         if config_file_path_str:
-            config_file_path = pathlib.Path(config_file_path_str).expanduser().resolve()
+            config_file_path = normalize_config_file_path(
+                pathlib.Path(config_file_path_str)
+            )
         else:
             home_configs = find_home_config_files(filetype=["yaml"])
             if not home_configs:
