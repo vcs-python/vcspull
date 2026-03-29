@@ -164,8 +164,9 @@ class ConfigReader:
         #    the formatter helpers directly;
         # 3) Keep this basic loader but add an opt-in path for duplicate-aware
         #    parsing so commands like ``vcspull add`` can avoid data loss.
-        # Revisit once the new ``vcspull add`` flow lands so both commands share
-        # the same duplication safeguards.
+        # ``vcspull add`` now uses ``DuplicateAwareConfigReader`` for reading
+        # (see ``cli/add.py``). This basic loader remains for simpler read
+        # contexts. Option 1 (shared utility) is the cleanest long-term path.
 
         fmt = config_format_from_path(path)
         if fmt is None:
