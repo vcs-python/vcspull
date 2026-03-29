@@ -362,6 +362,8 @@ what:
 - Focused on a single topic
 ```
 
+The `why:` must be the pragmatic, contextual reason behind the change — never cite AGENTS.md, CLAUDE.md, or other rule files as the justification. If you feel compelled to write "AGENTS.md says..." or "CLAUDE.md requires...", look at `git log -n 10 -p`, the PR description, and the ticket for the real engineering reason (e.g., "function had no doctest coverage" not "CLAUDE.md requires doctests").
+
 Common commit types:
 - **feat**: New features or enhancements
 - **fix**: Bug fixes
