@@ -139,14 +139,13 @@ warn_unused_configs = true
 files = [
   "src",
   "tests",
+  "docs/_ext",
 ]
 strict = true
 
 [[tool.mypy.overrides]]
 module = [
   "shtab",
-  "docutils",
-  "docutils.*",
   "pygments",
   "pygments.*",
 ]
