@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import typing as t
 
-import pytest
 from libvcs import BaseSync, GitSync, HgSync, SvnSync
 from libvcs._internal.shortcuts import create_project
 
@@ -25,9 +24,6 @@ def test_filter_dir() -> None:
         assert r["name"] == "kaptan"
 
 
-@pytest.mark.xfail(
-    reason="filter_repos matches parent dir only; full paths not matched"
-)
 def test_filter_dir_exact_repo_path() -> None:
     """`filter_repos` filter by exact full repo path (e.g. after zsh glob expansion)."""
     repo_list = filter_repos(
@@ -38,9 +34,6 @@ def test_filter_dir_exact_repo_path() -> None:
     assert repo_list[0]["name"] == "kaptan"
 
 
-@pytest.mark.xfail(
-    reason="filter_repos parent-dir fnmatch fails with trailing slash",
-)
 def test_filter_dir_workspace_root_trailing_slash() -> None:
     """`filter_repos` filter by workspace root path with trailing slash."""
     repo_list = filter_repos(
