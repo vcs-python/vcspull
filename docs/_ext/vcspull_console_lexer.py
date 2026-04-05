@@ -11,15 +11,7 @@ import re
 from pygments.lexer import Lexer, do_insertions, line_re  # type: ignore[attr-defined]
 from pygments.lexers.shell import BashLexer
 from pygments.token import Generic, Text
-
-try:
-    # When running as Sphinx extension (docs/_ext in path)
-    from vcspull_output_lexer import (  # type: ignore[import-not-found]
-        VcspullOutputLexer,
-    )
-except ImportError:
-    # When running via pytest (relative import)
-    from .vcspull_output_lexer import VcspullOutputLexer
+from vcspull_output_lexer import VcspullOutputLexer
 
 
 class VcspullConsoleLexer(Lexer):

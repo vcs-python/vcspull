@@ -6,9 +6,7 @@ import typing as t
 
 import pytest
 from pygments.token import Token
-from vcspull_console_lexer import (  # type: ignore[import-not-found]
-    VcspullConsoleLexer,
-)
+from vcspull_console_lexer import VcspullConsoleLexer
 
 # --- Console session tests ---
 

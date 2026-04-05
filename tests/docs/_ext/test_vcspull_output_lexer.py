@@ -6,10 +6,7 @@ import typing as t
 
 import pytest
 from pygments.token import Token
-from vcspull_output_lexer import (  # type: ignore[import-not-found]
-    VcspullOutputLexer,
-    tokenize_output,
-)
+from vcspull_output_lexer import VcspullOutputLexer, tokenize_output
 
 # --- List output tests ---
 
