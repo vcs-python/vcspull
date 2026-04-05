@@ -1622,6 +1622,7 @@ class DryRunPlanFixture(t.NamedTuple):
     plan_entries: list[PlanEntry] | None = None
     plan_summary: PlanSummary | None = None
     set_no_color: bool = True
+    xfail: bool = False
 
 
 DRY_RUN_PLAN_FIXTURES: list[DryRunPlanFixture] = [
@@ -1643,6 +1644,12 @@ DRY_RUN_PLAN_FIXTURES: list[DryRunPlanFixture] = [
     DryRunPlanFixture(
         test_id="unchanged-show",
         cli_args=["sync", "--dry-run", "--show-unchanged", "my_git_repo"],
+        pre_sync=True,
+        expected_contains=["Plan: 0 to clone (+)", "✓ my_git_repo"],
+    ),
+    DryRunPlanFixture(
+        test_id="unchanged-implicit-filter",
+        cli_args=["sync", "--dry-run", "my_git_repo"],
         pre_sync=True,
         expected_contains=["Plan: 0 to clone (+)", "✓ my_git_repo"],
     ),
@@ -1724,14 +1731,22 @@ def test_sync_dry_run_plan_human(
     plan_entries: list[PlanEntry] | None,
     plan_summary: PlanSummary | None,
     set_no_color: bool,
+    xfail: bool,
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
     git_repo: GitSync,
 ) -> None:
     """Validate human-readable plan output variants."""
+    if xfail:
+        request.applymarker(
+            pytest.mark.xfail(
+                reason="explicit filter patterns do not yet auto-show unchanged repos",
+            ),
+        )
     if set_no_color:
         monkeypatch.setenv("NO_COLOR", "1")
 
