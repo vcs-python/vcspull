@@ -1652,7 +1652,6 @@ DRY_RUN_PLAN_FIXTURES: list[DryRunPlanFixture] = [
         cli_args=["sync", "--dry-run", "my_git_repo"],
         pre_sync=True,
         expected_contains=["Plan: 0 to clone (+)", "✓ my_git_repo"],
-        xfail=True,
     ),
     DryRunPlanFixture(
         test_id="long-format",
