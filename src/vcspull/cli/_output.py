@@ -154,6 +154,7 @@ class PlanRenderOptions:
     """Rendering options for human plan output."""
 
     show_unchanged: bool = False
+    has_explicit_patterns: bool = False
     summary_only: bool = False
     long: bool = False
     verbosity: int = 0

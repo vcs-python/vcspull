@@ -1736,14 +1736,17 @@ def test_sync_dry_run_plan_human(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
     git_repo: GitSync,
 ) -> None:
     """Validate human-readable plan output variants."""
     if xfail:
-        pytest.xfail(
-            "explicit filter patterns do not yet auto-show unchanged repos",
+        request.applymarker(
+            pytest.mark.xfail(
+                reason="explicit filter patterns do not yet auto-show unchanged repos",
+            ),
         )
     if set_no_color:
         monkeypatch.setenv("NO_COLOR", "1")
