@@ -685,11 +685,17 @@ def filter_repos(
     repo_list: list[ConfigDict] = []
 
     if path:
+        path_str = str(path)
+        if "~" in path_str or "$" in path_str:
+            path_str = str(expand_dir(pathlib.Path(path_str)))
+        else:
+            path_str = str(pathlib.Path(path_str))
         repo_list.extend(
             [
                 r
                 for r in config
-                if fnmatch.fnmatch(str(pathlib.Path(r["path"]).parent), str(path))
+                if fnmatch.fnmatch(str(pathlib.Path(r["path"]).parent), path_str)
+                or fnmatch.fnmatch(str(r["path"]), path_str)
             ],
         )
 
