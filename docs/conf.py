@@ -35,7 +35,10 @@ conf = merge_sphinx_config(
     source_branch="master",
     light_logo="img/vcspull.svg",
     dark_logo="img/vcspull-dark.svg",
-    extra_extensions=["sphinx_argparse_neo.exemplar"],
+    extra_extensions=[
+        "sphinx_autodoc_api_style",
+        "sphinx_argparse_neo.exemplar",
+    ],
     intersphinx_mapping={
         "py": ("https://docs.python.org/", None),
         "libvcs": ("https://libvcs.git-pull.com/", None),
