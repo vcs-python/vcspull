@@ -159,6 +159,19 @@ EXIT_ON_ERROR_MSG = "Exiting via error (--exit-on-error passed)"
 NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
+_FETCH_TIMEOUT_SECONDS = 120
+
+_NO_PROMPT_ENV: dict[str, str] | None = None
+
+
+def _get_no_prompt_env() -> dict[str, str]:
+    """Return an environment dict that prevents git from prompting on stdin."""
+    global _NO_PROMPT_ENV
+    if _NO_PROMPT_ENV is None:
+        _NO_PROMPT_ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+    return _NO_PROMPT_ENV
+
+
 def _maybe_fetch(
     repo_path: pathlib.Path,
     *,
@@ -177,7 +190,11 @@ def _maybe_fetch(
             capture_output=True,
             text=True,
             check=False,
+            timeout=_FETCH_TIMEOUT_SECONDS,
+            env=_get_no_prompt_env(),
         )
+    except subprocess.TimeoutExpired:
+        return False, f"git fetch timed out after {_FETCH_TIMEOUT_SECONDS}s"
     except FileNotFoundError:
         return False, "git executable not found"
     except OSError as exc:
@@ -642,6 +659,9 @@ def sync(
     include_worktrees: bool = False,
 ) -> None:
     """Entry point for ``vcspull sync``."""
+    # Prevent git from blocking on credential prompts during batch sync
+    os.environ.setdefault("GIT_TERMINAL_PROMPT", "0")
+
     # Show help if no patterns and --all not specified
     if not repo_patterns and not sync_all:
         if parser is not None:

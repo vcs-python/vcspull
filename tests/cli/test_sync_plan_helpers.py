@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import typing as t
 
 import pytest
 
 from vcspull.cli._output import PlanAction
-from vcspull.cli.sync import SyncPlanConfig, _determine_plan_action, _maybe_fetch
+from vcspull.cli.sync import SyncPlanConfig, _determine_plan_action, _maybe_fetch, sync
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -81,6 +82,15 @@ MAYBE_FETCH_FIXTURES: list[MaybeFetchFixture] = [
         subprocess_behavior="non-zero",
         expected_result=(True, None),
     ),
+    MaybeFetchFixture(
+        test_id="fetch-timeout",
+        fetch=True,
+        offline=False,
+        create_repo=True,
+        create_git_dir=True,
+        subprocess_behavior="timeout",
+        expected_result=(False, None),  # message checked separately via startswith
+    ),
 ]
 
 
@@ -119,6 +129,8 @@ def test_maybe_fetch_behaviour(
             if subprocess_behavior == "os-error":
                 error_message = "Permission denied"
                 raise OSError(error_message)
+            if subprocess_behavior == "timeout":
+                raise subprocess.TimeoutExpired(cmd=args[0], timeout=120)
             if subprocess_behavior == "non-zero":
                 return subprocess.CompletedProcess(
                     args=args[0],
@@ -140,7 +152,13 @@ def test_maybe_fetch_behaviour(
         config=SyncPlanConfig(fetch=fetch, offline=offline),
     )
 
-    assert result == expected_result
+    ok, message = result
+    assert ok == expected_result[0]
+    if subprocess_behavior == "timeout":
+        assert message is not None
+        assert "timed out" in message
+    else:
+        assert result == expected_result
 
 
 class DeterminePlanActionFixture(t.NamedTuple):
@@ -248,3 +266,101 @@ def test_determine_plan_action(
     action, detail = _determine_plan_action(status, config=config)
     assert action is expected_action
     assert detail == expected_detail
+
+
+def test_maybe_fetch_passes_no_prompt_env(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify _maybe_fetch sets GIT_TERMINAL_PROMPT=0 to prevent hangs."""
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / ".git").mkdir()
+
+    captured_kwargs: dict[str, t.Any] = {}
+
+    def _spy_run(
+        *args: t.Any,
+        **kwargs: t.Any,
+    ) -> subprocess.CompletedProcess[str]:
+        captured_kwargs.update(kwargs)
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr("subprocess.run", _spy_run)
+
+    _maybe_fetch(
+        repo_path=repo_path,
+        config=SyncPlanConfig(fetch=True, offline=False),
+    )
+
+    assert "env" in captured_kwargs, "subprocess.run must receive env kwarg"
+    assert captured_kwargs["env"].get("GIT_TERMINAL_PROMPT") == "0"
+
+
+def test_maybe_fetch_passes_timeout(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify _maybe_fetch sets a timeout to prevent indefinite blocking."""
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    (repo_path / ".git").mkdir()
+
+    captured_kwargs: dict[str, t.Any] = {}
+
+    def _spy_run(
+        *args: t.Any,
+        **kwargs: t.Any,
+    ) -> subprocess.CompletedProcess[str]:
+        captured_kwargs.update(kwargs)
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr("subprocess.run", _spy_run)
+
+    _maybe_fetch(
+        repo_path=repo_path,
+        config=SyncPlanConfig(fetch=True, offline=False),
+    )
+
+    assert "timeout" in captured_kwargs, "subprocess.run must receive timeout kwarg"
+    assert captured_kwargs["timeout"] > 0
+
+
+def test_sync_sets_git_terminal_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify sync() sets GIT_TERMINAL_PROMPT=0 to prevent credential hangs."""
+    # Remove GIT_TERMINAL_PROMPT if already set so setdefault takes effect
+    monkeypatch.delenv("GIT_TERMINAL_PROMPT", raising=False)
+
+    sync(
+        repo_patterns=[],
+        config=None,
+        workspace_root=None,
+        dry_run=False,
+        output_json=False,
+        output_ndjson=False,
+        color="never",
+        exit_on_error=False,
+        show_unchanged=False,
+        summary_only=False,
+        long_view=False,
+        relative_paths=False,
+        fetch=False,
+        offline=False,
+        verbosity=0,
+        sync_all=False,
+        # No parser and no --all means sync() returns early, but env is set first
+    )
+
+    assert os.environ.get("GIT_TERMINAL_PROMPT") == "0"
