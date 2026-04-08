@@ -869,10 +869,7 @@ def sync(
                     "Failed syncing %s",
                     repo_name,
                 )
-            if log.isEnabledFor(logging.DEBUG):
-                import traceback
-
-                traceback.print_exc()
+            log.debug("Traceback for %s", repo_name, exc_info=True)
             formatter.emit_text(
                 f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
                 f"{colors.error(str(e))}",

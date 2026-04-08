@@ -8,7 +8,6 @@ import logging
 import os
 import pathlib
 import subprocess
-import traceback
 import typing as t
 
 from colorama import Fore, Style
@@ -379,8 +378,6 @@ def discover_repos(
                 "Error loading YAML from %s. Aborting.",
                 PrivatePath(config_file_path),
             )
-            if log.isEnabledFor(logging.DEBUG):
-                traceback.print_exc()
             return
         if raw_config is None:
             raw_config = {}
@@ -671,8 +668,6 @@ def discover_repos(
                     "Error saving config to %s",
                     PrivatePath(config_file_path),
                 )
-                if log.isEnabledFor(logging.DEBUG):
-                    traceback.print_exc()
             return
         return
 
@@ -772,8 +767,6 @@ def discover_repos(
                 "Error saving config to %s",
                 PrivatePath(config_file_path),
             )
-            if log.isEnabledFor(logging.DEBUG):
-                traceback.print_exc()
             return
     else:
         log.info(

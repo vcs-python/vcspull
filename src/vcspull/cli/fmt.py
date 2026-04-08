@@ -7,7 +7,6 @@ import copy
 import enum
 import logging
 import pathlib
-import traceback
 import typing as t
 
 from colorama import Fore, Style
@@ -280,8 +279,6 @@ def format_single_config(
             "Error loading config from %s",
             PrivatePath(config_file_path),
         )
-        if log.isEnabledFor(logging.DEBUG):
-            traceback.print_exc()
         return False
 
     # Format the configuration
@@ -463,8 +460,6 @@ def format_single_config(
                 "Error saving formatted config to %s",
                 PrivatePath(config_file_path),
             )
-            if log.isEnabledFor(logging.DEBUG):
-                traceback.print_exc()
             return False
     else:
         log.info(
