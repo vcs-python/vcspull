@@ -37,7 +37,7 @@ conf = merge_sphinx_config(
     dark_logo="img/vcspull-dark.svg",
     extra_extensions=[
         "sphinx_autodoc_api_style",
-        "sphinx_argparse_neo.exemplar",
+        "sphinx_autodoc_argparse.exemplar",
     ],
     intersphinx_mapping={
         "py": ("https://docs.python.org/", None),
