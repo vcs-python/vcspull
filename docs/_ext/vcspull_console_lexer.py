@@ -7,6 +7,7 @@ sessions, combining shell command highlighting with semantic output highlighting
 from __future__ import annotations
 
 import re
+import typing as t
 
 from pygments.lexer import Lexer, do_insertions, line_re  # type: ignore[attr-defined]
 from pygments.lexers.shell import BashLexer
@@ -33,7 +34,7 @@ class VcspullConsoleLexer(Lexer):
 
     name = "Vcspull Console"
     aliases = ["vcspull-console"]  # noqa: RUF012
-    filenames: list[str] = []  # noqa: RUF012
+    filenames: t.ClassVar[list[str]] = []
     mimetypes = ["text/x-vcspull-console"]  # noqa: RUF012
 
     _venv = re.compile(r"^(\([^)]*\))(\s*)")

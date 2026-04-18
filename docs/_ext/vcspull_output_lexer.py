@@ -6,6 +6,8 @@ output (list, status, sync, search) with semantic colors matching the CLI.
 
 from __future__ import annotations
 
+import typing as t
+
 from pygments.lexer import RegexLexer, bygroups
 from pygments.token import (
     Comment,
@@ -45,7 +47,7 @@ class VcspullOutputLexer(RegexLexer):
 
     name = "vcspull Output"
     aliases = ["vcspull-output", "vcspull"]  # noqa: RUF012
-    filenames: list[str] = []  # noqa: RUF012
+    filenames: t.ClassVar[list[str]] = []
     mimetypes = ["text/x-vcspull-output"]  # noqa: RUF012
 
     tokens = {  # noqa: RUF012
