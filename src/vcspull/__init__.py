@@ -12,5 +12,6 @@ import logging
 from logging import NullHandler
 
 from . import cli
+from .__about__ import __version__
 
 logging.getLogger(__name__).addHandler(NullHandler())
