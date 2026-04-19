@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -31,7 +32,7 @@ jobs:
               - 'docs/**'
               - 'examples/**'
             python_files:
-              - 'vcspull/**'
+              - 'src/vcspull/**'
               - pyproject.toml
               - uv.lock
 
