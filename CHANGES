@@ -37,6 +37,12 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Dependencies
+
+- Bump `libvcs` to `>=0.40.0a0,<0.41.0` for timeout + fast `set_remotes` fixes
+  that let `vcspull sync` recover from a single stuck repository without
+  hanging the whole batch.
+
 ### Documentation
 
 - Visual improvements to API docs from [gp-sphinx](https://gp-sphinx.git-pull.com)-based Sphinx packages (#542)
