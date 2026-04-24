@@ -998,6 +998,19 @@ def sync(
             log_file_path=log_file_path,
             dry_run=dry_run,
         )
+    except KeyboardInterrupt:
+        # Catch Ctrl-C from ANY phase of the sync -- not just the repo loop
+        # (where ``_sync_impl`` handles it with a partial summary) but also
+        # long pre-loop work like ``load_configs`` (YAML parse on big vcspull
+        # files) and post-loop emission. We write straight to stderr here
+        # because the outer scope is the narrowest spot where we can be sure
+        # the formatter either already finalised or was never built.
+        sys.stderr.write("\nInterrupted by user.\n")
+        sys.stderr.flush()
+        if log_file_path is not None:
+            sys.stderr.write(f"Full debug log: {log_file_path}\n")
+            sys.stderr.flush()
+        raise SystemExit(130) from None
     finally:
         if log_file_handler is not None:
             teardown_file_logger(log_file_handler)

@@ -282,3 +282,48 @@ def test_watchdog_propagates_keyboard_interrupt_from_worker(
             timeout=5,
             is_human=True,
         )
+
+
+def test_sync_handles_keyboard_interrupt_during_config_load(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Ctrl-C during pre-loop work (e.g. YAML parse) exits cleanly with 130.
+
+    Regression for the observed traceback where a KeyboardInterrupt raised
+    inside ``load_configs`` escaped all the way through ``cli.sync`` and out
+    to the top-level ``sys.exit`` as an unhandled exception, dumping the
+    entire yaml parser stack to the terminal. The outer ``sync()`` entry
+    point must catch the interrupt, emit a short notice, and raise
+    ``SystemExit(130)``.
+    """
+    from vcspull.cli.sync import sync as sync_fn
+
+    def _raising_load(*_args: t.Any, **_kwargs: t.Any) -> t.Any:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(sync_module, "load_configs", _raising_load)
+
+    with pytest.raises(SystemExit) as excinfo:
+        sync_fn(
+            repo_patterns=[],
+            config=None,
+            workspace_root=None,
+            dry_run=False,
+            output_json=False,
+            output_ndjson=False,
+            color="never",
+            exit_on_error=False,
+            show_unchanged=False,
+            summary_only=False,
+            long_view=False,
+            relative_paths=False,
+            fetch=False,
+            offline=False,
+            verbosity=0,
+            sync_all=True,
+        )
+
+    assert excinfo.value.code == 130
+    err = capsys.readouterr().err
+    assert "Interrupted by user." in err
