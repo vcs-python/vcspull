@@ -187,7 +187,6 @@ def test_rerun_recipe_emits_one_line_per_workspace(
         colors,
         timed_out_repos=timed_out,
         timeout=10,
-        log_file_path=tmp_path / "vcspull-debug.log",
     )
     formatter.finalize()
 
@@ -204,8 +203,9 @@ def test_rerun_recipe_emits_one_line_per_workspace(
     # Include a manual git probe so the user can isolate the failure mode.
     assert "GIT_TERMINAL_PROMPT=0" in captured
     assert "git -C" in captured
-    # Log-file path is surfaced when provided.
-    assert "vcspull-debug.log" in captured
+    # The rerun recipe itself must stay emoji-free -- plain ASCII markers
+    # only. Clock/stopwatch emoji had shipped as the prior prefix; guard it.
+    assert "⏱" not in captured
 
 
 def test_rerun_recipe_is_noop_when_no_timeouts(
@@ -220,7 +220,6 @@ def test_rerun_recipe_is_noop_when_no_timeouts(
         colors,
         timed_out_repos=[],
         timeout=10,
-        log_file_path=None,
     )
     formatter.finalize()
 
@@ -249,7 +248,6 @@ def test_rerun_recipe_scales_timeout_suggestion(
             ),
         ],
         timeout=30,
-        log_file_path=None,
     )
     formatter.finalize()
 

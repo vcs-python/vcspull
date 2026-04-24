@@ -796,7 +796,6 @@ def _emit_rerun_recipe(
     *,
     timed_out_repos: list[_TimedOutRepo],
     timeout: int,
-    log_file_path: pathlib.Path | None,
 ) -> None:
     """Print a copyable recipe for rerunning just the timed-out repositories.
 
@@ -817,7 +816,7 @@ def _emit_rerun_recipe(
 
     formatter.emit_text("")
     formatter.emit_text(
-        f"{colors.warning('⏱')} Timed out: "
+        f"{colors.warning('Timed out:')} "
         f"{colors.warning(str(len(timed_out_repos)))} "
         f"repositor{'y' if len(timed_out_repos) == 1 else 'ies'} "
         f"exceeded {timeout}s.",
@@ -825,14 +824,14 @@ def _emit_rerun_recipe(
     for repo in timed_out_repos:
         display_path = str(PrivatePath(repo.path))
         formatter.emit_text(
-            f"  {colors.warning('⏱')} {colors.info(repo.name):<32} "
-            f"{colors.muted('→')} {display_path}  "
+            f"  {colors.warning('-')} {colors.info(repo.name):<32} "
+            f"{colors.muted('->')} {display_path}  "
             f"({colors.muted(f'{repo.duration:.1f}s elapsed')})",
         )
 
     formatter.emit_text("")
     formatter.emit_text(
-        f"{colors.info('→')} Rerun just the affected repositories with a "
+        f"{colors.info('->')} Rerun just the affected repositories with a "
         f"larger timeout:",
     )
     for workspace_root, repos in grouped.items():
@@ -843,7 +842,7 @@ def _emit_rerun_recipe(
         )
 
     formatter.emit_text(
-        f"{colors.info('→')} Or with verbose logging to diagnose the hang:",
+        f"{colors.info('->')} Or with verbose logging to diagnose the hang:",
     )
     for workspace_root, repos in grouped.items():
         names = " ".join(shlex.quote(r.name) for r in repos)
@@ -854,7 +853,7 @@ def _emit_rerun_recipe(
         )
 
     formatter.emit_text(
-        f"{colors.info('→')} Probe each repository manually "
+        f"{colors.info('->')} Probe each repository manually "
         f"({colors.muted('these should return in under 10s')}):",
     )
     for repo in timed_out_repos:
@@ -862,12 +861,6 @@ def _emit_rerun_recipe(
         formatter.emit_text(
             f"    GIT_TERMINAL_PROMPT=0 timeout 10 "
             f"git -C {shlex.quote(display_path)} fetch --dry-run",
-        )
-
-    if log_file_path is not None:
-        formatter.emit_text("")
-        formatter.emit_text(
-            f"{colors.info('→')} Full debug log: {colors.muted(str(log_file_path))}",
         )
 
 
@@ -1192,17 +1185,13 @@ def _sync_impl(
         colors,
         timed_out_repos=timed_out_repos,
         timeout=repo_timeout,
-        log_file_path=log_file_path,
     )
 
-    # When there were plain failures (no timeout) surface the debug log path
-    # anyway so the user can post-mortem without re-running with --log-file.
-    if (
-        summary.get("failed", 0) - summary.get("timed_out", 0) > 0
-        and log_file_path is not None
-    ):
+    # Surface the debug log path once, only when something went wrong, so the
+    # user has a single post-mortem trail regardless of the failure mode.
+    if summary.get("failed", 0) > 0 and log_file_path is not None:
         formatter.emit_text(
-            f"{colors.info('→')} Full debug log: {colors.muted(str(log_file_path))}",
+            f"{colors.info('->')} Full debug log: {colors.muted(str(log_file_path))}",
         )
 
     if exit_on_error and unmatched_count > 0:
@@ -1273,9 +1262,9 @@ def _run_sync_loop(
                 event["details"] = outcome.captured_output.strip()
             formatter.emit(event)
             formatter.emit_text(
-                f"{colors.warning('⏱')} Timed out {colors.info(repo_name)} "
+                f"{colors.warning('-')} Timed out {colors.info(repo_name)} "
                 f"after {colors.warning(f'{outcome.duration:.1f}s')} "
-                f"{colors.muted('→')} {display_repo_path}",
+                f"{colors.muted('->')} {display_repo_path}",
             )
             if exit_on_error:
                 _emit_rerun_recipe(
@@ -1283,9 +1272,13 @@ def _run_sync_loop(
                     colors,
                     timed_out_repos=timed_out_repos,
                     timeout=repo_timeout,
-                    log_file_path=log_file_path,
                 )
                 _emit_summary(formatter, colors, summary)
+                if log_file_path is not None:
+                    formatter.emit_text(
+                        f"{colors.info('->')} Full debug log: "
+                        f"{colors.muted(str(log_file_path))}",
+                    )
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)

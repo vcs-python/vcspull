@@ -30,8 +30,10 @@ _SHOW_CURSOR = "\033[?25h"
 _ERASE_LINE = "\033[2K"
 _CURSOR_TO_COL0 = "\r"
 
-#: Braille spinner frames -- 100 ms tick produces a smooth rotation.
-_SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+#: ASCII spinner frames -- chosen over Braille/emoji so the output stays
+#: plain in logs, minimal terminals, and remote sessions where Unicode
+#: glyphs can render as tofu.
+_SPINNER_FRAMES = "|/-\\"
 
 #: How often to refresh the spinner line in the TTY path.
 _TTY_REFRESH_INTERVAL = 0.1
@@ -118,9 +120,9 @@ class SyncStatusIndicator:
         if self._tty:
             self._ensure_tty_thread()
         else:
-            # Emit a single "· syncing" line so even log-collecting CI shows
-            # which repo is in flight.
-            self._emit_line(f"· syncing {name}")
+            # Emit a single start line so even log-collecting CI shows which
+            # repo is in flight.
+            self._emit_line(f"syncing {name}")
 
     def stop_repo(self) -> None:
         """Stop showing any active-repo indicator."""
@@ -203,7 +205,7 @@ class SyncStatusIndicator:
             self._stop_event.wait(_TTY_REFRESH_INTERVAL)
 
     def _render_tty(self, frame: str, name: str, elapsed: float) -> None:
-        line = f"{frame} syncing {name} … {elapsed:4.1f}s"
+        line = f"{frame} syncing {name} ... {elapsed:4.1f}s"
         try:
             pad = max(self._last_line_len - len(line), 0)
             self._stream.write(_CURSOR_TO_COL0 + line + (" " * pad))
@@ -251,7 +253,7 @@ class SyncStatusIndicator:
             return
 
         elapsed = now - started
-        self._emit_line(f"… still syncing {name} ({elapsed:.0f}s elapsed)")
+        self._emit_line(f"... still syncing {name} ({elapsed:.0f}s elapsed)")
         with self._lock:
             self._last_heartbeat_at = now
 

@@ -88,13 +88,16 @@ def test_tty_spinner_renders_active_repo(monkeypatch: pytest.MonkeyPatch) -> Non
     indicator.close()
 
     out = stream.getvalue()
-    # The spinner line mentions the repo and has at least one braille frame.
+    # The spinner line mentions the repo and has at least one ASCII frame.
     assert "syncing codex" in out
-    assert any(f in out for f in "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+    assert any(f in out for f in "|/-\\")
     # Cursor hide / show sequences bracket the spinner so tmux / kitty don't
     # leak a missing cursor after vcspull exits.
     assert "\x1b[?25l" in out  # hide
     assert "\x1b[?25h" in out  # show
+    # No emoji / non-ASCII decoration leaks out of the spinner path.
+    for glyph in ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "…", "·"):
+        assert glyph not in out
 
 
 def test_close_is_idempotent() -> None:
