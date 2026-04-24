@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib
+import signal
+import sys
 import time
 import typing as t
 
@@ -284,17 +286,41 @@ def test_watchdog_propagates_keyboard_interrupt_from_worker(
         )
 
 
+@pytest.fixture
+def _fake_sigint_escalation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Convert ``_exit_on_sigint`` into ``SystemExit(130)`` for in-process tests.
+
+    The real implementation re-raises SIGINT under ``SIG_DFL`` so the
+    parent shell sees ``WIFSIGNALED(SIGINT)``. Running that in-process
+    would kill the pytest runner. Unit tests that only want to verify the
+    control flow through the ``except KeyboardInterrupt`` clauses opt in
+    to this fixture; the real signal semantics live in a subprocess test
+    (``tests/cli/test_sync_sigint.py``).
+    """
+
+    def _fake() -> t.NoReturn:
+        raise SystemExit(130)
+
+    monkeypatch.setattr(sync_module, "_exit_on_sigint", _fake)
+
+
 def test_sync_handles_keyboard_interrupt_during_config_load(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    _fake_sigint_escalation: None,
 ) -> None:
     """Ctrl-C during pre-loop work (e.g. YAML parse) exits cleanly with 130.
 
     Regression for the observed traceback where a KeyboardInterrupt raised
-    inside ``load_configs`` escaped all the way through ``cli.sync`` and out
-    to the top-level ``sys.exit`` as an unhandled exception, dumping the
-    entire yaml parser stack to the terminal. The outer ``sync()`` entry
-    point must catch the interrupt, emit a short notice, and raise
+    inside ``load_configs`` escaped all the way through ``cli.sync`` and
+    out to the top-level ``sys.exit`` as an unhandled exception, dumping
+    the entire yaml parser stack to the terminal. The outer ``sync()``
+    entry point must catch the interrupt, emit a short notice, and exit
+    via ``_exit_on_sigint()``. The ``_fake_sigint_escalation`` fixture
+    swaps the real ``_exit_on_sigint`` (which re-raises SIGINT under
+    ``SIG_DFL`` and would kill the test runner) for a plain
     ``SystemExit(130)``.
     """
     from vcspull.cli.sync import sync as sync_fn
@@ -327,3 +353,73 @@ def test_sync_handles_keyboard_interrupt_during_config_load(
     assert excinfo.value.code == 130
     err = capsys.readouterr().err
     assert "Interrupted by user." in err
+
+
+def test_exit_on_sigint_posix_installs_sig_dfl_and_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``_exit_on_sigint`` installs SIG_IGN, then SIG_DFL, then self-SIGINTs.
+
+    Locks in the order from git's ``sigchain.h:20-34`` pattern and proves
+    the helper would make the kernel deliver SIGINT to ourselves -- which
+    is what the parent shell's ``WIFSIGNALED`` check keys off to abort a
+    ``;`` chain. We can't let ``raise_signal`` actually fire (it would
+    take pytest down with us), so we intercept both stdlib calls and
+    assert on the recorded sequence.
+    """
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    calls: list[tuple[str, t.Any, t.Any]] = []
+
+    def _fake_signal(sig: int, handler: t.Any) -> t.Any:
+        calls.append(("signal", sig, handler))
+        return None
+
+    def _fake_raise(sig: int) -> None:
+        calls.append(("raise_signal", sig, None))
+        # Simulate ``SIG_DFL`` termination by exiting -- the real call
+        # never returns on POSIX; here we just prove the ordering.
+        raise SystemExit(130)
+
+    monkeypatch.setattr(signal, "signal", _fake_signal)
+    monkeypatch.setattr(signal, "raise_signal", _fake_raise)
+
+    with pytest.raises(SystemExit) as excinfo:
+        sync_module._exit_on_sigint()
+
+    assert excinfo.value.code == 130
+    assert calls == [
+        ("signal", signal.SIGINT, signal.SIG_IGN),
+        ("signal", signal.SIGINT, signal.SIG_DFL),
+        ("raise_signal", signal.SIGINT, None),
+    ]
+
+
+def test_exit_on_sigint_windows_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows falls back to ``SystemExit(130)`` without touching signals.
+
+    ``signal.raise_signal(SIGINT)`` under ``SIG_DFL`` on Windows raises
+    ``KeyboardInterrupt`` back at the caller instead of terminating, so
+    the POSIX re-raise would get us nowhere. The helper must short-circuit
+    on ``sys.platform == "win32"`` and leave the signal handlers
+    completely untouched.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    def _fail_if_called(sig: int) -> None:
+        msg = "raise_signal must not be called on the Windows fallback path"
+        raise AssertionError(msg)
+
+    def _fail_signal(sig: int, handler: t.Any) -> t.Any:
+        msg = "signal.signal must not be called on the Windows fallback path"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(signal, "raise_signal", _fail_if_called)
+    monkeypatch.setattr(signal, "signal", _fail_signal)
+
+    with pytest.raises(SystemExit) as excinfo:
+        sync_module._exit_on_sigint()
+
+    assert excinfo.value.code == 130

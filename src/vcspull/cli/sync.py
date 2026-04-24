@@ -10,6 +10,7 @@ import os
 import pathlib
 import re
 import shlex
+import signal
 import subprocess
 import sys
 import threading
@@ -718,6 +719,57 @@ def _resolve_repo_timeout(cli_timeout: int | None) -> int:
     return _DEFAULT_REPO_TIMEOUT_SECONDS
 
 
+class _SyncInterruptedAfterSummary(KeyboardInterrupt):
+    """Internal marker: ``_sync_impl`` already emitted the interrupt summary.
+
+    Lets the outer ``sync()`` handler skip the plain-stderr fallback when the
+    inner layer has already printed a coloured partial summary through the
+    formatter. Subclassing ``KeyboardInterrupt`` keeps the exception in the
+    same taxonomy for the outer ``except KeyboardInterrupt`` catch.
+    """
+
+
+def _exit_on_sigint() -> t.NoReturn:
+    """Terminate so the parent shell sees ``WIFSIGNALED(SIGINT)``.
+
+    Interactive shells (bash, zsh) abort ``cmd1; cmd2`` sequential lists
+    only when the child was killed by a signal -- a clean
+    ``SystemExit(130)`` leaves the shell no reason to stop. Match git's
+    pattern (``sigchain.h:20-34``; ``builtin/clone.c:416``): cleanup first,
+    install ``SIG_DFL``, self-deliver SIGINT so the kernel reports
+    ``WIFSIGNALED`` to the parent.
+
+    Callers MUST complete cleanup before invoking this. Python ``atexit``
+    hooks and ``finally`` blocks do NOT run once ``SIG_DFL`` terminates the
+    process at the C level.
+
+    Windows has no ``WIFSIGNALED`` analogue and its ``raise_signal(SIGINT)``
+    under ``SIG_DFL`` raises ``KeyboardInterrupt`` back at the caller
+    instead of exiting -- fall back to the conventional ``SystemExit(130)``.
+
+    Precondition: must be called from the main thread of the main
+    interpreter. ``signal.signal`` raises ``ValueError`` otherwise. The CLI
+    dispatcher at ``vcspull/cli/__init__.py`` always invokes ``sync()`` on
+    the main thread, so this is a callsite contract rather than a runtime
+    check -- a silent non-main-thread fallback would only kill that thread,
+    not the process, and bash would still see a clean exit and continue
+    the ``;`` chain, defeating the whole change.
+    """
+    if sys.platform == "win32":
+        raise SystemExit(130)
+    # The two-line swap here is deliberate: a SIGINT delivered during the
+    # gap either hits SIG_IGN (dropped) or SIG_DFL (terminates) -- both
+    # outcomes let bash see WIFSIGNALED(SIGINT), so we don't need the
+    # heavier ``pthread_sigmask`` route.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    signal.raise_signal(signal.SIGINT)
+    # raise_signal does not return under SIG_DFL on POSIX; the SystemExit
+    # is defence-in-depth only, satisfying ``NoReturn`` and covering exotic
+    # kernels where the default disposition doesn't terminate.
+    raise SystemExit(130)  # pragma: no cover
+
+
 class _IndicatorStreamProxy:
     r"""File-like adapter that routes writes through a ``SyncStatusIndicator``.
 
@@ -998,19 +1050,31 @@ def sync(
             log_file_path=log_file_path,
             dry_run=dry_run,
         )
-    except KeyboardInterrupt:
-        # Catch Ctrl-C from ANY phase of the sync -- not just the repo loop
-        # (where ``_sync_impl`` handles it with a partial summary) but also
-        # long pre-loop work like ``load_configs`` (YAML parse on big vcspull
-        # files) and post-loop emission. We write straight to stderr here
-        # because the outer scope is the narrowest spot where we can be sure
-        # the formatter either already finalised or was never built.
-        sys.stderr.write("\nInterrupted by user.\n")
-        sys.stderr.flush()
-        if log_file_path is not None:
-            sys.stderr.write(f"Full debug log: {log_file_path}\n")
+    except KeyboardInterrupt as err:
+        # Catch Ctrl-C from ANY phase of the sync -- the repo loop (where
+        # ``_sync_impl`` handles it with a partial summary and re-raises
+        # ``_SyncInterruptedAfterSummary``) and also long pre-loop work
+        # like ``load_configs`` (YAML parse on big vcspull configs) and
+        # post-loop emission, where the formatter may not be built yet.
+        # The plain-stderr fallback below is the only safe surface in the
+        # pre-loop case; skip it when the inner layer already printed a
+        # coloured summary through the formatter.
+        if not isinstance(err, _SyncInterruptedAfterSummary):
+            sys.stderr.write("\nInterrupted by user.\n")
             sys.stderr.flush()
-        raise SystemExit(130) from None
+            if log_file_path is not None:
+                sys.stderr.write(f"Full debug log: {log_file_path}\n")
+                sys.stderr.flush()
+        # Python ``atexit`` and ``finally`` do NOT run once
+        # ``_exit_on_sigint`` terminates via ``SIG_DFL`` at the C level, so
+        # close the debug log inline. Nulling the handle makes the outer
+        # ``finally`` a no-op for the POSIX path AND a correct single-close
+        # for the Windows fallback path (where ``_exit_on_sigint`` does
+        # raise a regular ``SystemExit`` and the ``finally`` does run).
+        if log_file_handler is not None:
+            teardown_file_logger(log_file_handler)
+            log_file_handler = None
+        _exit_on_sigint()
     finally:
         if log_file_handler is not None:
             teardown_file_logger(log_file_handler)
@@ -1261,9 +1325,10 @@ def _sync_impl(
             indicator=indicator,
         )
     except KeyboardInterrupt:
-        # Ctrl-C during the loop: stop the indicator cleanly, print a partial
-        # summary, and exit with the conventional SIGINT code (128 + 2 = 130)
-        # so shells and CI treat us as interrupted rather than crashed.
+        # Ctrl-C during the loop: stop the indicator cleanly, print a
+        # partial summary via the formatter, then hand termination
+        # semantics to the outer ``sync()`` catch. We re-raise a typed
+        # marker so the outer layer doesn't double-print.
         interrupted = True
     finally:
         if restore_log_streams is not None:
@@ -1271,16 +1336,25 @@ def _sync_impl(
         indicator.close()
 
     if interrupted:
-        formatter.emit_text("")
-        formatter.emit_text(colors.warning("Interrupted by user."))
-        _emit_summary(formatter, colors, summary)
-        if log_file_path is not None:
-            formatter.emit_text(
-                f"{colors.info('->')} Full debug log: "
-                f"{colors.muted(str(log_file_path))}",
-            )
-        formatter.finalize()
-        raise SystemExit(130)
+        # Shield the summary emission against late-breaking ``OSError``
+        # (e.g. ``BrokenPipeError`` when stdout is piped to ``head``)
+        # so the marker exception *always* propagates. If an OSError
+        # escaped here the outer layer would see a non-KeyboardInterrupt
+        # and bash would see a plain exit 1, letting the ``;`` chain
+        # continue -- exactly what this change is designed to prevent.
+        try:
+            formatter.emit_text("")
+            formatter.emit_text(colors.warning("Interrupted by user."))
+            _emit_summary(formatter, colors, summary)
+            if log_file_path is not None:
+                formatter.emit_text(
+                    f"{colors.info('->')} Full debug log: "
+                    f"{colors.muted(str(log_file_path))}",
+                )
+            formatter.finalize()
+        except (OSError, ValueError):
+            pass
+        raise _SyncInterruptedAfterSummary from None
 
     _emit_summary(formatter, colors, summary)
     _emit_rerun_recipe(

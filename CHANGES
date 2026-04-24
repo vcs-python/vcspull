@@ -39,6 +39,20 @@ _Notes on upcoming releases will be added here_
 
 ### New features
 
+#### `vcspull sync`: Ctrl-C aborts the whole shell chain, not one command
+
+`vcspull sync` now terminates with `WIFSIGNALED(SIGINT)` on Ctrl-C instead
+of exiting cleanly with status `130`. Bash/zsh sequential lists
+(`cmd1; cmd2; cmd3`) abort on the first signal-terminated child, so
+chained invocations like
+`vcspull sync --workspace ~/study/rust/ --all; vcspull sync --workspace
+~/study/otel/ --all` now stop on a single Ctrl-C — matching how `git
+clone; git fetch` compose. Behaviour is implemented via the canonical
+git pattern (`sigchain.h:20-34`): flush output, close the debug log
+handle, install `SIG_DFL`, self-deliver SIGINT. Windows falls back to
+the conventional `SystemExit(130)` because it has no `WIFSIGNALED`
+analogue.
+
 #### `vcspull sync`: per-repository watchdog and copyable rerun recipe
 
 A single stuck repository no longer freezes the whole batch. Every repository
