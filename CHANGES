@@ -37,6 +37,22 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### New features
+
+#### `vcspull sync`: per-repository watchdog and copyable rerun recipe
+
+A single stuck repository no longer freezes the whole batch. Every repository
+sync now runs under a wall-clock watchdog. The default deadline is 10 seconds
+-- a healthy fetch/pull against a warm remote finishes well under that, so
+anything slower is surfaced rather than waited on. Override with `--timeout
+N` or the `VCSPULL_SYNC_TIMEOUT_SECONDS` environment variable.
+
+When one or more repositories time out, the summary is followed by a
+copy-pasteable rerun recipe that retries just those repositories with a
+larger timeout, plus a `-vv` variant for diagnosis and a manual
+`git fetch --dry-run` probe per repo. Timed-out repositories are counted in
+the summary as "N timed out" alongside synced / failed.
+
 ### Dependencies
 
 - Bump `libvcs` to `>=0.40.0a0,<0.41.0` for timeout + fast `set_remotes` fixes

@@ -466,6 +466,7 @@ def cli(_args: list[str] | None = None) -> None:
             sync_all=getattr(args, "sync_all", False),
             parser=sync_parser,
             include_worktrees=getattr(args, "include_worktrees", False),
+            timeout=getattr(args, "timeout", None),
         )
     elif args.subparser_name == "list":
         list_repos(

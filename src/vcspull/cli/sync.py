@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import concurrent.futures
 import contextlib
 import logging
 import os
 import pathlib
 import re
+import shlex
 import subprocess
 import sys
 import typing as t
@@ -17,7 +19,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from io import StringIO
-from time import perf_counter
+from time import monotonic, perf_counter
 
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
@@ -160,6 +162,14 @@ NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
 _FETCH_TIMEOUT_SECONDS = 120
+
+#: Default wall-clock deadline for each repository in ``vcspull sync``.
+#:
+#: Kept aggressive on purpose -- a healthy fetch/pull against a warm remote is
+#: almost always under 10 seconds. Anything over that is "suspect" and should
+#: surface as an actionable timeout rather than a silent hang. Callers can
+#: override via ``--timeout`` or the ``VCSPULL_SYNC_TIMEOUT_SECONDS`` env var.
+_DEFAULT_REPO_TIMEOUT_SECONDS = 10
 
 _NO_PROMPT_ENV: dict[str, str] | None = None
 
@@ -627,6 +637,19 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         dest="include_worktrees",
         help="also sync configured worktrees for each repository",
     )
+    parser.add_argument(
+        "--timeout",
+        dest="timeout",
+        type=int,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "per-repository wall-clock deadline in seconds "
+            f"(default: {_DEFAULT_REPO_TIMEOUT_SECONDS}; env: "
+            "VCSPULL_SYNC_TIMEOUT_SECONDS). Repos that exceed the deadline "
+            "are skipped and the rest of the batch continues."
+        ),
+    )
 
     try:
         import shtab
@@ -635,6 +658,198 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
     except ImportError:
         pass
     return parser
+
+
+@dataclass
+class _TimedOutRepo:
+    """Metadata about a repository that exceeded its per-repo timeout."""
+
+    name: str
+    path: str
+    workspace_root: str
+    duration: float
+
+
+@dataclass
+class _SyncOutcome:
+    """Result of attempting to sync a single repository."""
+
+    status: t.Literal["synced", "failed", "timed_out"]
+    captured_output: str | None = None
+    error: BaseException | None = None
+    duration: float = 0.0
+
+
+def _resolve_repo_timeout(cli_timeout: int | None) -> int:
+    """Resolve the repo timeout from CLI flag / env var / built-in default."""
+    if cli_timeout is not None and cli_timeout > 0:
+        return cli_timeout
+    env_value = os.environ.get("VCSPULL_SYNC_TIMEOUT_SECONDS")
+    if env_value:
+        try:
+            parsed = int(env_value)
+        except ValueError:
+            log.warning(
+                "Ignoring non-integer VCSPULL_SYNC_TIMEOUT_SECONDS=%s",
+                env_value,
+            )
+        else:
+            if parsed > 0:
+                return parsed
+    return _DEFAULT_REPO_TIMEOUT_SECONDS
+
+
+def _sync_repo_with_watchdog(
+    repo: ConfigDict,
+    *,
+    progress_callback: ProgressCallback,
+    timeout: int,
+    is_human: bool,
+) -> _SyncOutcome:
+    """Run :func:`update_repo` under a wall-clock watchdog.
+
+    The libvcs call is executed on a daemon worker so the main thread can
+    enforce a timeout via :meth:`concurrent.futures.Future.result`. On a
+    timeout the worker is left to drain (the libvcs 0.40.0a0 ``timeout``
+    kwarg will eventually reach down through the subprocess layer, but until
+    every call site plumbs it through we rely on the OS to reap abandoned
+    children when vcspull exits).
+    """
+    buffer: StringIO | None = None if is_human else StringIO()
+
+    def _run() -> None:
+        if buffer is None:
+            update_repo(repo, progress_callback=progress_callback)
+            return
+        # Non-human output modes capture everything so the NDJSON/JSON payload
+        # contains the per-repo details without polluting stdout.
+        with (
+            contextlib.redirect_stdout(buffer),
+            contextlib.redirect_stderr(buffer),
+        ):
+            update_repo(repo, progress_callback=progress_callback)
+
+    started = monotonic()
+    # A dedicated single-worker pool is cheaper than spinning a raw Thread;
+    # the future API also makes cancellation vs. completion explicit. We
+    # intentionally do NOT use the executor as a context manager: its
+    # ``__exit__`` calls ``shutdown(wait=True)`` which would block behind a
+    # wedged worker and defeat the whole point of the watchdog. Instead, we
+    # call ``shutdown(wait=False)`` on every return path so the daemon thread
+    # is abandoned and cleaned up by the OS when vcspull exits.
+    executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=1,
+        thread_name_prefix="vcspull-sync",
+    )
+    future = executor.submit(_run)
+    try:
+        future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        duration = monotonic() - started
+        future.cancel()
+        executor.shutdown(wait=False, cancel_futures=True)
+        return _SyncOutcome(
+            status="timed_out",
+            captured_output=buffer.getvalue() if buffer else None,
+            duration=duration,
+        )
+    except BaseException as exc_obj:
+        duration = monotonic() - started
+        executor.shutdown(wait=False, cancel_futures=True)
+        return _SyncOutcome(
+            status="failed",
+            captured_output=buffer.getvalue() if buffer else None,
+            error=exc_obj,
+            duration=duration,
+        )
+
+    executor.shutdown(wait=False, cancel_futures=True)
+    return _SyncOutcome(
+        status="synced",
+        captured_output=buffer.getvalue() if buffer else None,
+        duration=monotonic() - started,
+    )
+
+
+def _emit_rerun_recipe(
+    formatter: OutputFormatter,
+    colors: Colors,
+    *,
+    timed_out_repos: list[_TimedOutRepo],
+    timeout: int,
+    log_file_path: pathlib.Path | None,
+) -> None:
+    """Print a copyable recipe for rerunning just the timed-out repositories.
+
+    Modelled on the way ``cargo``/``npm`` surface actionable next steps after
+    a failure. The suggested timeout is ``max(120, timeout * 10)`` so a user
+    who kept the aggressive default still gets a meaningful headroom when
+    they retry.
+    """
+    if not timed_out_repos:
+        return
+
+    suggested_timeout = max(120, timeout * 10)
+
+    # Group by workspace so the user can paste one line per workspace.
+    grouped: dict[str, list[_TimedOutRepo]] = {}
+    for repo in timed_out_repos:
+        grouped.setdefault(repo.workspace_root, []).append(repo)
+
+    formatter.emit_text("")
+    formatter.emit_text(
+        f"{colors.warning('⏱')} Timed out: "
+        f"{colors.warning(str(len(timed_out_repos)))} "
+        f"repositor{'y' if len(timed_out_repos) == 1 else 'ies'} "
+        f"exceeded {timeout}s.",
+    )
+    for repo in timed_out_repos:
+        display_path = str(PrivatePath(repo.path))
+        formatter.emit_text(
+            f"  {colors.warning('⏱')} {colors.info(repo.name):<32} "
+            f"{colors.muted('→')} {display_path}  "
+            f"({colors.muted(f'{repo.duration:.1f}s elapsed')})",
+        )
+
+    formatter.emit_text("")
+    formatter.emit_text(
+        f"{colors.info('→')} Rerun just the affected repositories with a "
+        f"larger timeout:",
+    )
+    for workspace_root, repos in grouped.items():
+        names = " ".join(shlex.quote(r.name) for r in repos)
+        workspace_arg = f"--workspace {shlex.quote(str(PrivatePath(workspace_root)))}"
+        formatter.emit_text(
+            f"    vcspull sync {workspace_arg} --timeout {suggested_timeout} {names}",
+        )
+
+    formatter.emit_text(
+        f"{colors.info('→')} Or with verbose logging to diagnose the hang:",
+    )
+    for workspace_root, repos in grouped.items():
+        names = " ".join(shlex.quote(r.name) for r in repos)
+        workspace_arg = f"--workspace {shlex.quote(str(PrivatePath(workspace_root)))}"
+        formatter.emit_text(
+            f"    vcspull sync {workspace_arg} "
+            f"--timeout {suggested_timeout} -vv {names}",
+        )
+
+    formatter.emit_text(
+        f"{colors.info('→')} Probe each repository manually "
+        f"({colors.muted('these should return in under 10s')}):",
+    )
+    for repo in timed_out_repos:
+        display_path = str(PrivatePath(repo.path))
+        formatter.emit_text(
+            f"    GIT_TERMINAL_PROMPT=0 timeout 10 "
+            f"git -C {shlex.quote(display_path)} fetch --dry-run",
+        )
+
+    if log_file_path is not None:
+        formatter.emit_text("")
+        formatter.emit_text(
+            f"{colors.info('→')} Full debug log: {colors.muted(str(log_file_path))}",
+        )
 
 
 def sync(
@@ -657,10 +872,13 @@ def sync(
     parser: argparse.ArgumentParser
     | None = None,  # optional so sync can be unit tested
     include_worktrees: bool = False,
+    timeout: int | None = None,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Prevent git from blocking on credential prompts during batch sync
     os.environ.setdefault("GIT_TERMINAL_PROMPT", "0")
+
+    repo_timeout = _resolve_repo_timeout(timeout)
 
     # Show help if no patterns and --all not specified
     if not repo_patterns and not sync_all:
@@ -831,8 +1049,10 @@ def sync(
         "synced": 0,
         "previewed": 0,
         "failed": 0,
+        "timed_out": 0,
         "unmatched": unmatched_count,
     }
+    timed_out_repos: list[_TimedOutRepo] = []
 
     progress_callback: ProgressCallback
     if is_human:
@@ -860,49 +1080,74 @@ def sync(
             "workspace_root": str(workspace_label),
         }
 
-        buffer: StringIO | None = None
-        captured_output: str | None = None
-        try:
-            if is_human:
-                update_repo(repo, progress_callback=progress_callback)
-            else:
-                buffer = StringIO()
-                with (
-                    contextlib.redirect_stdout(buffer),
-                    contextlib.redirect_stderr(
-                        buffer,
-                    ),
-                ):
-                    update_repo(repo, progress_callback=progress_callback)
-                captured_output = buffer.getvalue()
-        except Exception as e:
+        outcome = _sync_repo_with_watchdog(
+            repo,
+            progress_callback=progress_callback,
+            timeout=repo_timeout,
+            is_human=is_human,
+        )
+
+        if outcome.status == "timed_out":
+            summary["timed_out"] += 1
             summary["failed"] += 1
+            timed_out_repos.append(
+                _TimedOutRepo(
+                    name=repo_name,
+                    path=str(repo_path),
+                    workspace_root=str(workspace_label),
+                    duration=outcome.duration,
+                ),
+            )
+            event["status"] = "timed_out"
+            event["duration_ms"] = int(outcome.duration * 1000)
+            if outcome.captured_output:
+                event["details"] = outcome.captured_output.strip()
+            formatter.emit(event)
+            formatter.emit_text(
+                f"{colors.warning('⏱')} Timed out {colors.info(repo_name)} "
+                f"after {colors.warning(f'{outcome.duration:.1f}s')} "
+                f"{colors.muted('→')} {display_repo_path}",
+            )
+            if exit_on_error:
+                _emit_rerun_recipe(
+                    formatter,
+                    colors,
+                    timed_out_repos=timed_out_repos,
+                    timeout=repo_timeout,
+                    log_file_path=None,
+                )
+                _emit_summary(formatter, colors, summary)
+                formatter.finalize()
+                if parser is not None:
+                    parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+                raise SystemExit(EXIT_ON_ERROR_MSG)
+            continue
+
+        if outcome.status == "failed":
+            summary["failed"] += 1
+            err = outcome.error
+            err_msg = str(err) if err is not None else "unknown error"
             event["status"] = "error"
-            event["error"] = str(e)
-            if not is_human and buffer is not None and not captured_output:
-                captured_output = buffer.getvalue()
-            if captured_output:
-                event["details"] = captured_output.strip()
+            event["error"] = err_msg
+            if outcome.captured_output:
+                event["details"] = outcome.captured_output.strip()
             formatter.emit(event)
             if is_human:
-                log.debug(
-                    "Failed syncing %s",
-                    repo_name,
-                )
-            if log.isEnabledFor(logging.DEBUG):
+                log.debug("Failed syncing %s", repo_name)
+            if log.isEnabledFor(logging.DEBUG) and err is not None:
                 import traceback
 
-                traceback.print_exc()
+                traceback.print_exception(type(err), err, err.__traceback__)
             formatter.emit_text(
                 f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
-                f"{colors.error(str(e))}",
+                f"{colors.error(err_msg)}",
             )
             if exit_on_error:
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
-                raise SystemExit(EXIT_ON_ERROR_MSG) from e
+                raise SystemExit(EXIT_ON_ERROR_MSG) from err
             continue
 
         summary["synced"] += 1
@@ -977,6 +1222,13 @@ def sync(
                 raise SystemExit(EXIT_ON_ERROR_MSG)
 
     _emit_summary(formatter, colors, summary)
+    _emit_rerun_recipe(
+        formatter,
+        colors,
+        timed_out_repos=timed_out_repos,
+        timeout=repo_timeout,
+        log_file_path=None,
+    )
 
     if exit_on_error and unmatched_count > 0:
         formatter.finalize()
@@ -997,12 +1249,17 @@ def _emit_summary(
     if formatter.mode == OutputMode.HUMAN:
         previewed = summary.get("previewed", 0)
         unmatched = summary.get("unmatched", 0)
+        timed_out = summary.get("timed_out", 0)
         parts = [
             f"\n{colors.info('Summary:')} "
             f"{colors.info(str(summary['total']))} repos, "
             f"{colors.success(str(summary['synced']))} synced, "
             f"{colors.error(str(summary['failed']))} failed",
         ]
+        if timed_out > 0:
+            parts.append(
+                f", {colors.warning(str(timed_out))} timed out",
+            )
         if previewed > 0:
             parts.append(
                 f", {colors.warning(str(previewed))} previewed",
