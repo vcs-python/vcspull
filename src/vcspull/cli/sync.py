@@ -36,6 +36,7 @@ from vcspull._internal.worktree_sync import (
     sync_all_worktrees,
 )
 from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
+from vcspull.log import default_debug_log_path, setup_file_logger, teardown_file_logger
 from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
@@ -650,6 +651,23 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
             "are skipped and the rest of the batch continues."
         ),
     )
+    parser.add_argument(
+        "--log-file",
+        dest="log_file",
+        metavar="PATH",
+        default=None,
+        help=(
+            "write a debug log to PATH (default: $TMPDIR/vcspull-debug-<ts>-"
+            "<pid>.log). The path is only printed to the terminal when a sync "
+            "fails or times out, matching npm/pnpm/yarn."
+        ),
+    )
+    parser.add_argument(
+        "--no-log-file",
+        dest="no_log_file",
+        action="store_true",
+        help="disable the debug log file entirely",
+    )
 
     try:
         import shtab
@@ -873,6 +891,8 @@ def sync(
     | None = None,  # optional so sync can be unit tested
     include_worktrees: bool = False,
     timeout: int | None = None,
+    log_file: str | pathlib.Path | None = None,
+    no_log_file: bool = False,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Prevent git from blocking on credential prompts during batch sync
@@ -880,6 +900,84 @@ def sync(
 
     repo_timeout = _resolve_repo_timeout(timeout)
 
+    # Set up the debug log file early so libvcs's per-repo activity is also
+    # captured. The path is surfaced to the user only when something failed
+    # (or on an explicit path override), matching npm/pnpm/yarn UX.
+    log_file_path: pathlib.Path | None = None
+    log_file_handler: logging.FileHandler | None = None
+    if not no_log_file:
+        log_file_path = (
+            pathlib.Path(log_file).expanduser()
+            if log_file is not None
+            else default_debug_log_path()
+        )
+        try:
+            log_file_handler = setup_file_logger(log_file_path)
+        except OSError as exc_obj:
+            log.warning(
+                "Could not open debug log at %s: %s",
+                log_file_path,
+                exc_obj,
+            )
+            log_file_path = None
+            log_file_handler = None
+
+    try:
+        _sync_impl(
+            repo_patterns=repo_patterns,
+            config=config,
+            workspace_root=workspace_root,
+            output_json=output_json,
+            output_ndjson=output_ndjson,
+            color=color,
+            exit_on_error=exit_on_error,
+            show_unchanged=show_unchanged,
+            summary_only=summary_only,
+            long_view=long_view,
+            relative_paths=relative_paths,
+            fetch=fetch,
+            offline=offline,
+            verbosity=verbosity,
+            sync_all=sync_all,
+            parser=parser,
+            include_worktrees=include_worktrees,
+            repo_timeout=repo_timeout,
+            log_file_path=log_file_path,
+            dry_run=dry_run,
+        )
+    finally:
+        if log_file_handler is not None:
+            teardown_file_logger(log_file_handler)
+
+
+def _sync_impl(
+    *,
+    repo_patterns: list[str],
+    config: pathlib.Path | None,
+    workspace_root: str | None,
+    dry_run: bool,
+    output_json: bool,
+    output_ndjson: bool,
+    color: str,
+    exit_on_error: bool,
+    show_unchanged: bool,
+    summary_only: bool,
+    long_view: bool,
+    relative_paths: bool,
+    fetch: bool,
+    offline: bool,
+    verbosity: int,
+    sync_all: bool,
+    parser: argparse.ArgumentParser | None,
+    include_worktrees: bool,
+    repo_timeout: int,
+    log_file_path: pathlib.Path | None,
+) -> None:
+    """Run the core body of :func:`sync`.
+
+    Kept separate so log-file teardown runs through ``finally`` regardless of
+    where the caller exits the sync.
+    """
     # Show help if no patterns and --all not specified
     if not repo_patterns and not sync_all:
         if parser is not None:
@@ -1114,7 +1212,7 @@ def sync(
                     colors,
                     timed_out_repos=timed_out_repos,
                     timeout=repo_timeout,
-                    log_file_path=None,
+                    log_file_path=log_file_path,
                 )
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()
@@ -1227,8 +1325,18 @@ def sync(
         colors,
         timed_out_repos=timed_out_repos,
         timeout=repo_timeout,
-        log_file_path=None,
+        log_file_path=log_file_path,
     )
+
+    # When there were plain failures (no timeout) surface the debug log path
+    # anyway so the user can post-mortem without re-running with --log-file.
+    if (
+        summary.get("failed", 0) - summary.get("timed_out", 0) > 0
+        and log_file_path is not None
+    ):
+        formatter.emit_text(
+            f"{colors.info('→')} Full debug log: {colors.muted(str(log_file_path))}",
+        )
 
     if exit_on_error and unmatched_count > 0:
         formatter.finalize()

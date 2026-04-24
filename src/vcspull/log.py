@@ -12,10 +12,14 @@ from __future__ import annotations
 import contextlib
 import importlib
 import logging
+import os
+import pathlib
 import pkgutil
 import sys
+import tempfile
 import time
 import typing as t
+from datetime import datetime
 from functools import lru_cache
 
 from colorama import Fore, Style
@@ -274,3 +278,93 @@ class RepoFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         """Only return a record if a keyword object."""
         return "keyword" in record.__dict__
+
+
+#: Format string for the debug log file. Verbose enough to trace a hang:
+#: level, timestamp (to millisecond), logger, module:line, and the message.
+_DEBUG_FILE_FORMAT = (
+    "%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s "
+    "%(module)s:%(lineno)d -- %(message)s"
+)
+
+_DEBUG_FILE_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
+
+
+def default_debug_log_path() -> pathlib.Path:
+    """Return the path where vcspull writes its per-invocation debug log.
+
+    Mirrors the ``npm`` / ``pnpm`` convention of dropping a timestamped log
+    file in the system temp directory on every run. The file is always created
+    but its path is only surfaced to the user when something went wrong
+    (failure or timeout), so clean runs stay quiet.
+    """
+    stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    pid = os.getpid()
+    return pathlib.Path(tempfile.gettempdir()) / f"vcspull-debug-{stamp}-{pid}.log"
+
+
+def setup_file_logger(
+    path: pathlib.Path,
+    *,
+    level: int = logging.DEBUG,
+) -> logging.FileHandler:
+    """Attach a file handler to the ``vcspull`` and ``libvcs`` loggers.
+
+    Unlike :func:`setup_logger`, this handler is not tied to stdout -- it
+    captures the full debug trace so a post-mortem (npm/pnpm/yarn style) has
+    enough context to diagnose a timeout even when the CLI output was
+    aggressively summarised.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Destination file. Parent directories are created as needed. An
+        existing file is appended to so a single session that sets up logging
+        multiple times does not clobber earlier context.
+    level : int
+        Threshold for the file handler. Defaults to :data:`logging.DEBUG`
+        because the file is consulted only when diagnosing a failure.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    handler = logging.FileHandler(path, mode="a", encoding="utf-8")
+    handler.setLevel(level)
+    handler.setFormatter(
+        logging.Formatter(_DEBUG_FILE_FORMAT, datefmt=_DEBUG_FILE_DATE_FORMAT),
+    )
+
+    # Attach to both loggers so libvcs's per-repo activity is captured alongside
+    # vcspull's own structured events. Duplicate handlers are avoided by
+    # checking the baseFilename before attaching.
+    for logger_name in ("vcspull", "libvcs"):
+        logger = logging.getLogger(logger_name)
+        existing = next(
+            (
+                h
+                for h in logger.handlers
+                if isinstance(h, logging.FileHandler)
+                and getattr(h, "baseFilename", None) == str(path)
+            ),
+            None,
+        )
+        if existing is None:
+            logger.addHandler(handler)
+        # Ensure the logger itself lets DEBUG records through to the handler.
+        if logger.level == logging.NOTSET or logger.level > level:
+            logger.setLevel(level)
+
+    return handler
+
+
+def teardown_file_logger(handler: logging.FileHandler) -> None:
+    """Flush and detach ``handler`` from the vcspull/libvcs loggers."""
+    try:
+        handler.flush()
+        handler.close()
+    except ValueError:
+        # Handler already closed; nothing to do.
+        pass
+    for logger_name in ("vcspull", "libvcs"):
+        logger = logging.getLogger(logger_name)
+        if handler in logger.handlers:
+            logger.removeHandler(handler)

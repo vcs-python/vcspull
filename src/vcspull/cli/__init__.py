@@ -467,6 +467,8 @@ def cli(_args: list[str] | None = None) -> None:
             parser=sync_parser,
             include_worktrees=getattr(args, "include_worktrees", False),
             timeout=getattr(args, "timeout", None),
+            log_file=getattr(args, "log_file", None),
+            no_log_file=getattr(args, "no_log_file", False),
         )
     elif args.subparser_name == "list":
         list_repos(

@@ -53,6 +53,16 @@ larger timeout, plus a `-vv` variant for diagnosis and a manual
 `git fetch --dry-run` probe per repo. Timed-out repositories are counted in
 the summary as "N timed out" alongside synced / failed.
 
+#### `vcspull sync`: per-invocation debug log (npm/pnpm style)
+
+Every `vcspull sync` invocation now writes a debug log to
+`$TMPDIR/vcspull-debug-<timestamp>-<pid>.log`. Clean runs stay quiet -- the
+log path is only surfaced to the terminal when at least one repository
+failed or timed out. Override the destination with `--log-file PATH`, or
+disable entirely with `--no-log-file`. The log captures the full libvcs
+per-repo activity (progress callback output, exit codes, errors) so a hang
+can be post-mortemed even after the CLI has moved on.
+
 ### Dependencies
 
 - Bump `libvcs` to `>=0.40.0a0,<0.41.0` for timeout + fast `set_remotes` fixes
