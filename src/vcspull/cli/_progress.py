@@ -21,6 +21,8 @@ import threading
 import time
 import typing as t
 
+from ._colors import ColorMode, Colors, get_color_mode
+
 log = logging.getLogger(__name__)
 
 
@@ -88,6 +90,7 @@ class SyncStatusIndicator:
         enabled: bool = True,
         stream: t.TextIO | None = None,
         tty: bool | None = None,
+        colors: Colors | None = None,
     ) -> None:
         self._stream = stream if stream is not None else sys.stdout
         # Respect the explicit tty override (tests, ``--color=never``) but
@@ -100,6 +103,11 @@ class SyncStatusIndicator:
         # A disabled indicator is a no-op -- it still honours the public API so
         # callers don't need if/else ladders around every sync.
         self._enabled = enabled
+        # Default to a NEVER-colour palette so a caller that builds an
+        # indicator without wiring in the shared ``Colors`` still gets sane
+        # plain-text output -- nothing worse than ANSI codes leaking into
+        # captured streams in tests.
+        self._colors = colors if colors is not None else Colors(ColorMode.NEVER)
 
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -242,8 +250,14 @@ class SyncStatusIndicator:
             self._stop_event.wait(_TTY_REFRESH_INTERVAL)
 
     def _render_tty(self, frame: str, name: str, elapsed: float) -> None:
-        line = f"{frame} syncing {name} ... {elapsed:4.1f}s"
-        pad = max(self._last_line_len - len(line), 0)
+        # Colour just the spinner cell -- matches tmuxp's
+        # ``{self.colors.info(frame)} {msg}`` pattern and keeps the repo
+        # name / elapsed segment neutral so it doesn't fight the ``✓`` /
+        # timed-out colouring emitted on the permanent line.
+        coloured_frame = self._colors.info(frame)
+        visible = f"{frame} syncing {name} ... {elapsed:4.1f}s"
+        line = f"{coloured_frame} syncing {name} ... {elapsed:4.1f}s"
+        pad = max(self._last_line_len - len(visible), 0)
         # Holding the lock around the actual write ensures a concurrent
         # ``write()`` (called by the stdout diverter on the main thread)
         # can't begin mid-frame and end up fighting with the ``\r`` redraw.
@@ -253,7 +267,10 @@ class SyncStatusIndicator:
                     _SYNC_START + _CURSOR_TO_COL0 + line + (" " * pad) + _SYNC_END,
                 )
                 self._stream.flush()
-                self._last_line_len = len(line)
+                # Track the *visible* column count (not the string length with
+                # ANSI codes), so the next frame's padding calculation clears
+                # exactly the on-screen cells the previous frame occupied.
+                self._last_line_len = len(visible)
             except (OSError, ValueError):
                 pass
 
@@ -329,6 +346,7 @@ def build_indicator(
     color: str,
     stream: t.TextIO | io.StringIO | None = None,
     tty: bool | None = None,
+    colors: Colors | None = None,
 ) -> SyncStatusIndicator:
     """Return a ``SyncStatusIndicator`` configured for the current session.
 
@@ -339,8 +357,13 @@ def build_indicator(
     # io.StringIO satisfies the TextIO protocol at runtime; tests use this to
     # capture spinner output without wrestling with subclassing.
     concrete_stream: t.Any = stream
+    # Resolve the palette from the CLI ``--color`` string when the caller
+    # didn't hand us a shared ``Colors`` instance -- keeps ``build_indicator``
+    # usable without threading colours through every call site.
+    resolved_colors = colors if colors is not None else Colors(get_color_mode(color))
     return SyncStatusIndicator(
         enabled=enabled,
         stream=concrete_stream,
         tty=tty,
+        colors=resolved_colors,
     )

@@ -1205,7 +1205,7 @@ def _sync_impl(
     }
     timed_out_repos: list[_TimedOutRepo] = []
 
-    indicator = build_indicator(human=is_human, color=color)
+    indicator = build_indicator(human=is_human, color=color, colors=colors)
 
     progress_callback: ProgressCallback
     if is_human and indicator.enabled:

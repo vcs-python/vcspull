@@ -189,3 +189,37 @@ def test_write_non_tty_path_passes_through_untouched() -> None:
     out = stream.getvalue()
     assert out == "hello world\n"
     assert "\x1b[2K" not in out
+
+
+def test_tty_spinner_colours_the_frame_cell() -> None:
+    """Just the Braille cell is colourised (tmuxp-style), not the whole line.
+
+    The repo name and elapsed suffix stay in the terminal's default
+    foreground so they don't collide with the ``✓ Synced`` / ``- Timed out``
+    colouring emitted on the permanent line when a repo completes.
+    """
+    from vcspull.cli._colors import ColorMode, Colors
+
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        colors=Colors(ColorMode.ALWAYS),
+    )
+
+    indicator.start_repo("codex")
+    time.sleep(0.2)
+    indicator.stop_repo()
+    indicator.close()
+
+    out = stream.getvalue()
+    # A colour sequence appears immediately before at least one Braille frame.
+    import re as _re
+
+    pattern = _re.compile(r"\x1b\[[0-9;]*m[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]")
+    assert pattern.search(out), "spinner frame must be wrapped in ANSI colour"
+    # The repo name itself must not be inside a colour run -- look for the
+    # literal "syncing codex" preceded by a reset (the info() helper closes
+    # the colour right after the frame).
+    assert "syncing codex" in out
