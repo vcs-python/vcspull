@@ -53,6 +53,16 @@ larger timeout, plus a `-vv` variant for diagnosis and a manual
 `git fetch --dry-run` probe per repo. Timed-out repositories are counted in
 the summary as "N timed out" alongside synced / failed.
 
+#### `vcspull sync`: live status indicator (spinner + heartbeat)
+
+Every `vcspull sync` run now shows which repository is currently running
+and how long it has been. In a terminal the output is a single-line braille
+spinner that refreshes in place; when output is piped (CI, `tee`, log
+capture), the indicator degrades to a `· syncing <name>` line on start plus
+a periodic `… still syncing <name> (45s elapsed)` heartbeat. The indicator
+is disabled under machine-readable output (`--json` / `--ndjson`) or when
+colours are turned off.
+
 #### `vcspull sync`: per-invocation debug log (npm/pnpm style)
 
 Every `vcspull sync` invocation now writes a debug log to

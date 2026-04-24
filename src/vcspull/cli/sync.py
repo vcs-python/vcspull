@@ -50,6 +50,7 @@ from ._output import (
     PlanSummary,
     get_output_mode,
 )
+from ._progress import SyncStatusIndicator, build_indicator
 from ._workspaces import filter_by_workspace
 from .status import check_repo_status
 
@@ -1163,6 +1164,74 @@ def _sync_impl(
 
         progress_callback = silent_progress
 
+    indicator = build_indicator(human=is_human, color=color)
+
+    try:
+        _run_sync_loop(
+            found_repos=found_repos,
+            formatter=formatter,
+            colors=colors,
+            summary=summary,
+            timed_out_repos=timed_out_repos,
+            progress_callback=progress_callback,
+            is_human=is_human,
+            repo_timeout=repo_timeout,
+            exit_on_error=exit_on_error,
+            include_worktrees=include_worktrees,
+            dry_run=dry_run,
+            parser=parser,
+            log_file_path=log_file_path,
+            indicator=indicator,
+        )
+    finally:
+        indicator.close()
+
+    _emit_summary(formatter, colors, summary)
+    _emit_rerun_recipe(
+        formatter,
+        colors,
+        timed_out_repos=timed_out_repos,
+        timeout=repo_timeout,
+        log_file_path=log_file_path,
+    )
+
+    # When there were plain failures (no timeout) surface the debug log path
+    # anyway so the user can post-mortem without re-running with --log-file.
+    if (
+        summary.get("failed", 0) - summary.get("timed_out", 0) > 0
+        and log_file_path is not None
+    ):
+        formatter.emit_text(
+            f"{colors.info('→')} Full debug log: {colors.muted(str(log_file_path))}",
+        )
+
+    if exit_on_error and unmatched_count > 0:
+        formatter.finalize()
+        if parser is not None:
+            parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+        raise SystemExit(EXIT_ON_ERROR_MSG)
+
+    formatter.finalize()
+
+
+def _run_sync_loop(
+    *,
+    found_repos: list[ConfigDict],
+    formatter: OutputFormatter,
+    colors: Colors,
+    summary: dict[str, int],
+    timed_out_repos: list[_TimedOutRepo],
+    progress_callback: ProgressCallback,
+    is_human: bool,
+    repo_timeout: int,
+    exit_on_error: bool,
+    include_worktrees: bool,
+    dry_run: bool,
+    parser: argparse.ArgumentParser | None,
+    log_file_path: pathlib.Path | None,
+    indicator: SyncStatusIndicator,
+) -> None:
+    """Iterate the repositories and drive the watchdog + indicator."""
     for repo in found_repos:
         repo_name = repo.get("name", "unknown")
         repo_path = repo.get("path", "unknown")
@@ -1170,6 +1239,7 @@ def _sync_impl(
         display_repo_path = str(PrivatePath(repo_path))
 
         summary["total"] += 1
+        indicator.heartbeat()
 
         event: dict[str, t.Any] = {
             "reason": "sync",
@@ -1178,12 +1248,13 @@ def _sync_impl(
             "workspace_root": str(workspace_label),
         }
 
-        outcome = _sync_repo_with_watchdog(
-            repo,
-            progress_callback=progress_callback,
-            timeout=repo_timeout,
-            is_human=is_human,
-        )
+        with indicator.repo(repo_name):
+            outcome = _sync_repo_with_watchdog(
+                repo,
+                progress_callback=progress_callback,
+                timeout=repo_timeout,
+                is_human=is_human,
+            )
 
         if outcome.status == "timed_out":
             summary["timed_out"] += 1
@@ -1318,33 +1389,6 @@ def _sync_impl(
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
                 raise SystemExit(EXIT_ON_ERROR_MSG)
-
-    _emit_summary(formatter, colors, summary)
-    _emit_rerun_recipe(
-        formatter,
-        colors,
-        timed_out_repos=timed_out_repos,
-        timeout=repo_timeout,
-        log_file_path=log_file_path,
-    )
-
-    # When there were plain failures (no timeout) surface the debug log path
-    # anyway so the user can post-mortem without re-running with --log-file.
-    if (
-        summary.get("failed", 0) - summary.get("timed_out", 0) > 0
-        and log_file_path is not None
-    ):
-        formatter.emit_text(
-            f"{colors.info('→')} Full debug log: {colors.muted(str(log_file_path))}",
-        )
-
-    if exit_on_error and unmatched_count > 0:
-        formatter.finalize()
-        if parser is not None:
-            parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
-        raise SystemExit(EXIT_ON_ERROR_MSG)
-
-    formatter.finalize()
 
 
 def _emit_summary(
