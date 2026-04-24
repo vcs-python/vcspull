@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import concurrent.futures
 import contextlib
 import logging
 import os
@@ -13,6 +12,7 @@ import re
 import shlex
 import subprocess
 import sys
+import threading
 import typing as t
 from collections.abc import Callable
 from copy import deepcopy
@@ -718,6 +718,57 @@ def _resolve_repo_timeout(cli_timeout: int | None) -> int:
     return _DEFAULT_REPO_TIMEOUT_SECONDS
 
 
+class _IndicatorStreamProxy:
+    r"""File-like adapter that routes writes through a ``SyncStatusIndicator``.
+
+    Installed on the ``libvcs`` / ``vcspull`` logger ``StreamHandler`` while
+    the spinner is active so logged lines clear the spinner before they
+    print, instead of appending to its in-flight ``\r``-redrawn line.
+    """
+
+    def __init__(self, indicator: SyncStatusIndicator) -> None:
+        self._indicator = indicator
+
+    def write(self, text: str) -> int:
+        self._indicator.write(text)
+        return len(text)
+
+    def flush(self) -> None:
+        # ``SyncStatusIndicator.write`` flushes on every call; nothing extra
+        # to do here, but ``logging.StreamHandler.emit`` calls ``flush()``
+        # unconditionally so we must accept the no-op.
+        return
+
+
+def _install_indicator_log_diverter(
+    indicator: SyncStatusIndicator,
+) -> Callable[[], None]:
+    """Rebind the ``libvcs`` / ``vcspull`` stream handlers through ``indicator``.
+
+    Returns a callable that restores the original streams. Only touches
+    handlers that are :class:`logging.StreamHandler` but not
+    :class:`logging.FileHandler` -- the debug log file keeps writing
+    straight to disk regardless of the spinner.
+    """
+    proxy = _IndicatorStreamProxy(indicator)
+    patched: list[tuple[logging.StreamHandler[t.Any], t.Any]] = []
+    for logger_name in ("libvcs", "vcspull"):
+        logger = logging.getLogger(logger_name)
+        for handler in logger.handlers:
+            if not isinstance(handler, logging.StreamHandler):
+                continue
+            if isinstance(handler, logging.FileHandler):
+                continue
+            patched.append((handler, handler.stream))
+            handler.stream = proxy
+
+    def _restore() -> None:
+        for handler, original in patched:
+            handler.stream = original
+
+    return _restore
+
+
 def _sync_repo_with_watchdog(
     repo: ConfigDict,
     *,
@@ -727,62 +778,70 @@ def _sync_repo_with_watchdog(
 ) -> _SyncOutcome:
     """Run :func:`update_repo` under a wall-clock watchdog.
 
-    The libvcs call is executed on a daemon worker so the main thread can
-    enforce a timeout via :meth:`concurrent.futures.Future.result`. On a
-    timeout the worker is left to drain (the libvcs 0.40.0a0 ``timeout``
-    kwarg will eventually reach down through the subprocess layer, but until
-    every call site plumbs it through we rely on the OS to reap abandoned
-    children when vcspull exits).
+    The libvcs call runs on a daemon :class:`threading.Thread`; the main
+    thread uses a completion :class:`threading.Event` as its deadline. Raw
+    threads are deliberate -- :class:`concurrent.futures.ThreadPoolExecutor`
+    registers its workers in ``concurrent.futures.thread._threads_queues``,
+    whose ``atexit`` hook ``_python_exit`` joins every worker on interpreter
+    shutdown. If the user hits Ctrl-C while a libvcs subprocess is wedged,
+    that join hangs the process forever. Daemon threads skip the join
+    entirely: they're forcibly terminated at shutdown.
     """
     buffer: StringIO | None = None if is_human else StringIO()
+    done = threading.Event()
+    worker_error: list[BaseException] = []
 
     def _run() -> None:
-        if buffer is None:
-            update_repo(repo, progress_callback=progress_callback)
-            return
-        # Non-human output modes capture everything so the NDJSON/JSON payload
-        # contains the per-repo details without polluting stdout.
-        with (
-            contextlib.redirect_stdout(buffer),
-            contextlib.redirect_stderr(buffer),
-        ):
-            update_repo(repo, progress_callback=progress_callback)
+        try:
+            if buffer is None:
+                update_repo(repo, progress_callback=progress_callback)
+                return
+            # Non-human output modes capture everything so the NDJSON/JSON
+            # payload contains the per-repo details without polluting stdout.
+            with (
+                contextlib.redirect_stdout(buffer),
+                contextlib.redirect_stderr(buffer),
+            ):
+                update_repo(repo, progress_callback=progress_callback)
+        except BaseException as exc_obj:
+            # Keep ``BaseException`` here so a worker-side KeyboardInterrupt
+            # (rare but possible via ``PyThreadState_SetAsyncExc``) is still
+            # reported back up. The main thread decides how to handle it.
+            worker_error.append(exc_obj)
+        finally:
+            done.set()
 
     started = monotonic()
-    # A dedicated single-worker pool is cheaper than spinning a raw Thread;
-    # the future API also makes cancellation vs. completion explicit. We
-    # intentionally do NOT use the executor as a context manager: its
-    # ``__exit__`` calls ``shutdown(wait=True)`` which would block behind a
-    # wedged worker and defeat the whole point of the watchdog. Instead, we
-    # call ``shutdown(wait=False)`` on every return path so the daemon thread
-    # is abandoned and cleaned up by the OS when vcspull exits.
-    executor = concurrent.futures.ThreadPoolExecutor(
-        max_workers=1,
-        thread_name_prefix="vcspull-sync",
+    worker = threading.Thread(
+        target=_run,
+        name=f"vcspull-sync-{repo.get('name', 'repo')}",
+        daemon=True,
     )
-    future = executor.submit(_run)
-    try:
-        future.result(timeout=timeout)
-    except concurrent.futures.TimeoutError:
-        duration = monotonic() - started
-        future.cancel()
-        executor.shutdown(wait=False, cancel_futures=True)
+    worker.start()
+
+    finished = done.wait(timeout=timeout)
+    if not finished:
+        # The worker is still busy; abandon it. Because it's a daemon it'll
+        # die with the interpreter or when libvcs's subprocess finally exits.
         return _SyncOutcome(
             status="timed_out",
             captured_output=buffer.getvalue() if buffer else None,
-            duration=duration,
-        )
-    except BaseException as exc_obj:
-        duration = monotonic() - started
-        executor.shutdown(wait=False, cancel_futures=True)
-        return _SyncOutcome(
-            status="failed",
-            captured_output=buffer.getvalue() if buffer else None,
-            error=exc_obj,
-            duration=duration,
+            duration=monotonic() - started,
         )
 
-    executor.shutdown(wait=False, cancel_futures=True)
+    if worker_error:
+        err = worker_error[0]
+        if isinstance(err, Exception):
+            return _SyncOutcome(
+                status="failed",
+                captured_output=buffer.getvalue() if buffer else None,
+                error=err,
+                duration=monotonic() - started,
+            )
+        # ``BaseException`` that is not ``Exception`` (KeyboardInterrupt,
+        # SystemExit): propagate -- main thread will tear the batch down.
+        raise err
+
     return _SyncOutcome(
         status="synced",
         captured_output=buffer.getvalue() if buffer else None,
@@ -1146,8 +1205,17 @@ def _sync_impl(
     }
     timed_out_repos: list[_TimedOutRepo] = []
 
+    indicator = build_indicator(human=is_human, color=color)
+
     progress_callback: ProgressCallback
-    if is_human:
+    if is_human and indicator.enabled:
+        # Route libvcs's streaming subprocess output through the indicator so
+        # it shares the spinner's lock and can't tear the frame mid-redraw.
+        def _indicator_progress(output: str, timestamp: datetime) -> None:
+            indicator.write(output)
+
+        progress_callback = _indicator_progress
+    elif is_human:
         progress_callback = progress_cb
     else:
 
@@ -1157,8 +1225,11 @@ def _sync_impl(
 
         progress_callback = silent_progress
 
-    indicator = build_indicator(human=is_human, color=color)
+    restore_log_streams: Callable[[], None] | None = None
+    if indicator.enabled:
+        restore_log_streams = _install_indicator_log_diverter(indicator)
 
+    interrupted = False
     try:
         _run_sync_loop(
             found_repos=found_repos,
@@ -1176,8 +1247,27 @@ def _sync_impl(
             log_file_path=log_file_path,
             indicator=indicator,
         )
+    except KeyboardInterrupt:
+        # Ctrl-C during the loop: stop the indicator cleanly, print a partial
+        # summary, and exit with the conventional SIGINT code (128 + 2 = 130)
+        # so shells and CI treat us as interrupted rather than crashed.
+        interrupted = True
     finally:
+        if restore_log_streams is not None:
+            restore_log_streams()
         indicator.close()
+
+    if interrupted:
+        formatter.emit_text("")
+        formatter.emit_text(colors.warning("Interrupted by user."))
+        _emit_summary(formatter, colors, summary)
+        if log_file_path is not None:
+            formatter.emit_text(
+                f"{colors.info('->')} Full debug log: "
+                f"{colors.muted(str(log_file_path))}",
+            )
+        formatter.finalize()
+        raise SystemExit(130)
 
     _emit_summary(formatter, colors, summary)
     _emit_rerun_recipe(

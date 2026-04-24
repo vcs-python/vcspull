@@ -88,15 +88,20 @@ def test_tty_spinner_renders_active_repo(monkeypatch: pytest.MonkeyPatch) -> Non
     indicator.close()
 
     out = stream.getvalue()
-    # The spinner line mentions the repo and has at least one ASCII frame.
+    # The spinner line mentions the repo and has at least one Braille frame.
     assert "syncing codex" in out
-    assert any(f in out for f in "|/-\\")
+    assert any(f in out for f in "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
     # Cursor hide / show sequences bracket the spinner so tmux / kitty don't
     # leak a missing cursor after vcspull exits.
     assert "\x1b[?25l" in out  # hide
     assert "\x1b[?25h" in out  # show
-    # No emoji / non-ASCII decoration leaks out of the spinner path.
-    for glyph in ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "…", "·"):
+    # Frames are wrapped in ANSI synchronized-output markers so terminals
+    # flip the spinner line atomically, preventing mid-frame tearing when a
+    # concurrent writer hits stdout.
+    assert "\x1b[?2026h" in out
+    assert "\x1b[?2026l" in out
+    # Decorative ornaments dropped in the prior polish pass must stay gone.
+    for glyph in ("…", "·", "⏱"):
         assert glyph not in out
 
 
@@ -142,3 +147,45 @@ def test_build_indicator_enabled_in_human_mode() -> None:
     indicator = build_indicator(human=True, color="auto")
     assert indicator._enabled is True
     indicator.close()
+
+
+def test_write_clears_spinner_line_before_emitting_in_tty() -> None:
+    r"""A concurrent writer clears the spinner's in-flight line first.
+
+    Models the real-world interleave: libvcs emits a log record while the
+    spinner is mid-draw. Without the clear-then-write sequence the log
+    message would tack onto the spinner line and produce artefacts like
+    ``Already on 'main'ec ...  1.1s``. The guard: every ``write()`` in a
+    TTY must emit ``\r\033[2K`` when the spinner has a drawn line.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(enabled=True, stream=stream, tty=True)
+
+    # Pretend the spinner has rendered a frame -- that's the state a
+    # concurrent writer actually observes mid-sync.
+    indicator._last_line_len = 40
+
+    indicator.write("|git| (codex) Updating to 'main'\n")
+
+    out = stream.getvalue()
+    # CR + ERASE_LINE must appear before the message, not after it.
+    clear_idx = out.find("\r\x1b[2K")
+    msg_idx = out.find("Updating")
+    assert clear_idx != -1, "expected clear-line sequence before the write"
+    assert msg_idx > clear_idx, "clear must precede the actual text"
+    # After a concurrent write, the spinner should redraw from scratch; the
+    # lingering line-length counter is reset so the next frame does a full
+    # render.
+    assert indicator._last_line_len == 0
+
+
+def test_write_non_tty_path_passes_through_untouched() -> None:
+    """Non-TTY streams never see the clear-line escape sequence."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(enabled=True, stream=stream, tty=False)
+
+    indicator.write("hello world\n")
+
+    out = stream.getvalue()
+    assert out == "hello world\n"
+    assert "\x1b[2K" not in out

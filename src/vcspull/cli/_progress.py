@@ -29,11 +29,19 @@ _HIDE_CURSOR = "\033[?25l"
 _SHOW_CURSOR = "\033[?25h"
 _ERASE_LINE = "\033[2K"
 _CURSOR_TO_COL0 = "\r"
+#: Synchronized-output bracket -- modern terminals (kitty, iTerm2, WezTerm,
+#: recent xterm) buffer everything between these markers and flip to the
+#: new state atomically. Terminals that don't recognise the sequence ignore
+#: it, so this is a safe belt-and-braces against mid-frame tearing when the
+#: spinner redraws while ``progress_cb`` writes from another thread.
+_SYNC_START = "\x1b[?2026h"
+_SYNC_END = "\x1b[?2026l"
 
-#: ASCII spinner frames -- chosen over Braille/emoji so the output stays
-#: plain in logs, minimal terminals, and remote sessions where Unicode
-#: glyphs can render as tofu.
-_SPINNER_FRAMES = "|/-\\"
+#: Braille spinner frames -- same glyphs tmuxp uses; modern terminals
+#: render them crisply and the rotation reads cleaner than the
+#: ASCII ``|/-\`` set. On exotic terminals that can't render Unicode the
+#: cells fall back to their Braille block without breaking output.
+_SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
 #: How often to refresh the spinner line in the TTY path.
 _TTY_REFRESH_INTERVAL = 0.1
@@ -141,6 +149,35 @@ class SyncStatusIndicator:
         """Context manager form of :meth:`start_repo` / :meth:`stop_repo`."""
         return _RepoContext(self, name)
 
+    @property
+    def enabled(self) -> bool:
+        """Whether the indicator is drawing (TTY + human output + colour)."""
+        return self._enabled
+
+    def write(self, text: str) -> None:
+        """Emit ``text`` without clobbering (or being clobbered by) the spinner.
+
+        When the spinner's TTY loop has drawn a frame, the cursor sits at the
+        end of that line and a raw write from another thread would either
+        tack onto the spinner line or race the next redraw. We hold the same
+        lock the redraw loop does, clear any in-flight line, write, then let
+        the next tick redraw cleanly.
+
+        Used by the sync loop to route libvcs log output and libvcs's
+        progress callback through a single coordinated channel.
+        """
+        if not text:
+            return
+        with self._lock:
+            try:
+                if self._tty and self._last_line_len:
+                    self._stream.write(_CURSOR_TO_COL0 + _ERASE_LINE)
+                self._stream.write(text)
+                self._stream.flush()
+                self._last_line_len = 0
+            except (OSError, ValueError):
+                pass
+
     def close(self) -> None:
         """Stop the background thread and release the TTY cursor.
 
@@ -206,13 +243,19 @@ class SyncStatusIndicator:
 
     def _render_tty(self, frame: str, name: str, elapsed: float) -> None:
         line = f"{frame} syncing {name} ... {elapsed:4.1f}s"
-        try:
-            pad = max(self._last_line_len - len(line), 0)
-            self._stream.write(_CURSOR_TO_COL0 + line + (" " * pad))
-            self._stream.flush()
-            self._last_line_len = len(line)
-        except (OSError, ValueError):
-            pass
+        pad = max(self._last_line_len - len(line), 0)
+        # Holding the lock around the actual write ensures a concurrent
+        # ``write()`` (called by the stdout diverter on the main thread)
+        # can't begin mid-frame and end up fighting with the ``\r`` redraw.
+        with self._lock:
+            try:
+                self._stream.write(
+                    _SYNC_START + _CURSOR_TO_COL0 + line + (" " * pad) + _SYNC_END,
+                )
+                self._stream.flush()
+                self._last_line_len = len(line)
+            except (OSError, ValueError):
+                pass
 
     def _emit_line(self, line: str) -> None:
         try:

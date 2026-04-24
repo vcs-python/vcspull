@@ -254,3 +254,31 @@ def test_rerun_recipe_scales_timeout_suggestion(
     captured = capsys.readouterr().out
     # max(120, 30 * 10) = 300
     assert "--timeout 300" in captured
+
+
+def test_watchdog_propagates_keyboard_interrupt_from_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A ``KeyboardInterrupt`` in the worker bubbles out of the watchdog.
+
+    ``_sync_repo_with_watchdog`` runs the libvcs call on a daemon thread. If
+    the main thread receives Ctrl-C (normal case) it never reaches this code
+    path, but a worker-side ``KeyboardInterrupt`` (rare, via
+    ``PyThreadState_SetAsyncExc``) must NOT be laundered into a per-repo
+    "failed" outcome -- it has to propagate so the outer loop can tear the
+    batch down cleanly. This locks down the narrowed catch (``Exception``,
+    not ``BaseException``).
+    """
+
+    def _raising(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(sync_module, "update_repo", _raising)
+
+    with pytest.raises(KeyboardInterrupt):
+        _sync_repo_with_watchdog(
+            t.cast("t.Any", {"name": "kb"}),
+            progress_callback=_noop_progress,
+            timeout=5,
+            is_human=True,
+        )
