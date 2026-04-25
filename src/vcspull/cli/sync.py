@@ -977,9 +977,22 @@ def _install_indicator_log_diverter(
     when stdout *was* the live capture); flushing a closed file there
     raises ``ValueError``. Skipping the flush is safe -- we are not
     *closing* the stream, only redirecting future writes.
+
+    On top of the stream swap we also raise the *libvcs* StreamHandler
+    level above ``CRITICAL`` for the duration of the sync, but only when
+    the user kept the default verbosity (handler at WARNING). vcspull's
+    own ``✗ Failed syncing rye: Command failed with code 128: git
+    symbolic-ref HEAD --short`` line carries the same content as
+    libvcs's ``|git| (rye) Failed to determine current branch`` warning
+    that fires immediately before; printing both breaks the
+    ``✓ Synced X / ✗ Failed X / - Timed out X`` rhythm. The
+    debug-log :class:`~logging.FileHandler` keeps DEBUG, so a
+    post-mortem still has the libvcs line for context. ``-v`` / ``-vv``
+    users opted into INFO / DEBUG and keep their explicit level.
     """
     proxy = _IndicatorStreamProxy(indicator)
     patched: list[tuple[logging.StreamHandler[t.Any], t.Any]] = []
+    raised_levels: list[tuple[logging.StreamHandler[t.Any], int]] = []
     for logger_name in ("libvcs", "vcspull"):
         logger = logging.getLogger(logger_name)
         for handler in logger.handlers:
@@ -994,6 +1007,14 @@ def _install_indicator_log_diverter(
             finally:
                 handler.release()
             patched.append((handler, previous))
+            if logger_name == "libvcs" and handler.level == logging.WARNING:
+                raised_levels.append((handler, handler.level))
+                # 51 sits one above ``logging.CRITICAL`` -- standard log
+                # records can't reach the handler at this level, so libvcs
+                # noise (WARNING + ERROR + CRITICAL) is dropped from the
+                # terminal stream. The file handler is untouched and still
+                # captures everything at DEBUG.
+                handler.setLevel(logging.CRITICAL + 1)
 
     def _restore() -> None:
         for handler, original in patched:
@@ -1002,6 +1023,8 @@ def _install_indicator_log_diverter(
                 handler.stream = original
             finally:
                 handler.release()
+        for handler, level in raised_levels:
+            handler.setLevel(level)
 
     return _restore
 

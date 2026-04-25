@@ -718,3 +718,89 @@ def test_setup_file_logger_does_not_open_stream_floodgate(
         )
     finally:
         log_mod.teardown_file_logger(handler)
+
+
+def test_indicator_log_diverter_silences_libvcs_at_default_verbosity() -> None:
+    """``_install_indicator_log_diverter`` blocks libvcs from the terminal.
+
+    Reporter saw libvcs's ``|git| (rye) Failed to determine current
+    branch`` warning leak in alongside vcspull's own ``✗ Failed
+    syncing rye: Command failed with code 128: git symbolic-ref HEAD
+    --short`` line -- two messages saying the same thing, breaking
+    the ``✓ Synced X / ✗ Failed X / - Timed out X`` rhythm. The
+    diverter raises the libvcs StreamHandler level above
+    ``CRITICAL`` so libvcs records can't reach the terminal during
+    indicator-active sync. The file handler (debug log) keeps
+    DEBUG so post-mortems still have context.
+    """
+    from vcspull.cli._progress import build_indicator
+    from vcspull.cli.sync import _install_indicator_log_diverter
+
+    setup_logger(level="INFO", verbosity=0)
+    libvcs_logger = logging.getLogger("libvcs")
+    handlers = [
+        h
+        for h in libvcs_logger.handlers
+        if isinstance(h, logging.StreamHandler)
+        and not isinstance(h, logging.FileHandler)
+    ]
+    assert handlers, "libvcs logger should have a StreamHandler after setup"
+    levels_before = [h.level for h in handlers]
+    assert all(level == logging.WARNING for level in levels_before)
+
+    indicator = build_indicator(human=True, color="always", tty=True)
+    try:
+        restore = _install_indicator_log_diverter(indicator)
+        try:
+            levels_during = [h.level for h in handlers]
+            assert all(level == logging.CRITICAL + 1 for level in levels_during), (
+                f"libvcs StreamHandler must be silenced during sync; "
+                f"got {levels_during}"
+            )
+        finally:
+            restore()
+        levels_after = [h.level for h in handlers]
+        assert levels_after == levels_before, (
+            f"diverter must restore the original level; "
+            f"before={levels_before} after={levels_after}"
+        )
+    finally:
+        indicator.close()
+
+
+def test_indicator_log_diverter_respects_verbose_user() -> None:
+    """At ``-v``/``-vv``, the diverter leaves libvcs StreamHandler alone.
+
+    Users who explicitly asked for libvcs INFO (``-v``) or DEBUG
+    (``-vv``) want to see what libvcs is doing; silencing them
+    defeats the purpose of the verbosity flag. Only the default
+    (WARNING) gets bumped.
+    """
+    from vcspull.cli._progress import build_indicator
+    from vcspull.cli.sync import _install_indicator_log_diverter
+
+    setup_logger(level="INFO", verbosity=1)
+    libvcs_logger = logging.getLogger("libvcs")
+    handlers = [
+        h
+        for h in libvcs_logger.handlers
+        if isinstance(h, logging.StreamHandler)
+        and not isinstance(h, logging.FileHandler)
+    ]
+    assert handlers
+    levels_before = [h.level for h in handlers]
+    assert all(level == logging.INFO for level in levels_before)
+
+    indicator = build_indicator(human=True, color="always", tty=True)
+    try:
+        restore = _install_indicator_log_diverter(indicator)
+        try:
+            levels_during = [h.level for h in handlers]
+            assert levels_during == levels_before, (
+                f"diverter must not change level when user is at -v/-vv; "
+                f"got {levels_during}"
+            )
+        finally:
+            restore()
+    finally:
+        indicator.close()
