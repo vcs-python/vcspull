@@ -6,6 +6,13 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
+[options]
+exclude-newer = "2026-04-22T19:30:48.995337295Z"
+exclude-newer-span = "P3D"
+
+[options.exclude-newer-package]
+libvcs = "2026-04-26T00:00:00Z"
+
 [[package]]
 name = "accessible-pygments"
 version = "0.0.5"
@@ -552,14 +559,14 @@ wheels = [
 
 [[package]]
 name = "libvcs"
-version = "0.39.0"
+version = "0.40.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/a4/66ccfdb47f225c60e254476e4dfec2cb248ff1ee018bccce05a01fd5ae28/libvcs-0.39.0.tar.gz", hash = "sha256:2c175c98cef75f3228e8c859f4af6d22b6cfe5843a2a29317e35c3745fd86a45", size = 597772, upload-time = "2026-02-07T19:31:35.307Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/61/a1/080912d310e86f8f597ab6033e5fd4d3e798aac3f5ec5cd992cfbffd0ecd/libvcs-0.40.0.tar.gz", hash = "sha256:a6dcfce94d3a7ed7212a5830ebe90f3383e7038606fbf9cd39db35d87fb02ea8", size = 617387, upload-time = "2026-04-25T18:59:13.414Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/60/960cc0fa9b7df6dd9e6f89340629a902f068d25406f8828369d2bcac20f4/libvcs-0.39.0-py3-none-any.whl", hash = "sha256:5b20514e57b53c02ce07d57c708b4b7828a632479b9ea393ebeba31e0377a5f0", size = 96997, upload-time = "2026-02-07T19:31:34.021Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/eb/ece616f90f807de6fd77e1680daa4fd11913b5ec7c6a77c09fe372675eda/libvcs-0.40.0-py3-none-any.whl", hash = "sha256:5f3340b64211a971d033b7358a669a9a68bb7e800f3413dd8cef668ec1226c5a", size = 101669, upload-time = "2026-04-25T18:59:11.847Z" },
 ]
 
 [[package]]
@@ -1671,7 +1678,7 @@ typings = [
 [package.metadata]
 requires-dist = [
     { name = "colorama", specifier = ">=0.3.9" },
-    { name = "libvcs", specifier = "~=0.39.0" },
+    { name = "libvcs", specifier = ">=0.40.0,<0.41.0" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 
