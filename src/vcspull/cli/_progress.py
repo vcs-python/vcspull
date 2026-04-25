@@ -151,7 +151,20 @@ class SyncStatusIndicator:
     # ------------------------------------------------------------------
 
     def start_repo(self, name: str) -> None:
-        """Mark ``name`` as the currently-running repository."""
+        """Mark ``name`` as the currently-running repository.
+
+        Examples
+        --------
+        >>> import io
+        >>> from vcspull.cli._progress import SyncStatusIndicator
+        >>> indicator = SyncStatusIndicator(
+        ...     enabled=True, stream=io.StringIO(), tty=False
+        ... )
+        >>> indicator.start_repo("clap")
+        >>> indicator._active_repo
+        'clap'
+        >>> indicator.close()
+        """
         if not self._enabled:
             return
 
@@ -192,6 +205,20 @@ class SyncStatusIndicator:
 
         In every False case the caller is responsible for printing its
         own permanent line through the formatter as before.
+
+        Examples
+        --------
+        >>> import io
+        >>> from vcspull.cli._progress import SyncStatusIndicator
+        >>> indicator = SyncStatusIndicator(
+        ...     enabled=True, stream=io.StringIO(), tty=False
+        ... )
+        >>> indicator.start_repo("clap")
+        >>> indicator.stop_repo()
+        False
+        >>> indicator.stop_repo(final_line="ignored on non-TTY")
+        False
+        >>> indicator.close()
         """
         if not self._enabled:
             return False
@@ -251,7 +278,7 @@ class SyncStatusIndicator:
         return final_line is not None and had_render
 
     def add_output_line(self, text: str) -> None:
-        """Push streamed subprocess output into the live trail panel.
+        r"""Push streamed subprocess output into the live trail panel.
 
         ``text`` may contain multiple newline-separated lines (libvcs's
         progress callback delivers chunks, not whole lines). We split,
@@ -263,6 +290,19 @@ class SyncStatusIndicator:
         is disabled (non-TTY, JSON output, ``--color=never``), fall back
         to :meth:`write` so the bytes still appear -- just without the
         in-place rewriting.
+
+        Examples
+        --------
+        >>> import io
+        >>> from vcspull.cli._progress import SyncStatusIndicator
+        >>> indicator = SyncStatusIndicator(
+        ...     enabled=True, stream=io.StringIO(), tty=True, output_lines=2
+        ... )
+        >>> indicator.add_output_line("From github.com/foo/bar\n")
+        >>> indicator.add_output_line("   abc..def main -> origin/main\n")
+        >>> list(indicator._panel_buffer)
+        ['From github.com/foo/bar', '   abc..def main -> origin/main']
+        >>> indicator.close()
         """
         if not text:
             return

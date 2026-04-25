@@ -355,6 +355,16 @@ def default_debug_log_path() -> pathlib.Path:
     file in the system temp directory on every run. The file is always created
     but its path is only surfaced to the user when something went wrong
     (failure or timeout), so clean runs stay quiet.
+
+    Examples
+    --------
+    >>> path = default_debug_log_path()
+    >>> path.name.startswith("vcspull-debug-")
+    True
+    >>> path.suffix
+    '.log'
+    >>> path.parent == pathlib.Path(tempfile.gettempdir())
+    True
     """
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     pid = os.getpid()

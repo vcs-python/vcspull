@@ -719,7 +719,21 @@ class _SyncOutcome:
 
 
 def _resolve_repo_timeout(cli_timeout: int | None) -> int:
-    """Resolve the repo timeout from CLI flag / env var / built-in default."""
+    """Resolve the repo timeout from CLI flag / env var / built-in default.
+
+    Examples
+    --------
+    >>> import os
+    >>> _ = os.environ.pop("VCSPULL_SYNC_TIMEOUT_SECONDS", None)
+    >>> _resolve_repo_timeout(None)
+    10
+    >>> _resolve_repo_timeout(60)
+    60
+    >>> _resolve_repo_timeout(0)
+    10
+    >>> _resolve_repo_timeout(-5)
+    10
+    """
     if cli_timeout is not None and cli_timeout > 0:
         return cli_timeout
     env_value = os.environ.get("VCSPULL_SYNC_TIMEOUT_SECONDS")
@@ -750,6 +764,19 @@ def _resolve_panel_lines(cli_value: int | None) -> int:
     short-circuit on ``> 0`` like :func:`_resolve_repo_timeout`. We do
     accept any integer the user passes via the CLI; only the env var
     override is validated, with a warning on garbage values.
+
+    Examples
+    --------
+    >>> import os
+    >>> _ = os.environ.pop("VCSPULL_PROGRESS_LINES", None)
+    >>> _resolve_panel_lines(None)
+    3
+    >>> _resolve_panel_lines(0)
+    0
+    >>> _resolve_panel_lines(-1)
+    -1
+    >>> _resolve_panel_lines(5)
+    5
     """
     if cli_value is not None:
         return cli_value
