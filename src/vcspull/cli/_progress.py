@@ -276,6 +276,13 @@ class SyncStatusIndicator:
             payload = text if text.endswith("\n") else text + "\n"
             self.write(payload)
             return
+        # Whitespace-only chunks (e.g. a stray ``\n`` between progress
+        # frames) contribute nothing to the deque -- the inner loop's
+        # ``if stripped`` would skip every fragment. Returning here saves
+        # the lock acquire + ``splitlines`` call on what is a relatively
+        # common pattern from libvcs's progress callback.
+        if not text.strip():
+            return
         with self._lock:
             for line in text.splitlines():
                 stripped = line.rstrip()
