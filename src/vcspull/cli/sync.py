@@ -879,6 +879,15 @@ class _SyncInterruptedAfterSummary(KeyboardInterrupt):
     inner layer has already printed a coloured partial summary through the
     formatter. Subclassing ``KeyboardInterrupt`` keeps the exception in the
     same taxonomy for the outer ``except KeyboardInterrupt`` catch.
+
+    Invariant: the only ``except KeyboardInterrupt`` between the inner
+    raise and process exit is :func:`sync`'s own handler, which
+    dispatches on ``isinstance(err, _SyncInterruptedAfterSummary)``. A
+    future broader catch higher up the stack must either re-raise the
+    marker unchanged or perform the same isinstance check -- otherwise
+    the inner partial-summary print AND the outer plain-stderr fallback
+    both fire, restoring the double-print artefact this marker exists
+    to suppress.
     """
 
 
@@ -1543,6 +1552,10 @@ def _sync_impl(
             formatter.finalize()
         except (OSError, ValueError):
             pass
+        # The ``from None`` chain-suppresses the original ``KeyboardInterrupt``
+        # so the marker reaches the outer ``except KeyboardInterrupt as err``
+        # in :func:`sync` cleanly. See ``_SyncInterruptedAfterSummary`` for
+        # the no-double-print invariant this raise relies on.
         raise _SyncInterruptedAfterSummary from None
 
     _emit_summary(formatter, colors, summary)
