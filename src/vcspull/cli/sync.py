@@ -661,7 +661,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
     parser.add_argument(
         "--panel-lines",
         dest="panel_lines",
-        type=int,
+        type=_panel_lines_arg,
         default=None,
         metavar="N",
         help=(
@@ -755,6 +755,44 @@ def _resolve_repo_timeout(cli_timeout: int | None) -> int:
 #: the ``--help`` text can interpolate the real number without importing
 #: the private ``_DEFAULT_OUTPUT_LINES`` symbol.
 _DEFAULT_PANEL_LINES = 3
+
+
+def _panel_lines_arg(value: str) -> int:
+    """Validate ``--panel-lines`` accepts ``-1``, ``0``, or any positive int.
+
+    The flag uses ``-1`` as the "unbounded panel" sentinel and ``0`` as
+    the "hide panel" sentinel. Any other negative value (``-2``, ``-7``,
+    …) is meaningless; ``argparse`` would silently coerce them to
+    "unbounded" via :func:`_resolve_panel_lines`'s permissive branch,
+    which masks user typos. Reject at parse time with a typer-style
+    ``ArgumentTypeError`` instead.
+
+    Examples
+    --------
+    >>> _panel_lines_arg("0")
+    0
+    >>> _panel_lines_arg("-1")
+    -1
+    >>> _panel_lines_arg("5")
+    5
+    >>> _panel_lines_arg("-2")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --panel-lines must be -1, 0, or positive (got -2)
+    >>> _panel_lines_arg("abc")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --panel-lines must be an integer (got 'abc')
+    """
+    try:
+        parsed = int(value)
+    except ValueError:
+        msg = f"--panel-lines must be an integer (got {value!r})"
+        raise argparse.ArgumentTypeError(msg) from None
+    if parsed < -1:
+        msg = f"--panel-lines must be -1, 0, or positive (got {parsed})"
+        raise argparse.ArgumentTypeError(msg)
+    return parsed
 
 
 def _resolve_panel_lines(cli_value: int | None) -> int:
