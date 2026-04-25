@@ -842,6 +842,20 @@ def _install_indicator_log_diverter(
     handlers that are :class:`logging.StreamHandler` but not
     :class:`logging.FileHandler` -- the debug log file keeps writing
     straight to disk regardless of the spinner.
+
+    Both the install and the restore swap ``handler.stream`` while
+    holding ``handler.lock`` -- the same lock ``Handler.handle`` (stdlib
+    ``logging/__init__.py:1011``) takes around every ``emit()``. Direct
+    ``handler.stream = X`` without the lock technically violates that
+    contract even if CPython's GIL hides the race in practice.
+
+    We don't go through :meth:`logging.StreamHandler.setStream` because
+    its first action is to ``flush()`` the old stream. Under pytest, the
+    handler may already point at a finalized ``capsys``/``CaptureIO``
+    from a prior test (``setup_logger`` set ``handler.stream = sys.stdout``
+    when stdout *was* the live capture); flushing a closed file there
+    raises ``ValueError``. Skipping the flush is safe -- we are not
+    *closing* the stream, only redirecting future writes.
     """
     proxy = _IndicatorStreamProxy(indicator)
     patched: list[tuple[logging.StreamHandler[t.Any], t.Any]] = []
@@ -852,12 +866,21 @@ def _install_indicator_log_diverter(
                 continue
             if isinstance(handler, logging.FileHandler):
                 continue
-            patched.append((handler, handler.stream))
-            handler.stream = proxy
+            handler.acquire()
+            try:
+                previous = handler.stream
+                handler.stream = proxy
+            finally:
+                handler.release()
+            patched.append((handler, previous))
 
     def _restore() -> None:
         for handler, original in patched:
-            handler.stream = original
+            handler.acquire()
+            try:
+                handler.stream = original
+            finally:
+                handler.release()
 
     return _restore
 
