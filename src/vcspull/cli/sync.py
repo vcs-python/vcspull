@@ -174,15 +174,16 @@ _FETCH_TIMEOUT_SECONDS = 120
 #: override via ``--timeout`` or the ``VCSPULL_SYNC_TIMEOUT_SECONDS`` env var.
 _DEFAULT_REPO_TIMEOUT_SECONDS = 10
 
-_NO_PROMPT_ENV: dict[str, str] | None = None
-
 
 def _get_no_prompt_env() -> dict[str, str]:
-    """Return an environment dict that prevents git from prompting on stdin."""
-    global _NO_PROMPT_ENV
-    if _NO_PROMPT_ENV is None:
-        _NO_PROMPT_ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    return _NO_PROMPT_ENV
+    """Return an environment dict that prevents git from prompting on stdin.
+
+    Built fresh per call rather than cached at module scope: a cache
+    snapshots ``os.environ`` at first access, which means
+    ``monkeypatch.setenv`` calls in tests after that point never reach
+    the subprocess. A dict copy on every fetch is cheap.
+    """
+    return {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 
 
 def _maybe_fetch(
