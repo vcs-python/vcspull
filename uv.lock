@@ -7,11 +7,11 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-22T19:30:48.995337295Z"
+exclude-newer = "2026-04-22T22:45:37.158839006Z"
 exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
-libvcs = "2026-04-26T00:00:00Z"
+libvcs = false
 
 [[package]]
 name = "accessible-pygments"
