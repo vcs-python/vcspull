@@ -36,7 +36,10 @@ def test_non_tty_emits_once_on_start_and_honours_heartbeat() -> None:
     indicator = SyncStatusIndicator(enabled=True, stream=stream, tty=False)
 
     indicator.start_repo("codex")
-    assert "syncing codex" in stream.getvalue()
+    # Capital ``Syncing`` matches the permanent ``Synced``/``Timed out``
+    # leading-cap pattern so the in-flight + completion lines read as a
+    # consistent badge family.
+    assert "Syncing codex" in stream.getvalue()
 
     # Pretend the repo has been running longer than the heartbeat interval so
     # the next heartbeat call emits. We go under the hood to avoid a slow
@@ -51,10 +54,13 @@ def test_non_tty_emits_once_on_start_and_honours_heartbeat() -> None:
     indicator.close()
 
     out = stream.getvalue()
+    # The heartbeat line begins with ``...`` so ``still syncing`` stays
+    # lowercase as a sentence continuation, not a status badge.
     assert "still syncing codex" in out
     # Heartbeat must not duplicate the start line; the only lines are
-    # start + one heartbeat.
-    assert out.count("syncing codex") == 2
+    # start (``Syncing codex``) + one heartbeat (``... still syncing codex``).
+    # Match case-insensitively to count both spellings together.
+    assert out.lower().count("syncing codex") == 2
 
 
 def test_non_tty_heartbeat_throttles_below_interval() -> None:
@@ -89,7 +95,10 @@ def test_tty_spinner_renders_active_repo(monkeypatch: pytest.MonkeyPatch) -> Non
 
     out = stream.getvalue()
     # The spinner line mentions the repo and has at least one Braille frame.
-    assert "syncing codex" in out
+    # Capital ``Syncing`` matches the permanent ``Synced`` leading-cap
+    # pattern; locks in that consistency.
+    assert "Syncing" in out
+    assert "codex" in out
     assert any(f in out for f in "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
     # Cursor hide / show sequences bracket the spinner so tmux / kitty don't
     # leak a missing cursor after vcspull exits.
@@ -191,12 +200,15 @@ def test_write_non_tty_path_passes_through_untouched() -> None:
     assert "\x1b[2K" not in out
 
 
-def test_tty_spinner_colours_the_frame_cell() -> None:
-    """Just the Braille cell is colourised (tmuxp-style), not the whole line.
+def test_tty_spinner_colours_the_frame_cell_and_name() -> None:
+    """Spinner cell AND repo name are colourised; ``Syncing`` is plain.
 
-    The repo name and elapsed suffix stay in the terminal's default
-    foreground so they don't collide with the ``✓ Synced`` / ``- Timed out``
-    colouring emitted on the permanent line when a repo completes.
+    Reporter pointed out that the in-flight line ``Syncing flume`` had a
+    plain repo name while the permanent ``✓ Synced fish-shell`` line
+    had ``fish-shell`` in cyan. Match the pattern: colour the Braille
+    cell (info / cyan) and the repo name (also info / cyan), leaving
+    the verb and elapsed-time suffix in the terminal's default
+    foreground.
     """
     from vcspull.cli._colors import ColorMode, Colors
 
@@ -214,15 +226,19 @@ def test_tty_spinner_colours_the_frame_cell() -> None:
     indicator.close()
 
     out = stream.getvalue()
-    # A colour sequence appears immediately before at least one Braille frame.
     import re as _re
 
-    pattern = _re.compile(r"\x1b\[[0-9;]*m[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]")
-    assert pattern.search(out), "spinner frame must be wrapped in ANSI colour"
-    # The repo name itself must not be inside a colour run -- look for the
-    # literal "syncing codex" preceded by a reset (the info() helper closes
-    # the colour right after the frame).
-    assert "syncing codex" in out
+    # A colour sequence appears immediately before at least one Braille frame.
+    frame_pattern = _re.compile(r"\x1b\[[0-9;]*m[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]")
+    assert frame_pattern.search(out), "spinner frame must be wrapped in ANSI colour"
+    # The repo name is also wrapped in a colour run (matches the
+    # permanent ``✓ Synced <name>`` style); search for any colour escape
+    # immediately before ``codex``.
+    name_pattern = _re.compile(r"\x1b\[[0-9;]*mcodex")
+    assert name_pattern.search(out), "spinner repo name must be wrapped in ANSI colour"
+    # The status verb (``Syncing``) stays in the terminal default and is
+    # capitalised to match ``Synced`` / ``Timed out`` on permanent lines.
+    assert "Syncing" in out
 
 
 def test_add_output_line_appends_and_bounds_panel_deque() -> None:

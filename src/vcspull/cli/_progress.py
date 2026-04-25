@@ -169,8 +169,9 @@ class SyncStatusIndicator:
             self._ensure_tty_thread()
         else:
             # Emit a single start line so even log-collecting CI shows which
-            # repo is in flight.
-            self._emit_line(f"syncing {name}")
+            # repo is in flight. Capital ``Syncing`` matches the permanent
+            # ``Synced``/``Timed out`` leading-cap pattern.
+            self._emit_line(f"Syncing {name}")
 
     def stop_repo(self) -> None:
         """Stop showing any active-repo indicator and collapse the panel."""
@@ -329,13 +330,17 @@ class SyncStatusIndicator:
             self._stop_event.wait(_TTY_REFRESH_INTERVAL)
 
     def _render_tty(self, frame: str, name: str, elapsed: float) -> None:
-        # Colour just the spinner cell -- matches tmuxp's
-        # ``{self.colors.info(frame)} {msg}`` pattern and keeps the repo
-        # name / elapsed segment neutral so it doesn't fight the ``✓`` /
-        # timed-out colouring emitted on the permanent line.
+        # Colour the spinner cell AND the repo name so the in-flight line
+        # matches the visual rhythm of the permanent ``✓ Synced <name>``
+        # line emitted on completion (which uses ``colors.info(name)``).
+        # The ``Syncing`` verb stays capitalised for the same reason: on
+        # screen ``Syncing flume`` reads as a status badge alongside
+        # ``Synced fish-shell`` and ``Timed out codex`` -- consistent
+        # leading-cap on the status word.
         coloured_frame = self._colors.info(frame)
-        visible = f"{frame} syncing {name} ... {elapsed:4.1f}s"
-        line = f"{coloured_frame} syncing {name} ... {elapsed:4.1f}s"
+        coloured_name = self._colors.info(name)
+        visible = f"{frame} Syncing {name} ... {elapsed:4.1f}s"
+        line = f"{coloured_frame} Syncing {coloured_name} ... {elapsed:4.1f}s"
         pad = max(self._last_line_len - len(visible), 0)
         # Holding the lock around the actual write ensures a concurrent
         # ``write()`` / ``add_output_line()`` (called by the stdout
