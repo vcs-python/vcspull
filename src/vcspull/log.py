@@ -12,10 +12,14 @@ from __future__ import annotations
 import contextlib
 import importlib
 import logging
+import os
+import pathlib
 import pkgutil
 import sys
+import tempfile
 import time
 import typing as t
+from datetime import datetime
 from functools import lru_cache
 
 from colorama import Fore, Style
@@ -50,12 +54,43 @@ def get_cli_logger_names(include_self: bool = True) -> list[str]:
     return sorted(names)
 
 
+def _libvcs_stream_level(verbosity: int) -> int:
+    """Return the libvcs StreamHandler level for a given ``-v`` count.
+
+    Reporter expectation: at the default verbosity, libvcs's chatty
+    ``log.info("Updating to '%s'.")`` and ``log.debug("git_tag: ...")``
+    crumb lines should NOT print on the terminal -- only WARNING+ does.
+    ``-v`` lifts that to INFO; ``-vv`` to DEBUG. The debug log file
+    (``setup_file_logger``) is always DEBUG regardless of this knob.
+    """
+    if verbosity >= 2:
+        return logging.DEBUG
+    if verbosity >= 1:
+        return logging.INFO
+    return logging.WARNING
+
+
 def setup_logger(
     log: logging.Logger | None = None,
     level: t.Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO",
+    verbosity: int = 0,
 ) -> None:
-    """Configure the vcspull logging hierarchy once and reuse it everywhere."""
+    """Configure the vcspull logging hierarchy once and reuse it everywhere.
+
+    The ``level`` argument governs the *vcspull* logger and its CLI
+    submodules; existing callers and ``--log-level`` users see no change.
+
+    The ``verbosity`` argument (``-v`` count from the sync subcommand) drives
+    the *libvcs* StreamHandler level via :func:`_libvcs_stream_level`.
+    Setting it as a *per-handler* filter -- not a logger-level filter -- is
+    deliberate: ``setup_file_logger`` later raises both loggers to DEBUG so
+    the debug file captures the full trace, and without per-handler levels
+    on the StreamHandlers that bump would also open the terminal floodgate.
+    See ``tests/test_log.py::test_setup_file_logger_does_not_open_stream_floodgate``
+    for the regression guard.
+    """
     resolved_level = getattr(logging, level.upper(), logging.INFO)
+    libvcs_stream_level = _libvcs_stream_level(verbosity)
 
     vcspull_logger = logging.getLogger("vcspull")
 
@@ -96,6 +131,17 @@ def setup_logger(
                 handler.stream = sys.stdout
             handler.setFormatter(formatter)
 
+    # Pin a per-handler level on every vcspull StreamHandler. This is what
+    # keeps ``setup_file_logger``'s logger-level bump to DEBUG from leaking
+    # into the terminal: even when the logger accepts DEBUG records, the
+    # handler's own filter still drops them.
+    for handler in existing_handlers:
+        if isinstance(handler, logging.StreamHandler) and not isinstance(
+            handler,
+            logging.FileHandler,
+        ):
+            handler.setLevel(resolved_level)
+
     vcspull_logger.setLevel(resolved_level)
     vcspull_logger.propagate = True
 
@@ -120,7 +166,23 @@ def setup_logger(
         repo_channel.setFormatter(RepoLogFormatter())
         repo_channel.addFilter(RepoFilter())
         repo_logger.addHandler(repo_channel)
-    repo_logger.setLevel(resolved_level)
+    # Pin the libvcs StreamHandler's per-handler level using the verbosity
+    # ladder. Default WARNING means the chatty ``|git| (repo) Updating to
+    # 'main'.`` traffic stays out of the terminal; ``-v`` opens INFO, ``-vv``
+    # opens DEBUG. FileHandlers (debug log) keep their own level (DEBUG).
+    for handler in repo_logger.handlers:
+        if isinstance(handler, logging.StreamHandler) and not isinstance(
+            handler,
+            logging.FileHandler,
+        ):
+            handler.setLevel(libvcs_stream_level)
+    # The libvcs *logger* level is the floor for everything attached to it,
+    # including any FileHandler we install later. Keep it low enough that
+    # both the StreamHandler and the eventual FileHandler still see records
+    # at their own per-handler thresholds. ``min(libvcs_stream_level, DEBUG)``
+    # is just DEBUG, which means the file logger always wins -- which is the
+    # behaviour we want.
+    repo_logger.setLevel(min(libvcs_stream_level, logging.DEBUG))
     repo_logger.propagate = True
 
     target_logger = log or vcspull_logger
@@ -274,3 +336,127 @@ class RepoFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         """Only return a record if a keyword object."""
         return "keyword" in record.__dict__
+
+
+#: Format string for the debug log file. Verbose enough to trace a hang:
+#: level, timestamp (to millisecond), logger, module:line, and the message.
+_DEBUG_FILE_FORMAT = (
+    "%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s "
+    "%(module)s:%(lineno)d -- %(message)s"
+)
+
+_DEBUG_FILE_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
+
+
+def default_debug_log_path() -> pathlib.Path:
+    """Return the path where vcspull writes its per-invocation debug log.
+
+    Mirrors the ``npm`` / ``pnpm`` convention of dropping a timestamped log
+    file in the system temp directory on every run. The file is always created
+    but its path is only surfaced to the user when something went wrong
+    (failure or timeout), so clean runs stay quiet.
+
+    Logs land under a ``vcspull/`` subdirectory of the system tempdir
+    (e.g. ``/tmp/vcspull/debug-<ts>-<pid>.log``) so the dir name in
+    ``/tmp/`` is self-describing instead of relying on a ``vcspull-``
+    file prefix that gets lost in a busy tempdir. Under pytest
+    (``PYTEST_CURRENT_TEST`` is set) the subdirectory is
+    ``vcspull-test/`` instead -- an automatic safety net so tests that
+    incidentally invoke this helper without redirecting ``TMPDIR``
+    can't pollute the production log dir.
+
+    Examples
+    --------
+    >>> path = default_debug_log_path()
+    >>> path.name.startswith("debug-")
+    True
+    >>> path.suffix
+    '.log'
+    >>> path.parent.name in {"vcspull", "vcspull-test"}
+    True
+    >>> path.parent.parent == pathlib.Path(tempfile.gettempdir())
+    True
+    """
+    stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    pid = os.getpid()
+    subdir = "vcspull-test" if "PYTEST_CURRENT_TEST" in os.environ else "vcspull"
+    return pathlib.Path(tempfile.gettempdir()) / subdir / f"debug-{stamp}-{pid}.log"
+
+
+def setup_file_logger(
+    path: pathlib.Path,
+    *,
+    level: int = logging.DEBUG,
+) -> logging.FileHandler:
+    """Attach a file handler to the ``vcspull`` and ``libvcs`` loggers.
+
+    Unlike :func:`setup_logger`, this handler is not tied to stdout -- it
+    captures the full debug trace so a post-mortem (npm/pnpm/yarn style) has
+    enough context to diagnose a timeout even when the CLI output was
+    aggressively summarised.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Destination file. Parent directories are created as needed. An
+        existing file is appended to so a single session that sets up logging
+        multiple times does not clobber earlier context.
+    level : int
+        Threshold for the file handler. Defaults to :data:`logging.DEBUG`
+        because the file is consulted only when diagnosing a failure.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    handler = logging.FileHandler(path, mode="a", encoding="utf-8")
+    handler.setLevel(level)
+    handler.setFormatter(
+        logging.Formatter(_DEBUG_FILE_FORMAT, datefmt=_DEBUG_FILE_DATE_FORMAT),
+    )
+
+    # Attach to both loggers so libvcs's per-repo activity is captured alongside
+    # vcspull's own structured events. Duplicate handlers are avoided by
+    # checking the baseFilename before attaching.
+    for logger_name in ("vcspull", "libvcs"):
+        logger = logging.getLogger(logger_name)
+        existing = next(
+            (
+                h
+                for h in logger.handlers
+                if isinstance(h, logging.FileHandler)
+                and getattr(h, "baseFilename", None) == str(path)
+            ),
+            None,
+        )
+        if existing is None:
+            logger.addHandler(handler)
+        # Ensure the logger itself lets DEBUG records through to the handler.
+        #
+        # Invariant: this raises the *logger* level to DEBUG, which would
+        # ordinarily open the floodgate to every attached StreamHandler too.
+        # ``setup_logger`` pins explicit per-handler levels on every
+        # ``StreamHandler`` (default WARNING; ``-v`` INFO; ``-vv`` DEBUG)
+        # so the bump here doesn't reach the terminal -- the StreamHandler's
+        # own filter still drops records below its level. If anyone ever
+        # "simplifies" ``setup_logger`` to drop the per-handler levels, this
+        # block will silently re-open the libvcs DEBUG floodgate to stdout.
+        # Regression-guarded by
+        # ``test_setup_file_logger_does_not_open_stream_floodgate`` in
+        # ``tests/test_log.py``.
+        if logger.level == logging.NOTSET or logger.level > level:
+            logger.setLevel(level)
+
+    return handler
+
+
+def teardown_file_logger(handler: logging.FileHandler) -> None:
+    """Flush and detach ``handler`` from the vcspull/libvcs loggers."""
+    try:
+        handler.flush()
+        handler.close()
+    except ValueError:
+        # Handler already closed; nothing to do.
+        pass
+    for logger_name in ("vcspull", "libvcs"):
+        logger = logging.getLogger(logger_name)
+        if handler in logger.handlers:
+            logger.removeHandler(handler)

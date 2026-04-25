@@ -29,7 +29,7 @@ from .helpers import write_config
 if t.TYPE_CHECKING:
     import pathlib
 
-    from libvcs.pytest_plugin import CreateRepoPytestFixtureFn
+    from libvcs.pytest_plugin import CreateRepoFn
 
     from vcspull.types import ConfigDict
 
@@ -154,7 +154,7 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
 def test_config_variations(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
-    create_git_remote_repo: CreateRepoPytestFixtureFn,
+    create_git_remote_repo: CreateRepoFn,
     test_id: str,
     config_tpl: str,
     remote_list: list[str],
@@ -262,7 +262,7 @@ UPDATING_REMOTE_FIXTURES: list[UpdatingRemoteFixture] = [
 )
 def test_updating_remote(
     tmp_path: pathlib.Path,
-    create_git_remote_repo: CreateRepoPytestFixtureFn,
+    create_git_remote_repo: CreateRepoFn,
     test_id: str,
     config_tpl: str,
     has_extra_remotes: bool,
@@ -340,7 +340,7 @@ def test_updating_remote(
 def test_sync_deduplicates_repos_matched_by_multiple_patterns(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
-    create_git_remote_repo: CreateRepoPytestFixtureFn,
+    create_git_remote_repo: CreateRepoFn,
 ) -> None:
     """Repos matched by multiple patterns should only sync once."""
     dummy_repo = create_git_remote_repo(
@@ -392,7 +392,7 @@ def test_sync_deduplicates_repos_matched_by_multiple_patterns(
 @skip_if_svn_missing
 def test_update_repo_svn(
     tmp_path: pathlib.Path,
-    create_svn_remote_repo: CreateRepoPytestFixtureFn,
+    create_svn_remote_repo: CreateRepoFn,
 ) -> None:
     """update_repo should handle SVN repositories and return SvnSync."""
     svn_remote = create_svn_remote_repo(
@@ -415,7 +415,7 @@ def test_update_repo_svn(
 @skip_if_hg_missing
 def test_update_repo_hg(
     tmp_path: pathlib.Path,
-    create_hg_remote_repo: CreateRepoPytestFixtureFn,
+    create_hg_remote_repo: CreateRepoFn,
 ) -> None:
     """update_repo should handle Mercurial repositories and return HgSync."""
     hg_remote = create_hg_remote_repo(

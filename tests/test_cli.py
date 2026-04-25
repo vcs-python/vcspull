@@ -34,7 +34,7 @@ sync_module = importlib.import_module("vcspull.cli.sync")
 if t.TYPE_CHECKING:
     from typing import TypeAlias
 
-    from libvcs.pytest_plugin import CreateRepoPytestFixtureFn
+    from libvcs.pytest_plugin import CreateRepoFn
     from libvcs.sync.git import GitSync
 
     ExpectedOutput: TypeAlias = str | list[str] | None
@@ -1051,7 +1051,7 @@ def test_sync_errored_svn_repo(
     monkeypatch: pytest.MonkeyPatch,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
-    create_svn_remote_repo: CreateRepoPytestFixtureFn,
+    create_svn_remote_repo: CreateRepoFn,
     test_id: str,
     sync_args: list[str],
     expected_in_out: ExpectedOutput,
@@ -1168,7 +1168,7 @@ def test_sync_errored_hg_repo(
     monkeypatch: pytest.MonkeyPatch,
     user_path: pathlib.Path,
     config_path: pathlib.Path,
-    create_hg_remote_repo: CreateRepoPytestFixtureFn,
+    create_hg_remote_repo: CreateRepoFn,
     test_id: str,
     sync_args: list[str],
     expected_in_out: ExpectedOutput,

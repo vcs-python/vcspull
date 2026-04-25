@@ -9,15 +9,18 @@ import logging
 import os
 import pathlib
 import re
+import shlex
+import signal
 import subprocess
 import sys
+import threading
 import typing as t
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from io import StringIO
-from time import perf_counter
+from time import monotonic, perf_counter
 
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
@@ -34,6 +37,7 @@ from vcspull._internal.worktree_sync import (
     sync_all_worktrees,
 )
 from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
+from vcspull.log import default_debug_log_path, setup_file_logger, teardown_file_logger
 from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
@@ -47,6 +51,7 @@ from ._output import (
     PlanSummary,
     get_output_mode,
 )
+from ._progress import SyncStatusIndicator, build_indicator
 from ._workspaces import filter_by_workspace
 from .status import check_repo_status
 
@@ -159,6 +164,28 @@ EXIT_ON_ERROR_MSG = "Exiting via error (--exit-on-error passed)"
 NO_REPOS_FOR_TERM_MSG = 'No repo found in config(s) for "{name}"'
 
 
+_FETCH_TIMEOUT_SECONDS = 120
+
+#: Default wall-clock deadline for each repository in ``vcspull sync``.
+#:
+#: Kept aggressive on purpose -- a healthy fetch/pull against a warm remote is
+#: almost always under 10 seconds. Anything over that is "suspect" and should
+#: surface as an actionable timeout rather than a silent hang. Callers can
+#: override via ``--timeout`` or the ``VCSPULL_SYNC_TIMEOUT_SECONDS`` env var.
+_DEFAULT_REPO_TIMEOUT_SECONDS = 10
+
+
+def _get_no_prompt_env() -> dict[str, str]:
+    """Return an environment dict that prevents git from prompting on stdin.
+
+    Built fresh per call rather than cached at module scope: a cache
+    snapshots ``os.environ`` at first access, which means
+    ``monkeypatch.setenv`` calls in tests after that point never reach
+    the subprocess. A dict copy on every fetch is cheap.
+    """
+    return {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+
+
 def _maybe_fetch(
     repo_path: pathlib.Path,
     *,
@@ -177,7 +204,11 @@ def _maybe_fetch(
             capture_output=True,
             text=True,
             check=False,
+            timeout=_FETCH_TIMEOUT_SECONDS,
+            env=_get_no_prompt_env(),
         )
+    except subprocess.TimeoutExpired:
+        return False, f"git fetch timed out after {_FETCH_TIMEOUT_SECONDS}s"
     except FileNotFoundError:
         return False, "git executable not found"
     except OSError as exc:
@@ -595,7 +626,11 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         action="count",
         dest="verbosity",
         default=0,
-        help="increase plan verbosity (-vv for maximum detail)",
+        help=(
+            "increase verbosity. -v opens libvcs INFO ('Updating to ...'); "
+            "-vv opens libvcs DEBUG (full per-repo trace) plus extra "
+            "dry-run plan detail. Default keeps libvcs at WARNING+."
+        ),
     )
     parser.add_argument(
         "--all",
@@ -610,6 +645,50 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         dest="include_worktrees",
         help="also sync configured worktrees for each repository",
     )
+    parser.add_argument(
+        "--timeout",
+        dest="timeout",
+        type=_positive_int_arg,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "per-repository wall-clock deadline in seconds "
+            f"(default: {_DEFAULT_REPO_TIMEOUT_SECONDS}; env: "
+            "VCSPULL_SYNC_TIMEOUT_SECONDS). Repos that exceed the deadline "
+            "are skipped and the rest of the batch continues."
+        ),
+    )
+    parser.add_argument(
+        "--panel-lines",
+        dest="panel_lines",
+        type=_panel_lines_arg,
+        default=None,
+        metavar="N",
+        help=(
+            "live-trail panel height for streaming subprocess output "
+            "above the spinner (default: 3; 0 hides; -1 unbounded; env: "
+            "VCSPULL_PROGRESS_LINES). The panel collapses when each repo "
+            "finishes, leaving only the permanent ✓ Synced line."
+        ),
+    )
+    parser.add_argument(
+        "--log-file",
+        dest="log_file",
+        metavar="PATH",
+        default=None,
+        help=(
+            "write a debug log to PATH (default: $TMPDIR/vcspull/debug-<ts>-"
+            "<pid>.log; $TMPDIR/vcspull-test/... under pytest). The path is "
+            "only printed to the terminal when a sync fails or times out, "
+            "matching npm/pnpm/yarn."
+        ),
+    )
+    parser.add_argument(
+        "--no-log-file",
+        dest="no_log_file",
+        action="store_true",
+        help="disable the debug log file entirely",
+    )
 
     try:
         import shtab
@@ -618,6 +697,491 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
     except ImportError:
         pass
     return parser
+
+
+@dataclass
+class _TimedOutRepo:
+    """Metadata about a repository that exceeded its per-repo timeout."""
+
+    name: str
+    path: str
+    workspace_root: str
+    duration: float
+
+
+@dataclass
+class _SyncOutcome:
+    """Result of attempting to sync a single repository."""
+
+    status: t.Literal["synced", "failed", "timed_out"]
+    captured_output: str | None = None
+    error: BaseException | None = None
+    duration: float = 0.0
+
+
+def _positive_int_arg(value: str) -> int:
+    """Validate ``--timeout`` accepts only positive integers.
+
+    A timeout of zero or negative seconds is meaningless: the watchdog
+    would either return immediately (timed out) or never (logically
+    invalid). The earlier permissive ``_resolve_repo_timeout`` silently
+    fell back to the default on these inputs, which masked typos like
+    ``--timeout -10`` (intended ``10``) where the user assumed the
+    flag had taken effect.
+
+    Examples
+    --------
+    >>> _positive_int_arg("60")
+    60
+    >>> _positive_int_arg("0")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --timeout must be a positive integer (got 0)
+    >>> _positive_int_arg("-5")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --timeout must be a positive integer (got -5)
+    >>> _positive_int_arg("abc")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --timeout must be an integer (got 'abc')
+    """
+    try:
+        parsed = int(value)
+    except ValueError:
+        msg = f"--timeout must be an integer (got {value!r})"
+        raise argparse.ArgumentTypeError(msg) from None
+    if parsed <= 0:
+        msg = f"--timeout must be a positive integer (got {parsed})"
+        raise argparse.ArgumentTypeError(msg)
+    return parsed
+
+
+def _resolve_repo_timeout(cli_timeout: int | None) -> int:
+    """Resolve the repo timeout from CLI flag / env var / built-in default.
+
+    Programmatic callers passing non-positive values still fall back to
+    the env/default ladder; the CLI surface enforces positive-int
+    semantics via :func:`_positive_int_arg` at parse time.
+
+    Examples
+    --------
+    >>> import os
+    >>> _ = os.environ.pop("VCSPULL_SYNC_TIMEOUT_SECONDS", None)
+    >>> _resolve_repo_timeout(None)
+    10
+    >>> _resolve_repo_timeout(60)
+    60
+    >>> _resolve_repo_timeout(0)
+    10
+    >>> _resolve_repo_timeout(-5)
+    10
+    """
+    if cli_timeout is not None and cli_timeout > 0:
+        return cli_timeout
+    env_value = os.environ.get("VCSPULL_SYNC_TIMEOUT_SECONDS")
+    if env_value:
+        try:
+            parsed = int(env_value)
+        except ValueError:
+            log.warning(
+                "Ignoring non-integer VCSPULL_SYNC_TIMEOUT_SECONDS=%s",
+                env_value,
+            )
+        else:
+            if parsed > 0:
+                return parsed
+    return _DEFAULT_REPO_TIMEOUT_SECONDS
+
+
+#: Mirrors the default in ``vcspull.cli._progress`` -- duplicated here so
+#: the ``--help`` text can interpolate the real number without importing
+#: the private ``_DEFAULT_OUTPUT_LINES`` symbol.
+_DEFAULT_PANEL_LINES = 3
+
+
+def _panel_lines_arg(value: str) -> int:
+    """Validate ``--panel-lines`` accepts ``-1``, ``0``, or any positive int.
+
+    The flag uses ``-1`` as the "unbounded panel" sentinel and ``0`` as
+    the "hide panel" sentinel. Any other negative value (``-2``, ``-7``,
+    …) is meaningless; ``argparse`` would silently coerce them to
+    "unbounded" via :func:`_resolve_panel_lines`'s permissive branch,
+    which masks user typos. Reject at parse time with a typer-style
+    ``ArgumentTypeError`` instead.
+
+    Examples
+    --------
+    >>> _panel_lines_arg("0")
+    0
+    >>> _panel_lines_arg("-1")
+    -1
+    >>> _panel_lines_arg("5")
+    5
+    >>> _panel_lines_arg("-2")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --panel-lines must be -1, 0, or positive (got -2)
+    >>> _panel_lines_arg("abc")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --panel-lines must be an integer (got 'abc')
+    """
+    try:
+        parsed = int(value)
+    except ValueError:
+        msg = f"--panel-lines must be an integer (got {value!r})"
+        raise argparse.ArgumentTypeError(msg) from None
+    if parsed < -1:
+        msg = f"--panel-lines must be -1, 0, or positive (got {parsed})"
+        raise argparse.ArgumentTypeError(msg)
+    return parsed
+
+
+def _resolve_panel_lines(cli_value: int | None) -> int:
+    """Resolve the live-trail panel height: CLI flag > env > default.
+
+    The flag accepts ``0`` (hide panel) and ``-1`` (unbounded), so we can't
+    short-circuit on ``> 0`` like :func:`_resolve_repo_timeout`. We do
+    accept any integer the user passes via the CLI; only the env var
+    override is validated, with a warning on garbage values.
+
+    Examples
+    --------
+    >>> import os
+    >>> _ = os.environ.pop("VCSPULL_PROGRESS_LINES", None)
+    >>> _resolve_panel_lines(None)
+    3
+    >>> _resolve_panel_lines(0)
+    0
+    >>> _resolve_panel_lines(-1)
+    -1
+    >>> _resolve_panel_lines(5)
+    5
+    """
+    if cli_value is not None:
+        return cli_value
+    env_value = os.environ.get("VCSPULL_PROGRESS_LINES")
+    if env_value:
+        try:
+            return int(env_value)
+        except ValueError:
+            log.warning(
+                "Ignoring non-integer VCSPULL_PROGRESS_LINES=%s",
+                env_value,
+            )
+    return _DEFAULT_PANEL_LINES
+
+
+class _SyncInterruptedAfterSummary(KeyboardInterrupt):
+    """Internal marker: ``_sync_impl`` already emitted the interrupt summary.
+
+    Lets the outer ``sync()`` handler skip the plain-stderr fallback when the
+    inner layer has already printed a coloured partial summary through the
+    formatter. Subclassing ``KeyboardInterrupt`` keeps the exception in the
+    same taxonomy for the outer ``except KeyboardInterrupt`` catch.
+
+    Invariant: the only ``except KeyboardInterrupt`` between the inner
+    raise and process exit is :func:`sync`'s own handler, which
+    dispatches on ``isinstance(err, _SyncInterruptedAfterSummary)``. A
+    future broader catch higher up the stack must either re-raise the
+    marker unchanged or perform the same isinstance check -- otherwise
+    the inner partial-summary print AND the outer plain-stderr fallback
+    both fire, restoring the double-print artefact this marker exists
+    to suppress.
+    """
+
+
+def _exit_on_sigint() -> t.NoReturn:
+    """Terminate so the parent shell sees ``WIFSIGNALED(SIGINT)``.
+
+    Interactive shells (bash, zsh) abort ``cmd1; cmd2`` sequential lists
+    only when the child was killed by a signal -- a clean
+    ``SystemExit(130)`` leaves the shell no reason to stop. Match git's
+    pattern (``sigchain.h:20-34``; ``builtin/clone.c:416``): cleanup first,
+    install ``SIG_DFL``, self-deliver SIGINT so the kernel reports
+    ``WIFSIGNALED`` to the parent.
+
+    Callers MUST complete cleanup before invoking this. Python ``atexit``
+    hooks and ``finally`` blocks do NOT run once ``SIG_DFL`` terminates the
+    process at the C level.
+
+    Windows has no ``WIFSIGNALED`` analogue and its ``raise_signal(SIGINT)``
+    under ``SIG_DFL`` raises ``KeyboardInterrupt`` back at the caller
+    instead of exiting -- fall back to the conventional ``SystemExit(130)``.
+
+    Precondition: must be called from the main thread of the main
+    interpreter. ``signal.signal`` raises ``ValueError`` otherwise. The CLI
+    dispatcher at ``vcspull/cli/__init__.py`` always invokes ``sync()`` on
+    the main thread, so this is a callsite contract rather than a runtime
+    check -- a silent non-main-thread fallback would only kill that thread,
+    not the process, and bash would still see a clean exit and continue
+    the ``;`` chain, defeating the whole change.
+    """
+    if sys.platform == "win32":
+        raise SystemExit(130)
+    # The two-line swap here is deliberate: a SIGINT delivered during the
+    # gap either hits SIG_IGN (dropped) or SIG_DFL (terminates) -- both
+    # outcomes let bash see WIFSIGNALED(SIGINT), so we don't need the
+    # heavier ``pthread_sigmask`` route.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    signal.raise_signal(signal.SIGINT)
+    # raise_signal does not return under SIG_DFL on POSIX; the SystemExit
+    # is defence-in-depth only, satisfying ``NoReturn`` and covering exotic
+    # kernels where the default disposition doesn't terminate.
+    raise SystemExit(130)  # pragma: no cover
+
+
+class _IndicatorStreamProxy:
+    r"""File-like adapter that routes writes through a ``SyncStatusIndicator``.
+
+    Installed on the ``libvcs`` / ``vcspull`` logger ``StreamHandler`` while
+    the spinner is active so logged lines clear the spinner before they
+    print, instead of appending to its in-flight ``\r``-redrawn line.
+    """
+
+    def __init__(self, indicator: SyncStatusIndicator) -> None:
+        self._indicator = indicator
+
+    def write(self, text: str) -> int:
+        self._indicator.write(text)
+        return len(text)
+
+    def flush(self) -> None:
+        # ``SyncStatusIndicator.write`` flushes on every call; nothing extra
+        # to do here, but ``logging.StreamHandler.emit`` calls ``flush()``
+        # unconditionally so we must accept the no-op.
+        return
+
+
+def _install_indicator_log_diverter(
+    indicator: SyncStatusIndicator,
+) -> Callable[[], None]:
+    """Rebind the ``libvcs`` / ``vcspull`` stream handlers through ``indicator``.
+
+    Returns a callable that restores the original streams. Only touches
+    handlers that are :class:`logging.StreamHandler` but not
+    :class:`logging.FileHandler` -- the debug log file keeps writing
+    straight to disk regardless of the spinner.
+
+    Both the install and the restore swap ``handler.stream`` while
+    holding ``handler.lock`` -- the same lock ``Handler.handle`` (stdlib
+    ``logging/__init__.py:1011``) takes around every ``emit()``. Direct
+    ``handler.stream = X`` without the lock technically violates that
+    contract even if CPython's GIL hides the race in practice.
+
+    We don't go through :meth:`logging.StreamHandler.setStream` because
+    its first action is to ``flush()`` the old stream. Under pytest, the
+    handler may already point at a finalized ``capsys``/``CaptureIO``
+    from a prior test (``setup_logger`` set ``handler.stream = sys.stdout``
+    when stdout *was* the live capture); flushing a closed file there
+    raises ``ValueError``. Skipping the flush is safe -- we are not
+    *closing* the stream, only redirecting future writes.
+
+    On top of the stream swap we also raise the *libvcs* StreamHandler
+    level above ``CRITICAL`` for the duration of the sync, but only when
+    the user kept the default verbosity (handler at WARNING). vcspull's
+    own ``✗ Failed syncing rye: Command failed with code 128: git
+    symbolic-ref HEAD --short`` line carries the same content as
+    libvcs's ``|git| (rye) Failed to determine current branch`` warning
+    that fires immediately before; printing both breaks the
+    ``✓ Synced X / ✗ Failed X / - Timed out X`` rhythm. The
+    debug-log :class:`~logging.FileHandler` keeps DEBUG, so a
+    post-mortem still has the libvcs line for context. ``-v`` / ``-vv``
+    users opted into INFO / DEBUG and keep their explicit level.
+    """
+    proxy = _IndicatorStreamProxy(indicator)
+    patched: list[tuple[logging.StreamHandler[t.Any], t.Any]] = []
+    raised_levels: list[tuple[logging.StreamHandler[t.Any], int]] = []
+    for logger_name in ("libvcs", "vcspull"):
+        logger = logging.getLogger(logger_name)
+        for handler in logger.handlers:
+            if not isinstance(handler, logging.StreamHandler):
+                continue
+            if isinstance(handler, logging.FileHandler):
+                continue
+            handler.acquire()
+            try:
+                previous = handler.stream
+                handler.stream = proxy
+            finally:
+                handler.release()
+            patched.append((handler, previous))
+            if logger_name == "libvcs" and handler.level == logging.WARNING:
+                raised_levels.append((handler, handler.level))
+                # 51 sits one above ``logging.CRITICAL`` -- standard log
+                # records can't reach the handler at this level, so libvcs
+                # noise (WARNING + ERROR + CRITICAL) is dropped from the
+                # terminal stream. The file handler is untouched and still
+                # captures everything at DEBUG.
+                handler.setLevel(logging.CRITICAL + 1)
+
+    def _restore() -> None:
+        for handler, original in patched:
+            handler.acquire()
+            try:
+                handler.stream = original
+            finally:
+                handler.release()
+        for handler, level in raised_levels:
+            handler.setLevel(level)
+
+    return _restore
+
+
+def _sync_repo_with_watchdog(
+    repo: ConfigDict,
+    *,
+    progress_callback: ProgressCallback,
+    timeout: int,
+    is_human: bool,
+) -> _SyncOutcome:
+    """Run :func:`update_repo` under a wall-clock watchdog.
+
+    The libvcs call runs on a daemon :class:`threading.Thread`; the main
+    thread uses a completion :class:`threading.Event` as its deadline. Raw
+    threads are deliberate -- :class:`concurrent.futures.ThreadPoolExecutor`
+    registers its workers in ``concurrent.futures.thread._threads_queues``,
+    whose ``atexit`` hook ``_python_exit`` joins every worker on interpreter
+    shutdown. If the user hits Ctrl-C while a libvcs subprocess is wedged,
+    that join hangs the process forever. Daemon threads skip the join
+    entirely: they're forcibly terminated at shutdown.
+    """
+    buffer: StringIO | None = None if is_human else StringIO()
+    done = threading.Event()
+    worker_error: list[BaseException] = []
+
+    def _run() -> None:
+        try:
+            if buffer is None:
+                update_repo(repo, progress_callback=progress_callback)
+                return
+            # Non-human output modes capture everything so the NDJSON/JSON
+            # payload contains the per-repo details without polluting stdout.
+            with (
+                contextlib.redirect_stdout(buffer),
+                contextlib.redirect_stderr(buffer),
+            ):
+                update_repo(repo, progress_callback=progress_callback)
+        except BaseException as exc_obj:
+            # Keep ``BaseException`` here so a worker-side KeyboardInterrupt
+            # (rare but possible via ``PyThreadState_SetAsyncExc``) is still
+            # reported back up. The main thread decides how to handle it.
+            worker_error.append(exc_obj)
+        finally:
+            done.set()
+
+    started = monotonic()
+    worker = threading.Thread(
+        target=_run,
+        name=f"vcspull-sync-{repo.get('name', 'repo')}",
+        daemon=True,
+    )
+    worker.start()
+
+    finished = done.wait(timeout=timeout)
+    if not finished:
+        # The worker is still busy; abandon it. Because it's a daemon it'll
+        # die with the interpreter or when libvcs's subprocess finally exits.
+        return _SyncOutcome(
+            status="timed_out",
+            captured_output=buffer.getvalue() if buffer else None,
+            duration=monotonic() - started,
+        )
+
+    if worker_error:
+        err = worker_error[0]
+        if isinstance(err, Exception):
+            return _SyncOutcome(
+                status="failed",
+                captured_output=buffer.getvalue() if buffer else None,
+                error=err,
+                duration=monotonic() - started,
+            )
+        # ``BaseException`` that is not ``Exception`` (KeyboardInterrupt,
+        # SystemExit): propagate -- main thread will tear the batch down.
+        raise err
+
+    return _SyncOutcome(
+        status="synced",
+        captured_output=buffer.getvalue() if buffer else None,
+        duration=monotonic() - started,
+    )
+
+
+def _emit_rerun_recipe(
+    formatter: OutputFormatter,
+    colors: Colors,
+    *,
+    timed_out_repos: list[_TimedOutRepo],
+    timeout: int,
+) -> None:
+    """Print a copyable recipe for rerunning just the timed-out repositories.
+
+    Modelled on the way ``cargo``/``npm`` surface actionable next steps after
+    a failure. The suggested timeout is ``max(120, timeout * 10)`` so a user
+    who kept the aggressive default still gets a meaningful headroom when
+    they retry.
+    """
+    if not timed_out_repos:
+        return
+
+    suggested_timeout = max(120, timeout * 10)
+
+    # Group by workspace so the user can paste one line per workspace.
+    grouped: dict[str, list[_TimedOutRepo]] = {}
+    for repo in timed_out_repos:
+        grouped.setdefault(repo.workspace_root, []).append(repo)
+
+    formatter.emit_text("")
+    formatter.emit_text(
+        f"{colors.warning('Timed out:')} "
+        f"{colors.warning(str(len(timed_out_repos)))} "
+        f"repositor{'y' if len(timed_out_repos) == 1 else 'ies'} "
+        f"exceeded {timeout}s.",
+    )
+    for repo in timed_out_repos:
+        display_path = str(PrivatePath(repo.path))
+        formatter.emit_text(
+            f"  {colors.warning('-')} {colors.info(repo.name):<32} "
+            f"{colors.muted('→')} {display_path}  "
+            f"({colors.muted(f'{repo.duration:.1f}s elapsed')})",
+        )
+
+    formatter.emit_text("")
+    formatter.emit_text(
+        f"{colors.info('→')} Rerun just the affected repositories with a "
+        f"larger timeout:",
+    )
+    for workspace_root, repos in grouped.items():
+        names = " ".join(shlex.quote(r.name) for r in repos)
+        workspace_arg = f"--workspace {shlex.quote(str(PrivatePath(workspace_root)))}"
+        formatter.emit_text(
+            f"    vcspull sync {workspace_arg} --timeout {suggested_timeout} {names}",
+        )
+
+    formatter.emit_text(
+        f"{colors.info('→')} Or with verbose logging to diagnose the hang:",
+    )
+    for workspace_root, repos in grouped.items():
+        names = " ".join(shlex.quote(r.name) for r in repos)
+        workspace_arg = f"--workspace {shlex.quote(str(PrivatePath(workspace_root)))}"
+        formatter.emit_text(
+            f"    vcspull sync {workspace_arg} "
+            f"--timeout {suggested_timeout} -vv {names}",
+        )
+
+    formatter.emit_text(
+        f"{colors.info('→')} Probe each repository manually "
+        f"({colors.muted('these should return in under 10s')}):",
+    )
+    for repo in timed_out_repos:
+        display_path = str(PrivatePath(repo.path))
+        formatter.emit_text(
+            f"    GIT_TERMINAL_PROMPT=0 timeout 10 "
+            f"git -C {shlex.quote(display_path)} fetch --dry-run",
+        )
 
 
 def sync(
@@ -640,8 +1204,123 @@ def sync(
     parser: argparse.ArgumentParser
     | None = None,  # optional so sync can be unit tested
     include_worktrees: bool = False,
+    timeout: int | None = None,
+    log_file: str | pathlib.Path | None = None,
+    no_log_file: bool = False,
+    panel_lines: int | None = None,
 ) -> None:
     """Entry point for ``vcspull sync``."""
+    # Prevent git from blocking on credential prompts during batch sync
+    os.environ.setdefault("GIT_TERMINAL_PROMPT", "0")
+
+    repo_timeout = _resolve_repo_timeout(timeout)
+    resolved_panel_lines = _resolve_panel_lines(panel_lines)
+
+    # Set up the debug log file early so libvcs's per-repo activity is also
+    # captured. The path is surfaced to the user only when something failed
+    # (or on an explicit path override), matching npm/pnpm/yarn UX.
+    log_file_path: pathlib.Path | None = None
+    log_file_handler: logging.FileHandler | None = None
+    if not no_log_file:
+        log_file_path = (
+            pathlib.Path(log_file).expanduser()
+            if log_file is not None
+            else default_debug_log_path()
+        )
+        try:
+            log_file_handler = setup_file_logger(log_file_path)
+        except OSError as exc_obj:
+            log.warning(
+                "Could not open debug log at %s: %s",
+                log_file_path,
+                exc_obj,
+            )
+            log_file_path = None
+            log_file_handler = None
+
+    try:
+        _sync_impl(
+            repo_patterns=repo_patterns,
+            config=config,
+            workspace_root=workspace_root,
+            output_json=output_json,
+            output_ndjson=output_ndjson,
+            color=color,
+            exit_on_error=exit_on_error,
+            show_unchanged=show_unchanged,
+            summary_only=summary_only,
+            long_view=long_view,
+            relative_paths=relative_paths,
+            fetch=fetch,
+            offline=offline,
+            verbosity=verbosity,
+            sync_all=sync_all,
+            parser=parser,
+            include_worktrees=include_worktrees,
+            repo_timeout=repo_timeout,
+            log_file_path=log_file_path,
+            dry_run=dry_run,
+            panel_lines=resolved_panel_lines,
+        )
+    except KeyboardInterrupt as err:
+        # Catch Ctrl-C from ANY phase of the sync -- the repo loop (where
+        # ``_sync_impl`` handles it with a partial summary and re-raises
+        # ``_SyncInterruptedAfterSummary``) and also long pre-loop work
+        # like ``load_configs`` (YAML parse on big vcspull configs) and
+        # post-loop emission, where the formatter may not be built yet.
+        # The plain-stderr fallback below is the only safe surface in the
+        # pre-loop case; skip it when the inner layer already printed a
+        # coloured summary through the formatter.
+        if not isinstance(err, _SyncInterruptedAfterSummary):
+            sys.stderr.write("\nInterrupted by user.\n")
+            sys.stderr.flush()
+            if log_file_path is not None:
+                sys.stderr.write(f"Full debug log: {log_file_path}\n")
+                sys.stderr.flush()
+        # Python ``atexit`` and ``finally`` do NOT run once
+        # ``_exit_on_sigint`` terminates via ``SIG_DFL`` at the C level, so
+        # close the debug log inline. Nulling the handle makes the outer
+        # ``finally`` a no-op for the POSIX path AND a correct single-close
+        # for the Windows fallback path (where ``_exit_on_sigint`` does
+        # raise a regular ``SystemExit`` and the ``finally`` does run).
+        if log_file_handler is not None:
+            teardown_file_logger(log_file_handler)
+            log_file_handler = None
+        _exit_on_sigint()
+    finally:
+        if log_file_handler is not None:
+            teardown_file_logger(log_file_handler)
+
+
+def _sync_impl(
+    *,
+    repo_patterns: list[str],
+    config: pathlib.Path | None,
+    workspace_root: str | None,
+    dry_run: bool,
+    output_json: bool,
+    output_ndjson: bool,
+    color: str,
+    exit_on_error: bool,
+    show_unchanged: bool,
+    summary_only: bool,
+    long_view: bool,
+    relative_paths: bool,
+    fetch: bool,
+    offline: bool,
+    verbosity: int,
+    sync_all: bool,
+    parser: argparse.ArgumentParser | None,
+    include_worktrees: bool,
+    repo_timeout: int,
+    log_file_path: pathlib.Path | None,
+    panel_lines: int,
+) -> None:
+    """Run the core body of :func:`sync`.
+
+    Kept separate so log-file teardown runs through ``finally`` regardless of
+    where the caller exits the sync.
+    """
     # Show help if no patterns and --all not specified
     if not repo_patterns and not sync_all:
         if parser is not None:
@@ -695,7 +1374,7 @@ def sync(
             found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
             if not found:
                 search_term = name or path or vcs_url or repo_pattern
-                log.debug(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
+                log.debug('No repo found in config(s) for "%s"', search_term)
                 if not summary_only:
                     formatter.emit_text(
                         f"{colors.error('✗')} "
@@ -811,11 +1490,31 @@ def sync(
         "synced": 0,
         "previewed": 0,
         "failed": 0,
+        "timed_out": 0,
         "unmatched": unmatched_count,
     }
+    timed_out_repos: list[_TimedOutRepo] = []
+
+    indicator = build_indicator(
+        human=is_human,
+        color=color,
+        colors=colors,
+        output_lines=panel_lines,
+    )
 
     progress_callback: ProgressCallback
-    if is_human:
+    if is_human and indicator.enabled:
+        # Route libvcs's streaming subprocess output into the indicator's
+        # live-trail panel: ``add_output_line`` appends to a bounded deque
+        # that the spinner thread renders above the spinner row, then
+        # collapses on ``stop_repo``. With panel_lines=0 the indicator
+        # falls back to plain ``write()`` semantics (no panel, no
+        # collapse).
+        def _indicator_progress(output: str, timestamp: datetime) -> None:
+            indicator.add_output_line(output)
+
+        progress_callback = _indicator_progress
+    elif is_human:
         progress_callback = progress_cb
     else:
 
@@ -825,6 +1524,106 @@ def sync(
 
         progress_callback = silent_progress
 
+    restore_log_streams: Callable[[], None] | None = None
+    if indicator.enabled:
+        restore_log_streams = _install_indicator_log_diverter(indicator)
+
+    interrupted = False
+    try:
+        _run_sync_loop(
+            found_repos=found_repos,
+            formatter=formatter,
+            colors=colors,
+            summary=summary,
+            timed_out_repos=timed_out_repos,
+            progress_callback=progress_callback,
+            is_human=is_human,
+            repo_timeout=repo_timeout,
+            exit_on_error=exit_on_error,
+            include_worktrees=include_worktrees,
+            dry_run=dry_run,
+            parser=parser,
+            log_file_path=log_file_path,
+            indicator=indicator,
+        )
+    except KeyboardInterrupt:
+        # Ctrl-C during the loop: stop the indicator cleanly, print a
+        # partial summary via the formatter, then hand termination
+        # semantics to the outer ``sync()`` catch. We re-raise a typed
+        # marker so the outer layer doesn't double-print.
+        interrupted = True
+    finally:
+        if restore_log_streams is not None:
+            restore_log_streams()
+        indicator.close()
+
+    if interrupted:
+        # Shield the summary emission against late-breaking ``OSError``
+        # (e.g. ``BrokenPipeError`` when stdout is piped to ``head``)
+        # so the marker exception *always* propagates. If an OSError
+        # escaped here the outer layer would see a non-KeyboardInterrupt
+        # and bash would see a plain exit 1, letting the ``;`` chain
+        # continue -- exactly what this change is designed to prevent.
+        try:
+            formatter.emit_text("")
+            formatter.emit_text(colors.warning("Interrupted by user."))
+            _emit_summary(formatter, colors, summary)
+            if log_file_path is not None:
+                formatter.emit_text(
+                    f"{colors.info('→')} Full debug log: "
+                    f"{colors.muted(str(log_file_path))}",
+                )
+            formatter.finalize()
+        except (OSError, ValueError):
+            pass
+        # The ``from None`` chain-suppresses the original ``KeyboardInterrupt``
+        # so the marker reaches the outer ``except KeyboardInterrupt as err``
+        # in :func:`sync` cleanly. See ``_SyncInterruptedAfterSummary`` for
+        # the no-double-print invariant this raise relies on.
+        raise _SyncInterruptedAfterSummary from None
+
+    _emit_summary(formatter, colors, summary)
+    _emit_rerun_recipe(
+        formatter,
+        colors,
+        timed_out_repos=timed_out_repos,
+        timeout=repo_timeout,
+    )
+
+    # Surface the debug log path once, only when something went wrong, so the
+    # user has a single post-mortem trail regardless of the failure mode.
+    if summary.get("failed", 0) > 0 and log_file_path is not None:
+        formatter.emit_text(
+            f"{colors.info('→')} Full debug log: {colors.muted(str(log_file_path))}",
+        )
+
+    if exit_on_error and unmatched_count > 0:
+        formatter.finalize()
+        if parser is not None:
+            parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+        raise SystemExit(EXIT_ON_ERROR_MSG)
+
+    formatter.finalize()
+
+
+def _run_sync_loop(
+    *,
+    found_repos: list[ConfigDict],
+    formatter: OutputFormatter,
+    colors: Colors,
+    summary: dict[str, int],
+    timed_out_repos: list[_TimedOutRepo],
+    progress_callback: ProgressCallback,
+    is_human: bool,
+    repo_timeout: int,
+    exit_on_error: bool,
+    include_worktrees: bool,
+    dry_run: bool,
+    parser: argparse.ArgumentParser | None,
+    log_file_path: pathlib.Path | None,
+    indicator: SyncStatusIndicator,
+) -> None:
+    """Iterate the repositories and drive the watchdog + indicator."""
     for repo in found_repos:
         repo_name = repo.get("name", "unknown")
         repo_path = repo.get("path", "unknown")
@@ -832,6 +1631,7 @@ def sync(
         display_repo_path = str(PrivatePath(repo_path))
 
         summary["total"] += 1
+        indicator.heartbeat()
 
         event: dict[str, t.Any] = {
             "reason": "sync",
@@ -840,58 +1640,120 @@ def sync(
             "workspace_root": str(workspace_label),
         }
 
-        buffer: StringIO | None = None
-        captured_output: str | None = None
+        # Manual ``start_repo`` / ``stop_repo`` instead of the
+        # ``with indicator.repo(...)`` context manager: we want
+        # ``stop_repo`` to receive the permanent line so the spinner
+        # collapse + completion print happen as ONE atomic ANSI write
+        # under the lock. The ``with`` form fires ``stop_repo()`` (no
+        # args) on exit, before we know the outcome -- which means the
+        # spinner clears, then the formatter writes the permanent line
+        # in a separate stream call. That two-step is the source of the
+        # flicker reporters have called out.
+        indicator.start_repo(repo_name)
         try:
-            if is_human:
-                update_repo(repo, progress_callback=progress_callback)
-            else:
-                buffer = StringIO()
-                with (
-                    contextlib.redirect_stdout(buffer),
-                    contextlib.redirect_stderr(
-                        buffer,
-                    ),
-                ):
-                    update_repo(repo, progress_callback=progress_callback)
-                captured_output = buffer.getvalue()
-        except Exception as e:
+            outcome = _sync_repo_with_watchdog(
+                repo,
+                progress_callback=progress_callback,
+                timeout=repo_timeout,
+                is_human=is_human,
+            )
+        except BaseException:
+            # Any exception (KeyboardInterrupt, runtime crash) tears the
+            # indicator down with no replacement line; the surrounding
+            # ``except KeyboardInterrupt`` in ``_sync_impl`` still owns
+            # the partial-summary print.
+            indicator.stop_repo()
+            raise
+
+        if outcome.status == "timed_out":
+            summary["timed_out"] += 1
             summary["failed"] += 1
+            timed_out_repos.append(
+                _TimedOutRepo(
+                    name=repo_name,
+                    path=str(repo_path),
+                    workspace_root=str(workspace_label),
+                    duration=outcome.duration,
+                ),
+            )
+            event["status"] = "timed_out"
+            event["duration_ms"] = int(outcome.duration * 1000)
+            if outcome.captured_output:
+                event["details"] = outcome.captured_output.strip()
+            permanent = (
+                f"{colors.warning('-')} Timed out {colors.info(repo_name)} "
+                f"after {colors.warning(f'{outcome.duration:.1f}s')} "
+                f"{colors.muted('→')} {display_repo_path}"
+            )
+            wrote_final = indicator.stop_repo(
+                final_line=permanent if is_human else None,
+            )
+            formatter.emit(event)
+            if not wrote_final:
+                formatter.emit_text(permanent)
+            if exit_on_error:
+                _emit_rerun_recipe(
+                    formatter,
+                    colors,
+                    timed_out_repos=timed_out_repos,
+                    timeout=repo_timeout,
+                )
+                _emit_summary(formatter, colors, summary)
+                if log_file_path is not None:
+                    formatter.emit_text(
+                        f"{colors.info('→')} Full debug log: "
+                        f"{colors.muted(str(log_file_path))}",
+                    )
+                formatter.finalize()
+                if parser is not None:
+                    parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+                raise SystemExit(EXIT_ON_ERROR_MSG)
+            continue
+
+        if outcome.status == "failed":
+            summary["failed"] += 1
+            err = outcome.error
+            err_msg = str(err) if err is not None else "unknown error"
             event["status"] = "error"
-            event["error"] = str(e)
-            if not is_human and buffer is not None and not captured_output:
-                captured_output = buffer.getvalue()
-            if captured_output:
-                event["details"] = captured_output.strip()
+            event["error"] = err_msg
+            if outcome.captured_output:
+                event["details"] = outcome.captured_output.strip()
+            permanent = (
+                f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
+                f"{colors.error(err_msg)}"
+            )
+            wrote_final = indicator.stop_repo(
+                final_line=permanent if is_human else None,
+            )
             formatter.emit(event)
             if is_human:
-                log.debug(
-                    "Failed syncing %s",
-                    repo_name,
-                )
-            if log.isEnabledFor(logging.DEBUG):
+                log.debug("Failed syncing %s", repo_name)
+            if log.isEnabledFor(logging.DEBUG) and err is not None:
                 import traceback
 
-                traceback.print_exc()
-            formatter.emit_text(
-                f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
-                f"{colors.error(str(e))}",
-            )
+                traceback.print_exception(type(err), err, err.__traceback__)
+            if not wrote_final:
+                formatter.emit_text(permanent)
             if exit_on_error:
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
-                raise SystemExit(EXIT_ON_ERROR_MSG) from e
+                raise SystemExit(EXIT_ON_ERROR_MSG) from err
             continue
 
         summary["synced"] += 1
         event["status"] = "synced"
-        formatter.emit(event)
-        formatter.emit_text(
+        permanent = (
             f"{colors.success('✓')} Synced {colors.info(repo_name)} "
-            f"{colors.muted('→')} {display_repo_path}",
+            f"{colors.muted('→')} {display_repo_path}"
         )
+        wrote_final = indicator.stop_repo(
+            final_line=permanent if is_human else None,
+        )
+        formatter.emit(event)
+        if not wrote_final:
+            formatter.emit_text(permanent)
 
         # Sync worktrees if enabled and configured
         worktrees_config = repo.get("worktrees")
@@ -956,16 +1818,6 @@ def sync(
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
                 raise SystemExit(EXIT_ON_ERROR_MSG)
 
-    _emit_summary(formatter, colors, summary)
-
-    if exit_on_error and unmatched_count > 0:
-        formatter.finalize()
-        if parser is not None:
-            parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
-        raise SystemExit(EXIT_ON_ERROR_MSG)
-
-    formatter.finalize()
-
 
 def _emit_summary(
     formatter: OutputFormatter,
@@ -977,12 +1829,17 @@ def _emit_summary(
     if formatter.mode == OutputMode.HUMAN:
         previewed = summary.get("previewed", 0)
         unmatched = summary.get("unmatched", 0)
+        timed_out = summary.get("timed_out", 0)
         parts = [
             f"\n{colors.info('Summary:')} "
             f"{colors.info(str(summary['total']))} repos, "
             f"{colors.success(str(summary['synced']))} synced, "
             f"{colors.error(str(summary['failed']))} failed",
         ]
+        if timed_out > 0:
+            parts.append(
+                f", {colors.warning(str(timed_out))} timed out",
+            )
         if previewed > 0:
             parts.append(
                 f", {colors.warning(str(previewed))} previewed",

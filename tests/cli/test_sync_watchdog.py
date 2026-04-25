@@ -1,0 +1,476 @@
+"""Tests for the per-repo sync watchdog and rerun-recipe emitter."""
+
+from __future__ import annotations
+
+import importlib
+import signal
+import sys
+import time
+import typing as t
+
+import pytest
+
+from vcspull.cli._colors import ColorMode, Colors
+from vcspull.cli._output import OutputFormatter, OutputMode
+from vcspull.cli.sync import (
+    _DEFAULT_REPO_TIMEOUT_SECONDS,
+    _emit_rerun_recipe,
+    _resolve_repo_timeout,
+    _sync_repo_with_watchdog,
+    _TimedOutRepo,
+)
+
+# ``vcspull.cli.__init__`` re-exports the ``sync`` function, which shadows the
+# submodule of the same name in normal attribute access. Grab the module
+# object directly so monkeypatch.setattr can install stubs on it.
+sync_module = importlib.import_module("vcspull.cli.sync")
+
+if t.TYPE_CHECKING:
+    import pathlib
+
+
+def _noop_progress(output: str, timestamp: t.Any) -> None:
+    """Swallow libvcs progress output in tests."""
+    return
+
+
+def test_resolve_repo_timeout_prefers_cli_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI ``--timeout`` should win over the env var and the default."""
+    monkeypatch.setenv("VCSPULL_SYNC_TIMEOUT_SECONDS", "99")
+
+    assert _resolve_repo_timeout(5) == 5
+
+
+def test_resolve_repo_timeout_falls_back_to_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without a CLI flag, ``VCSPULL_SYNC_TIMEOUT_SECONDS`` takes over."""
+    monkeypatch.setenv("VCSPULL_SYNC_TIMEOUT_SECONDS", "42")
+
+    assert _resolve_repo_timeout(None) == 42
+
+
+def test_resolve_repo_timeout_uses_default_when_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The module-level default applies when neither override is present."""
+    monkeypatch.delenv("VCSPULL_SYNC_TIMEOUT_SECONDS", raising=False)
+
+    assert _resolve_repo_timeout(None) == _DEFAULT_REPO_TIMEOUT_SECONDS
+
+
+def test_resolve_repo_timeout_ignores_bogus_env_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-integer env value is logged and ignored; default applies."""
+    monkeypatch.setenv("VCSPULL_SYNC_TIMEOUT_SECONDS", "forever")
+
+    assert _resolve_repo_timeout(None) == _DEFAULT_REPO_TIMEOUT_SECONDS
+
+
+def test_watchdog_returns_synced_outcome_on_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A fast ``update_repo`` returns ``status='synced'`` with no error."""
+    # Replace update_repo with a stub so we can exercise the watchdog without
+    # touching libvcs. The stub is fast, so the timeout branch never fires.
+    calls: list[dict[str, t.Any]] = []
+
+    def _stub_update_repo(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
+        calls.append(repo)
+
+    monkeypatch.setattr(sync_module, "update_repo", _stub_update_repo)
+
+    outcome = _sync_repo_with_watchdog(
+        t.cast("t.Any", {"name": "ok"}),
+        progress_callback=_noop_progress,
+        timeout=5,
+        is_human=True,
+    )
+
+    assert outcome.status == "synced"
+    assert outcome.error is None
+    assert calls == [{"name": "ok"}]
+
+
+def test_watchdog_returns_timed_out_on_slow_update(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A slow ``update_repo`` is abandoned with ``status='timed_out'``."""
+
+    def _slow_update_repo(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
+        # Far longer than the 0.2 s timeout below -- the watchdog must fire.
+        time.sleep(10)
+
+    monkeypatch.setattr(sync_module, "update_repo", _slow_update_repo)
+
+    started = time.monotonic()
+    outcome = _sync_repo_with_watchdog(
+        t.cast("t.Any", {"name": "slow"}),
+        progress_callback=_noop_progress,
+        timeout=1,
+        is_human=True,
+    )
+    elapsed = time.monotonic() - started
+
+    assert outcome.status == "timed_out"
+    # The watchdog should fire near the timeout -- give generous slack so CI
+    # scheduling jitter doesn't flake the test.
+    assert elapsed < 5.0
+    assert outcome.duration >= 0.5
+
+
+def test_watchdog_preserves_failed_outcome(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Synchronous exceptions from ``update_repo`` surface as ``failed``."""
+
+    class _Boom(RuntimeError):
+        """Sentinel used to trace exception propagation."""
+
+    def _raising_update_repo(
+        repo: dict[str, t.Any], *, progress_callback: t.Any
+    ) -> None:
+        msg = "remote exploded"
+        raise _Boom(msg)
+
+    monkeypatch.setattr(sync_module, "update_repo", _raising_update_repo)
+
+    outcome = _sync_repo_with_watchdog(
+        t.cast("t.Any", {"name": "boom"}),
+        progress_callback=_noop_progress,
+        timeout=5,
+        is_human=True,
+    )
+
+    assert outcome.status == "failed"
+    assert isinstance(outcome.error, _Boom)
+    assert "remote exploded" in str(outcome.error)
+
+
+def test_rerun_recipe_emits_one_line_per_workspace(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: pathlib.Path,
+) -> None:
+    """Repositories are grouped by workspace root in the suggested rerun."""
+    formatter = OutputFormatter(OutputMode.HUMAN)
+    colors = Colors(ColorMode.NEVER)
+
+    rust_workspace = tmp_path / "rust"
+    otel_workspace = tmp_path / "otel"
+    rust_workspace.mkdir()
+    otel_workspace.mkdir()
+
+    timed_out = [
+        _TimedOutRepo(
+            name="codex",
+            path=str(rust_workspace / "codex"),
+            workspace_root=str(rust_workspace),
+            duration=10.2,
+        ),
+        _TimedOutRepo(
+            name="rust",
+            path=str(rust_workspace / "rust"),
+            workspace_root=str(rust_workspace),
+            duration=10.5,
+        ),
+        _TimedOutRepo(
+            name="opentelemetry-rust",
+            path=str(otel_workspace / "opentelemetry-rust"),
+            workspace_root=str(otel_workspace),
+            duration=10.1,
+        ),
+    ]
+
+    _emit_rerun_recipe(
+        formatter,
+        colors,
+        timed_out_repos=timed_out,
+        timeout=10,
+    )
+    formatter.finalize()
+
+    captured = capsys.readouterr().out
+    # One rerun command per distinct workspace root, with the repo names
+    # appended as positional args -- this is what the user copy-pastes.
+    assert "vcspull sync --workspace" in captured
+    assert "codex" in captured and "rust" in captured
+    assert "opentelemetry-rust" in captured
+    # Suggest 10x the current timeout, clamped to 120 s minimum.
+    assert "--timeout 120" in captured
+    # Include a verbose-logging variant for diagnosis.
+    assert "-vv" in captured
+    # Include a manual git probe so the user can isolate the failure mode.
+    assert "GIT_TERMINAL_PROMPT=0" in captured
+    assert "git -C" in captured
+    # The rerun recipe itself must stay emoji-free -- plain ASCII markers
+    # only. Clock/stopwatch emoji had shipped as the prior prefix; guard it.
+    assert "⏱" not in captured
+
+
+def test_rerun_recipe_is_noop_when_no_timeouts(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A clean run with no timeouts emits nothing extra."""
+    formatter = OutputFormatter(OutputMode.HUMAN)
+    colors = Colors(ColorMode.NEVER)
+
+    _emit_rerun_recipe(
+        formatter,
+        colors,
+        timed_out_repos=[],
+        timeout=10,
+    )
+    formatter.finalize()
+
+    captured = capsys.readouterr().out
+    assert "Timed out" not in captured
+    assert "vcspull sync" not in captured
+
+
+def test_rerun_recipe_scales_timeout_suggestion(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: pathlib.Path,
+) -> None:
+    """When the user already passed a long timeout, we suggest 10x it."""
+    formatter = OutputFormatter(OutputMode.HUMAN)
+    colors = Colors(ColorMode.NEVER)
+
+    _emit_rerun_recipe(
+        formatter,
+        colors,
+        timed_out_repos=[
+            _TimedOutRepo(
+                name="huge",
+                path=str(tmp_path / "huge"),
+                workspace_root=str(tmp_path),
+                duration=60.0,
+            ),
+        ],
+        timeout=30,
+    )
+    formatter.finalize()
+
+    captured = capsys.readouterr().out
+    # max(120, 30 * 10) = 300
+    assert "--timeout 300" in captured
+
+
+def test_watchdog_propagates_keyboard_interrupt_from_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A ``KeyboardInterrupt`` in the worker bubbles out of the watchdog.
+
+    ``_sync_repo_with_watchdog`` runs the libvcs call on a daemon thread. If
+    the main thread receives Ctrl-C (normal case) it never reaches this code
+    path, but a worker-side ``KeyboardInterrupt`` (rare, via
+    ``PyThreadState_SetAsyncExc``) must NOT be laundered into a per-repo
+    "failed" outcome -- it has to propagate so the outer loop can tear the
+    batch down cleanly. This locks down the narrowed catch (``Exception``,
+    not ``BaseException``).
+    """
+
+    def _raising(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(sync_module, "update_repo", _raising)
+
+    with pytest.raises(KeyboardInterrupt):
+        _sync_repo_with_watchdog(
+            t.cast("t.Any", {"name": "kb"}),
+            progress_callback=_noop_progress,
+            timeout=5,
+            is_human=True,
+        )
+
+
+@pytest.fixture
+def _fake_sigint_escalation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Convert ``_exit_on_sigint`` into ``SystemExit(130)`` for in-process tests.
+
+    The real implementation re-raises SIGINT under ``SIG_DFL`` so the
+    parent shell sees ``WIFSIGNALED(SIGINT)``. Running that in-process
+    would kill the pytest runner. Unit tests that only want to verify the
+    control flow through the ``except KeyboardInterrupt`` clauses opt in
+    to this fixture; the real signal semantics live in a subprocess test
+    (``tests/cli/test_sync_sigint.py``).
+    """
+
+    def _fake() -> t.NoReturn:
+        raise SystemExit(130)
+
+    monkeypatch.setattr(sync_module, "_exit_on_sigint", _fake)
+
+
+def test_sync_handles_keyboard_interrupt_during_config_load(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    _fake_sigint_escalation: None,
+) -> None:
+    """Ctrl-C during pre-loop work (e.g. YAML parse) exits cleanly with 130.
+
+    Regression for the observed traceback where a KeyboardInterrupt raised
+    inside ``load_configs`` escaped all the way through ``cli.sync`` and
+    out to the top-level ``sys.exit`` as an unhandled exception, dumping
+    the entire yaml parser stack to the terminal. The outer ``sync()``
+    entry point must catch the interrupt, emit a short notice, and exit
+    via ``_exit_on_sigint()``. The ``_fake_sigint_escalation`` fixture
+    swaps the real ``_exit_on_sigint`` (which re-raises SIGINT under
+    ``SIG_DFL`` and would kill the test runner) for a plain
+    ``SystemExit(130)``.
+    """
+    from vcspull.cli.sync import sync as sync_fn
+
+    def _raising_load(*_args: t.Any, **_kwargs: t.Any) -> t.Any:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(sync_module, "load_configs", _raising_load)
+
+    with pytest.raises(SystemExit) as excinfo:
+        sync_fn(
+            repo_patterns=[],
+            config=None,
+            workspace_root=None,
+            dry_run=False,
+            output_json=False,
+            output_ndjson=False,
+            color="never",
+            exit_on_error=False,
+            show_unchanged=False,
+            summary_only=False,
+            long_view=False,
+            relative_paths=False,
+            fetch=False,
+            offline=False,
+            verbosity=0,
+            sync_all=True,
+        )
+
+    assert excinfo.value.code == 130
+    err = capsys.readouterr().err
+    assert "Interrupted by user." in err
+
+
+def test_exit_on_sigint_posix_installs_sig_dfl_and_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``_exit_on_sigint`` installs SIG_IGN, then SIG_DFL, then self-SIGINTs.
+
+    Locks in the order from git's ``sigchain.h:20-34`` pattern and proves
+    the helper would make the kernel deliver SIGINT to ourselves -- which
+    is what the parent shell's ``WIFSIGNALED`` check keys off to abort a
+    ``;`` chain. We can't let ``raise_signal`` actually fire (it would
+    take pytest down with us), so we intercept both stdlib calls and
+    assert on the recorded sequence.
+    """
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    calls: list[tuple[str, t.Any, t.Any]] = []
+
+    def _fake_signal(sig: int, handler: t.Any) -> t.Any:
+        calls.append(("signal", sig, handler))
+        return None
+
+    def _fake_raise(sig: int) -> None:
+        calls.append(("raise_signal", sig, None))
+        # Simulate ``SIG_DFL`` termination by exiting -- the real call
+        # never returns on POSIX; here we just prove the ordering.
+        raise SystemExit(130)
+
+    monkeypatch.setattr(signal, "signal", _fake_signal)
+    monkeypatch.setattr(signal, "raise_signal", _fake_raise)
+
+    with pytest.raises(SystemExit) as excinfo:
+        sync_module._exit_on_sigint()
+
+    assert excinfo.value.code == 130
+    assert calls == [
+        ("signal", signal.SIGINT, signal.SIG_IGN),
+        ("signal", signal.SIGINT, signal.SIG_DFL),
+        ("raise_signal", signal.SIGINT, None),
+    ]
+
+
+def test_exit_on_sigint_windows_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows falls back to ``SystemExit(130)`` without touching signals.
+
+    ``signal.raise_signal(SIGINT)`` under ``SIG_DFL`` on Windows raises
+    ``KeyboardInterrupt`` back at the caller instead of terminating, so
+    the POSIX re-raise would get us nowhere. The helper must short-circuit
+    on ``sys.platform == "win32"`` and leave the signal handlers
+    completely untouched.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    def _fail_if_called(sig: int) -> None:
+        msg = "raise_signal must not be called on the Windows fallback path"
+        raise AssertionError(msg)
+
+    def _fail_signal(sig: int, handler: t.Any) -> t.Any:
+        msg = "signal.signal must not be called on the Windows fallback path"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(signal, "raise_signal", _fail_if_called)
+    monkeypatch.setattr(signal, "signal", _fail_signal)
+
+    with pytest.raises(SystemExit) as excinfo:
+        sync_module._exit_on_sigint()
+
+    assert excinfo.value.code == 130
+
+
+def test_resolve_panel_lines_prefers_cli_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``--panel-lines N`` wins over the env var and the default."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.setenv("VCSPULL_PROGRESS_LINES", "9")
+    assert _resolve_panel_lines(5) == 5
+
+
+def test_resolve_panel_lines_falls_back_to_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without a flag, ``VCSPULL_PROGRESS_LINES`` is honoured."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.setenv("VCSPULL_PROGRESS_LINES", "5")
+    assert _resolve_panel_lines(None) == 5
+
+
+def test_resolve_panel_lines_accepts_zero_and_negative(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``0`` (hide panel) and ``-1`` (unbounded) must round-trip cleanly."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.delenv("VCSPULL_PROGRESS_LINES", raising=False)
+    assert _resolve_panel_lines(0) == 0
+    assert _resolve_panel_lines(-1) == -1
+
+
+def test_resolve_panel_lines_default_is_three(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default panel height matches tmuxp's ``DEFAULT_OUTPUT_LINES``."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.delenv("VCSPULL_PROGRESS_LINES", raising=False)
+    assert _resolve_panel_lines(None) == 3
+
+
+def test_resolve_panel_lines_ignores_bogus_env_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-integer env value is logged and ignored; default applies."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.setenv("VCSPULL_PROGRESS_LINES", "many")
+    assert _resolve_panel_lines(None) == 3

@@ -37,6 +37,55 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Breaking changes
+
+- Bump minimum libvcs from 0.39.0 to 0.40.0 (#544)
+
+### What's new
+
+#### `vcspull sync`: per-repo timeout
+
+A stuck repository no longer freezes the whole batch. Each repo runs
+under a 10-second wall-clock deadline; override with `--timeout
+SECONDS` or `VCSPULL_SYNC_TIMEOUT_SECONDS`. The summary lists any
+timed-out repos with a copy-pasteable rerun command. (#544)
+
+#### `vcspull sync`: live status indicator
+
+The active repo is now visible while sync runs. In a terminal you get
+a spinner with the repo name and elapsed time; in pipes you get a
+start line plus a periodic "still syncing" heartbeat. Disabled under
+`--json`, `--ndjson`, and `--color=never`. (#544)
+
+#### `vcspull sync`: streaming output trail
+
+Git's streaming output now appears in a 3-line trail above the
+spinner and collapses to the permanent `✓ Synced` line when the repo
+finishes. Tunable with `--panel-lines` (`0` hides, `-1` unbounded) or
+`VCSPULL_PROGRESS_LINES`. (#544)
+
+#### `vcspull sync`: per-invocation debug log
+
+Every run drops a debug log under `$TMPDIR/vcspull/` (npm/pnpm style),
+surfaced to the terminal only when something failed or timed out.
+Override with `--log-file PATH`; disable with `--no-log-file`. (#544)
+
+#### `vcspull sync`: Ctrl-C aborts shell chains
+
+`vcspull sync` now exits via signal on Ctrl-C, so chained invocations
+like `vcspull sync ~/a; vcspull sync ~/b` stop on the first interrupt
+instead of running the whole list. Matches `git clone; git fetch`. (#544)
+
+#### `vcspull`: quieter default output
+
+libvcs's per-repo log crumbs no longer print at the default verbosity.
+Pass `-v` for INFO-level libvcs activity (`Updating to 'main'.`); pass
+`-vv` for DEBUG. The debug log file always captures DEBUG regardless. (#544)
+
+### Bug fixes
+
+- Sync no longer hangs on credential prompts or slow fetches (#544)
+
 ### Documentation
 
 - Visual improvements to API docs from [gp-sphinx](https://gp-sphinx.git-pull.com)-based Sphinx packages (#542)
