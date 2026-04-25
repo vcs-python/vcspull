@@ -626,7 +626,11 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         action="count",
         dest="verbosity",
         default=0,
-        help="increase plan verbosity (-vv for maximum detail)",
+        help=(
+            "increase verbosity. -v opens libvcs INFO ('Updating to ...'); "
+            "-vv opens libvcs DEBUG (full per-repo trace) plus extra "
+            "dry-run plan detail. Default keeps libvcs at WARNING+."
+        ),
     )
     parser.add_argument(
         "--all",
