@@ -683,6 +683,19 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         action="store_true",
         help="disable the debug log file entirely",
     )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        dest="jobs",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "number of repositories to sync in parallel "
+            f"(default: min({_DEFAULT_MAX_JOBS}, CPU*2); env: VCSPULL_JOBS). "
+            "Pass 1 to force the legacy serial UX."
+        ),
+    )
 
     try:
         import shtab
@@ -701,6 +714,21 @@ class _TimedOutRepo:
     path: str
     workspace_root: str
     duration: float
+
+
+@dataclass
+class _ParallelResult:
+    """Per-repo outcome surfaced by ``_run_parallel_sync_loop_async``.
+
+    ``slot`` is the indicator slot the repo occupied (``-1`` when the
+    indicator is disabled or the task was cancelled before
+    ``acquire_slot`` ran). The as-completed loop uses the slot to call
+    ``release_slot`` with the permanent line.
+    """
+
+    repo: ConfigDict
+    slot: int
+    outcome: _SyncOutcome
 
 
 @dataclass
@@ -758,6 +786,37 @@ def _resolve_panel_lines(cli_value: int | None) -> int:
                 env_value,
             )
     return _DEFAULT_PANEL_LINES
+
+
+#: Cap on the default ``--jobs`` value. The plan-build phase already runs
+#: with ``DEFAULT_PLAN_CONCURRENCY = max(1, min(32, CPU * 2))``; for
+#: ``sync`` we use the same heuristic but cap at 8 because each worker
+#: runs a real ``git fetch`` and bursting much higher hits per-IP rate
+#: limits on GitHub. Users with authenticated tokens or local mirrors
+#: can override via ``--jobs N`` or ``VCSPULL_JOBS=N``.
+_DEFAULT_MAX_JOBS = 8
+
+
+def _resolve_jobs(cli_jobs: int | None) -> int:
+    """Resolve the parallel-sync concurrency: CLI flag > env > default.
+
+    Mirrors the precedence shape of :func:`_resolve_repo_timeout`. A value
+    of ``1`` forces the legacy serial sync path bit-for-bit (same UX as
+    before this change shipped). Larger values switch the dispatcher into
+    asyncio-orchestrated parallel mode.
+    """
+    if cli_jobs is not None and cli_jobs > 0:
+        return cli_jobs
+    env_value = os.environ.get("VCSPULL_JOBS")
+    if env_value:
+        try:
+            parsed = int(env_value)
+        except ValueError:
+            log.warning("Ignoring non-integer VCSPULL_JOBS=%s", env_value)
+        else:
+            if parsed > 0:
+                return parsed
+    return max(1, min(_DEFAULT_MAX_JOBS, (os.cpu_count() or 4) * 2))
 
 
 class _SyncInterruptedAfterSummary(KeyboardInterrupt):
@@ -1040,6 +1099,7 @@ def sync(
     log_file: str | pathlib.Path | None = None,
     no_log_file: bool = False,
     panel_lines: int | None = None,
+    jobs: int | None = None,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Prevent git from blocking on credential prompts during batch sync
@@ -1047,6 +1107,7 @@ def sync(
 
     repo_timeout = _resolve_repo_timeout(timeout)
     resolved_panel_lines = _resolve_panel_lines(panel_lines)
+    resolved_jobs = _resolve_jobs(jobs)
 
     # Set up the debug log file early so libvcs's per-repo activity is also
     # captured. The path is surfaced to the user only when something failed
@@ -1093,6 +1154,7 @@ def sync(
             log_file_path=log_file_path,
             dry_run=dry_run,
             panel_lines=resolved_panel_lines,
+            jobs=resolved_jobs,
         )
     except KeyboardInterrupt as err:
         # Catch Ctrl-C from ANY phase of the sync -- the repo loop (where
@@ -1147,6 +1209,7 @@ def _sync_impl(
     repo_timeout: int,
     log_file_path: pathlib.Path | None,
     panel_lines: int,
+    jobs: int,
 ) -> None:
     """Run the core body of :func:`sync`.
 
@@ -1332,6 +1395,7 @@ def _sync_impl(
         color=color,
         colors=colors,
         output_lines=panel_lines,
+        slots=jobs,
     )
 
     progress_callback: ProgressCallback
@@ -1362,22 +1426,43 @@ def _sync_impl(
 
     interrupted = False
     try:
-        _run_sync_loop(
-            found_repos=found_repos,
-            formatter=formatter,
-            colors=colors,
-            summary=summary,
-            timed_out_repos=timed_out_repos,
-            progress_callback=progress_callback,
-            is_human=is_human,
-            repo_timeout=repo_timeout,
-            exit_on_error=exit_on_error,
-            include_worktrees=include_worktrees,
-            dry_run=dry_run,
-            parser=parser,
-            log_file_path=log_file_path,
-            indicator=indicator,
-        )
+        if jobs <= 1:
+            _run_sync_loop(
+                found_repos=found_repos,
+                formatter=formatter,
+                colors=colors,
+                summary=summary,
+                timed_out_repos=timed_out_repos,
+                progress_callback=progress_callback,
+                is_human=is_human,
+                repo_timeout=repo_timeout,
+                exit_on_error=exit_on_error,
+                include_worktrees=include_worktrees,
+                dry_run=dry_run,
+                parser=parser,
+                log_file_path=log_file_path,
+                indicator=indicator,
+            )
+        else:
+            asyncio.run(
+                _run_parallel_sync_loop_async(
+                    found_repos=found_repos,
+                    jobs=jobs,
+                    formatter=formatter,
+                    colors=colors,
+                    summary=summary,
+                    timed_out_repos=timed_out_repos,
+                    progress_callback=progress_callback,
+                    is_human=is_human,
+                    repo_timeout=repo_timeout,
+                    exit_on_error=exit_on_error,
+                    include_worktrees=include_worktrees,
+                    dry_run=dry_run,
+                    parser=parser,
+                    log_file_path=log_file_path,
+                    indicator=indicator,
+                ),
+            )
     except KeyboardInterrupt:
         # Ctrl-C during the loop: stop the indicator cleanly, print a
         # partial summary via the formatter, then hand termination
@@ -1434,6 +1519,164 @@ def _sync_impl(
     formatter.finalize()
 
 
+def _emit_repo_result(
+    *,
+    repo: ConfigDict,
+    outcome: _SyncOutcome,
+    formatter: OutputFormatter,
+    colors: Colors,
+    summary: dict[str, int],
+    timed_out_repos: list[_TimedOutRepo],
+    is_human: bool,
+    final_writer: Callable[[str | None], bool],
+) -> str:
+    """Update summary, emit event, write permanent line for one outcome.
+
+    ``final_writer`` is the indicator hook -- ``stop_repo`` for the serial
+    path or a slot-bound ``release_slot`` for the parallel path. It
+    accepts the permanent line (or ``None``) and returns ``True`` when
+    the indicator wrote the line itself (caller then skips its own
+    ``formatter.emit_text``). Returns the outcome's status so the caller
+    can fork on success / failure / timeout for control flow.
+    """
+    repo_name = str(repo.get("name", "unknown"))
+    repo_path = repo.get("path", "unknown")
+    workspace_label = repo.get("workspace_root", "")
+    display_repo_path = str(PrivatePath(repo_path))
+
+    summary["total"] = summary.get("total", 0) + 1
+
+    event: dict[str, t.Any] = {
+        "reason": "sync",
+        "name": repo_name,
+        "path": display_repo_path,
+        "workspace_root": str(workspace_label),
+    }
+
+    if outcome.status == "timed_out":
+        summary["timed_out"] = summary.get("timed_out", 0) + 1
+        summary["failed"] = summary.get("failed", 0) + 1
+        timed_out_repos.append(
+            _TimedOutRepo(
+                name=repo_name,
+                path=str(repo_path),
+                workspace_root=str(workspace_label),
+                duration=outcome.duration,
+            ),
+        )
+        event["status"] = "timed_out"
+        event["duration_ms"] = int(outcome.duration * 1000)
+        if outcome.captured_output:
+            event["details"] = outcome.captured_output.strip()
+        permanent = (
+            f"{colors.warning('-')} Timed out {colors.info(repo_name)} "
+            f"after {colors.warning(f'{outcome.duration:.1f}s')} "
+            f"{colors.muted('->')} {display_repo_path}"
+        )
+        wrote_final = final_writer(permanent if is_human else None)
+        formatter.emit(event)
+        if not wrote_final:
+            formatter.emit_text(permanent)
+        return "timed_out"
+
+    if outcome.status == "failed":
+        summary["failed"] = summary.get("failed", 0) + 1
+        err = outcome.error
+        err_msg = str(err) if err is not None else "unknown error"
+        event["status"] = "error"
+        event["error"] = err_msg
+        if outcome.captured_output:
+            event["details"] = outcome.captured_output.strip()
+        permanent = (
+            f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
+            f"{colors.error(err_msg)}"
+        )
+        wrote_final = final_writer(permanent if is_human else None)
+        formatter.emit(event)
+        if is_human:
+            log.debug("Failed syncing %s", repo_name)
+        if log.isEnabledFor(logging.DEBUG) and err is not None:
+            import traceback
+
+            traceback.print_exception(type(err), err, err.__traceback__)
+        if not wrote_final:
+            formatter.emit_text(permanent)
+        return "failed"
+
+    summary["synced"] = summary.get("synced", 0) + 1
+    event["status"] = "synced"
+    permanent = (
+        f"{colors.success('✓')} Synced {colors.info(repo_name)} "
+        f"{colors.muted('→')} {display_repo_path}"
+    )
+    wrote_final = final_writer(permanent if is_human else None)
+    formatter.emit(event)
+    if not wrote_final:
+        formatter.emit_text(permanent)
+    return "synced"
+
+
+def _emit_worktree_results(
+    *,
+    repo: ConfigDict,
+    formatter: OutputFormatter,
+    colors: Colors,
+    summary: dict[str, int],
+    dry_run: bool,
+) -> int:
+    """Run worktree sync for ``repo`` (if configured) and emit results.
+
+    Returns the number of worktree errors so callers can fold them into
+    ``--exit-on-error`` semantics.
+    """
+    worktrees_config = repo.get("worktrees")
+    if not worktrees_config:
+        return 0
+    workspace_label = repo.get("workspace_root", "")
+    workspace_path = expand_dir(pathlib.Path(str(workspace_label)))
+    repo_path_obj = pathlib.Path(str(repo.get("path", "")))
+
+    wt_result = sync_all_worktrees(
+        repo_path_obj,
+        worktrees_config,
+        workspace_path,
+        dry_run=dry_run,
+    )
+    for entry in wt_result.entries:
+        ref_display = f"{entry.ref_type}:{entry.ref_value}"
+        wt_path_display = str(PrivatePath(entry.worktree_path))
+        if entry.action == WorktreeAction.CREATE:
+            sym = colors.success("+")
+            ref = colors.info(ref_display)
+            arrow = colors.muted("→")
+            formatter.emit_text(
+                f"    {sym} worktree {ref} {arrow} {wt_path_display}",
+            )
+        elif entry.action == WorktreeAction.UPDATE:
+            sym = colors.warning("~")
+            ref = colors.info(ref_display)
+            arrow = colors.muted("→")
+            formatter.emit_text(
+                f"    {sym} worktree {ref} {arrow} {wt_path_display}",
+            )
+        elif entry.action == WorktreeAction.BLOCKED:
+            sym = colors.warning("⚠")
+            ref = colors.info(ref_display)
+            formatter.emit_text(
+                f"    {sym} worktree {ref} blocked: {entry.detail}",
+            )
+        elif entry.action == WorktreeAction.ERROR:
+            formatter.emit_text(
+                f"    {colors.error('✗')} worktree {colors.info(ref_display)} "
+                f"error: {entry.error}",
+            )
+    summary["worktree_created"] = summary.get("worktree_created", 0) + wt_result.created
+    summary["worktree_updated"] = summary.get("worktree_updated", 0) + wt_result.updated
+    summary["worktree_failed"] = summary.get("worktree_failed", 0) + wt_result.errors
+    summary["failed"] = summary.get("failed", 0) + wt_result.errors
+    return wt_result.errors
+
+
 def _run_sync_loop(
     *,
     found_repos: list[ConfigDict],
@@ -1454,19 +1697,8 @@ def _run_sync_loop(
     """Iterate the repositories and drive the watchdog + indicator."""
     for repo in found_repos:
         repo_name = repo.get("name", "unknown")
-        repo_path = repo.get("path", "unknown")
-        workspace_label = repo.get("workspace_root", "")
-        display_repo_path = str(PrivatePath(repo_path))
 
-        summary["total"] += 1
         indicator.heartbeat()
-
-        event: dict[str, t.Any] = {
-            "reason": "sync",
-            "name": repo_name,
-            "path": display_repo_path,
-            "workspace_root": str(workspace_label),
-        }
 
         # Manual ``start_repo`` / ``stop_repo`` instead of the
         # ``with indicator.repo(...)`` context manager: we want
@@ -1477,7 +1709,7 @@ def _run_sync_loop(
         # spinner clears, then the formatter writes the permanent line
         # in a separate stream call. That two-step is the source of the
         # flicker reporters have called out.
-        indicator.start_repo(repo_name)
+        indicator.start_repo(str(repo_name))
         try:
             outcome = _sync_repo_with_watchdog(
                 repo,
@@ -1493,32 +1725,18 @@ def _run_sync_loop(
             indicator.stop_repo()
             raise
 
-        if outcome.status == "timed_out":
-            summary["timed_out"] += 1
-            summary["failed"] += 1
-            timed_out_repos.append(
-                _TimedOutRepo(
-                    name=repo_name,
-                    path=str(repo_path),
-                    workspace_root=str(workspace_label),
-                    duration=outcome.duration,
-                ),
-            )
-            event["status"] = "timed_out"
-            event["duration_ms"] = int(outcome.duration * 1000)
-            if outcome.captured_output:
-                event["details"] = outcome.captured_output.strip()
-            permanent = (
-                f"{colors.warning('-')} Timed out {colors.info(repo_name)} "
-                f"after {colors.warning(f'{outcome.duration:.1f}s')} "
-                f"{colors.muted('->')} {display_repo_path}"
-            )
-            wrote_final = indicator.stop_repo(
-                final_line=permanent if is_human else None,
-            )
-            formatter.emit(event)
-            if not wrote_final:
-                formatter.emit_text(permanent)
+        status = _emit_repo_result(
+            repo=repo,
+            outcome=outcome,
+            formatter=formatter,
+            colors=colors,
+            summary=summary,
+            timed_out_repos=timed_out_repos,
+            is_human=is_human,
+            final_writer=lambda line: indicator.stop_repo(final_line=line),
+        )
+
+        if status == "timed_out":
             if exit_on_error:
                 _emit_rerun_recipe(
                     formatter,
@@ -1538,113 +1756,236 @@ def _run_sync_loop(
                 raise SystemExit(EXIT_ON_ERROR_MSG)
             continue
 
-        if outcome.status == "failed":
-            summary["failed"] += 1
-            err = outcome.error
-            err_msg = str(err) if err is not None else "unknown error"
-            event["status"] = "error"
-            event["error"] = err_msg
-            if outcome.captured_output:
-                event["details"] = outcome.captured_output.strip()
-            permanent = (
-                f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
-                f"{colors.error(err_msg)}"
-            )
-            wrote_final = indicator.stop_repo(
-                final_line=permanent if is_human else None,
-            )
-            formatter.emit(event)
-            if is_human:
-                log.debug("Failed syncing %s", repo_name)
-            if log.isEnabledFor(logging.DEBUG) and err is not None:
-                import traceback
-
-                traceback.print_exception(type(err), err, err.__traceback__)
-            if not wrote_final:
-                formatter.emit_text(permanent)
+        if status == "failed":
             if exit_on_error:
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
-                raise SystemExit(EXIT_ON_ERROR_MSG) from err
+                raise SystemExit(EXIT_ON_ERROR_MSG) from outcome.error
             continue
 
-        summary["synced"] += 1
-        event["status"] = "synced"
-        permanent = (
-            f"{colors.success('✓')} Synced {colors.info(repo_name)} "
-            f"{colors.muted('→')} {display_repo_path}"
-        )
-        wrote_final = indicator.stop_repo(
-            final_line=permanent if is_human else None,
-        )
-        formatter.emit(event)
-        if not wrote_final:
-            formatter.emit_text(permanent)
-
         # Sync worktrees if enabled and configured
-        worktrees_config = repo.get("worktrees")
-        if include_worktrees and worktrees_config:
-            workspace_path = expand_dir(pathlib.Path(str(workspace_label)))
-            repo_path_obj = pathlib.Path(str(repo_path))
-
-            wt_result = sync_all_worktrees(
-                repo_path_obj,
-                worktrees_config,
-                workspace_path,
+        if include_worktrees:
+            errors = _emit_worktree_results(
+                repo=repo,
+                formatter=formatter,
+                colors=colors,
+                summary=summary,
                 dry_run=dry_run,
             )
-
-            for entry in wt_result.entries:
-                ref_display = f"{entry.ref_type}:{entry.ref_value}"
-                wt_path_display = str(PrivatePath(entry.worktree_path))
-
-                if entry.action == WorktreeAction.CREATE:
-                    sym = colors.success("+")
-                    ref = colors.info(ref_display)
-                    arrow = colors.muted("→")
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
-                    )
-                elif entry.action == WorktreeAction.UPDATE:
-                    sym = colors.warning("~")
-                    ref = colors.info(ref_display)
-                    arrow = colors.muted("→")
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
-                    )
-                elif entry.action == WorktreeAction.BLOCKED:
-                    sym = colors.warning("⚠")
-                    ref = colors.info(ref_display)
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} blocked: {entry.detail}",
-                    )
-                elif entry.action == WorktreeAction.ERROR:
-                    formatter.emit_text(
-                        f"    {colors.error('✗')} worktree {colors.info(ref_display)} "
-                        f"error: {entry.error}",
-                    )
-
-            # Tally worktree results into summary
-            summary["worktree_created"] = (
-                summary.get("worktree_created", 0) + wt_result.created
-            )
-            summary["worktree_updated"] = (
-                summary.get("worktree_updated", 0) + wt_result.updated
-            )
-            summary["worktree_failed"] = (
-                summary.get("worktree_failed", 0) + wt_result.errors
-            )
-            # Count worktree errors as failures for exit code
-            summary["failed"] += wt_result.errors
-
-            if exit_on_error and wt_result.errors > 0:
+            if exit_on_error and errors > 0:
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
                 raise SystemExit(EXIT_ON_ERROR_MSG)
+
+
+async def _run_parallel_sync_loop_async(
+    *,
+    found_repos: list[ConfigDict],
+    jobs: int,
+    formatter: OutputFormatter,
+    colors: Colors,
+    summary: dict[str, int],
+    timed_out_repos: list[_TimedOutRepo],
+    progress_callback: ProgressCallback,
+    is_human: bool,
+    repo_timeout: int,
+    exit_on_error: bool,
+    include_worktrees: bool,
+    dry_run: bool,
+    parser: argparse.ArgumentParser | None,
+    log_file_path: pathlib.Path | None,
+    indicator: SyncStatusIndicator,
+) -> None:
+    """Iterate the repositories in parallel via asyncio + daemon threads.
+
+    ``asyncio.Semaphore(jobs)`` caps in-flight workers; per-task daemon
+    threads bridge libvcs's synchronous ``update_repo`` into the loop;
+    ``asyncio.as_completed`` streams results in completion order. Daemon
+    threads (instead of ``asyncio.to_thread``) avoid the default
+    ``ThreadPoolExecutor`` atexit-join footgun documented in
+    :func:`_sync_repo_with_watchdog` -- a wedged libvcs subprocess at
+    interpreter shutdown would otherwise hang the process.
+    """
+    semaphore = asyncio.Semaphore(jobs)
+    loop = asyncio.get_running_loop()
+    stop_event = asyncio.Event()  # set on first failure with --exit-on-error
+
+    def _safe_set_result(fut: asyncio.Future[t.Any], value: t.Any) -> None:
+        if not fut.done():
+            fut.set_result(value)
+
+    def _safe_set_exception(fut: asyncio.Future[t.Any], exc: BaseException) -> None:
+        if not fut.done():
+            fut.set_exception(exc)
+
+    async def _sync_one(repo: ConfigDict) -> _ParallelResult:
+        repo_name = str(repo.get("name", "unknown"))
+        if stop_event.is_set():
+            return _ParallelResult(
+                repo=repo,
+                slot=-1,
+                outcome=_SyncOutcome(
+                    status="failed",
+                    error=RuntimeError("cancelled before start"),
+                ),
+            )
+        async with semaphore:
+            if stop_event.is_set():
+                return _ParallelResult(
+                    repo=repo,
+                    slot=-1,
+                    outcome=_SyncOutcome(
+                        status="failed",
+                        error=RuntimeError("cancelled before start"),
+                    ),
+                )
+            slot_idx = indicator.acquire_slot(repo_name)
+            future: asyncio.Future[_SyncOutcome] = loop.create_future()
+
+            def _slot_progress(output: str, timestamp: datetime) -> None:
+                # Per-slot progress callback. Falls back to the global
+                # callback (which usually goes to add_output_line for the
+                # legacy panel, or silent for JSON / NDJSON) when the
+                # indicator is disabled and slot_idx is -1.
+                if slot_idx >= 0:
+                    indicator.update_slot_message(slot_idx, output)
+                else:
+                    progress_callback(output, timestamp)
+
+            def _worker() -> None:
+                try:
+                    outcome = _sync_repo_with_watchdog(
+                        repo,
+                        progress_callback=_slot_progress,
+                        timeout=repo_timeout,
+                        is_human=is_human,
+                    )
+                    loop.call_soon_threadsafe(_safe_set_result, future, outcome)
+                except BaseException as exc:
+                    loop.call_soon_threadsafe(_safe_set_exception, future, exc)
+
+            threading.Thread(
+                target=_worker,
+                daemon=True,
+                name=f"vcspull-sync-{repo_name}",
+            ).start()
+            try:
+                outcome = await future
+            except BaseException:
+                # Cancellation before the worker delivered: free the slot
+                # so other tasks can proceed. The daemon thread continues
+                # until libvcs's internal timeout fires; harmless.
+                if slot_idx >= 0:
+                    indicator.release_slot(slot_idx)
+                raise
+            return _ParallelResult(repo=repo, slot=slot_idx, outcome=outcome)
+
+    tasks = [
+        asyncio.create_task(_sync_one(r), name=f"sync:{r.get('name', 'unknown')}")
+        for r in found_repos
+    ]
+
+    exit_on_error_fired = False
+    try:
+        for coro in asyncio.as_completed(tasks):
+            try:
+                result = await coro
+            except asyncio.CancelledError:
+                # Task was cancelled (--exit-on-error or KeyboardInterrupt).
+                # Drain the rest of as_completed so all tasks finish.
+                continue
+            except KeyboardInterrupt:
+                raise
+            except BaseException as exc:
+                # Worker raised something unusual (e.g. SystemExit). Log
+                # and continue -- per-repo failures are usually represented
+                # via _SyncOutcome.status='failed', not exception escape.
+                log.error("Worker exception: %s", exc, exc_info=True)
+                continue
+
+            slot = result.slot
+            outcome = result.outcome
+            repo = result.repo
+
+            if slot < 0 and stop_event.is_set():
+                # Cancelled before start; don't count toward summary.
+                continue
+
+            def _release(line: str | None, _slot: int = slot) -> bool:
+                if _slot < 0:
+                    return False
+                return indicator.release_slot(_slot, final_line=line)
+
+            status = _emit_repo_result(
+                repo=repo,
+                outcome=outcome,
+                formatter=formatter,
+                colors=colors,
+                summary=summary,
+                timed_out_repos=timed_out_repos,
+                is_human=is_human,
+                final_writer=_release,
+            )
+
+            if status in ("timed_out", "failed"):
+                if exit_on_error and not exit_on_error_fired:
+                    exit_on_error_fired = True
+                    # ``stop_event`` short-circuits queued tasks (those
+                    # still waiting on the semaphore). In-flight tasks
+                    # are allowed to complete so their output is
+                    # captured and emitted -- mirrors the serial path's
+                    # promise that the user sees results for repos that
+                    # had already started.
+                    stop_event.set()
+                continue
+
+            # synced -- run worktree sync (sequential across repos; the
+            # main sync was the parallel hot path).
+            if include_worktrees:
+                errors = _emit_worktree_results(
+                    repo=repo,
+                    formatter=formatter,
+                    colors=colors,
+                    summary=summary,
+                    dry_run=dry_run,
+                )
+                if exit_on_error and errors > 0 and not exit_on_error_fired:
+                    exit_on_error_fired = True
+                    stop_event.set()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        stop_event.set()
+        for task in tasks:
+            task.cancel()
+        # Drain so cancellations finish; daemon worker threads are abandoned
+        # and forcibly terminated when the process exits via _exit_on_sigint.
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+
+    if exit_on_error_fired:
+        # Drain remaining results so cancelled tasks complete cleanly.
+        await asyncio.gather(*tasks, return_exceptions=True)
+        # Mirror serial path's exit semantics.
+        if timed_out_repos:
+            _emit_rerun_recipe(
+                formatter,
+                colors,
+                timed_out_repos=timed_out_repos,
+                timeout=repo_timeout,
+            )
+        _emit_summary(formatter, colors, summary)
+        if log_file_path is not None:
+            formatter.emit_text(
+                f"{colors.info('->')} Full debug log: "
+                f"{colors.muted(str(log_file_path))}",
+            )
+        formatter.finalize()
+        if parser is not None:
+            parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
+        raise SystemExit(EXIT_ON_ERROR_MSG)
 
 
 def _emit_summary(

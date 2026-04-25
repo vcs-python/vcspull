@@ -477,6 +477,7 @@ def cli(_args: list[str] | None = None) -> None:
             log_file=getattr(args, "log_file", None),
             no_log_file=getattr(args, "no_log_file", False),
             panel_lines=getattr(args, "panel_lines", None),
+            jobs=getattr(args, "jobs", None),
         )
     elif args.subparser_name == "list":
         list_repos(
