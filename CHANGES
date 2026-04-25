@@ -64,6 +64,16 @@ Pass `-v` to see libvcs `INFO` (`Updating to 'main'.`,
 trail). The npm/pnpm-style debug log file always captures `DEBUG`
 regardless of verbosity.
 
+During `vcspull sync` itself the libvcs terminal stream is also
+silenced for `WARNING` / `ERROR` records at default verbosity --
+libvcs's `|git| (rye) Failed to determine current branch` warning
+was duplicating the same content vcspull's own `✗ Failed syncing
+rye: Command failed with code 128: git symbolic-ref HEAD --short`
+line already carried, breaking the
+`✓ Synced X / ✗ Failed X / - Timed out X` rhythm. The debug log
+file still captures every libvcs entry, so a post-mortem after a
+failure has the full trace.
+
 Root cause for the regression that prompted this: `setup_file_logger`
 raised both the `vcspull` and `libvcs` loggers to `DEBUG` so the
 `FileHandler` could capture full traces, but the terminal `StreamHandler`
@@ -113,12 +123,15 @@ colours are turned off.
 #### `vcspull sync`: per-invocation debug log (npm/pnpm style)
 
 Every `vcspull sync` invocation now writes a debug log to
-`$TMPDIR/vcspull-debug-<timestamp>-<pid>.log`. Clean runs stay quiet -- the
-log path is only surfaced to the terminal when at least one repository
-failed or timed out. Override the destination with `--log-file PATH`, or
-disable entirely with `--no-log-file`. The log captures the full libvcs
-per-repo activity (progress callback output, exit codes, errors) so a hang
-can be post-mortemed even after the CLI has moved on.
+`$TMPDIR/vcspull/debug-<timestamp>-<pid>.log` (or
+`$TMPDIR/vcspull-test/debug-<timestamp>-<pid>.log` when running under
+pytest, an automatic safety net so the production log dir stays
+uncontaminated by test runs). Clean runs stay quiet -- the log path is
+only surfaced to the terminal when at least one repository failed or
+timed out. Override the destination with `--log-file PATH`, or disable
+entirely with `--no-log-file`. The log captures the full libvcs per-repo
+activity (progress callback output, exit codes, errors) so a hang can be
+post-mortemed even after the CLI has moved on.
 
 ### Dependencies
 
