@@ -37,107 +37,54 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
-### New features
+### Breaking changes
 
-#### `vcspull sync`: collapsing 3-line live-trail above the spinner
+- Bump minimum libvcs from 0.39.0 to 0.40.0 (#544)
 
-Streaming subprocess output (git's `From <url>`, `* [new branch]`,
-`Already on 'main'`, `Successfully rebased`, etc.) now flows into a
-fixed-height live-trail region above the per-repo spinner. The trail
-shows the most recent 3 lines, rolls under as new ones arrive, and
-**collapses** when the repo finishes -- leaving only the permanent
-`✓ Synced <name> → <path>` line. Modeled on tmuxp's `before_script`
-panel.
+### What's new
 
-Tweak with `--panel-lines N` (`0` hides; `-1` unbounded; default 3) or
-the `VCSPULL_PROGRESS_LINES` environment variable. The panel is only
-active when the indicator itself is (TTY + human + colour mode); pipes,
-`--json`, `--ndjson`, and `--color=never` keep their existing line-
-oriented output.
+#### `vcspull sync`: per-repo timeout
 
-#### `vcspull`: libvcs is quiet by default; `-v` / `-vv` opens it back up
+A stuck repository no longer freezes the whole batch. Each repo runs
+under a 10-second wall-clock deadline; override with `--timeout
+SECONDS` or `VCSPULL_SYNC_TIMEOUT_SECONDS`. The summary lists any
+timed-out repos with a copy-pasteable rerun command. (#544)
 
-The chatty `|git| (repo) head_sha: ...` / `git_remote_name: ...` /
-`tag_sha: ...` crumb lines no longer appear at the default verbosity.
-Pass `-v` to see libvcs `INFO` (`Updating to 'main'.`,
-`Already up-to-date.`); pass `-vv` to see `DEBUG` (the full crumb
-trail). The npm/pnpm-style debug log file always captures `DEBUG`
-regardless of verbosity.
+#### `vcspull sync`: live status indicator
 
-During `vcspull sync` itself the libvcs terminal stream is also
-silenced for `WARNING` / `ERROR` records at default verbosity --
-libvcs's `|git| (rye) Failed to determine current branch` warning
-was duplicating the same content vcspull's own `✗ Failed syncing
-rye: Command failed with code 128: git symbolic-ref HEAD --short`
-line already carried, breaking the
-`✓ Synced X / ✗ Failed X / - Timed out X` rhythm. The debug log
-file still captures every libvcs entry, so a post-mortem after a
-failure has the full trace.
+The active repo is now visible while sync runs. In a terminal you get
+a spinner with the repo name and elapsed time; in pipes you get a
+start line plus a periodic "still syncing" heartbeat. Disabled under
+`--json`, `--ndjson`, and `--color=never`. (#544)
 
-Root cause for the regression that prompted this: `setup_file_logger`
-raised both the `vcspull` and `libvcs` loggers to `DEBUG` so the
-`FileHandler` could capture full traces, but the terminal `StreamHandler`
-had no per-handler level filter -- so the bump opened the floodgate to
-the terminal too. `setup_logger` now pins explicit per-handler levels
-on every `StreamHandler` so file-logger and terminal-logger filters
-are independent.
+#### `vcspull sync`: streaming output trail
 
-#### `vcspull sync`: Ctrl-C aborts the whole shell chain, not one command
+Git's streaming output now appears in a 3-line trail above the
+spinner and collapses to the permanent `✓ Synced` line when the repo
+finishes. Tunable with `--panel-lines` (`0` hides, `-1` unbounded) or
+`VCSPULL_PROGRESS_LINES`. (#544)
 
-`vcspull sync` now terminates with `WIFSIGNALED(SIGINT)` on Ctrl-C instead
-of exiting cleanly with status `130`. Bash/zsh sequential lists
-(`cmd1; cmd2; cmd3`) abort on the first signal-terminated child, so
-chained invocations like
-`vcspull sync --workspace ~/study/rust/ --all; vcspull sync --workspace
-~/study/otel/ --all` now stop on a single Ctrl-C — matching how `git
-clone; git fetch` compose. Behaviour is implemented via the canonical
-git pattern (`sigchain.h:20-34`): flush output, close the debug log
-handle, install `SIG_DFL`, self-deliver SIGINT. Windows falls back to
-the conventional `SystemExit(130)` because it has no `WIFSIGNALED`
-analogue.
+#### `vcspull sync`: per-invocation debug log
 
-#### `vcspull sync`: per-repository watchdog and copyable rerun recipe
+Every run drops a debug log under `$TMPDIR/vcspull/` (npm/pnpm style),
+surfaced to the terminal only when something failed or timed out.
+Override with `--log-file PATH`; disable with `--no-log-file`. (#544)
 
-A single stuck repository no longer freezes the whole batch. Every repository
-sync now runs under a wall-clock watchdog. The default deadline is 10 seconds
--- a healthy fetch/pull against a warm remote finishes well under that, so
-anything slower is surfaced rather than waited on. Override with `--timeout
-N` or the `VCSPULL_SYNC_TIMEOUT_SECONDS` environment variable.
+#### `vcspull sync`: Ctrl-C aborts shell chains
 
-When one or more repositories time out, the summary is followed by a
-copy-pasteable rerun recipe that retries just those repositories with a
-larger timeout, plus a `-vv` variant for diagnosis and a manual
-`git fetch --dry-run` probe per repo. Timed-out repositories are counted in
-the summary as "N timed out" alongside synced / failed.
+`vcspull sync` now exits via signal on Ctrl-C, so chained invocations
+like `vcspull sync ~/a; vcspull sync ~/b` stop on the first interrupt
+instead of running the whole list. Matches `git clone; git fetch`. (#544)
 
-#### `vcspull sync`: live status indicator (spinner + heartbeat)
+#### `vcspull`: quieter default output
 
-Every `vcspull sync` run now shows which repository is currently running
-and how long it has been. In a terminal the output is a single-line braille
-spinner that refreshes in place; when output is piped (CI, `tee`, log
-capture), the indicator degrades to a `· syncing <name>` line on start plus
-a periodic `… still syncing <name> (45s elapsed)` heartbeat. The indicator
-is disabled under machine-readable output (`--json` / `--ndjson`) or when
-colours are turned off.
+libvcs's per-repo log crumbs no longer print at the default verbosity.
+Pass `-v` for INFO-level libvcs activity (`Updating to 'main'.`); pass
+`-vv` for DEBUG. The debug log file always captures DEBUG regardless. (#544)
 
-#### `vcspull sync`: per-invocation debug log (npm/pnpm style)
+### Bug fixes
 
-Every `vcspull sync` invocation now writes a debug log to
-`$TMPDIR/vcspull/debug-<timestamp>-<pid>.log` (or
-`$TMPDIR/vcspull-test/debug-<timestamp>-<pid>.log` when running under
-pytest, an automatic safety net so the production log dir stays
-uncontaminated by test runs). Clean runs stay quiet -- the log path is
-only surfaced to the terminal when at least one repository failed or
-timed out. Override the destination with `--log-file PATH`, or disable
-entirely with `--no-log-file`. The log captures the full libvcs per-repo
-activity (progress callback output, exit codes, errors) so a hang can be
-post-mortemed even after the CLI has moved on.
-
-### Dependencies
-
-- Bump `libvcs` to `>=0.40.0,<0.41.0` for timeout + fast `set_remotes` fixes
-  that let `vcspull sync` recover from a single stuck repository without
-  hanging the whole batch.
+- Sync no longer hangs on credential prompts or slow fetches (#544)
 
 ### Documentation
 
