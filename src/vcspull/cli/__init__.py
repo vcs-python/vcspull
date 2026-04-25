@@ -440,7 +440,14 @@ def cli(_args: list[str] | None = None) -> None:
     ) = subparsers
     args = parser.parse_args(_args)
 
-    setup_logger(log=log, level=args.log_level.upper())
+    # ``args.verbosity`` is only set by the sync subcommand; default 0
+    # everywhere else. The sync ``-v`` ladder (0 → libvcs WARNING; 1 → INFO;
+    # 2+ → DEBUG) is documented in :func:`vcspull.log.setup_logger`.
+    setup_logger(
+        log=log,
+        level=args.log_level.upper(),
+        verbosity=getattr(args, "verbosity", 0),
+    )
 
     if args.subparser_name is None:
         parser.print_help()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 import typing as t
 
 import pytest
@@ -611,3 +612,109 @@ def test_repo_filter_integration(caplog: LogCaptureFixture) -> None:
         exc_info=None,
     )
     assert repo_filter.filter(regular_record) is False
+
+
+def test_setup_logger_default_libvcs_stream_level_is_warning() -> None:
+    """At ``-v`` count 0, the libvcs StreamHandler drops INFO and DEBUG.
+
+    Regression for the user-reported flood of ``|git| (repo) ...`` lines
+    that should not appear unless the user opts into ``-v``.
+    """
+    setup_logger(level="INFO", verbosity=0)
+    libvcs_logger = logging.getLogger("libvcs")
+    stream_handlers = [
+        h
+        for h in libvcs_logger.handlers
+        if isinstance(h, logging.StreamHandler)
+        and not isinstance(h, logging.FileHandler)
+    ]
+    assert stream_handlers, "libvcs logger should have a StreamHandler"
+    assert all(h.level == logging.WARNING for h in stream_handlers)
+
+
+def test_setup_logger_v_lifts_libvcs_stream_to_info() -> None:
+    """``-v`` (verbosity=1) opens libvcs INFO on the terminal."""
+    setup_logger(level="INFO", verbosity=1)
+    libvcs_logger = logging.getLogger("libvcs")
+    stream_handlers = [
+        h
+        for h in libvcs_logger.handlers
+        if isinstance(h, logging.StreamHandler)
+        and not isinstance(h, logging.FileHandler)
+    ]
+    assert stream_handlers
+    assert all(h.level == logging.INFO for h in stream_handlers)
+
+
+def test_setup_logger_vv_lifts_libvcs_stream_to_debug() -> None:
+    """``-vv`` (verbosity>=2) opens libvcs DEBUG on the terminal."""
+    setup_logger(level="INFO", verbosity=2)
+    libvcs_logger = logging.getLogger("libvcs")
+    stream_handlers = [
+        h
+        for h in libvcs_logger.handlers
+        if isinstance(h, logging.StreamHandler)
+        and not isinstance(h, logging.FileHandler)
+    ]
+    assert stream_handlers
+    assert all(h.level == logging.DEBUG for h in stream_handlers)
+
+
+def test_setup_logger_pins_vcspull_stream_to_resolved_level() -> None:
+    """The vcspull StreamHandler gets a per-handler level (not just logger)."""
+    setup_logger(level="INFO", verbosity=0)
+    vcspull_logger = logging.getLogger("vcspull")
+    stream_handlers = [
+        h
+        for h in vcspull_logger.handlers
+        if isinstance(h, logging.StreamHandler)
+        and not isinstance(h, logging.FileHandler)
+    ]
+    assert stream_handlers
+    assert all(h.level == logging.INFO for h in stream_handlers)
+
+
+def test_setup_file_logger_does_not_open_stream_floodgate(
+    tmp_path: pathlib.Path,
+) -> None:
+    """``setup_file_logger`` must not open the terminal StreamHandler floodgate.
+
+    Regression for the floodgate bug: prior versions of ``setup_logger``
+    left the StreamHandler with no per-handler level, so when the file
+    logger bumped the parent logger to DEBUG (so the FileHandler could
+    capture full traces), the terminal handler also accepted DEBUG and
+    spammed ``|git| (repo) head_sha: ...`` style lines into the user's
+    terminal.
+    """
+    import vcspull.log as log_mod
+
+    setup_logger(level="INFO", verbosity=0)
+    libvcs_logger = logging.getLogger("libvcs")
+    stream_handlers_before = [
+        h
+        for h in libvcs_logger.handlers
+        if isinstance(h, logging.StreamHandler)
+        and not isinstance(h, logging.FileHandler)
+    ]
+    levels_before = [h.level for h in stream_handlers_before]
+
+    handler = log_mod.setup_file_logger(tmp_path / "vcspull-debug.log")
+    try:
+        # The file handler must accept DEBUG so the npm-style log captures
+        # the full trace.
+        assert handler.level == logging.DEBUG
+        # The libvcs logger may now sit at DEBUG (so DEBUG records reach the
+        # FileHandler) -- but the StreamHandler levels MUST be unchanged.
+        stream_handlers_after = [
+            h
+            for h in libvcs_logger.handlers
+            if isinstance(h, logging.StreamHandler)
+            and not isinstance(h, logging.FileHandler)
+        ]
+        levels_after = [h.level for h in stream_handlers_after]
+        assert levels_after == levels_before, (
+            f"setup_file_logger must not change StreamHandler levels: "
+            f"before={levels_before} after={levels_after}"
+        )
+    finally:
+        log_mod.teardown_file_logger(handler)
