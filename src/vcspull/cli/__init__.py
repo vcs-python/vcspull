@@ -476,6 +476,7 @@ def cli(_args: list[str] | None = None) -> None:
             timeout=getattr(args, "timeout", None),
             log_file=getattr(args, "log_file", None),
             no_log_file=getattr(args, "no_log_file", False),
+            panel_lines=getattr(args, "panel_lines", None),
         )
     elif args.subparser_name == "list":
         list_repos(

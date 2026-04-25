@@ -223,3 +223,149 @@ def test_tty_spinner_colours_the_frame_cell() -> None:
     # literal "syncing codex" preceded by a reset (the info() helper closes
     # the colour right after the frame).
     assert "syncing codex" in out
+
+
+def test_add_output_line_appends_and_bounds_panel_deque() -> None:
+    """Panel buffer keeps only the last ``output_lines`` entries.
+
+    Reporter's request: a 3-line live trail above the spinner that
+    rolls under -- not an unbounded scroll. Locks in
+    ``collections.deque(maxlen=output_lines)`` semantics: the 4th push
+    drops the oldest line.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+
+    indicator.add_output_line("first\n")
+    indicator.add_output_line("second\n")
+    indicator.add_output_line("third\n")
+    indicator.add_output_line("fourth\n")
+
+    assert list(indicator._panel_buffer) == ["second", "third", "fourth"]
+
+
+def test_add_output_line_panel_disabled_falls_back_to_write() -> None:
+    """``output_lines=0`` makes ``add_output_line`` plain ``write()``.
+
+    The 0-panel mode is the escape hatch for users who don't want a
+    rolling region above the spinner: bytes still reach the terminal,
+    just on their own row, with the same clear-the-spinner-first
+    behaviour ``write()`` already provides.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=0,
+    )
+
+    indicator.add_output_line("From github.com/foo/bar\n")
+
+    assert "From github.com/foo/bar" in stream.getvalue()
+    # No panel deque ever populated.
+    assert indicator._panel_buffer.maxlen == 0
+
+
+def test_add_output_line_non_tty_writes_directly() -> None:
+    """Non-TTY mode bypasses the panel entirely.
+
+    The spinner thread never starts in non-TTY mode (pipes, CI, pytest
+    capture). If ``add_output_line`` buffered into the deque on this
+    path the bytes would never be rendered. Guard against that
+    regression: lines must reach the stream synchronously.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=False,
+        output_lines=3,
+    )
+
+    indicator.add_output_line("From github.com/foo/bar\n")
+
+    assert "From github.com/foo/bar" in stream.getvalue()
+    # Deque stays empty -- the line went straight to the stream.
+    assert list(indicator._panel_buffer) == []
+
+
+def test_render_tty_writes_panel_above_spinner_atomically() -> None:
+    r"""Spinner thread writes panel rows + spinner inside one sync bracket.
+
+    The ANSI ``\x1b[?2026h`` / ``\x1b[?2026l`` pair tells modern
+    terminals to buffer the whole region and flip it atomically. Locks
+    in the contract for terminals that honour the bracket
+    (kitty/iTerm2/WezTerm/recent xterm) and is benign elsewhere.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+    indicator.start_repo("codex")
+    indicator.add_output_line("From github.com/openai/codex\n")
+    indicator.add_output_line("   abc..def  main -> origin/main\n")
+    # Let the spinner thread tick at least once.
+    time.sleep(0.2)
+    indicator.stop_repo()
+    indicator.close()
+
+    out = stream.getvalue()
+    # Both panel lines made it to the stream during a render tick.
+    assert "From github.com/openai/codex" in out
+    assert "abc..def" in out
+    # The synchronized-output bracket wraps each frame.
+    assert "\x1b[?2026h" in out
+    assert "\x1b[?2026l" in out
+
+
+def test_stop_repo_collapses_the_panel() -> None:
+    """``stop_repo`` resets the deque + visible-lines counter.
+
+    The "trail collapses on completion" UX requirement: when the
+    permanent ``✓ Synced`` line is about to print, the panel must be
+    drained so it doesn't linger in scrollback.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+    indicator.start_repo("codex")
+    indicator.add_output_line("a\nb\nc\n")
+    # Pretend a render happened.
+    indicator._panel_visible_lines = 3
+    indicator.stop_repo()
+
+    assert list(indicator._panel_buffer) == []
+    assert indicator._panel_visible_lines == 0
+    indicator.close()
+
+
+def test_panel_clears_between_repos() -> None:
+    """``start_repo`` empties any leftover deque from the prior repo."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+    indicator.start_repo("alpha")
+    indicator.add_output_line("alpha-one\n")
+    indicator.add_output_line("alpha-two\n")
+    indicator.start_repo("beta")
+
+    # Fresh trail per repo: alpha's panel must NOT bleed into beta's.
+    assert list(indicator._panel_buffer) == []
+    indicator.close()

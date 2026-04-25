@@ -13,6 +13,7 @@ dependency.
 from __future__ import annotations
 
 import atexit
+import collections
 import io
 import itertools
 import logging
@@ -44,6 +45,13 @@ _SYNC_END = "\x1b[?2026l"
 #: ASCII ``|/-\`` set. On exotic terminals that can't render Unicode the
 #: cells fall back to their Braille block without breaking output.
 _SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+#: Default panel height for the live trail above the spinner. Same value
+#: tmuxp uses for ``before_script`` script output (see
+#: ``~/work/python/tmuxp/src/tmuxp/cli/_progress.py:42``). 3 rows is enough
+#: to give the user "what just happened" + a couple of lines of context
+#: without dominating the screen. ``0`` hides the panel entirely.
+_DEFAULT_OUTPUT_LINES = 3
 
 #: How often to refresh the spinner line in the TTY path.
 _TTY_REFRESH_INTERVAL = 0.1
@@ -91,6 +99,7 @@ class SyncStatusIndicator:
         stream: t.TextIO | None = None,
         tty: bool | None = None,
         colors: Colors | None = None,
+        output_lines: int = _DEFAULT_OUTPUT_LINES,
     ) -> None:
         self._stream = stream if stream is not None else sys.stdout
         # Respect the explicit tty override (tests, ``--color=never``) but
@@ -108,6 +117,25 @@ class SyncStatusIndicator:
         # plain-text output -- nothing worse than ANSI codes leaking into
         # captured streams in tests.
         self._colors = colors if colors is not None else Colors(ColorMode.NEVER)
+
+        # Live-trail panel above the spinner. ``0`` disables the panel and
+        # ``add_output_line`` falls back to plain ``write()`` semantics.
+        # ``-1`` means unbounded -- rare; useful when piping ``-vv`` output
+        # through a pager.
+        self._output_lines = output_lines
+        if output_lines > 0:
+            self._panel_buffer: collections.deque[str] = collections.deque(
+                maxlen=output_lines,
+            )
+        elif output_lines < 0:
+            self._panel_buffer = collections.deque()
+        else:
+            # Zero-capacity sentinel so ``maxlen == 0`` is the disabled signal.
+            self._panel_buffer = collections.deque(maxlen=0)
+        # Number of panel rows physically rendered last tick. The next
+        # render walks back this many lines (plus one for the spinner) to
+        # erase the previous frame.
+        self._panel_visible_lines = 0
 
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -132,6 +160,10 @@ class SyncStatusIndicator:
             now = time.monotonic()
             self._repo_started_at = now
             self._last_heartbeat_at = now
+            # Fresh trail per repo: drop any leftover panel lines from
+            # the previous repository so the user only sees activity for
+            # the active one.
+            self._panel_buffer.clear()
 
         if self._tty:
             self._ensure_tty_thread()
@@ -141,7 +173,7 @@ class SyncStatusIndicator:
             self._emit_line(f"syncing {name}")
 
     def stop_repo(self) -> None:
-        """Stop showing any active-repo indicator."""
+        """Stop showing any active-repo indicator and collapse the panel."""
         if not self._enabled:
             return
 
@@ -149,9 +181,45 @@ class SyncStatusIndicator:
             self._active_repo = None
             self._repo_started_at = None
             self._last_heartbeat_at = None
+            self._panel_buffer.clear()
 
         if self._tty:
-            self._clear_line()
+            # Erase the panel + spinner row entirely; the main sync loop
+            # then prints the permanent ``✓ Synced ...`` line on a clean
+            # row, giving the "trail collapses" effect.
+            self._clear_block()
+
+    def add_output_line(self, text: str) -> None:
+        """Push streamed subprocess output into the live trail panel.
+
+        ``text`` may contain multiple newline-separated lines (libvcs's
+        progress callback delivers chunks, not whole lines). We split,
+        drop blank-only fragments, and append each non-blank line to the
+        bounded deque. The spinner thread redraws on its own cadence, so
+        a chatty subprocess doesn't pace itself against the terminal.
+
+        When the panel is disabled (``output_lines=0``) or the indicator
+        is disabled (non-TTY, JSON output, ``--color=never``), fall back
+        to :meth:`write` so the bytes still appear -- just without the
+        in-place rewriting.
+        """
+        if not text:
+            return
+        # The panel only makes sense in a TTY where the spinner thread
+        # actually renders the deque. When the indicator is disabled
+        # (JSON / NDJSON / colour=never), or running headless (pipe, CI,
+        # capsys), or when the panel is explicitly hidden
+        # (``output_lines=0``), fall through to the plain ``write()``
+        # path so the bytes still reach the user / test capture.
+        if not self._enabled or not self._tty or self._panel_buffer.maxlen == 0:
+            payload = text if text.endswith("\n") else text + "\n"
+            self.write(payload)
+            return
+        with self._lock:
+            for line in text.splitlines():
+                stripped = line.rstrip()
+                if stripped:
+                    self._panel_buffer.append(stripped)
 
     def repo(self, name: str) -> _RepoContext:
         """Context manager form of :meth:`start_repo` / :meth:`stop_repo`."""
@@ -178,11 +246,18 @@ class SyncStatusIndicator:
             return
         with self._lock:
             try:
-                if self._tty and self._last_line_len:
+                if self._tty and (self._last_line_len or self._panel_visible_lines):
+                    # Walk back over the panel + spinner before printing
+                    # so the log record lands on a fresh row instead of
+                    # over-writing the trail. The next render redraws the
+                    # whole frame from scratch.
                     self._stream.write(_CURSOR_TO_COL0 + _ERASE_LINE)
+                    for _ in range(self._panel_visible_lines):
+                        self._stream.write("\x1b[1A" + _ERASE_LINE)
                 self._stream.write(text)
                 self._stream.flush()
                 self._last_line_len = 0
+                self._panel_visible_lines = 0
             except (OSError, ValueError):
                 pass
 
@@ -200,7 +275,11 @@ class SyncStatusIndicator:
         self._thread = None
         if thread is not None:
             thread.join(timeout=1.0)
-        self._clear_line()
+        # Erase the whole frame (panel + spinner) on close, not just the
+        # spinner row -- otherwise leftover panel rows linger in
+        # scrollback when the indicator is closed mid-repo (e.g. on
+        # KeyboardInterrupt before ``stop_repo``).
+        self._clear_block()
         if self._cursor_hidden:
             try:
                 self._stream.write(_SHOW_CURSOR)
@@ -259,20 +338,47 @@ class SyncStatusIndicator:
         line = f"{coloured_frame} syncing {name} ... {elapsed:4.1f}s"
         pad = max(self._last_line_len - len(visible), 0)
         # Holding the lock around the actual write ensures a concurrent
-        # ``write()`` (called by the stdout diverter on the main thread)
-        # can't begin mid-frame and end up fighting with the ``\r`` redraw.
+        # ``write()`` / ``add_output_line()`` (called by the stdout
+        # diverter on the main thread) can't begin mid-frame and end up
+        # fighting with the ``\r`` redraw. Also: snapshot the panel buffer
+        # under the lock so the deque can't mutate mid-render.
         with self._lock:
-            try:
-                self._stream.write(
-                    _SYNC_START + _CURSOR_TO_COL0 + line + (" " * pad) + _SYNC_END,
-                )
-                self._stream.flush()
-                # Track the *visible* column count (not the string length with
-                # ANSI codes), so the next frame's padding calculation clears
-                # exactly the on-screen cells the previous frame occupied.
-                self._last_line_len = len(visible)
-            except (OSError, ValueError):
-                pass
+            panel_lines = list(self._panel_buffer)
+        # Cap the rendered panel at its declared height so a concurrent
+        # ``add_output_line`` racing the deque can't make us write more
+        # rows than ``stop_repo`` will later erase.
+        cap = self._panel_buffer.maxlen
+        if cap and cap > 0 and len(panel_lines) > cap:
+            panel_lines = panel_lines[-cap:]
+        new_panel_height = len(panel_lines)
+
+        # Build the frame as a single string so the synchronized-output
+        # bracket wraps the whole region atomically. Layout:
+        #
+        #   <move cursor up to top-of-previous-frame>
+        #   <erase + panel row 1>\n
+        #   <erase + panel row 2>\n
+        #   ...
+        #   <erase + spinner line>   (no trailing newline; cursor stays here)
+        parts: list[str] = [_SYNC_START]
+        if self._panel_visible_lines:
+            # Cursor sits at the spinner row; walk up to the first panel
+            # row of the previous frame.
+            parts.append(f"\x1b[{self._panel_visible_lines}A")
+        parts.append(_CURSOR_TO_COL0)
+        parts.extend(_ERASE_LINE + panel_line + "\n" for panel_line in panel_lines)
+        parts.append(_ERASE_LINE + line + (" " * pad))
+        parts.append(_SYNC_END)
+        try:
+            self._stream.write("".join(parts))
+            self._stream.flush()
+            # Track the *visible* column count (not the string length with
+            # ANSI codes), so the next frame's padding calculation clears
+            # exactly the on-screen cells the previous frame occupied.
+            self._last_line_len = len(visible)
+            self._panel_visible_lines = new_panel_height
+        except (OSError, ValueError):
+            pass
 
     def _emit_line(self, line: str) -> None:
         try:
@@ -282,6 +388,7 @@ class SyncStatusIndicator:
             pass
 
     def _clear_line(self) -> None:
+        """Erase only the spinner row (legacy; ``write()`` calls this)."""
         if not self._tty or self._last_line_len == 0:
             return
         try:
@@ -290,6 +397,28 @@ class SyncStatusIndicator:
         except (OSError, ValueError):
             pass
         self._last_line_len = 0
+
+    def _clear_block(self) -> None:
+        """Erase the spinner row AND any rendered panel rows above it.
+
+        Used by :meth:`stop_repo` (and :meth:`close`) to collapse the
+        live trail so the next ``formatter.emit_text("✓ Synced ...")``
+        call lands on a clean row. Without this, the panel rows would
+        stay sticky in scrollback and the ``stop_repo`` -> permanent-line
+        transition would scroll-leak history.
+        """
+        if not self._tty:
+            return
+        try:
+            # Walk up panel rows + the spinner row, erasing each.
+            self._stream.write(_CURSOR_TO_COL0 + _ERASE_LINE)
+            for _ in range(self._panel_visible_lines):
+                self._stream.write("\x1b[1A" + _ERASE_LINE)
+            self._stream.flush()
+        except (OSError, ValueError):
+            pass
+        self._last_line_len = 0
+        self._panel_visible_lines = 0
 
     def heartbeat(self) -> None:
         """Emit a non-TTY heartbeat if enough time has passed.
@@ -347,11 +476,16 @@ def build_indicator(
     stream: t.TextIO | io.StringIO | None = None,
     tty: bool | None = None,
     colors: Colors | None = None,
+    output_lines: int = _DEFAULT_OUTPUT_LINES,
 ) -> SyncStatusIndicator:
     """Return a ``SyncStatusIndicator`` configured for the current session.
 
     Disabled when output is non-human (JSON/NDJSON) or when colours are turned
     off -- the latter implies the user wants quiet, machine-friendly output.
+
+    ``output_lines`` controls the live-trail panel above the spinner:
+    ``3`` (default) shows the last 3 streamed lines; ``0`` hides the
+    panel entirely; ``-1`` is unbounded.
     """
     enabled = human and color != "never"
     # io.StringIO satisfies the TextIO protocol at runtime; tests use this to
@@ -366,4 +500,5 @@ def build_indicator(
         stream=concrete_stream,
         tty=tty,
         colors=resolved_colors,
+        output_lines=output_lines,
     )

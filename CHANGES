@@ -39,6 +39,39 @@ _Notes on upcoming releases will be added here_
 
 ### New features
 
+#### `vcspull sync`: collapsing 3-line live-trail above the spinner
+
+Streaming subprocess output (git's `From <url>`, `* [new branch]`,
+`Already on 'main'`, `Successfully rebased`, etc.) now flows into a
+fixed-height live-trail region above the per-repo spinner. The trail
+shows the most recent 3 lines, rolls under as new ones arrive, and
+**collapses** when the repo finishes -- leaving only the permanent
+`✓ Synced <name> → <path>` line. Modeled on tmuxp's `before_script`
+panel.
+
+Tweak with `--panel-lines N` (`0` hides; `-1` unbounded; default 3) or
+the `VCSPULL_PROGRESS_LINES` environment variable. The panel is only
+active when the indicator itself is (TTY + human + colour mode); pipes,
+`--json`, `--ndjson`, and `--color=never` keep their existing line-
+oriented output.
+
+#### `vcspull`: libvcs is quiet by default; `-v` / `-vv` opens it back up
+
+The chatty `|git| (repo) head_sha: ...` / `git_remote_name: ...` /
+`tag_sha: ...` crumb lines no longer appear at the default verbosity.
+Pass `-v` to see libvcs `INFO` (`Updating to 'main'.`,
+`Already up-to-date.`); pass `-vv` to see `DEBUG` (the full crumb
+trail). The npm/pnpm-style debug log file always captures `DEBUG`
+regardless of verbosity.
+
+Root cause for the regression that prompted this: `setup_file_logger`
+raised both the `vcspull` and `libvcs` loggers to `DEBUG` so the
+`FileHandler` could capture full traces, but the terminal `StreamHandler`
+had no per-handler level filter -- so the bump opened the floodgate to
+the terminal too. `setup_logger` now pins explicit per-handler levels
+on every `StreamHandler` so file-logger and terminal-logger filters
+are independent.
+
 #### `vcspull sync`: Ctrl-C aborts the whole shell chain, not one command
 
 `vcspull sync` now terminates with `WIFSIGNALED(SIGINT)` on Ctrl-C instead

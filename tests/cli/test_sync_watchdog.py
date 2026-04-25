@@ -423,3 +423,54 @@ def test_exit_on_sigint_windows_fallback(
         sync_module._exit_on_sigint()
 
     assert excinfo.value.code == 130
+
+
+def test_resolve_panel_lines_prefers_cli_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``--panel-lines N`` wins over the env var and the default."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.setenv("VCSPULL_PROGRESS_LINES", "9")
+    assert _resolve_panel_lines(5) == 5
+
+
+def test_resolve_panel_lines_falls_back_to_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without a flag, ``VCSPULL_PROGRESS_LINES`` is honoured."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.setenv("VCSPULL_PROGRESS_LINES", "5")
+    assert _resolve_panel_lines(None) == 5
+
+
+def test_resolve_panel_lines_accepts_zero_and_negative(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``0`` (hide panel) and ``-1`` (unbounded) must round-trip cleanly."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.delenv("VCSPULL_PROGRESS_LINES", raising=False)
+    assert _resolve_panel_lines(0) == 0
+    assert _resolve_panel_lines(-1) == -1
+
+
+def test_resolve_panel_lines_default_is_three(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default panel height matches tmuxp's ``DEFAULT_OUTPUT_LINES``."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.delenv("VCSPULL_PROGRESS_LINES", raising=False)
+    assert _resolve_panel_lines(None) == 3
+
+
+def test_resolve_panel_lines_ignores_bogus_env_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-integer env value is logged and ignored; default applies."""
+    from vcspull.cli.sync import _resolve_panel_lines
+
+    monkeypatch.setenv("VCSPULL_PROGRESS_LINES", "many")
+    assert _resolve_panel_lines(None) == 3

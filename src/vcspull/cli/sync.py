@@ -654,6 +654,19 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         ),
     )
     parser.add_argument(
+        "--panel-lines",
+        dest="panel_lines",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "live-trail panel height for streaming subprocess output "
+            "above the spinner (default: 3; 0 hides; -1 unbounded; env: "
+            "VCSPULL_PROGRESS_LINES). The panel collapses when each repo "
+            "finishes, leaving only the permanent ✓ Synced line."
+        ),
+    )
+    parser.add_argument(
         "--log-file",
         dest="log_file",
         metavar="PATH",
@@ -717,6 +730,34 @@ def _resolve_repo_timeout(cli_timeout: int | None) -> int:
             if parsed > 0:
                 return parsed
     return _DEFAULT_REPO_TIMEOUT_SECONDS
+
+
+#: Mirrors the default in ``vcspull.cli._progress`` -- duplicated here so
+#: the ``--help`` text can interpolate the real number without importing
+#: the private ``_DEFAULT_OUTPUT_LINES`` symbol.
+_DEFAULT_PANEL_LINES = 3
+
+
+def _resolve_panel_lines(cli_value: int | None) -> int:
+    """Resolve the live-trail panel height: CLI flag > env > default.
+
+    The flag accepts ``0`` (hide panel) and ``-1`` (unbounded), so we can't
+    short-circuit on ``> 0`` like :func:`_resolve_repo_timeout`. We do
+    accept any integer the user passes via the CLI; only the env var
+    override is validated, with a warning on garbage values.
+    """
+    if cli_value is not None:
+        return cli_value
+    env_value = os.environ.get("VCSPULL_PROGRESS_LINES")
+    if env_value:
+        try:
+            return int(env_value)
+        except ValueError:
+            log.warning(
+                "Ignoring non-integer VCSPULL_PROGRESS_LINES=%s",
+                env_value,
+            )
+    return _DEFAULT_PANEL_LINES
 
 
 class _SyncInterruptedAfterSummary(KeyboardInterrupt):
@@ -998,12 +1039,14 @@ def sync(
     timeout: int | None = None,
     log_file: str | pathlib.Path | None = None,
     no_log_file: bool = False,
+    panel_lines: int | None = None,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Prevent git from blocking on credential prompts during batch sync
     os.environ.setdefault("GIT_TERMINAL_PROMPT", "0")
 
     repo_timeout = _resolve_repo_timeout(timeout)
+    resolved_panel_lines = _resolve_panel_lines(panel_lines)
 
     # Set up the debug log file early so libvcs's per-repo activity is also
     # captured. The path is surfaced to the user only when something failed
@@ -1049,6 +1092,7 @@ def sync(
             repo_timeout=repo_timeout,
             log_file_path=log_file_path,
             dry_run=dry_run,
+            panel_lines=resolved_panel_lines,
         )
     except KeyboardInterrupt as err:
         # Catch Ctrl-C from ANY phase of the sync -- the repo loop (where
@@ -1102,6 +1146,7 @@ def _sync_impl(
     include_worktrees: bool,
     repo_timeout: int,
     log_file_path: pathlib.Path | None,
+    panel_lines: int,
 ) -> None:
     """Run the core body of :func:`sync`.
 
@@ -1282,14 +1327,23 @@ def _sync_impl(
     }
     timed_out_repos: list[_TimedOutRepo] = []
 
-    indicator = build_indicator(human=is_human, color=color, colors=colors)
+    indicator = build_indicator(
+        human=is_human,
+        color=color,
+        colors=colors,
+        output_lines=panel_lines,
+    )
 
     progress_callback: ProgressCallback
     if is_human and indicator.enabled:
-        # Route libvcs's streaming subprocess output through the indicator so
-        # it shares the spinner's lock and can't tear the frame mid-redraw.
+        # Route libvcs's streaming subprocess output into the indicator's
+        # live-trail panel: ``add_output_line`` appends to a bounded deque
+        # that the spinner thread renders above the spinner row, then
+        # collapses on ``stop_repo``. With panel_lines=0 the indicator
+        # falls back to plain ``write()`` semantics (no panel, no
+        # collapse).
         def _indicator_progress(output: str, timestamp: datetime) -> None:
-            indicator.write(output)
+            indicator.add_output_line(output)
 
         progress_callback = _indicator_progress
     elif is_human:
