@@ -1206,7 +1206,7 @@ def _sync_impl(
             found = filter_repos(configs, path=path, vcs_url=vcs_url, name=name)
             if not found:
                 search_term = name or path or vcs_url or repo_pattern
-                log.debug(NO_REPOS_FOR_TERM_MSG.format(name=search_term))
+                log.debug('No repo found in config(s) for "%s"', search_term)
                 if not summary_only:
                     formatter.emit_text(
                         f"{colors.error('✗')} "
