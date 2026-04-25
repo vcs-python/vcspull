@@ -418,6 +418,18 @@ def setup_file_logger(
         if existing is None:
             logger.addHandler(handler)
         # Ensure the logger itself lets DEBUG records through to the handler.
+        #
+        # Invariant: this raises the *logger* level to DEBUG, which would
+        # ordinarily open the floodgate to every attached StreamHandler too.
+        # ``setup_logger`` pins explicit per-handler levels on every
+        # ``StreamHandler`` (default WARNING; ``-v`` INFO; ``-vv`` DEBUG)
+        # so the bump here doesn't reach the terminal -- the StreamHandler's
+        # own filter still drops records below its level. If anyone ever
+        # "simplifies" ``setup_logger`` to drop the per-handler levels, this
+        # block will silently re-open the libvcs DEBUG floodgate to stdout.
+        # Regression-guarded by
+        # ``test_setup_file_logger_does_not_open_stream_floodgate`` in
+        # ``tests/test_log.py``.
         if logger.level == logging.NOTSET or logger.level > level:
             logger.setLevel(level)
 
