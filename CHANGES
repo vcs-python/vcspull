@@ -122,7 +122,7 @@ can be post-mortemed even after the CLI has moved on.
 
 ### Dependencies
 
-- Bump `libvcs` to `>=0.40.0a0,<0.41.0` for timeout + fast `set_remotes` fixes
+- Bump `libvcs` to `>=0.40.0,<0.41.0` for timeout + fast `set_remotes` fixes
   that let `vcspull sync` recover from a single stuck repository without
   hanging the whole batch.
 
