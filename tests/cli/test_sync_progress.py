@@ -506,3 +506,219 @@ def test_render_tty_skips_stale_tick_when_active_repo_changed() -> None:
     after = stream.getvalue()
     # Stale tick: nothing should land on the stream.
     assert after == before
+
+
+def test_multi_slot_acquires_distinct_indices() -> None:
+    """Each ``acquire_slot`` returns a different idle index until full."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=False,
+        slots=4,
+    )
+
+    indices = [
+        indicator.acquire_slot("alpha"),
+        indicator.acquire_slot("beta"),
+        indicator.acquire_slot("gamma"),
+    ]
+    assert indices == [0, 1, 2]
+
+    # Release one and re-acquire -- the freed slot is reused.
+    indicator.release_slot(1)
+    next_idx = indicator.acquire_slot("delta")
+    assert next_idx == 1
+
+
+def test_multi_slot_oversubscription_raises() -> None:
+    """All slots busy + acquire_slot -> RuntimeError (caller must gate)."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=False,
+        slots=2,
+    )
+    indicator.acquire_slot("a")
+    indicator.acquire_slot("b")
+    with pytest.raises(RuntimeError):
+        indicator.acquire_slot("c")
+
+
+def test_multi_slot_disabled_acquire_returns_minus_one() -> None:
+    """A disabled indicator's ``acquire_slot`` returns -1 (no row to update)."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=False,
+        stream=stream,
+        tty=False,
+        slots=4,
+    )
+    assert indicator.acquire_slot("a") == -1
+
+
+def test_multi_slot_panel_is_force_disabled_above_one_slot() -> None:
+    """``slots > 1`` forces the live-trail panel off internally."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        slots=4,
+        output_lines=3,  # caller asked for a panel, but multi-slot disables it
+    )
+    assert indicator._panel_buffer.maxlen == 0
+
+
+def test_multi_slot_release_queues_pending_for_tty() -> None:
+    """``release_slot(slot, final_line=...)`` queues for the next tick (TTY)."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        slots=2,
+    )
+    slot = indicator.acquire_slot("alpha")
+    wrote = indicator.release_slot(slot, final_line="✓ Synced alpha")
+    # The line is queued for the next render tick to scroll into
+    # scrollback above the active region; caller skips its own
+    # ``formatter.emit_text``.
+    assert wrote is True
+    assert "✓ Synced alpha" in indicator._pending_permanents
+
+
+def test_multi_slot_release_non_tty_returns_false() -> None:
+    """Non-TTY ``release_slot`` returns False so the caller emits the line."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=False,
+        slots=2,
+    )
+    slot = indicator.acquire_slot("alpha")
+    wrote = indicator.release_slot(slot, final_line="✓ Synced alpha")
+    assert wrote is False
+
+
+def test_render_tty_multi_writes_one_row_per_slot() -> None:
+    """Active region renders ``slot_count`` rows in one synchronized write."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        slots=3,
+    )
+    indicator.acquire_slot("alpha")
+    indicator.acquire_slot("beta")
+    # Third slot intentionally idle.
+
+    indicator._render_tty_multi(frame="⠋")
+
+    output = stream.getvalue()
+    # Three rows in the active region: alpha, beta, blank idle slot.
+    assert "Syncing alpha" in output
+    assert "Syncing beta" in output
+    # Pending permanents queue is empty (nothing released yet).
+    assert indicator._pending_permanents == []
+    # Synchronized-output bracket wraps the frame.
+    assert "\x1b[?2026h" in output
+    assert "\x1b[?2026l" in output
+    # Active region geometry tracked for the next walk-up.
+    assert indicator._prev_active_rows == 3
+
+
+def test_render_tty_multi_drains_pending_permanents() -> None:
+    """Pending permanents drain at the next tick + scroll into scrollback."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        slots=2,
+    )
+    indicator.acquire_slot("alpha")
+    indicator.acquire_slot("beta")
+    indicator._render_tty_multi(frame="⠋")  # establish prev_active_rows
+    stream.truncate(0)
+    stream.seek(0)
+
+    indicator.release_slot(0, final_line="✓ Synced alpha")
+    indicator._render_tty_multi(frame="⠙")
+
+    output = stream.getvalue()
+    # Permanent line is written ABOVE the active region (with \n) so
+    # it scrolls into scrollback.
+    assert "✓ Synced alpha" in output
+    # Drained: no longer queued.
+    assert indicator._pending_permanents == []
+
+
+def test_update_slot_message_non_tty_falls_through_to_stream() -> None:
+    """Non-TTY ``update_slot_message`` writes the chunk to the stream.
+
+    In non-TTY mode the per-slot suffix has no render path, so libvcs
+    progress lines must surface to the stream so log capture / pipelines
+    still see them. This is the equivalent of ``add_output_line``'s
+    non-TTY fallback.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=False,
+        slots=4,
+    )
+    slot = indicator.acquire_slot("alpha")
+
+    indicator.update_slot_message(slot, "Already on 'master'\n")
+    assert "Already on 'master'" in stream.getvalue()
+
+
+def test_update_slot_message_tty_stores_per_slot_suffix() -> None:
+    """TTY ``update_slot_message`` stores the last line under the slot."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        slots=2,
+    )
+    slot = indicator.acquire_slot("alpha")
+    indicator.update_slot_message(
+        slot,
+        "Receiving objects:  10%\nReceiving objects:  20%\n",
+    )
+
+    stored = indicator._slots[slot]
+    assert stored is not None
+    assert stored.last_message == "Receiving objects:  20%"
+
+
+def test_close_clears_multi_slot_active_region() -> None:
+    """``close()`` walks back over the slot rows and emits any pending lines."""
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        slots=3,
+    )
+    indicator.acquire_slot("alpha")
+    indicator._render_tty_multi(frame="⠋")  # write the active region
+    indicator.release_slot(0, final_line="✓ Synced alpha")
+    indicator.close()
+
+    # After close, prev_active_rows is reset and the pending permanent
+    # surfaces somewhere in the captured stream.
+    assert indicator._prev_active_rows == 0
+    assert "✓ Synced alpha" in stream.getvalue()
+
+
+def test_build_indicator_forwards_slots() -> None:
+    """``build_indicator(slots=N)`` constructs a multi-slot indicator."""
+    indicator = build_indicator(human=True, color="auto", slots=4)
+    assert indicator._slot_count == 4

@@ -1,10 +1,17 @@
-"""Live status indicator for ``vcspull sync``.
+r"""Live status indicator for ``vcspull sync``.
 
 Shows the user which repository is currently being synced and how long it has
 been running. In a TTY a single-line braille spinner refreshes every ~100 ms;
 elsewhere (pipes, CI logs) a once-on-start line is followed by periodic
 "still syncing" heartbeats so the output stream keeps moving without flooding
 the log.
+
+When ``slots > 1`` the indicator switches into multi-row mode: a fixed-height
+active region of ``slots`` spinner rows lives at the bottom of the terminal,
+and permanent ``✓ Synced ...`` lines scroll into scrollback above it as
+repos finish. This is the same trick ``cargo build`` and ``pueue`` use --
+write the permanent line ABOVE the active region so a ``\n`` from the
+viewport bottom scrolls one row out of the active region into history.
 
 Inspired by ``tmuxp``'s spinner module -- stdlib + ANSI only, no ``rich``
 dependency.
@@ -14,6 +21,7 @@ from __future__ import annotations
 
 import atexit
 import collections
+import dataclasses
 import io
 import itertools
 import logging
@@ -83,13 +91,30 @@ def _close_indicator_quietly(indicator: SyncStatusIndicator) -> None:
 atexit.register(_restore_cursors_on_exit)
 
 
+@dataclasses.dataclass
+class _Slot:
+    """Per-slot state for multi-slot indicator mode."""
+
+    name: str
+    started_at: float
+    last_message: str = ""
+
+
 class SyncStatusIndicator:
     """Owns the "which repo is running now" UI for a sync session.
 
-    Exactly one repo is considered "active" at a time -- this matches the
-    current sequential sync loop. Callers drive the indicator with
+    In single-slot mode (``slots=1``, the default) exactly one repo is
+    considered "active" at a time. Callers drive the indicator with
     :meth:`start_repo` / :meth:`stop_repo`, or via the context manager
     returned by :meth:`repo`.
+
+    In multi-slot mode (``slots > 1``) the indicator owns a fixed-height
+    active region of ``slots`` rows. Callers reserve a slot via
+    :meth:`acquire_slot`, push per-slot progress messages via
+    :meth:`update_slot_message`, and finalise via :meth:`release_slot`
+    with a permanent line that scrolls into scrollback above the active
+    region. The single-row legacy methods continue to work in
+    multi-slot mode -- they map to slot 0.
     """
 
     def __init__(
@@ -100,6 +125,7 @@ class SyncStatusIndicator:
         tty: bool | None = None,
         colors: Colors | None = None,
         output_lines: int = _DEFAULT_OUTPUT_LINES,
+        slots: int = 1,
     ) -> None:
         self._stream = stream if stream is not None else sys.stdout
         # Respect the explicit tty override (tests, ``--color=never``) but
@@ -117,6 +143,14 @@ class SyncStatusIndicator:
         # plain-text output -- nothing worse than ANSI codes leaking into
         # captured streams in tests.
         self._colors = colors if colors is not None else Colors(ColorMode.NEVER)
+
+        self._slot_count = max(1, slots)
+        # Multi-slot mode disables the live-trail panel: the panel is a
+        # single-source-of-output deque and looks like noise when N
+        # workers feed it concurrently. Each slot's most-recent message
+        # becomes the per-row suffix instead.
+        if self._slot_count > 1:
+            output_lines = 0
 
         # Live-trail panel above the spinner. ``0`` disables the panel and
         # ``add_output_line`` falls back to plain ``write()`` semantics.
@@ -145,6 +179,20 @@ class SyncStatusIndicator:
         self._last_heartbeat_at: float | None = None
         self._last_line_len = 0
         self._cursor_hidden = False
+
+        # Multi-slot state. Even in single-slot mode the legacy
+        # ``_active_repo`` / ``_repo_started_at`` continue to drive the
+        # render path, so ``_slots`` is unused there. In multi-slot mode
+        # ``acquire_slot`` / ``release_slot`` populate ``_slots`` and
+        # ``_pending_permanents`` queues lines drained at the next tick.
+        self._slots: list[_Slot | None] = [None] * self._slot_count
+        self._pending_permanents: list[str] = []
+        # Number of active-region rows we drew last frame. The next
+        # frame walks up ``_prev_active_rows - 1`` rows + CR to reach the
+        # top of the previous active region. Stays at ``slot_count``
+        # during the run; reset to ``0`` by ``write()`` / ``close()``
+        # after they erase the region.
+        self._prev_active_rows = 0
 
     # ------------------------------------------------------------------
     # Public API
@@ -279,6 +327,112 @@ class SyncStatusIndicator:
                 if stripped:
                     self._panel_buffer.append(stripped)
 
+    def acquire_slot(self, name: str) -> int:
+        """Reserve an idle slot for ``name``; returns the slot index.
+
+        In multi-slot mode the dispatcher acquires a slot before kicking
+        off a per-repo daemon thread; the index is later passed to
+        :meth:`release_slot` and :meth:`update_slot_message`. Raises
+        ``RuntimeError`` if no idle slot is available -- the caller is
+        expected to gate dispatch on a semaphore matching ``slot_count``,
+        so over-subscription is a programming error.
+
+        Returns ``-1`` when the indicator is disabled; callers should
+        treat that as "no row to update" and skip per-slot message
+        updates.
+        """
+        if not self._enabled:
+            return -1
+        with self._lock:
+            for idx in range(self._slot_count):
+                if self._slots[idx] is None:
+                    now = time.monotonic()
+                    self._slots[idx] = _Slot(name=name, started_at=now)
+                    if self._last_heartbeat_at is None:
+                        self._last_heartbeat_at = now
+                    break
+            else:
+                msg = (
+                    f"acquire_slot called with all {self._slot_count} slots "
+                    "busy; gate dispatch on a semaphore matching slot_count"
+                )
+                raise RuntimeError(msg)
+
+        if self._tty:
+            self._ensure_tty_thread()
+        else:
+            # Headless mode: emit a once-on-start line per repo.
+            self._emit_line(f"Syncing {name}")
+        return idx
+
+    def release_slot(
+        self,
+        slot: int,
+        final_line: str | None = None,
+    ) -> bool:
+        r"""Release ``slot``; queue ``final_line`` to scroll into scrollback.
+
+        When ``final_line`` is provided AND the indicator is rendering on
+        a TTY in multi-slot mode, the line is appended to a pending-
+        permanents queue that the next render tick drains -- writing it
+        ABOVE the active region so a ``\n`` from the viewport bottom
+        scrolls one row out of the active region into history. Returns
+        ``True`` when the line was queued (caller should skip its own
+        ``formatter.emit_text``); ``False`` otherwise (caller emits
+        normally).
+
+        Mirrors the contract of :meth:`stop_repo` so dispatchers can
+        treat the slot-aware and legacy call sites uniformly.
+        """
+        if not self._enabled:
+            return False
+        if slot < 0 or slot >= self._slot_count:
+            return False
+        with self._lock:
+            self._slots[slot] = None
+            if not self._tty:
+                # Headless: caller is responsible for surfacing
+                # ``final_line`` itself. We've still freed the slot.
+                return False
+            if final_line is not None:
+                self._pending_permanents.append(final_line)
+        return final_line is not None
+
+    def update_slot_message(self, slot: int, message: str) -> None:
+        """Update the per-slot 'last activity' string shown after the name.
+
+        Multi-row equivalent of :meth:`add_output_line` for a specific
+        slot. Long messages are trimmed; only the last non-blank line
+        of a multi-line chunk is kept (libvcs's progress callback often
+        delivers multi-line bursts; only the most recent line is
+        interesting in the per-slot suffix).
+
+        In non-TTY mode (CI logs, ``capsys`` capture) the per-slot
+        suffix has no render path, so we fall through to the same
+        write-the-chunk-to-the-stream behaviour as
+        :meth:`add_output_line`. This keeps libvcs progress output
+        visible in log capture and pipelines.
+        """
+        if not self._enabled or slot < 0 or slot >= self._slot_count:
+            return
+        if not message:
+            return
+        if not self._tty:
+            payload = message if message.endswith("\n") else message + "\n"
+            self.write(payload)
+            return
+        last_line = ""
+        for line in message.splitlines():
+            candidate = line.rstrip()
+            if candidate:
+                last_line = candidate
+        if not last_line:
+            return
+        with self._lock:
+            current = self._slots[slot]
+            if current is not None:
+                current.last_message = last_line
+
     def repo(self, name: str) -> _RepoContext:
         """Context manager form of :meth:`start_repo` / :meth:`stop_repo`."""
         return _RepoContext(self, name)
@@ -304,11 +458,17 @@ class SyncStatusIndicator:
             return
         with self._lock:
             try:
-                if self._tty and (self._last_line_len or self._panel_visible_lines):
-                    # Walk back over the panel + spinner before printing
-                    # so the log record lands on a fresh row instead of
-                    # over-writing the trail. The next render redraws the
-                    # whole frame from scratch.
+                if self._tty and self._slot_count > 1 and self._prev_active_rows > 0:
+                    # Multi-slot: walk back over the active region (no panel).
+                    # The next render redraws the whole frame from scratch.
+                    self._stream.write(_CURSOR_TO_COL0 + _ERASE_LINE)
+                    for _ in range(self._prev_active_rows - 1):
+                        self._stream.write("\x1b[1A" + _ERASE_LINE)
+                    self._prev_active_rows = 0
+                elif self._tty and (self._last_line_len or self._panel_visible_lines):
+                    # Single-slot: walk back over the panel + spinner before
+                    # printing so the log record lands on a fresh row instead
+                    # of over-writing the trail.
                     self._stream.write(_CURSOR_TO_COL0 + _ERASE_LINE)
                     for _ in range(self._panel_visible_lines):
                         self._stream.write("\x1b[1A" + _ERASE_LINE)
@@ -333,10 +493,33 @@ class SyncStatusIndicator:
         self._thread = None
         if thread is not None:
             thread.join(timeout=1.0)
-        # Erase the whole frame (panel + spinner) on close, not just the
-        # spinner row -- otherwise leftover panel rows linger in
-        # scrollback when the indicator is closed mid-repo (e.g. on
-        # KeyboardInterrupt before ``stop_repo``).
+
+        # Multi-slot mode: drain any pending permanents the render thread
+        # never picked up (race between the last ``release_slot`` and the
+        # ``stop_event`` flip). They scroll into scrollback as plain lines.
+        if self._slot_count > 1 and self._pending_permanents:
+            with self._lock:
+                pending = self._pending_permanents
+                self._pending_permanents = []
+            try:
+                # Walk back over the active region once before emitting --
+                # otherwise the pending lines land BELOW the active rows
+                # which is the opposite of "scroll into scrollback".
+                if self._tty and self._prev_active_rows > 0:
+                    self._stream.write(_CURSOR_TO_COL0 + _ERASE_LINE)
+                    for _ in range(self._prev_active_rows - 1):
+                        self._stream.write("\x1b[1A" + _ERASE_LINE)
+                    self._prev_active_rows = 0
+                for line in pending:
+                    self._stream.write(line + "\n")
+                self._stream.flush()
+            except (OSError, ValueError):
+                pass
+
+        # Erase the whole frame (panel + spinner, or N slot rows) on close
+        # -- otherwise leftover panel rows linger in scrollback when the
+        # indicator is closed mid-repo (e.g. on KeyboardInterrupt before
+        # ``stop_repo``).
         self._clear_block()
         if self._cursor_hidden:
             try:
@@ -376,14 +559,17 @@ class SyncStatusIndicator:
         frames = itertools.cycle(_SPINNER_FRAMES)
         while not self._stop_event.is_set():
             frame = next(frames)
-            with self._lock:
-                name = self._active_repo
-                started = self._repo_started_at
-            if name is not None and started is not None:
-                elapsed = time.monotonic() - started
-                self._render_tty(frame, name, elapsed)
+            if self._slot_count > 1:
+                self._render_tty_multi(frame)
             else:
-                self._clear_line()
+                with self._lock:
+                    name = self._active_repo
+                    started = self._repo_started_at
+                if name is not None and started is not None:
+                    elapsed = time.monotonic() - started
+                    self._render_tty(frame, name, elapsed)
+                else:
+                    self._clear_line()
             self._stop_event.wait(_TTY_REFRESH_INTERVAL)
 
     def _render_tty(self, frame: str, name: str, elapsed: float) -> None:
@@ -450,6 +636,99 @@ class SyncStatusIndicator:
             except (OSError, ValueError):
                 pass
 
+    def _format_slot_row(
+        self,
+        frame: str,
+        slot: _Slot,
+        elapsed: float,
+    ) -> tuple[str, str]:
+        """Build the (visible, coloured) pair for one slot row.
+
+        ``visible`` is used for column-width tracking (no ANSI), ``coloured``
+        is the actual write payload. Mirrors :meth:`_render_tty`'s shape so
+        the multi-row render reads consistently with the single-row one.
+        """
+        coloured_frame = self._colors.info(frame)
+        coloured_name = self._colors.info(slot.name)
+        suffix = ""
+        if slot.last_message:
+            # Trim long messages to keep the row from wrapping. Libvcs
+            # progress chunks include things like ``Receiving objects:
+            # 100% (1234/1234)`` -- ~80 columns is enough for the part
+            # that matters.
+            short = slot.last_message[:80]
+            suffix = f"  {self._colors.muted(short)}"
+            visible_suffix = f"  {short}"
+        else:
+            visible_suffix = ""
+        visible = f"{frame} Syncing {slot.name} ... {elapsed:4.1f}s{visible_suffix}"
+        coloured = (
+            f"{coloured_frame} Syncing {coloured_name} ... {elapsed:4.1f}s{suffix}"
+        )
+        return visible, coloured
+
+    def _render_tty_multi(self, frame: str) -> None:
+        r"""Render the multi-row active region in one synchronized write.
+
+        Layout each frame:
+
+        - Walk up ``_prev_active_rows - 1`` rows (cursor sits at end of
+          previous frame's bottom row), then ``\r``.
+        - For each pending permanent line: ``ERASE_LINE + line + \n`` --
+          this is the cargo/pueue trick that scrolls one row out of the
+          active region into scrollback when we're at the viewport bottom.
+        - For each slot (idle or active): ``ERASE_LINE + content`` with
+          a trailing ``\n`` on every row except the last, so the cursor
+          stays at the end of the bottom slot row for the next frame's
+          walk-up math.
+
+        Idle slots render as blank rows so the active-region height is
+        constant at ``slot_count`` -- predictable geometry beats variable
+        height for the walk-up arithmetic.
+        """
+        with self._lock:
+            slots = list(self._slots)
+            pending = self._pending_permanents
+            self._pending_permanents = []
+            prev_rows = self._prev_active_rows
+            any_active = any(s is not None for s in slots)
+            # Nothing to draw, nothing previously drawn -- skip the tick.
+            if not pending and not any_active and prev_rows == 0:
+                return
+
+            now = time.monotonic()
+            parts: list[str] = [_SYNC_START]
+            if prev_rows > 0:
+                if prev_rows > 1:
+                    parts.append(f"\x1b[{prev_rows - 1}A")
+                parts.append(_CURSOR_TO_COL0)
+
+            # Drain pending permanents -- these scroll into scrollback.
+            parts.extend(_ERASE_LINE + permanent + "\n" for permanent in pending)
+
+            # Render each slot row. Idle slots render blank.
+            last_idx = len(slots) - 1
+            for idx, slot in enumerate(slots):
+                if slot is None:
+                    coloured = ""
+                else:
+                    elapsed = now - slot.started_at
+                    _, coloured = self._format_slot_row(frame, slot, elapsed)
+                if idx < last_idx:
+                    parts.append(_ERASE_LINE + coloured + "\n")
+                else:
+                    # Bottom row: no trailing \n so the cursor stays put
+                    # for the next frame's walk-up.
+                    parts.append(_ERASE_LINE + coloured)
+
+            parts.append(_SYNC_END)
+            try:
+                self._stream.write("".join(parts))
+                self._stream.flush()
+                self._prev_active_rows = len(slots)
+            except (OSError, ValueError):
+                pass
+
     def _emit_line(self, line: str) -> None:
         try:
             self._stream.write(line + "\n")
@@ -476,8 +755,24 @@ class SyncStatusIndicator:
         call lands on a clean row. Without this, the panel rows would
         stay sticky in scrollback and the ``stop_repo`` -> permanent-line
         transition would scroll-leak history.
+
+        In multi-slot mode the active region is ``_prev_active_rows`` tall
+        and the legacy single-row state is unused; walk back over the
+        slot rows instead of the panel + spinner row.
         """
         if not self._tty:
+            return
+        if self._slot_count > 1:
+            if self._prev_active_rows == 0:
+                return
+            try:
+                self._stream.write(_CURSOR_TO_COL0 + _ERASE_LINE)
+                for _ in range(self._prev_active_rows - 1):
+                    self._stream.write("\x1b[1A" + _ERASE_LINE)
+                self._stream.flush()
+            except (OSError, ValueError):
+                pass
+            self._prev_active_rows = 0
             return
         try:
             # Walk up panel rows + the spinner row, erasing each.
@@ -547,6 +842,7 @@ def build_indicator(
     tty: bool | None = None,
     colors: Colors | None = None,
     output_lines: int = _DEFAULT_OUTPUT_LINES,
+    slots: int = 1,
 ) -> SyncStatusIndicator:
     """Return a ``SyncStatusIndicator`` configured for the current session.
 
@@ -555,7 +851,9 @@ def build_indicator(
 
     ``output_lines`` controls the live-trail panel above the spinner:
     ``3`` (default) shows the last 3 streamed lines; ``0`` hides the
-    panel entirely; ``-1`` is unbounded.
+    panel entirely; ``-1`` is unbounded. ``slots > 1`` switches the
+    indicator into multi-row mode for parallel ``vcspull sync --jobs N``
+    runs and forces ``output_lines`` to ``0`` internally.
     """
     enabled = human and color != "never"
     # io.StringIO satisfies the TextIO protocol at runtime; tests use this to
@@ -571,4 +869,5 @@ def build_indicator(
         tty=tty,
         colors=resolved_colors,
         output_lines=output_lines,
+        slots=slots,
     )

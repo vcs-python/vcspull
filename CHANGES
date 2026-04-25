@@ -39,6 +39,44 @@ _Notes on upcoming releases will be added here_
 
 ### New features
 
+#### `vcspull sync`: parallel batch sync via `--jobs N`
+
+Sync up to N repositories in parallel (default `min(8, CPU*2)`). The
+batch's wallclock now scales with the slowest few repos rather than
+the sum of all of them -- a 50-repo workspace of already-up-to-date
+repos finishes in roughly ~1/Nth the time it used to.
+
+Tweak with `--jobs N` / `-j N` or the `VCSPULL_JOBS` environment
+variable. Pass `--jobs 1` to force the legacy single-spinner UX bit-
+for-bit. The `min(8, ...)` cap is empirical -- it stays polite to
+GitHub's per-IP rate limits while still saturating most local mirrors;
+big workspaces of 50+ repos may want `VCSPULL_JOBS=2-3` to avoid
+bursts.
+
+In a TTY, the indicator switches from a single spinner row + 3-line
+live-trail panel to a fixed-height active region of N spinner rows at
+the bottom of the terminal. Permanent `✓ Synced <name> → <path>`
+lines scroll into scrollback above the active region as repos finish
+-- the same trick `cargo build` and `pueue` use. The 3-line panel is
+disabled in multi-slot mode (a shared deque with N concurrent writers
+reads as noise); each slot's most-recent libvcs progress message
+becomes the per-row suffix instead.
+
+JSON / NDJSON events emit in completion order via
+`asyncio.as_completed`, matching the streaming model and using
+constant memory regardless of repo count.
+
+The orchestrator is asyncio-based (`asyncio.Semaphore(jobs)` +
+`asyncio.as_completed`) over per-task daemon threads. Daemon threads
+bridge libvcs's synchronous `update_repo` into the loop and avoid the
+default `ThreadPoolExecutor`'s atexit-join footgun: a wedged libvcs
+subprocess at interpreter shutdown would otherwise hang the process.
+
+`--exit-on-error` in parallel mode sets a stop event so queued tasks
+short-circuit before starting, but in-flight tasks are allowed to
+complete so their output is captured -- the user still sees what was
+already running.
+
 #### `vcspull sync`: collapsing 3-line live-trail above the spinner
 
 Streaming subprocess output (git's `From <url>`, `* [new branch]`,
