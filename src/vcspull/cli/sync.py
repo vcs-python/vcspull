@@ -648,7 +648,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
     parser.add_argument(
         "--timeout",
         dest="timeout",
-        type=int,
+        type=_positive_int_arg,
         default=None,
         metavar="SECONDS",
         help=(
@@ -718,8 +718,50 @@ class _SyncOutcome:
     duration: float = 0.0
 
 
+def _positive_int_arg(value: str) -> int:
+    """Validate ``--timeout`` accepts only positive integers.
+
+    A timeout of zero or negative seconds is meaningless: the watchdog
+    would either return immediately (timed out) or never (logically
+    invalid). The earlier permissive ``_resolve_repo_timeout`` silently
+    fell back to the default on these inputs, which masked typos like
+    ``--timeout -10`` (intended ``10``) where the user assumed the
+    flag had taken effect.
+
+    Examples
+    --------
+    >>> _positive_int_arg("60")
+    60
+    >>> _positive_int_arg("0")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --timeout must be a positive integer (got 0)
+    >>> _positive_int_arg("-5")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --timeout must be a positive integer (got -5)
+    >>> _positive_int_arg("abc")
+    Traceback (most recent call last):
+    ...
+    argparse.ArgumentTypeError: --timeout must be an integer (got 'abc')
+    """
+    try:
+        parsed = int(value)
+    except ValueError:
+        msg = f"--timeout must be an integer (got {value!r})"
+        raise argparse.ArgumentTypeError(msg) from None
+    if parsed <= 0:
+        msg = f"--timeout must be a positive integer (got {parsed})"
+        raise argparse.ArgumentTypeError(msg)
+    return parsed
+
+
 def _resolve_repo_timeout(cli_timeout: int | None) -> int:
     """Resolve the repo timeout from CLI flag / env var / built-in default.
+
+    Programmatic callers passing non-positive values still fall back to
+    the env/default ladder; the CLI surface enforces positive-int
+    semantics via :func:`_positive_int_arg` at parse time.
 
     Examples
     --------
