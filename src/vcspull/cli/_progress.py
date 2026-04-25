@@ -173,22 +173,79 @@ class SyncStatusIndicator:
             # ``Synced``/``Timed out`` leading-cap pattern.
             self._emit_line(f"Syncing {name}")
 
-    def stop_repo(self) -> None:
-        """Stop showing any active-repo indicator and collapse the panel."""
+    def stop_repo(self, final_line: str | None = None) -> bool:
+        """Stop the active-repo indicator and collapse the panel.
+
+        When ``final_line`` is provided AND the indicator is actively
+        rendering on a TTY, write ``final_line`` *as the spinner-erase*
+        in one atomic ANSI write (under the same lock the render loop
+        holds). The spinner row morphs in place into the permanent
+        line; panel rows above are erased; cursor advances to the row
+        below. Returns ``True`` when the line was written by the
+        indicator, so the caller can skip its own ``formatter.emit_text``
+        and avoid the double-print artefact reporters have seen.
+
+        Returns ``False`` when:
+        - the indicator is disabled (``--color=never``, JSON output);
+        - we're running headless (non-TTY pipe / CI / capsys);
+        - no ``final_line`` was provided (caller will emit_text itself).
+
+        In every False case the caller is responsible for printing its
+        own permanent line through the formatter as before.
+        """
         if not self._enabled:
-            return
+            return False
 
         with self._lock:
             self._active_repo = None
             self._repo_started_at = None
             self._last_heartbeat_at = None
+            panel_visible = self._panel_visible_lines
+            had_render = self._last_line_len > 0 or panel_visible > 0
             self._panel_buffer.clear()
 
-        if self._tty:
-            # Erase the panel + spinner row entirely; the main sync loop
-            # then prints the permanent ``✓ Synced ...`` line on a clean
-            # row, giving the "trail collapses" effect.
-            self._clear_block()
+            if not self._tty:
+                # Headless: nothing was drawn to erase, and the caller
+                # still needs to surface ``final_line`` themselves.
+                self._panel_visible_lines = 0
+                self._last_line_len = 0
+                return False
+
+            # Build the atomic clear (and optional replacement) under the
+            # lock so a concurrent spinner tick can't squeeze a stale
+            # frame in. Layout:
+            #
+            #   <walk up panel_visible rows from spinner>
+            #   <CR>
+            #   <erase + \n>  x panel_visible          # erase panel rows
+            #   <erase + final_line + \n>              # spinner row replaced
+            #
+            # When ``final_line`` is None we still walk + erase so the
+            # caller's ``formatter.emit_text`` lands on a fresh row, but
+            # we do NOT advance the cursor with a trailing ``\n`` -- the
+            # caller's own ``\n`` (via ``print``) does that.
+            parts: list[str] = [_SYNC_START]
+            if had_render:
+                if panel_visible > 0:
+                    parts.append(f"\x1b[{panel_visible}A")
+                parts.append(_CURSOR_TO_COL0)
+                # Erase panel rows row-by-row, descending.
+                parts.extend(_ERASE_LINE + "\n" for _ in range(panel_visible))
+                # We're now at the original spinner row.
+                if final_line is not None:
+                    parts.append(_ERASE_LINE + final_line + "\n")
+                else:
+                    parts.append(_ERASE_LINE)
+            parts.append(_SYNC_END)
+            try:
+                self._stream.write("".join(parts))
+                self._stream.flush()
+                self._last_line_len = 0
+                self._panel_visible_lines = 0
+            except (OSError, ValueError):
+                return False
+
+        return final_line is not None and had_render
 
     def add_output_line(self, text: str) -> None:
         """Push streamed subprocess output into the live trail panel.
@@ -341,49 +398,57 @@ class SyncStatusIndicator:
         coloured_name = self._colors.info(name)
         visible = f"{frame} Syncing {name} ... {elapsed:4.1f}s"
         line = f"{coloured_frame} Syncing {coloured_name} ... {elapsed:4.1f}s"
-        pad = max(self._last_line_len - len(visible), 0)
-        # Holding the lock around the actual write ensures a concurrent
-        # ``write()`` / ``add_output_line()`` (called by the stdout
-        # diverter on the main thread) can't begin mid-frame and end up
-        # fighting with the ``\r`` redraw. Also: snapshot the panel buffer
-        # under the lock so the deque can't mutate mid-render.
-        with self._lock:
-            panel_lines = list(self._panel_buffer)
-        # Cap the rendered panel at its declared height so a concurrent
-        # ``add_output_line`` racing the deque can't make us write more
-        # rows than ``stop_repo`` will later erase.
-        cap = self._panel_buffer.maxlen
-        if cap and cap > 0 and len(panel_lines) > cap:
-            panel_lines = panel_lines[-cap:]
-        new_panel_height = len(panel_lines)
 
-        # Build the frame as a single string so the synchronized-output
-        # bracket wraps the whole region atomically. Layout:
-        #
-        #   <move cursor up to top-of-previous-frame>
-        #   <erase + panel row 1>\n
-        #   <erase + panel row 2>\n
-        #   ...
-        #   <erase + spinner line>   (no trailing newline; cursor stays here)
-        parts: list[str] = [_SYNC_START]
-        if self._panel_visible_lines:
-            # Cursor sits at the spinner row; walk up to the first panel
-            # row of the previous frame.
-            parts.append(f"\x1b[{self._panel_visible_lines}A")
-        parts.append(_CURSOR_TO_COL0)
-        parts.extend(_ERASE_LINE + panel_line + "\n" for panel_line in panel_lines)
-        parts.append(_ERASE_LINE + line + (" " * pad))
-        parts.append(_SYNC_END)
-        try:
-            self._stream.write("".join(parts))
-            self._stream.flush()
-            # Track the *visible* column count (not the string length with
-            # ANSI codes), so the next frame's padding calculation clears
-            # exactly the on-screen cells the previous frame occupied.
-            self._last_line_len = len(visible)
-            self._panel_visible_lines = new_panel_height
-        except (OSError, ValueError):
-            pass
+        # Hold the lock for the entire render -- snapshot through write --
+        # so a concurrent ``stop_repo`` can't tear the frame mid-flight.
+        # Rich does the same (see ``rich/live.py`` ``_RefreshThread.run``
+        # which acquires ``self.live._lock`` around every refresh and
+        # re-checks ``done.is_set()`` inside the lock). The race we're
+        # closing: spinner thread captures ``name`` outside the lock, then
+        # main thread enters ``stop_repo`` and clears the screen, then the
+        # spinner thread (still mid-build) writes a stale frame on top of
+        # the new state -- producing the duplicate ``✓ Synced <repo>``
+        # artefact reporters have seen.
+        with self._lock:
+            # Re-check the active repo under the lock. If ``stop_repo``
+            # already cleared it, this tick is stale; skip the write so
+            # the next tick starts from a clean state.
+            if self._active_repo != name:
+                return
+            panel_lines = list(self._panel_buffer)
+            cap = self._panel_buffer.maxlen
+            if cap and cap > 0 and len(panel_lines) > cap:
+                panel_lines = panel_lines[-cap:]
+            new_panel_height = len(panel_lines)
+            pad = max(self._last_line_len - len(visible), 0)
+
+            # Build the frame as a single string so the synchronized-output
+            # bracket wraps the whole region atomically. Layout:
+            #
+            #   <move cursor up to top-of-previous-frame>
+            #   <erase + panel row 1>\n
+            #   <erase + panel row 2>\n
+            #   ...
+            #   <erase + spinner line>   (no trailing newline; cursor stays)
+            parts: list[str] = [_SYNC_START]
+            if self._panel_visible_lines:
+                # Cursor sits at the spinner row; walk up to the first
+                # panel row of the previous frame.
+                parts.append(f"\x1b[{self._panel_visible_lines}A")
+            parts.append(_CURSOR_TO_COL0)
+            parts.extend(_ERASE_LINE + panel_line + "\n" for panel_line in panel_lines)
+            parts.append(_ERASE_LINE + line + (" " * pad))
+            parts.append(_SYNC_END)
+            try:
+                self._stream.write("".join(parts))
+                self._stream.flush()
+                # Track the *visible* column count (not the string length
+                # with ANSI codes), so the next frame's padding clears
+                # exactly the on-screen cells the previous frame occupied.
+                self._last_line_len = len(visible)
+                self._panel_visible_lines = new_panel_height
+            except (OSError, ValueError):
+                pass
 
     def _emit_line(self, line: str) -> None:
         try:

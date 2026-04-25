@@ -385,3 +385,124 @@ def test_panel_clears_between_repos() -> None:
     # Fresh trail per repo: alpha's panel must NOT bleed into beta's.
     assert list(indicator._panel_buffer) == []
     indicator.close()
+
+
+def test_stop_repo_with_final_line_writes_atomically_and_returns_true() -> None:
+    r"""``stop_repo(final_line=...)`` writes one atomic clear+replace.
+
+    Regression for the user-reported flicker where ``Syncing flume``
+    transitioning to ``✓ Synced flume`` flashed through a blank state.
+    Today's fix: ``stop_repo`` accepts the permanent line and emits the
+    panel-erase + spinner-replacement inside a single ``\x1b[?2026h ...
+    \x1b[?2026l`` synchronized-output bracket so the terminal flips the
+    whole region atomically.
+
+    The method returns ``True`` to tell the caller it has owned the
+    print, so the sync loop skips its own ``formatter.emit_text`` and
+    avoids the double-emit that produced ``✓ Synced clap`` on two rows.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+
+    indicator.start_repo("clap")
+    # Pretend a render happened so ``had_render`` is true.
+    indicator._last_line_len = 25
+    indicator._panel_visible_lines = 2
+
+    wrote = indicator.stop_repo(final_line="✓ Synced clap → ~/study/rust/clap")
+
+    assert wrote is True
+    out = stream.getvalue()
+    # The atomic write block contains both the synchronized-output
+    # bracket and the permanent line.
+    assert "\x1b[?2026h" in out
+    assert "\x1b[?2026l" in out
+    assert "✓ Synced clap" in out
+    # Internal counters reset so the next ``start_repo`` starts clean.
+    assert indicator._panel_visible_lines == 0
+    assert indicator._last_line_len == 0
+    indicator.close()
+
+
+def test_stop_repo_without_final_line_returns_false() -> None:
+    """No ``final_line`` means caller still owns the permanent print.
+
+    The non-atomic path stays available for callers that don't have a
+    completion line to provide -- e.g. an early teardown on
+    KeyboardInterrupt. ``stop_repo()`` returns False so the existing
+    ``formatter.emit_text`` flow keeps working.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+
+    indicator.start_repo("clap")
+    indicator._last_line_len = 10
+    indicator._panel_visible_lines = 1
+
+    wrote = indicator.stop_repo()
+    assert wrote is False
+    assert indicator._panel_visible_lines == 0
+    indicator.close()
+
+
+def test_stop_repo_non_tty_always_returns_false() -> None:
+    """Non-TTY indicators leave printing to the caller's formatter.
+
+    In headless mode (pipes, CI, capsys), nothing was drawn to erase
+    and the spinner thread never started; the caller is responsible
+    for printing the permanent line via ``formatter.emit_text``. Even
+    when ``final_line`` is passed in, ``stop_repo`` returns False so
+    the caller fires its own emit_text and the headless capture
+    receives the line.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=False,
+        output_lines=3,
+    )
+
+    indicator.start_repo("clap")
+    wrote = indicator.stop_repo(final_line="✓ Synced clap → ~/")
+    assert wrote is False
+    # The non-TTY path emitted the start line on ``start_repo``; it
+    # does NOT emit the permanent line here -- the caller owns that.
+    assert "Syncing clap" in stream.getvalue()
+    assert "✓ Synced clap" not in stream.getvalue()
+
+
+def test_render_tty_skips_stale_tick_when_active_repo_changed() -> None:
+    """``_render_tty`` must skip writes for a stale (now-cleared) repo.
+
+    Reproduces the race where the spinner thread captured ``name`` =
+    "clap" before ``stop_repo`` cleared it; the prior render path then
+    wrote a stale frame on top of the new state. The fix: re-check
+    ``self._active_repo`` under the lock at the start of ``_render_tty``.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+
+    # Pretend the spinner thread captured ``name="clap"`` and is about
+    # to render, but ``stop_repo`` has just cleared ``_active_repo``.
+    indicator._active_repo = None
+    before = stream.getvalue()
+    indicator._render_tty(frame="⠋", name="clap", elapsed=0.5)
+    after = stream.getvalue()
+    # Stale tick: nothing should land on the stream.
+    assert after == before

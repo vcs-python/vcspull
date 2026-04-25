@@ -1468,13 +1468,30 @@ def _run_sync_loop(
             "workspace_root": str(workspace_label),
         }
 
-        with indicator.repo(repo_name):
+        # Manual ``start_repo`` / ``stop_repo`` instead of the
+        # ``with indicator.repo(...)`` context manager: we want
+        # ``stop_repo`` to receive the permanent line so the spinner
+        # collapse + completion print happen as ONE atomic ANSI write
+        # under the lock. The ``with`` form fires ``stop_repo()`` (no
+        # args) on exit, before we know the outcome -- which means the
+        # spinner clears, then the formatter writes the permanent line
+        # in a separate stream call. That two-step is the source of the
+        # flicker reporters have called out.
+        indicator.start_repo(repo_name)
+        try:
             outcome = _sync_repo_with_watchdog(
                 repo,
                 progress_callback=progress_callback,
                 timeout=repo_timeout,
                 is_human=is_human,
             )
+        except BaseException:
+            # Any exception (KeyboardInterrupt, runtime crash) tears the
+            # indicator down with no replacement line; the surrounding
+            # ``except KeyboardInterrupt`` in ``_sync_impl`` still owns
+            # the partial-summary print.
+            indicator.stop_repo()
+            raise
 
         if outcome.status == "timed_out":
             summary["timed_out"] += 1
@@ -1491,12 +1508,17 @@ def _run_sync_loop(
             event["duration_ms"] = int(outcome.duration * 1000)
             if outcome.captured_output:
                 event["details"] = outcome.captured_output.strip()
-            formatter.emit(event)
-            formatter.emit_text(
+            permanent = (
                 f"{colors.warning('-')} Timed out {colors.info(repo_name)} "
                 f"after {colors.warning(f'{outcome.duration:.1f}s')} "
-                f"{colors.muted('->')} {display_repo_path}",
+                f"{colors.muted('->')} {display_repo_path}"
             )
+            wrote_final = indicator.stop_repo(
+                final_line=permanent if is_human else None,
+            )
+            formatter.emit(event)
+            if not wrote_final:
+                formatter.emit_text(permanent)
             if exit_on_error:
                 _emit_rerun_recipe(
                     formatter,
@@ -1524,6 +1546,13 @@ def _run_sync_loop(
             event["error"] = err_msg
             if outcome.captured_output:
                 event["details"] = outcome.captured_output.strip()
+            permanent = (
+                f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
+                f"{colors.error(err_msg)}"
+            )
+            wrote_final = indicator.stop_repo(
+                final_line=permanent if is_human else None,
+            )
             formatter.emit(event)
             if is_human:
                 log.debug("Failed syncing %s", repo_name)
@@ -1531,10 +1560,8 @@ def _run_sync_loop(
                 import traceback
 
                 traceback.print_exception(type(err), err, err.__traceback__)
-            formatter.emit_text(
-                f"{colors.error('✗')} Failed syncing {colors.info(repo_name)}: "
-                f"{colors.error(err_msg)}",
-            )
+            if not wrote_final:
+                formatter.emit_text(permanent)
             if exit_on_error:
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()
@@ -1545,11 +1572,16 @@ def _run_sync_loop(
 
         summary["synced"] += 1
         event["status"] = "synced"
-        formatter.emit(event)
-        formatter.emit_text(
+        permanent = (
             f"{colors.success('✓')} Synced {colors.info(repo_name)} "
-            f"{colors.muted('→')} {display_repo_path}",
+            f"{colors.muted('→')} {display_repo_path}"
         )
+        wrote_final = indicator.stop_repo(
+            final_line=permanent if is_human else None,
+        )
+        formatter.emit(event)
+        if not wrote_final:
+            formatter.emit_text(permanent)
 
         # Sync worktrees if enabled and configured
         worktrees_config = repo.get("worktrees")
