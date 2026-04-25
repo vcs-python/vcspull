@@ -482,6 +482,141 @@ def test_stop_repo_non_tty_always_returns_false() -> None:
     assert "✓ Synced clap" not in stream.getvalue()
 
 
+def test_stop_repo_collapses_panel_rows_via_dl() -> None:
+    r"""``stop_repo(final_line=...)`` deletes panel rows with DL, not erase.
+
+    Regression: an earlier implementation walked up to the first panel
+    row and emitted ``\x1b[2K\n`` per row to "clear" the panel. That
+    only erased the row content -- the rows stayed in the buffer as
+    blanks, so successive ``✓ Synced ...`` lines were separated by
+    visible gaps proportional to whatever the previous repo's panel
+    height was at completion time (reported when chaining
+    ``vcspull sync ...; vcspull sync ...``).
+
+    Today's fix: after walking up, emit ``\x1b[Pn M`` (DL) once to
+    physically delete the panel rows from the buffer; the spinner
+    row's content scrolls up to the cursor and the subsequent
+    ``erase + final_line + \n`` morphs that row into the permanent
+    line in place. This test asserts the DL escape lands in the
+    output AND that the regressed ``\x1b[2K\n`` per-row pattern is
+    NOT present.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+
+    indicator.start_repo("clap")
+    indicator._last_line_len = 25
+    indicator._panel_visible_lines = 3
+
+    indicator.stop_repo(final_line="✓ Synced clap → ~/study/rust/clap")
+
+    out = stream.getvalue()
+    # Walk up panel_visible rows, then DL panel_visible rows.
+    assert "\x1b[3A" in out
+    assert "\x1b[3M" in out
+    # The regressed pattern: ``\x1b[2K\n`` per panel row would appear
+    # at least 3 times back-to-back. The new path uses DL once.
+    assert out.count("\x1b[2K\n") <= 1, (
+        "panel rows are being erased+newlined instead of DL'd; this "
+        "leaves blanks in scrollback"
+    )
+    indicator.close()
+
+
+def test_stop_repo_no_panel_skips_dl() -> None:
+    r"""``stop_repo`` omits DL when there are no panel rows to delete.
+
+    With ``_panel_visible_lines == 0`` only the spinner row needs to
+    be replaced; emitting ``\x1b[0M`` is meaningless (DL of zero
+    rows) and even ``\x1b[A`` would walk above the spinner, so the
+    walk-up + DL pair is skipped entirely.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+
+    indicator.start_repo("clap")
+    indicator._last_line_len = 25
+    indicator._panel_visible_lines = 0
+
+    indicator.stop_repo(final_line="✓ Synced clap → ~/study/rust/clap")
+
+    out = stream.getvalue()
+    # No panel-collapse machinery should appear when there's nothing
+    # to collapse: no upward walk, no DL.
+    assert "\x1b[0A" not in out
+    assert "\x1b[0M" not in out
+    # The spinner-row replacement still lands.
+    assert "✓ Synced clap" in out
+    indicator.close()
+
+
+def test_stop_repo_panel_with_no_final_line_still_collapses() -> None:
+    r"""``stop_repo()`` (no ``final_line``) still collapses panel rows.
+
+    The early-teardown path (e.g. KeyboardInterrupt before the outcome
+    is known) calls ``stop_repo()`` with no replacement line. The
+    panel must still be DL'd so the caller's subsequent
+    ``formatter.emit_text`` lands without a stack of blank rows above
+    it.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+
+    indicator.start_repo("clap")
+    indicator._last_line_len = 25
+    indicator._panel_visible_lines = 2
+
+    wrote = indicator.stop_repo()
+
+    out = stream.getvalue()
+    assert wrote is False  # caller still owns the permanent print
+    assert "\x1b[2A" in out
+    assert "\x1b[2M" in out
+    assert indicator._panel_visible_lines == 0
+    indicator.close()
+
+
+def test_clear_block_uses_dl_to_remove_panel_and_spinner() -> None:
+    r"""``_clear_block`` deletes panel rows + spinner via a single DL.
+
+    Used from ``close()`` (and historically from teardown paths).
+    Walks up to the first panel row, then DLs ``panel + 1`` rows so
+    the entire frame is removed from the buffer in one operation.
+    """
+    stream = io.StringIO()
+    indicator = SyncStatusIndicator(
+        enabled=True,
+        stream=stream,
+        tty=True,
+        output_lines=3,
+    )
+
+    indicator._panel_visible_lines = 3
+    indicator._clear_block()
+
+    out = stream.getvalue()
+    # Walk up panel rows, then DL panel + spinner together.
+    assert "\x1b[3A" in out
+    assert "\x1b[4M" in out
+    assert indicator._panel_visible_lines == 0
+    indicator.close()
+
+
 def test_render_tty_skips_stale_tick_when_active_repo_changed() -> None:
     """``_render_tty`` must skip writes for a stale (now-cleared) repo.
 

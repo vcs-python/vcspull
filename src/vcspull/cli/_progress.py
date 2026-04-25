@@ -217,21 +217,24 @@ class SyncStatusIndicator:
             #
             #   <walk up panel_visible rows from spinner>
             #   <CR>
-            #   <erase + \n>  x panel_visible          # erase panel rows
-            #   <erase + final_line + \n>              # spinner row replaced
+            #   <DL panel_visible>     # physically remove panel rows
+            #   <erase + final_line + \n>      # spinner row replaced
             #
-            # When ``final_line`` is None we still walk + erase so the
-            # caller's ``formatter.emit_text`` lands on a fresh row, but
-            # we do NOT advance the cursor with a trailing ``\n`` -- the
-            # caller's own ``\n`` (via ``print``) does that.
+            # DL (``\x1b[Pn M``) deletes lines and scrolls subsequent
+            # rows up to fill, so the spinner row's content lands at the
+            # cursor row (where the first panel row used to be) and we
+            # erase+replace it with ``final_line``. The earlier
+            # ``\x1b[2K\n`` per-panel-row pattern only erased *content*;
+            # the rows stayed in scrollback as blanks, leaving visible
+            # gaps between successive ``✓ Synced ...`` lines.
             parts: list[str] = [_SYNC_START]
             if had_render:
                 if panel_visible > 0:
                     parts.append(f"\x1b[{panel_visible}A")
-                parts.append(_CURSOR_TO_COL0)
-                # Erase panel rows row-by-row, descending.
-                parts.extend(_ERASE_LINE + "\n" for _ in range(panel_visible))
-                # We're now at the original spinner row.
+                    parts.append(_CURSOR_TO_COL0)
+                    parts.append(f"\x1b[{panel_visible}M")
+                else:
+                    parts.append(_CURSOR_TO_COL0)
                 if final_line is not None:
                     parts.append(_ERASE_LINE + final_line + "\n")
                 else:
@@ -469,21 +472,25 @@ class SyncStatusIndicator:
         self._last_line_len = 0
 
     def _clear_block(self) -> None:
-        """Erase the spinner row AND any rendered panel rows above it.
+        r"""Delete the spinner row AND any rendered panel rows above it.
 
         Used by :meth:`stop_repo` (and :meth:`close`) to collapse the
         live trail so the next ``formatter.emit_text("✓ Synced ...")``
-        call lands on a clean row. Without this, the panel rows would
-        stay sticky in scrollback and the ``stop_repo`` -> permanent-line
-        transition would scroll-leak history.
+        call lands on a clean row. We use DL (``\x1b[Pn M``) to *remove*
+        the rows from the buffer; an earlier implementation walked up
+        and only erased their content with ``\x1b[2K``, which left the
+        rows in scrollback as blanks and produced visible gaps between
+        successive permanent lines.
         """
         if not self._tty:
             return
+        total = self._panel_visible_lines + 1  # panel rows + spinner row
         try:
-            # Walk up panel rows + the spinner row, erasing each.
-            self._stream.write(_CURSOR_TO_COL0 + _ERASE_LINE)
-            for _ in range(self._panel_visible_lines):
-                self._stream.write("\x1b[1A" + _ERASE_LINE)
+            if self._panel_visible_lines:
+                # Walk up to the first panel row before deleting so DL
+                # consumes the panel + spinner together.
+                self._stream.write(f"\x1b[{self._panel_visible_lines}A")
+            self._stream.write(f"{_CURSOR_TO_COL0}\x1b[{total}M")
             self._stream.flush()
         except (OSError, ValueError):
             pass
