@@ -677,9 +677,10 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         metavar="PATH",
         default=None,
         help=(
-            "write a debug log to PATH (default: $TMPDIR/vcspull-debug-<ts>-"
-            "<pid>.log). The path is only printed to the terminal when a sync "
-            "fails or times out, matching npm/pnpm/yarn."
+            "write a debug log to PATH (default: $TMPDIR/vcspull/debug-<ts>-"
+            "<pid>.log; $TMPDIR/vcspull-test/... under pytest). The path is "
+            "only printed to the terminal when a sync fails or times out, "
+            "matching npm/pnpm/yarn."
         ),
     )
     parser.add_argument(

@@ -356,19 +356,31 @@ def default_debug_log_path() -> pathlib.Path:
     but its path is only surfaced to the user when something went wrong
     (failure or timeout), so clean runs stay quiet.
 
+    Logs land under a ``vcspull/`` subdirectory of the system tempdir
+    (e.g. ``/tmp/vcspull/debug-<ts>-<pid>.log``) so the dir name in
+    ``/tmp/`` is self-describing instead of relying on a ``vcspull-``
+    file prefix that gets lost in a busy tempdir. Under pytest
+    (``PYTEST_CURRENT_TEST`` is set) the subdirectory is
+    ``vcspull-test/`` instead -- an automatic safety net so tests that
+    incidentally invoke this helper without redirecting ``TMPDIR``
+    can't pollute the production log dir.
+
     Examples
     --------
     >>> path = default_debug_log_path()
-    >>> path.name.startswith("vcspull-debug-")
+    >>> path.name.startswith("debug-")
     True
     >>> path.suffix
     '.log'
-    >>> path.parent == pathlib.Path(tempfile.gettempdir())
+    >>> path.parent.name in {"vcspull", "vcspull-test"}
+    True
+    >>> path.parent.parent == pathlib.Path(tempfile.gettempdir())
     True
     """
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     pid = os.getpid()
-    return pathlib.Path(tempfile.gettempdir()) / f"vcspull-debug-{stamp}-{pid}.log"
+    subdir = "vcspull-test" if "PYTEST_CURRENT_TEST" in os.environ else "vcspull"
+    return pathlib.Path(tempfile.gettempdir()) / subdir / f"debug-{stamp}-{pid}.log"
 
 
 def setup_file_logger(

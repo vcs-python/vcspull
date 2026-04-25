@@ -26,10 +26,16 @@ def test_default_debug_log_path_lives_in_tempdir(
 
     path = default_debug_log_path()
 
-    # The file name must start with the prefix that downstream tooling (CI log
-    # collection, grep for "npm-debug"-style artefacts) can pattern-match on.
-    assert path.name.startswith("vcspull-debug-")
+    # The file name pattern downstream tooling can grep for is ``debug-<ts>-
+    # <pid>.log``; the ``vcspull`` (or ``vcspull-test``) parent directory
+    # carries the project label so a glance at ``/tmp/`` is self-describing.
+    assert path.name.startswith("debug-")
     assert path.suffix == ".log"
+    # Pytest sets ``PYTEST_CURRENT_TEST`` during test collection AND
+    # execution, so ``default_debug_log_path`` always picks the test dir
+    # here -- the production ``vcspull/`` dir is only used outside the
+    # test runner.
+    assert path.parent.name == "vcspull-test"
 
 
 def test_setup_file_logger_attaches_debug_handler(
@@ -146,5 +152,5 @@ def test_default_debug_log_path_encodes_distinct_invocations(
     second = default_debug_log_path()
 
     assert first != second
-    assert first.name.startswith("vcspull-debug-20260424")
-    assert second.name.startswith("vcspull-debug-20260424")
+    assert first.name.startswith("debug-20260424")
+    assert second.name.startswith("debug-20260424")
