@@ -141,7 +141,23 @@ build-backend = "hatchling.build"
 # ``uv sync`` until the cooldown clears. ``false`` exempts libvcs from
 # any ``exclude-newer`` constraint (global or per-user) without
 # committing a date that would age into the lockfile.
+
+gp-libs = false
+gp-sphinx = false
 libvcs = false
+sphinx-autodoc-api-style = false
+sphinx-autodoc-argparse = false
+sphinx-autodoc-docutils = false
+sphinx-autodoc-fastmcp = false
+sphinx-autodoc-pytest-fixtures = false
+sphinx-autodoc-sphinx = false
+sphinx-autodoc-typehints-gp = false
+sphinx-fonts = false
+sphinx-gp-opengraph = false
+sphinx-gp-sitemap = false
+sphinx-gp-theme = false
+sphinx-ux-autodoc-layout = false
+sphinx-ux-badges = false
 
 [tool.mypy]
 python_version = "3.10"
