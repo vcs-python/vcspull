@@ -70,9 +70,9 @@ vcspull = "vcspull:cli.cli"
 [dependency-groups]
 dev = [
   # Docs
-  "gp-sphinx==0.0.1a9",
-  "sphinx-autodoc-argparse==0.0.1a9",
-  "sphinx-autodoc-api-style==0.0.1a9",
+  "gp-sphinx==0.0.1a10",
+  "sphinx-autodoc-argparse==0.0.1a10",
+  "sphinx-autodoc-api-style==0.0.1a10",
   "gp-libs",
   "sphinx-autobuild",
   # Testing
@@ -99,9 +99,9 @@ dev = [
 ]
 
 docs = [
-  "gp-sphinx==0.0.1a9",
-  "sphinx-autodoc-argparse==0.0.1a9",
-  "sphinx-autodoc-api-style==0.0.1a9",
+  "gp-sphinx==0.0.1a10",
+  "sphinx-autodoc-argparse==0.0.1a10",
+  "sphinx-autodoc-api-style==0.0.1a10",
   "gp-libs",
   "sphinx-autobuild",
 ]
