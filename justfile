@@ -76,6 +76,11 @@ watch-ruff:
 mypy:
     uv run mypy $({{ py_files }})
 
+# Check for undeclared runtime dependencies
+[group: 'lint']
+check-deps:
+    python .github/scripts/check_deps.py
+
 # Watch files and run mypy on change
 [group: 'lint']
 watch-mypy:
