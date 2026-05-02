@@ -70,9 +70,9 @@ vcspull = "vcspull:cli.cli"
 [dependency-groups]
 dev = [
   # Docs
-  "gp-sphinx==0.0.1a14",
-  "sphinx-autodoc-argparse==0.0.1a14",
-  "sphinx-autodoc-api-style==0.0.1a14",
+  "gp-sphinx==0.0.1a15",
+  "sphinx-autodoc-argparse==0.0.1a15",
+  "sphinx-autodoc-api-style==0.0.1a15",
   "gp-libs",
   "sphinx-autobuild",
   # Testing
@@ -99,9 +99,9 @@ dev = [
 ]
 
 docs = [
-  "gp-sphinx==0.0.1a14",
-  "sphinx-autodoc-argparse==0.0.1a14",
-  "sphinx-autodoc-api-style==0.0.1a14",
+  "gp-sphinx==0.0.1a15",
+  "sphinx-autodoc-argparse==0.0.1a15",
+  "sphinx-autodoc-api-style==0.0.1a15",
   "gp-libs",
   "sphinx-autobuild",
 ]
@@ -143,7 +143,9 @@ build-backend = "hatchling.build"
 # committing a date that would age into the lockfile.
 
 gp-libs = false
+gp-furo-theme = false
 gp-sphinx = false
+gp-sphinx-vite = false
 libvcs = false
 sphinx-autodoc-api-style = false
 sphinx-autodoc-argparse = false
