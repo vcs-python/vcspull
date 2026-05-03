@@ -70,9 +70,9 @@ vcspull = "vcspull:cli.cli"
 [dependency-groups]
 dev = [
   # Docs
-  "gp-sphinx==0.0.1a13",
-  "sphinx-autodoc-argparse==0.0.1a13",
-  "sphinx-autodoc-api-style==0.0.1a13",
+  "gp-sphinx==0.0.1a16.dev4",
+  "sphinx-autodoc-argparse==0.0.1a16.dev4",
+  "sphinx-autodoc-api-style==0.0.1a16.dev4",
   "gp-libs",
   "sphinx-autobuild",
   # Testing
@@ -99,9 +99,9 @@ dev = [
 ]
 
 docs = [
-  "gp-sphinx==0.0.1a13",
-  "sphinx-autodoc-argparse==0.0.1a13",
-  "sphinx-autodoc-api-style==0.0.1a13",
+  "gp-sphinx==0.0.1a16.dev4",
+  "sphinx-autodoc-argparse==0.0.1a16.dev4",
+  "sphinx-autodoc-api-style==0.0.1a16.dev4",
   "gp-libs",
   "sphinx-autobuild",
 ]
@@ -135,6 +135,13 @@ typings = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv]
+# `[DO NOT MERGE]`: gp-sphinx workspace ships on the 0.0.1a16.devN
+# pre-release track until the sphinx-vite-builder integration is
+# proven end-to-end. uv otherwise refuses to resolve `*.dev4`
+# markers without this allow.
+prerelease = "allow"
+
 [tool.uv.exclude-newer-package]
 # vcspull's release cadence is tightly coupled to libvcs -- a libvcs
 # release blocking on a 3-day cooldown blocks every contributor's
@@ -145,7 +152,6 @@ build-backend = "hatchling.build"
 gp-libs = false
 gp-furo-theme = false
 gp-sphinx = false
-gp-sphinx-vite = false
 libvcs = false
 sphinx-autodoc-api-style = false
 sphinx-autodoc-argparse = false
