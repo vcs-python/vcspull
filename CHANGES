@@ -37,6 +37,12 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Documentation
+
+- Bump gp-sphinx docs stack to v0.0.1a16 — docs site now renders
+  via `gp-furo-theme`, a Tailwind v4 respin of Furo, with
+  `sphinx-vite-builder` handling theme-asset builds (#547)
+
 ## vcspull v1.59.0 (2026-04-25)
 
 ### Breaking changes
