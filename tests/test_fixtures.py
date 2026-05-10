@@ -37,7 +37,7 @@ def test_git_commit_envvars_in_environment(
 
 def test_home_contains_gitconfig(
     set_home: pathlib.Path,
-    gitconfig: pathlib.Path,
+    vcs_gitconfig: pathlib.Path,
 ) -> None:
     """HOME should point to a directory containing .gitconfig."""
     home = os.environ.get("HOME", "")
@@ -136,7 +136,7 @@ import pytest
 def setup(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
-    gitconfig: pathlib.Path,
+    vcs_gitconfig: pathlib.Path,
     set_home: pathlib.Path,
     git_commit_envvars: dict[str, str],
 ) -> None:

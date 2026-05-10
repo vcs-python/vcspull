@@ -38,7 +38,7 @@ def add_doctest_fixtures(
 def setup(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
-    gitconfig: pathlib.Path,
+    vcs_gitconfig: pathlib.Path,
     set_home: pathlib.Path,
     xdg_config_path: pathlib.Path,
     git_commit_envvars: dict[str, str],
