@@ -43,19 +43,35 @@ class Colors:
     def _should_enable_color(self) -> bool:
         """Determine if color should be enabled.
 
+        Explicit color modes are command choices and take precedence over
+        environment defaults:
+
+        >>> import os
+        >>> from vcspull.cli._colors import ColorMode, Colors
+        >>> previous = os.environ.get("NO_COLOR")
+        >>> os.environ["NO_COLOR"] = "1"
+        >>> Colors(ColorMode.ALWAYS)._should_enable_color()
+        True
+        >>> Colors(ColorMode.NEVER)._should_enable_color()
+        False
+        >>> if previous is None:
+        ...     _ = os.environ.pop("NO_COLOR", None)
+        ... else:
+        ...     os.environ["NO_COLOR"] = previous
+
         Returns
         -------
         bool
             True if colors should be enabled
         """
-        # Respect NO_COLOR environment variable
-        if os.environ.get("NO_COLOR"):
-            return False
-
         if self.mode == ColorMode.NEVER:
             return False
         if self.mode == ColorMode.ALWAYS:
             return True
+
+        # Respect NO_COLOR environment variable for AUTO mode.
+        if os.environ.get("NO_COLOR"):
+            return False
 
         # AUTO mode: check if stdout is a TTY
         return sys.stdout.isatty()
