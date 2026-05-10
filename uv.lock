@@ -1644,7 +1644,7 @@ wheels = [
 
 [[package]]
 name = "vcspull"
-version = "1.59.0"
+version = "1.60.0"
 source = { editable = "." }
 dependencies = [
     { name = "colorama" },
