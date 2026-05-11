@@ -70,9 +70,9 @@ vcspull = "vcspull:cli.cli"
 [dependency-groups]
 dev = [
   # Docs
-  "gp-sphinx==0.0.1a18.dev0",
-  "sphinx-autodoc-argparse==0.0.1a18.dev0",
-  "sphinx-autodoc-api-style==0.0.1a18.dev0",
+  "gp-sphinx==0.0.1a18",
+  "sphinx-autodoc-argparse==0.0.1a18",
+  "sphinx-autodoc-api-style==0.0.1a18",
   "gp-libs",
   "sphinx-autobuild",
   # Testing
@@ -99,9 +99,9 @@ dev = [
 ]
 
 docs = [
-  "gp-sphinx==0.0.1a18.dev0",
-  "sphinx-autodoc-argparse==0.0.1a18.dev0",
-  "sphinx-autodoc-api-style==0.0.1a18.dev0",
+  "gp-sphinx==0.0.1a18",
+  "sphinx-autodoc-argparse==0.0.1a18",
+  "sphinx-autodoc-api-style==0.0.1a18",
   "gp-libs",
   "sphinx-autobuild",
 ]
@@ -134,13 +134,6 @@ typings = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.uv]
-# `[DO NOT MERGE]`: gp-sphinx workspace ships on the 0.0.1a18.devN
-# pre-release track until PR git-pull/gp-sphinx#36 is proven
-# end-to-end. uv otherwise refuses to resolve `*.dev0` markers
-# without this allow.
-prerelease = "allow"
 
 [tool.uv.exclude-newer-package]
 # vcspull's release cadence is tightly coupled to libvcs -- a libvcs
