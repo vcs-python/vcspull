@@ -37,6 +37,8 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+## vcspull v1.60.1 (2026-05-16)
+
 ### Development
 
 #### Test suite works under distro relative-`PYTHONPATH` builds (#549)
