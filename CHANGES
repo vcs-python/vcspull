@@ -37,6 +37,15 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Development
+
+#### Test suite works under distro relative-`PYTHONPATH` builds (#549)
+
+Distributions that test built wheels by staging them into a directory
+and pointing pytest at that directory via a relative `PYTHONPATH` entry
+from the source tree (the common Arch Linux PKGBUILD pattern) can now
+run vcspull's full test suite end to end.
+
 ## vcspull v1.60.0 (2026-05-18)
 
 vcspull v1.60.0 is a maintenance release for the May 2026 docs and
