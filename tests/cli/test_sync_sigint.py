@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
+import pathlib
 import signal
 import subprocess
 import sys
@@ -55,7 +57,24 @@ def test_exit_on_sigint_produces_wifsignaled_sigint() -> None:
         "    _exit_on_sigint()\n"
     )
 
-    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    # Pin the child's import path to wherever the parent loaded vcspull from.
+    # The root conftest's autouse ``cwd_default`` chdirs every test into a
+    # per-test ``tmp_path``, which the subprocess inherits as its CWD. Build
+    # environments that hand vcspull to pytest via a *relative* ``PYTHONPATH``
+    # entry (e.g. Arch's ``tmp_install/usr/lib/pythonX.Y/site-packages``)
+    # would then resolve that entry against the tmp dir and fail to import
+    # vcspull. Prepending the parent's resolved package dir keeps the child
+    # importable regardless of the surrounding install style.
+    vcspull_spec = importlib.util.find_spec("vcspull")
+    assert vcspull_spec is not None and vcspull_spec.origin is not None
+    vcspull_parent = str(pathlib.Path(vcspull_spec.origin).resolve().parent.parent)
+    env = {
+        **os.environ,
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPATH": os.pathsep.join(
+            p for p in (vcspull_parent, os.environ.get("PYTHONPATH", "")) if p
+        ),
+    }
 
     proc = subprocess.run(
         [sys.executable, "-c", runner],
