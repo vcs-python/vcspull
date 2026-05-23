@@ -304,6 +304,15 @@ def test_vcspull_sync(git_repo):
     # git_repo is already a GitSync instance with a clean repository
     # Use it directly in your tests
 ```
+#### Release commits
+
+Never create tags. Never push tags. The user handles tagging and tag
+pushes (tags trigger the CI publish workflow).
+
+Release commit subjects are plain and short: `Tag v<version>`. Put
+the detailed why/what in the commit body. Don't use the
+`Scope(type[detail]):` format for releases — don't bury the lede.
+
 For multi-line commits, use heredoc to preserve formatting:
 ```bash
 git commit -m "$(cat <<'EOF'
