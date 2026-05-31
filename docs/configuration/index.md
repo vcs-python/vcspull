@@ -119,11 +119,18 @@ Optional fields:
 
 See {ref}`cli-worktree` for full command documentation.
 
-## Revision pinning
+## Sync options
 
-A `rev:` key pins a repository to a commit, tag, or branch, which {ref}`cli-sync`
-checks out. This lets a config capture a reproducible snapshot instead of
-tracking the branch tip. It is distinct from `options.pin` (see
+Per-repository sync behavior lives under an `options:` block alongside the
+`repo` URL. The keys below tune how {ref}`cli-sync` clones and updates a
+checkout. Mutation policy such as `pin` lives in the same block (see
+{ref}`config-pin`).
+
+### Revision pinning
+
+`options.rev` pins a repository to a commit, tag, or branch, which
+{ref}`cli-sync` checks out. This lets a config capture a reproducible snapshot
+instead of tracking the branch tip. It is distinct from `options.pin` (see
 {ref}`config-pin`), which guards the config entry from being overwritten rather
 than pinning a git ref.
 
@@ -131,16 +138,17 @@ than pinning a git ref.
 ~/code/:
   flask:
     repo: git+https://github.com/pallets/flask.git
-    rev: v3.0.0
+    options:
+      rev: v3.0.0
 ```
 
 `vcspull add <path> --pin <ref>` and `vcspull discover <dir> --pin <ref>` record
 this key when importing an existing checkout. See {ref}`cli-add` and
 {ref}`cli-discover`.
 
-## Shallow clones
+### Shallow clones
 
-A `shallow: true` key makes {ref}`cli-sync` clone the repository with
+`options.shallow: true` makes {ref}`cli-sync` clone the repository with
 `--depth 1`, trading git history for disk and time—useful for workspaces with
 many repositories.
 
@@ -148,12 +156,43 @@ many repositories.
 ~/code/:
   flask:
     repo: git+https://github.com/pallets/flask.git
-    shallow: true
+    options:
+      shallow: true
 ```
 
-`vcspull add` and `vcspull discover` detect an existing shallow checkout
-automatically and record `shallow: true`; the `--shallow` flag forces it on even
-for a full checkout.
+`vcspull add` and `vcspull discover` detect an existing depth-1 checkout
+automatically and record `options.shallow: true`; the `--shallow` flag forces it
+on even for a full checkout.
+
+### Clone depth
+
+`options.depth: N` keeps a small window of history by cloning with `--depth N`.
+Reach for it when `shallow: true` (depth 1) is too little—for example, a handful
+of recent commits for `git log` or `git bisect`.
+
+```yaml
+~/code/:
+  django:
+    repo: git+https://github.com/django/django.git
+    options:
+      depth: 50
+```
+
+`vcspull add <path> --depth N` and `vcspull discover <dir> --depth N` record this
+key. When importing an existing shallow checkout, both detect its depth: a
+depth-1 checkout records `options.shallow: true` and a deeper window records
+`options.depth: N`. `depth` takes precedence over `shallow` when both are set.
+
+### Migrating from the top-level form
+
+vcspull v1.61.0 accepted `rev:` and `shallow:` at the repository entry root.
+Those keys still work but are deprecated in favor of the `options:` block, and
+{ref}`cli-sync` warns when it reads them. Run {ref}`cli-migrate` to rewrite
+existing configs in place:
+
+```console
+$ vcspull migrate --write
+```
 
 (config-pin)=
 

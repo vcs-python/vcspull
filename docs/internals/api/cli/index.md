@@ -17,6 +17,7 @@ search
 status
 worktree
 fmt
+migrate
 ```
 
 ## vcspull CLI - `vcspull.cli`

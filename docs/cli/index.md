@@ -49,6 +49,12 @@ Scan directories for existing repos.
 Normalize and format config files.
 :::
 
+:::{grid-item-card} vcspull migrate
+:link: migrate
+:link-type: doc
+Move rev/shallow/depth under options:.
+:::
+
 :::{grid-item-card} vcspull import
 :link: import/index
 :link-type: doc
@@ -82,6 +88,7 @@ search
 status
 worktree/index
 fmt
+migrate
 ```
 
 ```{toctree}
@@ -105,5 +112,5 @@ completion
     :nosubcommands:
 
     subparser_name : @replace
-        See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-import`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-search`, :ref:`cli-status`, :ref:`cli-worktree`, :ref:`cli-fmt`
+        See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-import`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-search`, :ref:`cli-status`, :ref:`cli-worktree`, :ref:`cli-fmt`, :ref:`cli-migrate`
 ```
