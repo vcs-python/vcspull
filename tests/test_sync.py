@@ -649,7 +649,10 @@ def test_load_configs_warns_on_legacy_options(
         load_configs([config_file], warn_legacy_options=True)
 
     legacy_records = [
-        record for record in caplog.records if hasattr(record, "vcspull_config_path")
+        record
+        for record in caplog.records
+        if hasattr(record, "vcspull_config_path")
+        and hasattr(record, "vcspull_legacy_count")
     ]
 
     if not expect_warning:
@@ -662,6 +665,4 @@ def test_load_configs_warns_on_legacy_options(
     assert record.levelno == logging.WARNING
     assert "vcspull migrate" in record.getMessage()
     assert record.vcspull_config_path == str(config_file)
-
-    affected = record.getMessage().split("Affected: ", 1)[1]
-    assert len([entry for entry in affected.split(", ") if entry]) == affected_count
+    assert record.vcspull_legacy_count == affected_count

@@ -599,7 +599,10 @@ def load_configs(
                     "under 'options:' (run 'vcspull migrate'). Affected: %s",
                     file,
                     affected,
-                    extra={"vcspull_config_path": str(file)},
+                    extra={
+                        "vcspull_config_path": str(file),
+                        "vcspull_legacy_count": len(legacy_entries),
+                    },
                 )
 
         assert is_valid_config(config_content)
