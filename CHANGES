@@ -37,6 +37,14 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+## vcspull v1.61.0 (2026-05-30)
+
+vcspull v1.61.0 lets `add` and `discover` capture per-repository git state when
+importing an existing checkout, so a config can describe a reproducible snapshot
+rather than only a URL. Pin a revision with `--pin <ref>`, and an existing
+shallow checkout is detected (or forced with `--shallow`) and honored on the
+next `sync`.
+
 ### What's new
 
 #### Pin a repository to a fixed ref (#551)
