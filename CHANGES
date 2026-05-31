@@ -31,11 +31,21 @@ $ uv add vcspull --prerelease allow
 $ uvx --from 'vcspull' --prerelease allow vcspull
 ```
 
-## vcspull v1.61.x (unreleased)
+## vcspull v1.63.x (unreleased)
 
 <!-- KEEP THIS PLACEHOLDER - DO NOT REMOVE OR MODIFY THIS LINE -->
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
+
+## vcspull v1.62.0 (2026-05-31)
+
+vcspull v1.62.0 lets a workspace keep a small window of git history per
+repository with a numeric `options.depth: N`, instead of the all-or-nothing
+`shallow: true`. The per-repository sync keys—`rev`, `shallow`, and `depth`—now
+live under an `options:` block, and the new `vcspull migrate` command rewrites
+configs from the deprecated top-level form. The old top-level keys are still
+read (with a warning on `sync`), so existing configs keep working until you
+migrate.
 
 ### Breaking changes
 
