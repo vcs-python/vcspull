@@ -29,6 +29,7 @@ from vcspull.config import (
     extract_repos,
     filter_repos,
     load_configs,
+    save_config_yaml,
 )
 from vcspull.validator import is_valid_config
 
@@ -548,24 +549,101 @@ def test_update_repo_git_depth(
     assert detect_git_depth(result.path) == 2
 
 
+class LegacyWarningFixture(t.NamedTuple):
+    """Fixture for the legacy top-level-keys deprecation warning."""
+
+    test_id: str
+    config: dict[str, t.Any]
+    expect_warning: bool
+    affected_count: int
+
+
+_REPO = "git+https://github.com/pallets/flask.git"
+
+LEGACY_WARNING_FIXTURES: list[LegacyWarningFixture] = [
+    LegacyWarningFixture(
+        test_id="legacy-rev",
+        config={"~/code/": {"flask": {"repo": _REPO, "rev": "v1"}}},
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="legacy-shallow",
+        config={"~/code/": {"flask": {"repo": _REPO, "shallow": True}}},
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="legacy-depth",
+        config={"~/code/": {"flask": {"repo": _REPO, "depth": 3}}},
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="legacy-combo",
+        config={
+            "~/code/": {
+                "flask": {"repo": _REPO, "rev": "v1", "shallow": True, "depth": 3}
+            }
+        },
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="multiple-legacy",
+        config={
+            "~/code/": {
+                "a": {"repo": _REPO, "rev": "v1"},
+                "b": {"repo": _REPO, "shallow": True},
+            },
+        },
+        expect_warning=True,
+        affected_count=2,
+    ),
+    LegacyWarningFixture(
+        test_id="mixed",
+        config={
+            "~/code/": {
+                "a": {"repo": _REPO, "rev": "v1"},
+                "b": {"repo": _REPO, "options": {"shallow": True}},
+            },
+        },
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="canonical-options",
+        config={"~/code/": {"flask": {"repo": _REPO, "options": {"shallow": True}}}},
+        expect_warning=False,
+        affected_count=0,
+    ),
+    LegacyWarningFixture(
+        test_id="string-shorthand",
+        config={"~/code/": {"flask": _REPO}},
+        expect_warning=False,
+        affected_count=0,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(LegacyWarningFixture._fields),
+    LEGACY_WARNING_FIXTURES,
+    ids=[fixture.test_id for fixture in LEGACY_WARNING_FIXTURES],
+)
 def test_load_configs_warns_on_legacy_options(
+    test_id: str,
+    config: dict[str, t.Any],
+    expect_warning: bool,
+    affected_count: int,
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """load_configs(warn_legacy_options=True) warns on top-level sync keys."""
+    """load_configs(warn_legacy_options=True) warns only on top-level sync keys."""
     monkeypatch.setenv("HOME", str(tmp_path))
-    config_file = write_config(
-        tmp_path / ".vcspull.yaml",
-        textwrap.dedent(
-            """\
-            ~/code/:
-              flask:
-                repo: git+https://github.com/pallets/flask.git
-                shallow: true
-            """,
-        ),
-    )
+    config_file = tmp_path / ".vcspull.yaml"
+    save_config_yaml(config_file, config)
 
     with caplog.at_level(logging.WARNING, logger="vcspull.config"):
         load_configs([config_file], warn_legacy_options=True)
@@ -573,7 +651,17 @@ def test_load_configs_warns_on_legacy_options(
     legacy_records = [
         record for record in caplog.records if hasattr(record, "vcspull_config_path")
     ]
+
+    if not expect_warning:
+        assert legacy_records == []
+        return
+
+    # The warning is emitted once per file, naming every affected entry.
     assert len(legacy_records) == 1
-    assert legacy_records[0].levelno == logging.WARNING
-    assert "vcspull migrate" in legacy_records[0].getMessage()
-    assert legacy_records[0].vcspull_config_path == str(config_file)
+    record = legacy_records[0]
+    assert record.levelno == logging.WARNING
+    assert "vcspull migrate" in record.getMessage()
+    assert record.vcspull_config_path == str(config_file)
+
+    affected = record.getMessage().split("Affected: ", 1)[1]
+    assert len([entry for entry in affected.split(", ") if entry]) == affected_count
