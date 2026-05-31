@@ -1924,6 +1924,12 @@ def update_repo(
 
     repo_dict["progress_callback"] = progress_callback or progress_cb
 
+    # ``shallow`` is the vcspull-facing config key for a depth-1 clone. libvcs
+    # GitSync only initializes ``git_shallow`` from kwargs as a default and
+    # drops it when actually passed, so capture the flag here and apply it as an
+    # attribute after construction (below) rather than forwarding the kwarg.
+    git_shallow = bool(repo_dict.pop("shallow", False))
+
     if repo_dict.get("vcs") is None:
         vcs = guess_vcs(url=repo_dict["url"])
         if vcs is None:
@@ -1932,6 +1938,8 @@ def update_repo(
         repo_dict["vcs"] = vcs
 
     r: GitSync | HgSync | SvnSync = create_project(**repo_dict)
+    if git_shallow and isinstance(r, GitSync):
+        r.git_shallow = True
     if repo_dict.get("vcs") == "git":
         result = r.update_repo(set_remotes=True)
     else:

@@ -172,6 +172,16 @@ class RepoEntryDict(TypedDict):
 
         repo: git+git@github.com:user/myrepo.git
 
+    Pinned to a ref::
+
+        repo: git+git@github.com:user/myrepo.git
+        rev: v1.2.3
+
+    Shallow clone::
+
+        repo: git+git@github.com:user/myrepo.git
+        shallow: true
+
     With pin options::
 
         repo: git+git@github.com:user/myrepo.git
@@ -183,6 +193,16 @@ class RepoEntryDict(TypedDict):
 
     repo: str
     """VCS URL in vcspull format, e.g. ``git+git@github.com:user/repo.git``."""
+
+    rev: NotRequired[str]
+    """Commit, tag, or branch to check out on sync (libvcs ``rev``).
+
+    Distinct from ``options.pin``, which guards config mutation rather than
+    pinning a git ref.
+    """
+
+    shallow: NotRequired[bool]
+    """If ``True``, clone with ``--depth 1`` on sync (libvcs ``git_shallow``)."""
 
     options: NotRequired[RepoOptionsDict]
     """Mutation policy. Nested under ``options:`` to avoid polluting VCS fields."""
@@ -210,6 +230,8 @@ class ConfigDict(TypedDict):
     path: pathlib.Path
     url: str
     workspace_root: str
+    rev: NotRequired[str | None]
+    shallow: NotRequired[bool | None]
     remotes: NotRequired[GitSyncRemoteDict | None]
     shell_command_after: NotRequired[list[str] | None]
     worktrees: NotRequired[list[WorktreeConfigDict] | None]

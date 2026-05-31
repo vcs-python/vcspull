@@ -538,6 +538,8 @@ def cli(_args: list[str] | None = None) -> None:
             dry_run=args.dry_run,
             merge_duplicates=args.merge_duplicates,
             include_worktrees=getattr(args, "include_worktrees", False),
+            rev=getattr(args, "pin", None),
+            shallow=getattr(args, "shallow", False),
         )
     elif args.subparser_name == "fmt":
         format_config_file(

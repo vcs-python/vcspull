@@ -9,6 +9,7 @@ import fnmatch
 import logging
 import os
 import pathlib
+import subprocess
 import tempfile
 import typing as t
 from collections.abc import Callable
@@ -844,6 +845,103 @@ def save_config_json(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -
         indent=2,
     )
     _atomic_write(config_file_path, json_content)
+
+
+def detect_git_shallow(repo_path: pathlib.Path) -> bool:
+    """Return whether a local git checkout is shallow.
+
+    Uses ``git rev-parse --is-shallow-repository`` (git 2.15+), falling back to
+    the presence of ``.git/shallow``. Any error (missing binary, non-git path)
+    is treated as "not shallow".
+
+    Parameters
+    ----------
+    repo_path : pathlib.Path
+        Path to the local git repository.
+
+    Returns
+    -------
+    bool
+        ``True`` if the checkout is shallow, else ``False``.
+
+    Examples
+    --------
+    A full clone is not shallow:
+
+    >>> remote = create_git_remote_repo()
+    >>> full = tmp_path / "full"
+    >>> _ = subprocess.run(
+    ...     ["git", "clone", f"file://{remote}", str(full)],
+    ...     check=True, capture_output=True,
+    ... )
+    >>> detect_git_shallow(full)
+    False
+
+    A ``--depth 1`` clone is shallow:
+
+    >>> shallow = tmp_path / "shallow"
+    >>> _ = subprocess.run(
+    ...     ["git", "clone", "--depth", "1", f"file://{remote}", str(shallow)],
+    ...     check=True, capture_output=True,
+    ... )
+    >>> detect_git_shallow(shallow)
+    True
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "rev-parse", "--is-shallow-repository"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return (repo_path / ".git" / "shallow").exists()
+
+    return result.stdout.strip() == "true"
+
+
+def build_repo_entry(
+    url: str,
+    *,
+    rev: str | None = None,
+    shallow: bool = False,
+) -> dict[str, t.Any]:
+    """Build a raw per-repository config entry for ``add``/``discover``.
+
+    Centralizes the entry shape written by both subcommands so the recorded
+    keys stay consistent.
+
+    Parameters
+    ----------
+    url : str
+        VCS URL in vcspull format, e.g. ``git+https://github.com/u/r.git``.
+    rev : str | None
+        Commit, tag, or branch to pin via the ``rev`` key. Omitted when falsy.
+    shallow : bool
+        If ``True``, record ``shallow: true`` (clone ``--depth 1`` on sync).
+
+    Returns
+    -------
+    dict
+        Mapping ready to store under a workspace root in the config.
+
+    Examples
+    --------
+    >>> build_repo_entry("git+https://github.com/u/r.git")
+    {'repo': 'git+https://github.com/u/r.git'}
+
+    >>> build_repo_entry("git+https://github.com/u/r.git", rev="v1.0.0")
+    {'repo': 'git+https://github.com/u/r.git', 'rev': 'v1.0.0'}
+
+    >>> build_repo_entry("git+https://github.com/u/r.git", shallow=True)
+    {'repo': 'git+https://github.com/u/r.git', 'shallow': True}
+    """
+    entry: dict[str, t.Any] = {"repo": url}
+    if rev:
+        entry["rev"] = rev
+    if shallow:
+        entry["shallow"] = True
+    return entry
 
 
 def save_config(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:

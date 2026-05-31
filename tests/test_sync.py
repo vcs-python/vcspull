@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import textwrap
 import typing as t
 
@@ -21,7 +22,7 @@ from libvcs.sync.svn import SvnSync
 
 from vcspull._internal.config_reader import ConfigReader
 from vcspull.cli.sync import sync, update_repo
-from vcspull.config import extract_repos, filter_repos, load_configs
+from vcspull.config import detect_git_shallow, extract_repos, filter_repos, load_configs
 from vcspull.validator import is_valid_config
 
 from .helpers import write_config
@@ -433,3 +434,69 @@ def test_update_repo_hg(
 
     result = update_repo(repo_dict)
     assert isinstance(result, HgSync)
+
+
+def test_update_repo_git_shallow(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+) -> None:
+    """A ``shallow: true`` config entry clones with ``--depth 1`` on sync."""
+    dummy_repo = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+    # A --depth 1 clone is only meaningfully shallow when the remote carries
+    # more history than the requested depth, so add a second commit.
+    subprocess.run(
+        ["git", "-C", str(dummy_repo), "commit", "-q", "--allow-empty", "-m", "second"],
+        check=True,
+    )
+
+    repo_dict: ConfigDict = {
+        "vcs": "git",
+        "name": "shallowclone",
+        "path": tmp_path / "checkout" / "shallowclone",
+        "url": f"git+file://{dummy_repo}",
+        "workspace_root": str(tmp_path / "checkout/"),
+        "shallow": True,
+    }
+
+    # update_repo must not raise (regression guard: ``git_shallow`` is applied
+    # as an attribute post-construction, not forwarded as a GitSync kwarg).
+    result = update_repo(repo_dict)
+    assert isinstance(result, GitSync)
+    assert detect_git_shallow(result.path) is True
+
+
+def test_update_repo_git_rev(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+) -> None:
+    """A ``rev`` config entry checks out that ref on sync, not the branch tip."""
+    dummy_repo = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+    # Tag the first commit, then advance the branch so the tag != HEAD.
+    subprocess.run(["git", "-C", str(dummy_repo), "tag", "v1.0.0"], check=True)
+    subprocess.run(
+        ["git", "-C", str(dummy_repo), "commit", "-q", "--allow-empty", "-m", "second"],
+        check=True,
+    )
+    tag_sha = subprocess.run(
+        ["git", "-C", str(dummy_repo), "rev-parse", "v1.0.0"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    repo_dict: ConfigDict = {
+        "vcs": "git",
+        "name": "revclone",
+        "path": tmp_path / "checkout" / "revclone",
+        "url": f"git+file://{dummy_repo}",
+        "workspace_root": str(tmp_path / "checkout/"),
+        "rev": "v1.0.0",
+    }
+
+    result = update_repo(repo_dict)
+    assert isinstance(result, GitSync)
+    assert result.get_revision() == tag_sha
