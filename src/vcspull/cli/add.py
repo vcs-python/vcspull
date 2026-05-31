@@ -19,7 +19,9 @@ from vcspull._internal.config_reader import (
 )
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
+    build_repo_entry,
     canonicalize_workspace_path,
+    detect_git_shallow,
     expand_dir,
     find_home_config_files,
     get_pin_reason,
@@ -110,6 +112,21 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         "--url",
         dest="url",
         help="Repository URL to record (overrides detected remotes)",
+    )
+    parser.add_argument(
+        "--pin",
+        dest="pin",
+        metavar="REF",
+        help="Record a fixed commit, tag, or branch as the repository 'rev'",
+    )
+    parser.add_argument(
+        "--shallow",
+        dest="shallow",
+        action="store_true",
+        help=(
+            "Record 'shallow: true' (clone --depth 1 on sync). A shallow "
+            "checkout is detected automatically; this forces it on."
+        ),
     )
     parser.add_argument(
         "-f",
@@ -437,6 +454,26 @@ def handle_add_command(args: argparse.Namespace) -> None:
         display_path,
         Style.RESET_ALL,
     )
+    pin_rev = getattr(args, "pin", None)
+    if pin_rev:
+        log.info(
+            "  %s•%s rev: %s%s%s",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            pin_rev,
+            Style.RESET_ALL,
+        )
+
+    shallow = bool(getattr(args, "shallow", False)) or detect_git_shallow(repo_path)
+    if shallow:
+        log.info(
+            "  %s•%s shallow: %strue%s",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            Style.RESET_ALL,
+        )
 
     prompt_text = f"{Fore.CYAN}?{Style.RESET_ALL} Import this repository? [y/N]: "
 
@@ -479,6 +516,8 @@ def handle_add_command(args: argparse.Namespace) -> None:
         workspace_root_path=workspace_root_input,
         dry_run=args.dry_run,
         merge_duplicates=args.merge_duplicates,
+        rev=getattr(args, "pin", None),
+        shallow=shallow,
     )
 
 
@@ -491,6 +530,8 @@ def add_repo(
     dry_run: bool,
     *,
     merge_duplicates: bool = True,
+    rev: str | None = None,
+    shallow: bool = False,
 ) -> None:
     """Add a repository to the vcspull configuration.
 
@@ -508,6 +549,10 @@ def add_repo(
         Workspace root to use in config
     dry_run : bool
         If True, preview changes without writing
+    rev : str | None
+        Commit, tag, or branch to record as the repository ``rev``.
+    shallow : bool
+        If ``True``, record ``shallow: true`` for the repository.
     """
     # Determine config file
     config_file_path: pathlib.Path
@@ -585,7 +630,7 @@ def add_repo(
         preserve_cwd_label=explicit_dot,
     )
 
-    new_repo_entry = {"repo": url}
+    new_repo_entry = build_repo_entry(url, rev=rev, shallow=shallow)
 
     def _ensure_workspace_label_for_merge(
         config_data: dict[str, t.Any],

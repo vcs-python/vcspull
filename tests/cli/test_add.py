@@ -43,6 +43,8 @@ class AddRepoFixture(t.NamedTuple):
     preexisting_config: dict[str, t.Any] | None
     expected_in_config: dict[str, t.Any]
     expected_log_messages: list[str]
+    rev: str | None = None
+    shallow: bool = False
 
 
 def init_git_repo(repo_path: pathlib.Path, remote_url: str | None) -> None:
@@ -161,6 +163,46 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
         },
         expected_log_messages=["Successfully added 'extra'"],
     ),
+    AddRepoFixture(
+        test_id="add-with-pin-rev",
+        name="pinnedproject",
+        url="git+https://github.com/user/pinnedproject.git",
+        workspace_root=None,
+        path_relative="pinnedproject",
+        dry_run=False,
+        use_default_config=False,
+        preexisting_config=None,
+        expected_in_config={
+            "~/": {
+                "pinnedproject": {
+                    "repo": "git+https://github.com/user/pinnedproject.git",
+                    "rev": "v1.2.3",
+                },
+            },
+        },
+        expected_log_messages=["Successfully added 'pinnedproject'"],
+        rev="v1.2.3",
+    ),
+    AddRepoFixture(
+        test_id="add-with-shallow",
+        name="shallowproject",
+        url="git+https://github.com/user/shallowproject.git",
+        workspace_root=None,
+        path_relative="shallowproject",
+        dry_run=False,
+        use_default_config=False,
+        preexisting_config=None,
+        expected_in_config={
+            "~/": {
+                "shallowproject": {
+                    "repo": "git+https://github.com/user/shallowproject.git",
+                    "shallow": True,
+                },
+            },
+        },
+        expected_log_messages=["Successfully added 'shallowproject'"],
+        shallow=True,
+    ),
 ]
 
 
@@ -180,6 +222,8 @@ def test_add_repo(
     preexisting_config: dict[str, t.Any] | None,
     expected_in_config: dict[str, t.Any],
     expected_log_messages: list[str],
+    rev: str | None,
+    shallow: bool,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -217,6 +261,8 @@ def test_add_repo(
         path=path_argument,
         workspace_root_path=workspace_root,
         dry_run=dry_run,
+        rev=rev,
+        shallow=shallow,
     )
 
     # Check log messages

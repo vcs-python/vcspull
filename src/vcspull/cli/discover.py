@@ -16,7 +16,9 @@ from colorama import Fore, Style
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
+    build_repo_entry,
     canonicalize_workspace_path,
+    detect_git_shallow,
     expand_dir,
     find_home_config_files,
     get_pin_reason,
@@ -37,6 +39,15 @@ class DiscoverAction(enum.Enum):
     ADD = "add"
     SKIP_EXISTING = "skip_existing"
     SKIP_PINNED = "skip_pinned"
+
+
+class _FoundRepo(t.NamedTuple):
+    """A git checkout found while scanning, with its resolved shallow state."""
+
+    name: str
+    url: str
+    workspace_path: pathlib.Path
+    shallow: bool
 
 
 def _classify_discover_action(existing_entry: t.Any) -> DiscoverAction:
@@ -235,6 +246,24 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--pin",
+        dest="pin",
+        metavar="REF",
+        help=(
+            "Record a fixed commit, tag, or branch as the 'rev' for every "
+            "discovered repository"
+        ),
+    )
+    parser.add_argument(
+        "--shallow",
+        dest="shallow",
+        action="store_true",
+        help=(
+            "Record 'shallow: true' for discovered repositories. Shallow "
+            "checkouts are detected automatically; this forces it on for all."
+        ),
+    )
+    parser.add_argument(
         "--recursive",
         "-r",
         action="store_true",
@@ -306,6 +335,8 @@ def discover_repos(
     *,
     merge_duplicates: bool = True,
     include_worktrees: bool = False,
+    rev: str | None = None,
+    shallow: bool = False,
 ) -> None:
     """Scan filesystem for git repositories and add to vcspull config.
 
@@ -323,6 +354,12 @@ def discover_repos(
         Whether to skip confirmation prompt
     dry_run : bool
         If True, preview changes without writing
+    rev : str | None
+        Commit, tag, or branch to record as the ``rev`` for every discovered
+        repository.
+    shallow : bool
+        If ``True``, force ``shallow: true`` for every discovered repository;
+        otherwise shallow state is auto-detected per repository.
     """
     scan_dir = expand_dir(pathlib.Path(scan_dir_str))
 
@@ -479,7 +516,7 @@ def discover_repos(
     for message in merge_conflicts:
         log.warning(message)
 
-    found_repos: list[tuple[str, str, pathlib.Path]] = []
+    found_repos: list[_FoundRepo] = []
 
     override_workspace_path: pathlib.Path | None = None
     if workspace_root_override:
@@ -517,7 +554,10 @@ def discover_repos(
                     continue
 
                 workspace_path = override_workspace_path or scan_dir
-                found_repos.append((repo_name, repo_url, workspace_path))
+                repo_shallow = shallow or detect_git_shallow(repo_path)
+                found_repos.append(
+                    _FoundRepo(repo_name, repo_url, workspace_path, repo_shallow),
+                )
     else:
         for item in scan_dir.iterdir():
             git_path = item / ".git"
@@ -542,7 +582,10 @@ def discover_repos(
                     continue
 
                 workspace_path = override_workspace_path or scan_dir
-                found_repos.append((repo_name, repo_url, workspace_path))
+                repo_shallow = shallow or detect_git_shallow(item)
+                found_repos.append(
+                    _FoundRepo(repo_name, repo_url, workspace_path, repo_shallow),
+                )
 
     if not found_repos:
         log.info(
@@ -555,10 +598,11 @@ def discover_repos(
         )
         return
 
-    repos_to_add: list[tuple[str, str, pathlib.Path]] = []
-    existing_repos: list[tuple[str, str, pathlib.Path]] = []
+    repos_to_add: list[_FoundRepo] = []
+    existing_repos: list[_FoundRepo] = []
 
-    for name, url, workspace_path in found_repos:
+    for found in found_repos:
+        name, url, workspace_path = found.name, found.url, found.workspace_path
         workspace_label = workspace_map.get(workspace_path)
         if workspace_label is None:
             workspace_label = workspace_root_label(
@@ -586,9 +630,9 @@ def discover_repos(
                     name,
                     f" ({reason})" if reason else "",
                 )
-            existing_repos.append((name, url, workspace_path))
+            existing_repos.append(found)
         else:
-            repos_to_add.append((name, url, workspace_path))
+            repos_to_add.append(found)
 
     if existing_repos:
         # Show summary only when there are many existing repos
@@ -611,7 +655,7 @@ def discover_repos(
                 len(existing_repos),
                 Style.RESET_ALL,
             )
-            for name, url, workspace_path in existing_repos:
+            for name, url, workspace_path, _shallow in existing_repos:
                 workspace_label = workspace_map.get(workspace_path)
                 if workspace_label is None:
                     workspace_label = workspace_root_label(
@@ -685,7 +729,7 @@ def discover_repos(
         "preview" if dry_run else "import",
         Style.RESET_ALL,
     )
-    for repo_name, repo_url, _determined_base_key in repos_to_add:
+    for repo_name, repo_url, _determined_base_key, repo_shallow in repos_to_add:
         log.info(
             "  %s+%s %s%s%s (%s%s%s)",
             Fore.GREEN,
@@ -697,6 +741,23 @@ def discover_repos(
             repo_url,
             Style.RESET_ALL,
         )
+        if rev:
+            log.info(
+                "    %s•%s rev: %s%s%s",
+                Fore.BLUE,
+                Style.RESET_ALL,
+                Fore.YELLOW,
+                rev,
+                Style.RESET_ALL,
+            )
+        if repo_shallow:
+            log.info(
+                "    %s•%s shallow: %strue%s",
+                Fore.BLUE,
+                Style.RESET_ALL,
+                Fore.YELLOW,
+                Style.RESET_ALL,
+            )
 
     if dry_run:
         log.info(
@@ -717,7 +778,7 @@ def discover_repos(
             log.info("%s✗%s Aborted by user.", Fore.RED, Style.RESET_ALL)
             return
 
-    for repo_name, repo_url, workspace_path in repos_to_add:
+    for repo_name, repo_url, workspace_path, repo_shallow in repos_to_add:
         workspace_label = workspace_map.get(workspace_path)
         if workspace_label is None:
             workspace_label = workspace_root_label(
@@ -739,7 +800,11 @@ def discover_repos(
             continue
 
         if repo_name not in raw_config[workspace_label]:
-            raw_config[workspace_label][repo_name] = {"repo": repo_url}
+            raw_config[workspace_label][repo_name] = build_repo_entry(
+                repo_url,
+                rev=rev,
+                shallow=repo_shallow,
+            )
             log.info(
                 "%s+%s Importing %s'%s'%s (%s%s%s) under '%s%s%s'.",
                 Fore.GREEN,
