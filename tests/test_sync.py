@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import textwrap
 import typing as t
@@ -22,7 +23,14 @@ from libvcs.sync.svn import SvnSync
 
 from vcspull._internal.config_reader import ConfigReader
 from vcspull.cli.sync import sync, update_repo
-from vcspull.config import detect_git_shallow, extract_repos, filter_repos, load_configs
+from vcspull.config import (
+    detect_git_depth,
+    detect_git_shallow,
+    extract_repos,
+    filter_repos,
+    load_configs,
+    save_config_yaml,
+)
 from vcspull.validator import is_valid_config
 
 from .helpers import write_config
@@ -500,3 +508,161 @@ def test_update_repo_git_rev(
     result = update_repo(repo_dict)
     assert isinstance(result, GitSync)
     assert result.get_revision() == tag_sha
+
+
+def test_update_repo_git_depth(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+) -> None:
+    """A ``depth`` config entry clones with ``--depth N`` on sync."""
+    dummy_repo = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+    # A --depth N clone is only meaningfully shallow when the remote carries
+    # more history than the requested depth, so add commits past depth 2.
+    for message in ("second", "third", "fourth"):
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(dummy_repo),
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                message,
+            ],
+            check=True,
+        )
+
+    repo_dict: ConfigDict = {
+        "vcs": "git",
+        "name": "depthclone",
+        "path": tmp_path / "checkout" / "depthclone",
+        "url": f"git+file://{dummy_repo}",
+        "workspace_root": str(tmp_path / "checkout/"),
+        "depth": 2,
+    }
+
+    result = update_repo(repo_dict)
+    assert isinstance(result, GitSync)
+    assert detect_git_depth(result.path) == 2
+
+
+class LegacyWarningFixture(t.NamedTuple):
+    """Fixture for the legacy top-level-keys deprecation warning."""
+
+    test_id: str
+    config: dict[str, t.Any]
+    expect_warning: bool
+    affected_count: int
+
+
+_REPO = "git+https://github.com/pallets/flask.git"
+
+LEGACY_WARNING_FIXTURES: list[LegacyWarningFixture] = [
+    LegacyWarningFixture(
+        test_id="legacy-rev",
+        config={"~/code/": {"flask": {"repo": _REPO, "rev": "v1"}}},
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="legacy-shallow",
+        config={"~/code/": {"flask": {"repo": _REPO, "shallow": True}}},
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="legacy-depth",
+        config={"~/code/": {"flask": {"repo": _REPO, "depth": 3}}},
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="legacy-combo",
+        config={
+            "~/code/": {
+                "flask": {"repo": _REPO, "rev": "v1", "shallow": True, "depth": 3}
+            }
+        },
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="multiple-legacy",
+        config={
+            "~/code/": {
+                "a": {"repo": _REPO, "rev": "v1"},
+                "b": {"repo": _REPO, "shallow": True},
+            },
+        },
+        expect_warning=True,
+        affected_count=2,
+    ),
+    LegacyWarningFixture(
+        test_id="mixed",
+        config={
+            "~/code/": {
+                "a": {"repo": _REPO, "rev": "v1"},
+                "b": {"repo": _REPO, "options": {"shallow": True}},
+            },
+        },
+        expect_warning=True,
+        affected_count=1,
+    ),
+    LegacyWarningFixture(
+        test_id="canonical-options",
+        config={"~/code/": {"flask": {"repo": _REPO, "options": {"shallow": True}}}},
+        expect_warning=False,
+        affected_count=0,
+    ),
+    LegacyWarningFixture(
+        test_id="string-shorthand",
+        config={"~/code/": {"flask": _REPO}},
+        expect_warning=False,
+        affected_count=0,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(LegacyWarningFixture._fields),
+    LEGACY_WARNING_FIXTURES,
+    ids=[fixture.test_id for fixture in LEGACY_WARNING_FIXTURES],
+)
+def test_load_configs_warns_on_legacy_options(
+    test_id: str,
+    config: dict[str, t.Any],
+    expect_warning: bool,
+    affected_count: int,
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """load_configs(warn_legacy_options=True) warns only on top-level sync keys."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    config_file = tmp_path / ".vcspull.yaml"
+    save_config_yaml(config_file, config)
+
+    with caplog.at_level(logging.WARNING, logger="vcspull.config"):
+        load_configs([config_file], warn_legacy_options=True)
+
+    legacy_records = [
+        record
+        for record in caplog.records
+        if hasattr(record, "vcspull_config_path")
+        and hasattr(record, "vcspull_legacy_count")
+    ]
+
+    if not expect_warning:
+        assert legacy_records == []
+        return
+
+    # The warning is emitted once per file, naming every affected entry.
+    assert len(legacy_records) == 1
+    record = legacy_records[0]
+    assert record.levelno == logging.WARNING
+    assert "vcspull migrate" in record.getMessage()
+    assert record.vcspull_config_path == str(config_file)
+    assert record.vcspull_legacy_count == affected_count

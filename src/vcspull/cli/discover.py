@@ -18,7 +18,6 @@ from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     build_repo_entry,
     canonicalize_workspace_path,
-    detect_git_shallow,
     expand_dir,
     find_home_config_files,
     get_pin_reason,
@@ -26,6 +25,7 @@ from vcspull.config import (
     merge_duplicate_workspace_roots,
     normalize_config_file_path,
     normalize_workspace_roots,
+    resolve_clone_depth,
     save_config,
     workspace_root_label,
 )
@@ -42,12 +42,13 @@ class DiscoverAction(enum.Enum):
 
 
 class _FoundRepo(t.NamedTuple):
-    """A git checkout found while scanning, with its resolved shallow state."""
+    """A git checkout found while scanning, with its resolved clone depth."""
 
     name: str
     url: str
     workspace_path: pathlib.Path
     shallow: bool
+    depth: int | None
 
 
 def _classify_discover_action(existing_entry: t.Any) -> DiscoverAction:
@@ -259,8 +260,19 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
         dest="shallow",
         action="store_true",
         help=(
-            "Record 'shallow: true' for discovered repositories. Shallow "
-            "checkouts are detected automatically; this forces it on for all."
+            "Record 'options.shallow: true' for discovered repositories. "
+            "Shallow checkouts are detected automatically; this forces it on "
+            "for all."
+        ),
+    )
+    parser.add_argument(
+        "--depth",
+        dest="depth",
+        type=int,
+        metavar="N",
+        help=(
+            "Record 'options.depth: N' for every discovered repository "
+            "(clone --depth N on sync). Overrides --shallow."
         ),
     )
     parser.add_argument(
@@ -337,6 +349,7 @@ def discover_repos(
     include_worktrees: bool = False,
     rev: str | None = None,
     shallow: bool = False,
+    depth: int | None = None,
 ) -> None:
     """Scan filesystem for git repositories and add to vcspull config.
 
@@ -355,12 +368,19 @@ def discover_repos(
     dry_run : bool
         If True, preview changes without writing
     rev : str | None
-        Commit, tag, or branch to record as the ``rev`` for every discovered
-        repository.
+        Commit, tag, or branch to record as ``options.rev`` for every
+        discovered repository.
     shallow : bool
-        If ``True``, force ``shallow: true`` for every discovered repository;
-        otherwise shallow state is auto-detected per repository.
+        If ``True``, force ``options.shallow: true`` for every discovered
+        repository; otherwise clone depth is auto-detected per repository.
+    depth : int | None
+        If set, record ``options.depth: N`` for every discovered repository;
+        overrides ``shallow``.
     """
+    if depth is not None and depth < 1:
+        log.error("--depth must be a positive integer (got %s)", depth)
+        return
+
     scan_dir = expand_dir(pathlib.Path(scan_dir_str))
 
     config_file_path: pathlib.Path
@@ -554,9 +574,19 @@ def discover_repos(
                     continue
 
                 workspace_path = override_workspace_path or scan_dir
-                repo_shallow = shallow or detect_git_shallow(repo_path)
+                repo_shallow, repo_depth = resolve_clone_depth(
+                    repo_path,
+                    explicit_shallow=shallow,
+                    explicit_depth=depth,
+                )
                 found_repos.append(
-                    _FoundRepo(repo_name, repo_url, workspace_path, repo_shallow),
+                    _FoundRepo(
+                        repo_name,
+                        repo_url,
+                        workspace_path,
+                        repo_shallow,
+                        repo_depth,
+                    ),
                 )
     else:
         for item in scan_dir.iterdir():
@@ -582,9 +612,19 @@ def discover_repos(
                     continue
 
                 workspace_path = override_workspace_path or scan_dir
-                repo_shallow = shallow or detect_git_shallow(item)
+                repo_shallow, repo_depth = resolve_clone_depth(
+                    item,
+                    explicit_shallow=shallow,
+                    explicit_depth=depth,
+                )
                 found_repos.append(
-                    _FoundRepo(repo_name, repo_url, workspace_path, repo_shallow),
+                    _FoundRepo(
+                        repo_name,
+                        repo_url,
+                        workspace_path,
+                        repo_shallow,
+                        repo_depth,
+                    ),
                 )
 
     if not found_repos:
@@ -655,7 +695,7 @@ def discover_repos(
                 len(existing_repos),
                 Style.RESET_ALL,
             )
-            for name, url, workspace_path, _shallow in existing_repos:
+            for name, url, workspace_path, _shallow, _depth in existing_repos:
                 workspace_label = workspace_map.get(workspace_path)
                 if workspace_label is None:
                     workspace_label = workspace_root_label(
@@ -729,7 +769,13 @@ def discover_repos(
         "preview" if dry_run else "import",
         Style.RESET_ALL,
     )
-    for repo_name, repo_url, _determined_base_key, repo_shallow in repos_to_add:
+    for (
+        repo_name,
+        repo_url,
+        _determined_base_key,
+        repo_shallow,
+        repo_depth,
+    ) in repos_to_add:
         log.info(
             "  %s+%s %s%s%s (%s%s%s)",
             Fore.GREEN,
@@ -750,7 +796,16 @@ def discover_repos(
                 rev,
                 Style.RESET_ALL,
             )
-        if repo_shallow:
+        if repo_depth is not None:
+            log.info(
+                "    %s•%s depth: %s%s%s",
+                Fore.BLUE,
+                Style.RESET_ALL,
+                Fore.YELLOW,
+                repo_depth,
+                Style.RESET_ALL,
+            )
+        elif repo_shallow:
             log.info(
                 "    %s•%s shallow: %strue%s",
                 Fore.BLUE,
@@ -778,7 +833,7 @@ def discover_repos(
             log.info("%s✗%s Aborted by user.", Fore.RED, Style.RESET_ALL)
             return
 
-    for repo_name, repo_url, workspace_path, repo_shallow in repos_to_add:
+    for repo_name, repo_url, workspace_path, repo_shallow, repo_depth in repos_to_add:
         workspace_label = workspace_map.get(workspace_path)
         if workspace_label is None:
             workspace_label = workspace_root_label(
@@ -804,6 +859,7 @@ def discover_repos(
                 repo_url,
                 rev=rev,
                 shallow=repo_shallow,
+                depth=repo_depth,
             )
             log.info(
                 "%s+%s Importing %s'%s'%s (%s%s%s) under '%s%s%s'.",

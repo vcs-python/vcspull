@@ -1346,9 +1346,12 @@ def _sync_impl(
     plan_config = SyncPlanConfig(fetch=bool(fetch and not offline), offline=offline)
 
     if config:
-        configs = load_configs([config])
+        configs = load_configs([config], warn_legacy_options=True)
     else:
-        configs = load_configs(find_config_files(include_home=True))
+        configs = load_configs(
+            find_config_files(include_home=True),
+            warn_legacy_options=True,
+        )
     found_repos: list[ConfigDict] = []
     unmatched_count = 0
 
@@ -1924,11 +1927,13 @@ def update_repo(
 
     repo_dict["progress_callback"] = progress_callback or progress_cb
 
-    # ``shallow`` is the vcspull-facing config key for a depth-1 clone. libvcs
-    # GitSync only initializes ``git_shallow`` from kwargs as a default and
-    # drops it when actually passed, so capture the flag here and apply it as an
-    # attribute after construction (below) rather than forwarding the kwarg.
+    # The ConfigDict carries options.shallow/options.depth as flat ``shallow``/
+    # ``depth`` keys. libvcs's GitSync names the former ``git_shallow``, so
+    # translate it; apply both as attributes after construction and only for
+    # git. ``obtain()`` then resolves precedence (an explicit depth wins over
+    # ``git_shallow``).
     git_shallow = bool(repo_dict.pop("shallow", False))
+    git_depth = repo_dict.pop("depth", None)
 
     if repo_dict.get("vcs") is None:
         vcs = guess_vcs(url=repo_dict["url"])
@@ -1938,8 +1943,11 @@ def update_repo(
         repo_dict["vcs"] = vcs
 
     r: GitSync | HgSync | SvnSync = create_project(**repo_dict)
-    if git_shallow and isinstance(r, GitSync):
-        r.git_shallow = True
+    if isinstance(r, GitSync):
+        if git_shallow:
+            r.git_shallow = True
+        if git_depth is not None:
+            r.depth = git_depth
     if repo_dict.get("vcs") == "git":
         result = r.update_repo(set_remotes=True)
     else:

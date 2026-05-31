@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 import textwrap
 import typing as t
 
@@ -12,11 +13,17 @@ from vcspull import config
 from vcspull.config import (
     MergeAction,
     _classify_merge_action,
+    detect_git_depth,
+    detect_legacy_repo_options,
     merge_duplicate_workspace_root_entries,
+    migrate_repo_entry,
+    resolve_clone_depth,
 )
 
 if t.TYPE_CHECKING:
     import pathlib
+
+    from libvcs.pytest_plugin import CreateRepoFn
 
     from vcspull.types import ConfigDict, RawConfigDict
 
@@ -365,3 +372,326 @@ def test_merge_duplicate_workspace_root_entries_conflicts(
             f"Expected '{fragment}' in conflicts for {test_id}, "
             f"got: {all_conflict_text}"
         )
+
+
+# ---------------------------------------------------------------------------
+# options: sync-tuning keys (rev/shallow/depth)
+# ---------------------------------------------------------------------------
+
+
+def _seed_commits(repo_path: pathlib.Path, count: int) -> None:
+    """Add ``count`` empty commits to a git checkout."""
+    for index in range(count):
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_path),
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                f"commit-{index}",
+            ],
+            check=True,
+            capture_output=True,
+        )
+
+
+class ExtractOptionsFixture(t.NamedTuple):
+    """Fixture for extract_repos lifting sync keys onto the flat ConfigDict."""
+
+    test_id: str
+    raw_config: dict[str, t.Any]
+    expected: dict[str, t.Any]
+
+
+EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
+    ExtractOptionsFixture(
+        test_id="options-canonical",
+        raw_config={
+            "~/code/": {
+                "flask": {
+                    "repo": "git+https://example.com/flask.git",
+                    "options": {"rev": "v3.0.0", "depth": 50},
+                },
+            },
+        },
+        expected={"rev": "v3.0.0", "depth": 50},
+    ),
+    ExtractOptionsFixture(
+        test_id="legacy-top-level",
+        raw_config={
+            "~/code/": {
+                "flask": {
+                    "repo": "git+https://example.com/flask.git",
+                    "rev": "v1.0.0",
+                    "shallow": True,
+                },
+            },
+        },
+        expected={"rev": "v1.0.0", "shallow": True},
+    ),
+    ExtractOptionsFixture(
+        test_id="options-wins-over-legacy",
+        raw_config={
+            "~/code/": {
+                "flask": {
+                    "repo": "git+https://example.com/flask.git",
+                    "rev": "legacy",
+                    "depth": 10,
+                    "options": {"rev": "canonical", "depth": 99},
+                },
+            },
+        },
+        expected={"rev": "canonical", "depth": 99},
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ExtractOptionsFixture._fields),
+    EXTRACT_OPTIONS_FIXTURES,
+    ids=[f.test_id for f in EXTRACT_OPTIONS_FIXTURES],
+)
+def test_extract_repos_lifts_options_sync_keys(
+    test_id: str,
+    raw_config: dict[str, t.Any],
+    expected: dict[str, t.Any],
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """extract_repos surfaces options/legacy sync keys on the flat ConfigDict."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    typed_raw_config = t.cast("RawConfigDict", raw_config)
+    repos = config.extract_repos(typed_raw_config, cwd=tmp_path)
+
+    assert len(repos) == 1
+    repo = t.cast("dict[str, t.Any]", repos[0])
+    for key, value in expected.items():
+        assert repo[key] == value
+
+
+class ResolveDepthFixture(t.NamedTuple):
+    """Fixture for resolve_clone_depth explicit-flag precedence."""
+
+    test_id: str
+    explicit_shallow: bool
+    explicit_depth: int | None
+    expected: tuple[bool, int | None]
+
+
+RESOLVE_DEPTH_FIXTURES: list[ResolveDepthFixture] = [
+    ResolveDepthFixture("explicit-depth", False, 5, (False, 5)),
+    ResolveDepthFixture("explicit-depth-beats-shallow", True, 5, (False, 5)),
+    ResolveDepthFixture("explicit-shallow", True, None, (True, None)),
+    ResolveDepthFixture("no-flags-non-git", False, None, (False, None)),
+]
+
+
+@pytest.mark.parametrize(
+    list(ResolveDepthFixture._fields),
+    RESOLVE_DEPTH_FIXTURES,
+    ids=[f.test_id for f in RESOLVE_DEPTH_FIXTURES],
+)
+def test_resolve_clone_depth_explicit(
+    test_id: str,
+    explicit_shallow: bool,
+    explicit_depth: int | None,
+    expected: tuple[bool, int | None],
+    tmp_path: pathlib.Path,
+) -> None:
+    """Explicit flags resolve without inspecting the filesystem."""
+    result = resolve_clone_depth(
+        tmp_path,
+        explicit_shallow=explicit_shallow,
+        explicit_depth=explicit_depth,
+    )
+    assert result == expected
+
+
+def test_resolve_clone_depth_autodetect(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+) -> None:
+    """Hybrid auto-detect: depth-1 -> shallow, depth>1 -> numeric, full -> none."""
+    remote = create_git_remote_repo()
+    _seed_commits(remote, 4)
+
+    full = tmp_path / "full"
+    subprocess.run(
+        ["git", "clone", "-q", f"file://{remote}", str(full)],
+        check=True,
+        capture_output=True,
+    )
+    assert resolve_clone_depth(full) == (False, None)
+
+    shallow_one = tmp_path / "shallow_one"
+    subprocess.run(
+        ["git", "clone", "-q", "--depth", "1", f"file://{remote}", str(shallow_one)],
+        check=True,
+        capture_output=True,
+    )
+    assert resolve_clone_depth(shallow_one) == (True, None)
+
+    shallow_three = tmp_path / "shallow_three"
+    subprocess.run(
+        ["git", "clone", "-q", "--depth", "3", f"file://{remote}", str(shallow_three)],
+        check=True,
+        capture_output=True,
+    )
+    assert resolve_clone_depth(shallow_three) == (False, 3)
+
+
+def test_detect_git_depth(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+) -> None:
+    """detect_git_depth returns the commit count for shallow checkouts only."""
+    assert detect_git_depth(tmp_path) is None  # not a git repo
+
+    remote = create_git_remote_repo()
+    _seed_commits(remote, 4)
+
+    full = tmp_path / "full"
+    subprocess.run(
+        ["git", "clone", "-q", f"file://{remote}", str(full)],
+        check=True,
+        capture_output=True,
+    )
+    assert detect_git_depth(full) is None
+
+    shallow = tmp_path / "shallow"
+    subprocess.run(
+        ["git", "clone", "-q", "--depth", "3", f"file://{remote}", str(shallow)],
+        check=True,
+        capture_output=True,
+    )
+    assert detect_git_depth(shallow) == 3
+
+
+class MigrateEntryFixture(t.NamedTuple):
+    """Fixture for migrate_repo_entry top-level -> options relocation."""
+
+    test_id: str
+    entry: t.Any
+    expected_changed: bool
+    expected_entry: t.Any
+
+
+MIGRATE_ENTRY_FIXTURES: list[MigrateEntryFixture] = [
+    MigrateEntryFixture(
+        test_id="string-passthrough",
+        entry="git+ssh://x",
+        expected_changed=False,
+        expected_entry="git+ssh://x",
+    ),
+    MigrateEntryFixture(
+        test_id="no-legacy-keys",
+        entry={"repo": "git+ssh://x", "options": {"pin": True}},
+        expected_changed=False,
+        expected_entry={"repo": "git+ssh://x", "options": {"pin": True}},
+    ),
+    MigrateEntryFixture(
+        test_id="single-legacy-shallow",
+        entry={"repo": "git+ssh://x", "shallow": True},
+        expected_changed=True,
+        expected_entry={"repo": "git+ssh://x", "options": {"shallow": True}},
+    ),
+    MigrateEntryFixture(
+        test_id="depth-wins-over-shallow",
+        entry={"repo": "git+ssh://x", "rev": "v1", "shallow": True, "depth": 5},
+        expected_changed=True,
+        expected_entry={"repo": "git+ssh://x", "options": {"rev": "v1", "depth": 5}},
+    ),
+    MigrateEntryFixture(
+        test_id="options-value-wins",
+        entry={"repo": "git+ssh://x", "rev": "legacy", "options": {"rev": "canonical"}},
+        expected_changed=True,
+        expected_entry={"repo": "git+ssh://x", "options": {"rev": "canonical"}},
+    ),
+    MigrateEntryFixture(
+        test_id="preserves-pin-options",
+        entry={"repo": "git+ssh://x", "shallow": True, "options": {"pin": True}},
+        expected_changed=True,
+        expected_entry={
+            "repo": "git+ssh://x",
+            "options": {"pin": True, "shallow": True},
+        },
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(MigrateEntryFixture._fields),
+    MIGRATE_ENTRY_FIXTURES,
+    ids=[f.test_id for f in MIGRATE_ENTRY_FIXTURES],
+)
+def test_migrate_repo_entry(
+    test_id: str,
+    entry: t.Any,
+    expected_changed: bool,
+    expected_entry: t.Any,
+) -> None:
+    """migrate_repo_entry relocates legacy keys under options:, depth wins."""
+    changed, result = migrate_repo_entry(entry)
+    assert changed is expected_changed
+    assert result == expected_entry
+
+
+class LegacyOptionsFixture(t.NamedTuple):
+    """Fixture for detect_legacy_repo_options scanning."""
+
+    test_id: str
+    raw_config: t.Any
+    expected: list[tuple[str, str]]
+
+
+LEGACY_OPTIONS_FIXTURES: list[LegacyOptionsFixture] = [
+    LegacyOptionsFixture(
+        test_id="legacy-shallow-flagged",
+        raw_config={"~/code/": {"flask": {"repo": "git+x", "shallow": True}}},
+        expected=[("~/code/", "flask")],
+    ),
+    LegacyOptionsFixture(
+        test_id="canonical-not-flagged",
+        raw_config={"~/code/": {"flask": {"repo": "git+x", "options": {"depth": 5}}}},
+        expected=[],
+    ),
+    LegacyOptionsFixture(
+        test_id="string-entry-not-flagged",
+        raw_config={"~/code/": {"flask": "git+x"}},
+        expected=[],
+    ),
+    LegacyOptionsFixture(
+        test_id="mixed-only-legacy-flagged",
+        raw_config={
+            "~/code/": {
+                "flask": {"repo": "git+x", "rev": "v1"},
+                "django": {"repo": "git+y", "options": {"depth": 5}},
+            },
+        },
+        expected=[("~/code/", "flask")],
+    ),
+    LegacyOptionsFixture(
+        test_id="non-dict-input",
+        raw_config="not-a-dict",
+        expected=[],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(LegacyOptionsFixture._fields),
+    LEGACY_OPTIONS_FIXTURES,
+    ids=[f.test_id for f in LEGACY_OPTIONS_FIXTURES],
+)
+def test_detect_legacy_repo_options(
+    test_id: str,
+    raw_config: t.Any,
+    expected: list[tuple[str, str]],
+) -> None:
+    """detect_legacy_repo_options reports only entries with top-level keys."""
+    assert detect_legacy_repo_options(raw_config) == expected

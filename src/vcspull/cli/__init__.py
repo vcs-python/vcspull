@@ -19,6 +19,7 @@ from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
 from .import_cmd import create_import_subparser
 from .list import create_list_subparser, list_repos
+from .migrate import create_migrate_subparser, migrate_config_file
 from .search import create_search_subparser, search_repos
 from .status import create_status_subparser, status_repos
 from .sync import create_sync_subparser, sync
@@ -244,6 +245,27 @@ FMT_DESCRIPTION = build_description(
     ),
 )
 
+MIGRATE_DESCRIPTION = build_description(
+    """
+    Migrate configuration files to the options: form.
+
+    Relocates per-repository rev/shallow/depth keys from the entry root into
+    the options: block. Without --write it previews changes; with --write it
+    rewrites the file(s).
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull migrate",
+                "vcspull migrate -f ./myrepos.yaml",
+                "vcspull migrate --write",
+                "vcspull migrate --all --write",
+            ],
+        ),
+    ),
+)
+
 IMPORT_DESCRIPTION = build_description(
     """
     Import repositories from remote services.
@@ -390,6 +412,15 @@ def create_parser(
     )
     create_fmt_subparser(fmt_parser)
 
+    # Migrate command
+    migrate_parser = subparsers.add_parser(
+        "migrate",
+        help="migrate configuration files to the options: form",
+        formatter_class=VcspullHelpFormatter,
+        description=MIGRATE_DESCRIPTION,
+    )
+    create_migrate_subparser(migrate_parser)
+
     # Import command
     import_parser = subparsers.add_parser(
         "import",
@@ -418,6 +449,7 @@ def create_parser(
             add_parser,
             discover_parser,
             fmt_parser,
+            migrate_parser,
             import_parser,
             worktree_parser,
         )
@@ -435,6 +467,7 @@ def cli(_args: list[str] | None = None) -> None:
         add_parser,
         discover_parser,
         _fmt_parser,
+        _migrate_parser,
         _import_parser,
         _worktree_parser,
     ) = subparsers
@@ -540,6 +573,7 @@ def cli(_args: list[str] | None = None) -> None:
             include_worktrees=getattr(args, "include_worktrees", False),
             rev=getattr(args, "pin", None),
             shallow=getattr(args, "shallow", False),
+            depth=getattr(args, "depth", None),
         )
     elif args.subparser_name == "fmt":
         format_config_file(
@@ -547,6 +581,12 @@ def cli(_args: list[str] | None = None) -> None:
             args.write,
             args.all,
             merge_roots=args.merge_roots,
+        )
+    elif args.subparser_name == "migrate":
+        migrate_config_file(
+            args.config,
+            args.write,
+            args.all,
         )
     elif args.subparser_name == "import":
         handler = getattr(args, "import_handler", None)

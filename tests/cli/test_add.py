@@ -45,6 +45,7 @@ class AddRepoFixture(t.NamedTuple):
     expected_log_messages: list[str]
     rev: str | None = None
     shallow: bool = False
+    depth: int | None = None
 
 
 def init_git_repo(repo_path: pathlib.Path, remote_url: str | None) -> None:
@@ -176,7 +177,7 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
             "~/": {
                 "pinnedproject": {
                     "repo": "git+https://github.com/user/pinnedproject.git",
-                    "rev": "v1.2.3",
+                    "options": {"rev": "v1.2.3"},
                 },
             },
         },
@@ -196,12 +197,53 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
             "~/": {
                 "shallowproject": {
                     "repo": "git+https://github.com/user/shallowproject.git",
-                    "shallow": True,
+                    "options": {"shallow": True},
                 },
             },
         },
         expected_log_messages=["Successfully added 'shallowproject'"],
         shallow=True,
+    ),
+    AddRepoFixture(
+        test_id="add-with-depth",
+        name="depthproject",
+        url="git+https://github.com/user/depthproject.git",
+        workspace_root=None,
+        path_relative="depthproject",
+        dry_run=False,
+        use_default_config=False,
+        preexisting_config=None,
+        expected_in_config={
+            "~/": {
+                "depthproject": {
+                    "repo": "git+https://github.com/user/depthproject.git",
+                    "options": {"depth": 50},
+                },
+            },
+        },
+        expected_log_messages=["Successfully added 'depthproject'"],
+        depth=50,
+    ),
+    AddRepoFixture(
+        test_id="add-depth-beats-shallow",
+        name="bothproject",
+        url="git+https://github.com/user/bothproject.git",
+        workspace_root=None,
+        path_relative="bothproject",
+        dry_run=False,
+        use_default_config=False,
+        preexisting_config=None,
+        expected_in_config={
+            "~/": {
+                "bothproject": {
+                    "repo": "git+https://github.com/user/bothproject.git",
+                    "options": {"depth": 5},
+                },
+            },
+        },
+        expected_log_messages=["Successfully added 'bothproject'"],
+        shallow=True,
+        depth=5,
     ),
 ]
 
@@ -224,6 +266,7 @@ def test_add_repo(
     expected_log_messages: list[str],
     rev: str | None,
     shallow: bool,
+    depth: int | None,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -263,6 +306,7 @@ def test_add_repo(
         dry_run=dry_run,
         rev=rev,
         shallow=shallow,
+        depth=depth,
     )
 
     # Check log messages

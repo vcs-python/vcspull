@@ -122,13 +122,26 @@ Pin import and fmt::
 
 
 class RepoOptionsDict(TypedDict, total=False):
-    """Mutation policy stored under the ``options:`` key in a repo entry.
+    """Per-repository options stored under the ``options:`` key in a repo entry.
+
+    Two groups of keys live here:
+
+    - **Sync tuning** (``rev``, ``shallow``, ``depth``) — forwarded to libvcs to
+      shape how the checkout is cloned/updated.
+    - **Mutation policy** (``pin``, ``allow_overwrite``, ``pin_reason``) — guards
+      whether vcspull's commands may rewrite this config entry.
 
     Note: ``pin`` here controls vcspull config mutation. It is distinct from
     ``WorktreeConfigDict.lock`` which prevents git worktree removal.
 
     Examples
     --------
+    Pin to a ref and clone with a small history window::
+
+        options:
+          rev: v1.2.3
+          depth: 50
+
     Pin all operations::
 
         options:
@@ -145,6 +158,25 @@ class RepoOptionsDict(TypedDict, total=False):
 
         options:
           allow_overwrite: false
+    """
+
+    rev: NotRequired[str]
+    """Commit, tag, or branch to check out on sync (libvcs ``rev``).
+
+    Distinct from ``pin``, which guards config mutation rather than pinning a
+    git ref.
+    """
+
+    shallow: NotRequired[bool]
+    """If ``True``, clone with ``--depth 1`` on sync (libvcs ``git_shallow``).
+
+    Sugar for ``depth: 1``; ``depth`` wins when both are set.
+    """
+
+    depth: NotRequired[int]
+    """Clone with history truncated to ``depth`` commits (libvcs ``depth``).
+
+    Takes precedence over ``shallow``.
     """
 
     pin: bool | RepoPinDict
@@ -172,15 +204,12 @@ class RepoEntryDict(TypedDict):
 
         repo: git+git@github.com:user/myrepo.git
 
-    Pinned to a ref::
+    Pinned to a ref and shallow-cloned::
 
         repo: git+git@github.com:user/myrepo.git
-        rev: v1.2.3
-
-    Shallow clone::
-
-        repo: git+git@github.com:user/myrepo.git
-        shallow: true
+        options:
+          rev: v1.2.3
+          depth: 50
 
     With pin options::
 
@@ -195,17 +224,19 @@ class RepoEntryDict(TypedDict):
     """VCS URL in vcspull format, e.g. ``git+git@github.com:user/repo.git``."""
 
     rev: NotRequired[str]
-    """Commit, tag, or branch to check out on sync (libvcs ``rev``).
+    """Deprecated top-level form of ``options.rev``; still read, with a warning.
 
-    Distinct from ``options.pin``, which guards config mutation rather than
-    pinning a git ref.
+    Run ``vcspull migrate`` to relocate it under ``options:``.
     """
 
     shallow: NotRequired[bool]
-    """If ``True``, clone with ``--depth 1`` on sync (libvcs ``git_shallow``)."""
+    """Deprecated top-level form of ``options.shallow``; still read, with a warning.
+
+    Run ``vcspull migrate`` to relocate it under ``options:``.
+    """
 
     options: NotRequired[RepoOptionsDict]
-    """Mutation policy. Nested under ``options:`` to avoid polluting VCS fields."""
+    """Sync tuning (``rev``/``shallow``/``depth``) plus mutation policy."""
 
 
 class RawConfigDict(t.TypedDict):
@@ -232,6 +263,7 @@ class ConfigDict(TypedDict):
     workspace_root: str
     rev: NotRequired[str | None]
     shallow: NotRequired[bool | None]
+    depth: NotRequired[int | None]
     remotes: NotRequired[GitSyncRemoteDict | None]
     shell_command_after: NotRequired[list[str] | None]
     worktrees: NotRequired[list[WorktreeConfigDict] | None]

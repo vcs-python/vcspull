@@ -443,6 +443,7 @@ def test_get_cli_logger_names_includes_base() -> None:
         "vcspull.cli.import_cmd.github",
         "vcspull.cli.import_cmd.gitlab",
         "vcspull.cli.list",
+        "vcspull.cli.migrate",
         "vcspull.cli.search",
         "vcspull.cli.status",
         "vcspull.cli.sync",
