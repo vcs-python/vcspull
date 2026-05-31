@@ -119,6 +119,42 @@ Optional fields:
 
 See {ref}`cli-worktree` for full command documentation.
 
+## Revision pinning
+
+A `rev:` key pins a repository to a commit, tag, or branch, which {ref}`cli-sync`
+checks out. This lets a config capture a reproducible snapshot instead of
+tracking the branch tip. It is distinct from `options.pin` (see
+{ref}`config-pin`), which guards the config entry from being overwritten rather
+than pinning a git ref.
+
+```yaml
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+    rev: v3.0.0
+```
+
+`vcspull add <path> --pin <ref>` and `vcspull discover <dir> --pin <ref>` record
+this key when importing an existing checkout. See {ref}`cli-add` and
+{ref}`cli-discover`.
+
+## Shallow clones
+
+A `shallow: true` key makes {ref}`cli-sync` clone the repository with
+`--depth 1`, trading git history for disk and time—useful for workspaces with
+many repositories.
+
+```yaml
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+    shallow: true
+```
+
+`vcspull add` and `vcspull discover` detect an existing shallow checkout
+automatically and record `shallow: true`; the `--shallow` flag forces it on even
+for a full checkout.
+
 (config-pin)=
 
 ## Repository pinning
