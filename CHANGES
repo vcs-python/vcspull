@@ -37,6 +37,53 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Breaking changes
+
+#### Per-repository sync keys now live under `options:` (#552)
+
+The per-repository `rev`, `shallow`, and new `depth` keys are written under an
+`options:` block instead of the entry root. The top-level form that shipped in
+v1.61.0 is still read, but {ref}`cli-sync` warns when it encounters it. Run
+{ref}`cli-migrate` to rewrite existing configs:
+
+```yaml
+# Before
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+    shallow: true
+
+# After
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+    options:
+      shallow: true
+```
+
+### Dependencies
+
+#### Minimum `libvcs>=0.42.0` (was `>=0.41.0`)
+
+libvcs 0.42.0 teaches its git backend an arbitrary clone depth, which the new
+`depth: N` key relies on.
+
+### What's new
+
+#### Numeric clone depth (#552)
+
+A repository can keep a small window of history with `options.depth: N` (clone
+with `--depth N`) instead of the all-or-nothing `shallow: true`. {ref}`cli-add`
+and {ref}`cli-discover` accept `--depth N` and detect an existing checkout's
+depth automatically—recording `shallow: true` for a depth-1 checkout and
+`depth: N` for a deeper window. See {ref}`configuration`.
+
+#### Migrate configs to the `options:` form (#552)
+
+{ref}`cli-migrate` rewrites configuration files that still carry top-level
+`rev`/`shallow`/`depth`, moving them under `options:`. It previews changes by
+default and applies them with `--write`.
+
 ## vcspull v1.61.0 (2026-05-30)
 
 vcspull v1.61.0 lets `add` and `discover` capture per-repository git state when
