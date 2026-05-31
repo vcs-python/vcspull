@@ -21,7 +21,41 @@ well.
 
 ## Next release
 
-_Notes on the upcoming release will be added here_
+### Per-repository sync keys moved under `options:`
+
+_via #552_
+
+The per-repository `rev`, `shallow`, and the new `depth` keys are now written
+under an `options:` block instead of the repository entry root. The top-level
+form still loads, but `vcspull sync` now warns when it reads it and points you
+here. Rewrite your configs in place:
+
+```console
+$ vcspull migrate --write
+```
+
+Before:
+
+```yaml
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+    shallow: true
+```
+
+After:
+
+```yaml
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+    options:
+      shallow: true
+```
+
+`depth: N` is new — record a numeric clone depth (`git clone --depth N`) when a
+boolean `shallow` (depth 1) is too little. See {ref}`configuration` and
+{ref}`cli-migrate`.
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
