@@ -339,6 +339,16 @@ def extract_repos(
                 else:
                     conf.pop("repo", None)
 
+            # Sync-tuning keys (rev/shallow/depth) are canonical under
+            # ``options:``; lift them onto the flat ConfigDict the sync path
+            # reads. A legacy top-level key was already copied above by
+            # update_dict, but an ``options:`` value wins when both are set.
+            entry_options = conf.get("options")
+            if isinstance(entry_options, dict):
+                for option_key in LEGACY_REPO_OPTION_KEYS:
+                    if option_key in entry_options:
+                        conf[option_key] = entry_options[option_key]
+
             if "name" not in conf:
                 conf["name"] = repo
 
@@ -900,6 +910,134 @@ def detect_git_shallow(repo_path: pathlib.Path) -> bool:
     return result.stdout.strip() == "true"
 
 
+def detect_git_depth(repo_path: pathlib.Path) -> int | None:
+    """Return the clone depth of a shallow git checkout, else ``None``.
+
+    A full (non-shallow) checkout returns ``None``. A shallow checkout returns
+    the number of commits reachable from ``HEAD`` (``git rev-list --count
+    HEAD``), which equals the ``--depth`` used to clone a linear history. Any
+    error (missing binary, non-git path, unparsable output) is treated as
+    "cannot determine" and returns ``None``.
+
+    Parameters
+    ----------
+    repo_path : pathlib.Path
+        Path to the local git repository.
+
+    Returns
+    -------
+    int | None
+        Commit count of a shallow checkout, or ``None`` when full or unknown.
+
+    Examples
+    --------
+    Seed a remote with enough history that a ``--depth 2`` clone is shallow:
+
+    >>> remote = create_git_remote_repo()
+    >>> for message in ("two", "three"):
+    ...     _ = subprocess.run(
+    ...         ["git", "-C", str(remote), "commit", "-q", "--allow-empty",
+    ...          "-m", message],
+    ...         check=True, capture_output=True,
+    ...     )
+
+    A full clone has no depth:
+
+    >>> full = tmp_path / "full"
+    >>> _ = subprocess.run(
+    ...     ["git", "clone", f"file://{remote}", str(full)],
+    ...     check=True, capture_output=True,
+    ... )
+    >>> detect_git_depth(full) is None
+    True
+
+    A ``--depth 2`` clone reports its depth:
+
+    >>> shallow = tmp_path / "shallow"
+    >>> _ = subprocess.run(
+    ...     ["git", "clone", "--depth", "2", f"file://{remote}", str(shallow)],
+    ...     check=True, capture_output=True,
+    ... )
+    >>> detect_git_depth(shallow)
+    2
+    """
+    if not detect_git_shallow(repo_path):
+        return None
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "rev-list", "--count", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+    try:
+        return int(result.stdout.strip())
+    except ValueError:
+        return None
+
+
+def resolve_clone_depth(
+    repo_path: pathlib.Path,
+    *,
+    explicit_shallow: bool = False,
+    explicit_depth: int | None = None,
+) -> tuple[bool, int | None]:
+    """Resolve the ``(shallow, depth)`` to record for a checkout.
+
+    Centralizes the precedence shared by ``add`` and ``discover`` so the two
+    subcommands stay consistent. Precedence, highest first:
+
+    1. ``explicit_depth`` (from ``--depth N``) → ``(False, explicit_depth)``.
+    2. ``explicit_shallow`` (from ``--shallow``) → ``(True, None)``.
+    3. Auto-detected depth (hybrid): a depth-1 checkout records ``shallow:
+       true`` (the common case), depth > 1 records ``depth: N``, and a full
+       checkout records neither.
+
+    Parameters
+    ----------
+    repo_path : pathlib.Path
+        Path to the local git checkout to inspect when auto-detecting.
+    explicit_shallow : bool
+        Whether ``--shallow`` was passed.
+    explicit_depth : int | None
+        Value of ``--depth N``, or ``None`` when not passed.
+
+    Returns
+    -------
+    tuple[bool, int | None]
+        ``(shallow, depth)`` to hand to :func:`build_repo_entry`.
+
+    Examples
+    --------
+    Explicit flags win and never touch the filesystem:
+
+    >>> resolve_clone_depth(tmp_path, explicit_depth=5)
+    (False, 5)
+    >>> resolve_clone_depth(tmp_path, explicit_shallow=True)
+    (True, None)
+
+    A path that is not a shallow checkout records neither:
+
+    >>> resolve_clone_depth(tmp_path)
+    (False, None)
+    """
+    if explicit_depth is not None:
+        return False, explicit_depth
+    if explicit_shallow:
+        return True, None
+
+    detected = detect_git_depth(repo_path)
+    if detected is None:
+        return False, None
+    if detected <= 1:
+        return True, None
+    return False, detected
+
+
 def build_repo_entry(
     url: str,
     *,
@@ -942,6 +1080,122 @@ def build_repo_entry(
     if shallow:
         entry["shallow"] = True
     return entry
+
+
+#: Per-repository sync-tuning keys whose canonical home is the ``options:``
+#: block. They were accepted at the entry root in v1.61.0; that form is now
+#: deprecated and migrated by :func:`migrate_repo_entry`.
+LEGACY_REPO_OPTION_KEYS = ("rev", "shallow", "depth")
+
+
+def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
+    """Relocate legacy top-level sync keys under ``options:``.
+
+    Moves any top-level ``rev``/``shallow``/``depth`` into the entry's
+    ``options:`` block. A value already present under ``options:`` wins, so the
+    redundant top-level copy is simply dropped. When both ``shallow`` and a
+    truthy ``depth`` end up under ``options:``, ``depth`` wins and ``shallow``
+    is removed (matching how sync resolves precedence).
+
+    Parameters
+    ----------
+    entry : Any
+        A raw repository entry (string shorthand or mapping).
+
+    Returns
+    -------
+    tuple[bool, Any]
+        ``(changed, entry)``. ``changed`` is ``False`` (and the entry returned
+        unchanged) for string shorthands and mappings with no legacy keys.
+
+    Examples
+    --------
+    String shorthands and already-migrated entries are untouched:
+
+    >>> migrate_repo_entry("git+ssh://x")
+    (False, 'git+ssh://x')
+    >>> migrate_repo_entry({"repo": "git+ssh://x"})
+    (False, {'repo': 'git+ssh://x'})
+
+    A legacy top-level key is relocated:
+
+    >>> migrate_repo_entry({"repo": "git+ssh://x", "shallow": True})
+    (True, {'repo': 'git+ssh://x', 'options': {'shallow': True}})
+
+    ``depth`` wins over ``shallow`` in the migrated entry:
+
+    >>> migrate_repo_entry(
+    ...     {"repo": "git+ssh://x", "rev": "v1", "shallow": True, "depth": 5}
+    ... )
+    (True, {'repo': 'git+ssh://x', 'options': {'rev': 'v1', 'depth': 5}})
+    """
+    if not isinstance(entry, dict):
+        return False, entry
+
+    if not any(key in entry for key in LEGACY_REPO_OPTION_KEYS):
+        return False, entry
+
+    new_entry = copy.deepcopy(entry)
+    options: dict[str, t.Any] = dict(new_entry.get("options") or {})
+    for key in LEGACY_REPO_OPTION_KEYS:
+        if key not in new_entry:
+            continue
+        value = new_entry.pop(key)
+        options.setdefault(key, value)
+
+    if options.get("depth"):
+        options.pop("shallow", None)
+
+    new_entry["options"] = options
+    return True, new_entry
+
+
+def detect_legacy_repo_options(raw_config: t.Any) -> list[tuple[str, str]]:
+    """Return ``(workspace_label, repo_name)`` pairs using legacy top-level keys.
+
+    Scans a raw (unexpanded) config mapping for repository entries that still
+    carry top-level ``rev``/``shallow``/``depth`` instead of nesting them under
+    ``options:``. Callers use the result to warn users to run ``vcspull
+    migrate``.
+
+    Parameters
+    ----------
+    raw_config : Any
+        Raw config mapping (workspace root → repo name → entry).
+
+    Returns
+    -------
+    list[tuple[str, str]]
+        One ``(workspace_label, repo_name)`` pair per legacy entry.
+
+    Examples
+    --------
+    >>> detect_legacy_repo_options(
+    ...     {"~/code/": {"flask": {"repo": "git+x", "shallow": True}}}
+    ... )
+    [('~/code/', 'flask')]
+
+    The canonical ``options:`` form is not flagged:
+
+    >>> detect_legacy_repo_options(
+    ...     {"~/code/": {"flask": {"repo": "git+x", "options": {"shallow": True}}}}
+    ... )
+    []
+    """
+    legacy: list[tuple[str, str]] = []
+    if not isinstance(raw_config, dict):
+        return legacy
+
+    for workspace_label, repos in raw_config.items():
+        if not isinstance(repos, dict):
+            continue
+        for repo_name, entry in repos.items():
+            if isinstance(entry, dict) and any(
+                key in entry for key in LEGACY_REPO_OPTION_KEYS
+            ):
+                legacy.append((str(workspace_label), str(repo_name)))
+
+    return legacy
 
 
 def save_config(config_file_path: pathlib.Path, data: dict[t.Any, t.Any]) -> None:
