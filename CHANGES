@@ -37,6 +37,22 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### Pin a repository to a fixed ref (#551)
+
+`vcspull add` and `vcspull discover` accept `--pin <ref>` to record a commit,
+tag, or branch as a per-repository `rev:`. A later `sync` checks out that ref,
+so a config can capture a reproducible snapshot instead of tracking the branch
+tip. See {ref}`configuration` for the `rev:` key.
+
+#### Detect and persist shallow clones (#550)
+
+`add` and `discover` now notice when a checkout is shallow and record
+`shallow: true`, which makes `sync` clone with `--depth 1`—saving disk and time
+across large workspaces. Pass `--shallow` to force it on even for a full
+checkout. See {ref}`configuration` for the `shallow:` key.
+
 ## vcspull v1.60.1 (2026-05-16)
 
 ### Development
