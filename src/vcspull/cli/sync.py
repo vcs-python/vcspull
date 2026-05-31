@@ -1927,11 +1927,11 @@ def update_repo(
 
     repo_dict["progress_callback"] = progress_callback or progress_cb
 
-    # vcspull surfaces options.shallow/options.depth as flat ``shallow``/
-    # ``depth`` keys on the ConfigDict. libvcs names them ``git_shallow``/
-    # ``depth``; translate and apply them as attributes after construction so
-    # they reach obtain() (depth wins over shallow) without leaking git-only
-    # kwargs into the svn/hg sync constructors.
+    # The ConfigDict carries options.shallow/options.depth as flat ``shallow``/
+    # ``depth`` keys. libvcs's GitSync names the former ``git_shallow``, so
+    # translate it; apply both as attributes after construction and only for
+    # git. ``obtain()`` then resolves precedence (an explicit depth wins over
+    # ``git_shallow``).
     git_shallow = bool(repo_dict.pop("shallow", False))
     git_depth = repo_dict.pop("depth", None)
 
