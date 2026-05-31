@@ -74,3 +74,8 @@ $ vcspull migrate --all --write
 
 Migration is idempotent—running it again on an already-migrated file makes no
 changes.
+
+## See also
+
+- {ref}`configuration` — the `options:` block and its sync-tuning keys.
+- {ref}`migration` — the deprecation note for the top-level form.

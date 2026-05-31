@@ -194,6 +194,9 @@ existing configs in place:
 $ vcspull migrate --write
 ```
 
+See {ref}`migration` for the deprecation note and {ref}`cli-migrate` for the
+command reference.
+
 (config-pin)=
 
 ## Repository pinning
