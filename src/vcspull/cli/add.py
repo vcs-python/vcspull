@@ -21,13 +21,13 @@ from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     build_repo_entry,
     canonicalize_workspace_path,
-    detect_git_shallow,
     expand_dir,
     find_home_config_files,
     get_pin_reason,
     is_pinned_for_op,
     merge_duplicate_workspace_roots,
     normalize_config_file_path,
+    resolve_clone_depth,
     save_config,
     save_config_json,
     save_config_yaml_with_items,
@@ -124,8 +124,19 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         dest="shallow",
         action="store_true",
         help=(
-            "Record 'shallow: true' (clone --depth 1 on sync). A shallow "
-            "checkout is detected automatically; this forces it on."
+            "Record 'options.shallow: true' (clone --depth 1 on sync). A "
+            "shallow checkout is detected automatically; this forces it on."
+        ),
+    )
+    parser.add_argument(
+        "--depth",
+        dest="depth",
+        type=int,
+        metavar="N",
+        help=(
+            "Record 'options.depth: N' (clone --depth N on sync). Overrides "
+            "--shallow. An existing shallow checkout's depth is detected "
+            "automatically."
         ),
     )
     parser.add_argument(
@@ -465,8 +476,26 @@ def handle_add_command(args: argparse.Namespace) -> None:
             Style.RESET_ALL,
         )
 
-    shallow = bool(getattr(args, "shallow", False)) or detect_git_shallow(repo_path)
-    if shallow:
+    explicit_depth = getattr(args, "depth", None)
+    if explicit_depth is not None and explicit_depth < 1:
+        log.error("--depth must be a positive integer (got %s)", explicit_depth)
+        return
+
+    shallow, depth = resolve_clone_depth(
+        repo_path,
+        explicit_shallow=bool(getattr(args, "shallow", False)),
+        explicit_depth=explicit_depth,
+    )
+    if depth is not None:
+        log.info(
+            "  %s•%s depth: %s%s%s",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.YELLOW,
+            depth,
+            Style.RESET_ALL,
+        )
+    elif shallow:
         log.info(
             "  %s•%s shallow: %strue%s",
             Fore.BLUE,
@@ -518,6 +547,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
         merge_duplicates=args.merge_duplicates,
         rev=getattr(args, "pin", None),
         shallow=shallow,
+        depth=depth,
     )
 
 
@@ -532,6 +562,7 @@ def add_repo(
     merge_duplicates: bool = True,
     rev: str | None = None,
     shallow: bool = False,
+    depth: int | None = None,
 ) -> None:
     """Add a repository to the vcspull configuration.
 
@@ -550,9 +581,11 @@ def add_repo(
     dry_run : bool
         If True, preview changes without writing
     rev : str | None
-        Commit, tag, or branch to record as the repository ``rev``.
+        Commit, tag, or branch to record as ``options.rev``.
     shallow : bool
-        If ``True``, record ``shallow: true`` for the repository.
+        If ``True``, record ``options.shallow: true`` for the repository.
+    depth : int | None
+        If set, record ``options.depth: N`` for the repository.
     """
     # Determine config file
     config_file_path: pathlib.Path
@@ -630,7 +663,7 @@ def add_repo(
         preserve_cwd_label=explicit_dot,
     )
 
-    new_repo_entry = build_repo_entry(url, rev=rev, shallow=shallow)
+    new_repo_entry = build_repo_entry(url, rev=rev, shallow=shallow, depth=depth)
 
     def _ensure_workspace_label_for_merge(
         config_data: dict[str, t.Any],

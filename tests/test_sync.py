@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import textwrap
 import typing as t
@@ -22,7 +23,13 @@ from libvcs.sync.svn import SvnSync
 
 from vcspull._internal.config_reader import ConfigReader
 from vcspull.cli.sync import sync, update_repo
-from vcspull.config import detect_git_shallow, extract_repos, filter_repos, load_configs
+from vcspull.config import (
+    detect_git_depth,
+    detect_git_shallow,
+    extract_repos,
+    filter_repos,
+    load_configs,
+)
 from vcspull.validator import is_valid_config
 
 from .helpers import write_config
@@ -500,3 +507,73 @@ def test_update_repo_git_rev(
     result = update_repo(repo_dict)
     assert isinstance(result, GitSync)
     assert result.get_revision() == tag_sha
+
+
+def test_update_repo_git_depth(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+) -> None:
+    """A ``depth`` config entry clones with ``--depth N`` on sync."""
+    dummy_repo = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+    # A --depth N clone is only meaningfully shallow when the remote carries
+    # more history than the requested depth, so add commits past depth 2.
+    for message in ("second", "third", "fourth"):
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(dummy_repo),
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                message,
+            ],
+            check=True,
+        )
+
+    repo_dict: ConfigDict = {
+        "vcs": "git",
+        "name": "depthclone",
+        "path": tmp_path / "checkout" / "depthclone",
+        "url": f"git+file://{dummy_repo}",
+        "workspace_root": str(tmp_path / "checkout/"),
+        "depth": 2,
+    }
+
+    result = update_repo(repo_dict)
+    assert isinstance(result, GitSync)
+    assert detect_git_depth(result.path) == 2
+
+
+def test_load_configs_warns_on_legacy_options(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """load_configs(warn_legacy_options=True) warns on top-level sync keys."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    config_file = write_config(
+        tmp_path / ".vcspull.yaml",
+        textwrap.dedent(
+            """\
+            ~/code/:
+              flask:
+                repo: git+https://github.com/pallets/flask.git
+                shallow: true
+            """,
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="vcspull.config"):
+        load_configs([config_file], warn_legacy_options=True)
+
+    legacy_records = [
+        record for record in caplog.records if hasattr(record, "vcspull_config_path")
+    ]
+    assert len(legacy_records) == 1
+    assert legacy_records[0].levelno == logging.WARNING
+    assert "vcspull migrate" in legacy_records[0].getMessage()
+    assert legacy_records[0].vcspull_config_path == str(config_file)

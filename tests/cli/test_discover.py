@@ -48,6 +48,7 @@ class DiscoverFixture(t.NamedTuple):
     preexisting_yaml: str | None
     pin: str | None = None
     shallow: bool = False
+    depth: int | None = None
 
 
 DISCOVER_FIXTURES: list[DiscoverFixture] = [
@@ -238,6 +239,24 @@ DISCOVER_FIXTURES: list[DiscoverFixture] = [
         preexisting_yaml=None,
         shallow=True,
     ),
+    DiscoverFixture(
+        test_id="depth-forced",
+        repos_to_create=[
+            ("repo1", "git+https://github.com/user/repo1.git"),
+        ],
+        recursive=False,
+        workspace_override=None,
+        dry_run=False,
+        yes=True,
+        expected_repo_count=1,
+        config_relpath=".vcspull.yaml",
+        preexisting_config=None,
+        user_input=None,
+        expected_workspace_labels={"~/code/"},
+        merge_duplicates=True,
+        preexisting_yaml=None,
+        depth=50,
+    ),
 ]
 
 
@@ -398,6 +417,7 @@ def test_discover_repos(
     preexisting_yaml: str | None,
     pin: str | None,
     shallow: bool,
+    depth: int | None,
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -451,6 +471,7 @@ def test_discover_repos(
         merge_duplicates=merge_duplicates,
         rev=pin,
         shallow=shallow,
+        depth=depth,
     )
 
     if preexisting_yaml is not None or not merge_duplicates:
@@ -500,9 +521,20 @@ def test_discover_repos(
             if isinstance(entry, dict)
         ]
         if pin is not None:
-            assert all(entry.get("rev") == pin for entry in persisted_entries)
+            assert all(
+                entry.get("options", {}).get("rev") == pin
+                for entry in persisted_entries
+            )
         if shallow:
-            assert all(entry.get("shallow") is True for entry in persisted_entries)
+            assert all(
+                entry.get("options", {}).get("shallow") is True
+                for entry in persisted_entries
+            )
+        if depth is not None:
+            assert all(
+                entry.get("options", {}).get("depth") == depth
+                for entry in persisted_entries
+            )
 
 
 def test_discover_detects_shallow_clone(
@@ -568,8 +600,66 @@ def test_discover_detects_shallow_clone(
         for name, entry in repos.items()
         if isinstance(entry, dict)
     }
-    assert "shallow" not in entries["fullrepo"]
-    assert entries["shallowrepo"]["shallow"] is True
+    assert "options" not in entries["fullrepo"]
+    assert entries["shallowrepo"]["options"]["shallow"] is True
+
+
+def test_discover_detects_numeric_depth(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Discover records ``options.depth: N`` for a depth>1 checkout."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    remote = tmp_path / "remote"
+    subprocess.run(["git", "init", "-q", str(remote)], check=True)
+    for message in ("first", "second", "third", "fourth"):
+        subprocess.run(
+            ["git", "-C", str(remote), "commit", "-q", "--allow-empty", "-m", message],
+            check=True,
+        )
+    remote_url = f"file://{remote}"
+
+    scan_dir = tmp_path / "code"
+    scan_dir.mkdir()
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "-q",
+            # --no-local forces the standard transport so --depth is honored
+            # even when the source is on the same filesystem.
+            "--no-local",
+            "--depth",
+            "3",
+            remote_url,
+            str(scan_dir / "windowrepo"),
+        ],
+        check=True,
+    )
+
+    config_file = tmp_path / ".vcspull.yaml"
+    discover_repos(
+        scan_dir_str=str(scan_dir),
+        config_file_path_str=str(config_file),
+        recursive=False,
+        workspace_root_override=None,
+        yes=True,
+        dry_run=False,
+    )
+
+    import yaml
+
+    config = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+    entries = {
+        name: entry
+        for repos in config.values()
+        if isinstance(repos, dict)
+        for name, entry in repos.items()
+        if isinstance(entry, dict)
+    }
+    assert entries["windowrepo"]["options"]["depth"] == 3
 
 
 @pytest.mark.parametrize(

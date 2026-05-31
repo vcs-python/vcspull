@@ -540,6 +540,7 @@ def cli(_args: list[str] | None = None) -> None:
             include_worktrees=getattr(args, "include_worktrees", False),
             rev=getattr(args, "pin", None),
             shallow=getattr(args, "shallow", False),
+            depth=getattr(args, "depth", None),
         )
     elif args.subparser_name == "fmt":
         format_config_file(

@@ -2299,7 +2299,7 @@ def test_sync_human_output_redacts_repo_paths(
     monkeypatch.setattr(
         sync_module,
         "load_configs",
-        lambda _paths: [repo_config],
+        lambda _paths, **_kwargs: [repo_config],
     )
     monkeypatch.setattr(
         sync_module,

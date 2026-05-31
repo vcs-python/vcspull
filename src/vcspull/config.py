@@ -522,6 +522,7 @@ def load_configs(
     cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
     *,
     merge_duplicates: bool = True,
+    warn_legacy_options: bool = False,
 ) -> list[ConfigDict]:
     """Return repos from a list of files.
 
@@ -531,6 +532,10 @@ def load_configs(
         paths to config file
     cwd : pathlib.Path
         current path (pass down for :func:`extract_repos`
+    warn_legacy_options : bool
+        If ``True``, log a deprecation warning for entries that still carry
+        top-level ``rev``/``shallow``/``depth`` keys (see
+        :func:`detect_legacy_repo_options`).
 
     Returns
     -------
@@ -584,6 +589,18 @@ def load_configs(
                 file,
                 duplicate_list,
             )
+
+        if warn_legacy_options:
+            legacy_entries = detect_legacy_repo_options(config_content)
+            if legacy_entries:
+                affected = ", ".join(f"{label}{name}" for label, name in legacy_entries)
+                log.warning(
+                    "%s: top-level rev/shallow/depth are deprecated; move them "
+                    "under 'options:' (run 'vcspull migrate'). Affected: %s",
+                    file,
+                    affected,
+                    extra={"vcspull_config_path": str(file)},
+                )
 
         assert is_valid_config(config_content)
         newrepos = extract_repos(config_content, cwd=cwd)
@@ -1043,20 +1060,24 @@ def build_repo_entry(
     *,
     rev: str | None = None,
     shallow: bool = False,
+    depth: int | None = None,
 ) -> dict[str, t.Any]:
     """Build a raw per-repository config entry for ``add``/``discover``.
 
     Centralizes the entry shape written by both subcommands so the recorded
-    keys stay consistent.
+    keys stay consistent. Sync-tuning keys are nested under ``options:``;
+    ``depth`` wins over ``shallow`` when both are supplied.
 
     Parameters
     ----------
     url : str
         VCS URL in vcspull format, e.g. ``git+https://github.com/u/r.git``.
     rev : str | None
-        Commit, tag, or branch to pin via the ``rev`` key. Omitted when falsy.
+        Commit, tag, or branch to pin via ``options.rev``. Omitted when falsy.
     shallow : bool
-        If ``True``, record ``shallow: true`` (clone ``--depth 1`` on sync).
+        If ``True``, record ``options.shallow: true`` (clone ``--depth 1``).
+    depth : int | None
+        If set, record ``options.depth: N`` (clone ``--depth N``).
 
     Returns
     -------
@@ -1069,16 +1090,29 @@ def build_repo_entry(
     {'repo': 'git+https://github.com/u/r.git'}
 
     >>> build_repo_entry("git+https://github.com/u/r.git", rev="v1.0.0")
-    {'repo': 'git+https://github.com/u/r.git', 'rev': 'v1.0.0'}
+    {'repo': 'git+https://github.com/u/r.git', 'options': {'rev': 'v1.0.0'}}
 
     >>> build_repo_entry("git+https://github.com/u/r.git", shallow=True)
-    {'repo': 'git+https://github.com/u/r.git', 'shallow': True}
+    {'repo': 'git+https://github.com/u/r.git', 'options': {'shallow': True}}
+
+    >>> build_repo_entry("git+https://github.com/u/r.git", depth=50)
+    {'repo': 'git+https://github.com/u/r.git', 'options': {'depth': 50}}
+
+    ``depth`` wins over ``shallow``:
+
+    >>> build_repo_entry("git+https://github.com/u/r.git", shallow=True, depth=50)
+    {'repo': 'git+https://github.com/u/r.git', 'options': {'depth': 50}}
     """
     entry: dict[str, t.Any] = {"repo": url}
+    options: dict[str, t.Any] = {}
     if rev:
-        entry["rev"] = rev
-    if shallow:
-        entry["shallow"] = True
+        options["rev"] = rev
+    if depth:
+        options["depth"] = depth
+    elif shallow:
+        options["shallow"] = True
+    if options:
+        entry["options"] = options
     return entry
 
 
