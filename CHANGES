@@ -31,11 +31,18 @@ $ uv add vcspull --prerelease allow
 $ uvx --from 'vcspull' --prerelease allow vcspull
 ```
 
-## vcspull v1.63.x (unreleased)
+## vcspull v1.64.x (unreleased)
 
 <!-- KEEP THIS PLACEHOLDER - DO NOT REMOVE OR MODIFY THIS LINE -->
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
+
+## vcspull v1.63.0 (2026-06-20)
+
+vcspull v1.63.0 is a maintenance release that raises the libvcs floor to
+v0.43.0, picking up libvcs's pytest 9.1 compatibility fix. The bump matters
+to anyone running vcspull under pytest 9.1—the previous libvcs aborted the
+test session at startup—but brings no configuration or CLI changes.
 
 ### Dependencies
 
