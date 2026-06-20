@@ -319,6 +319,7 @@ git commit -m "$(cat <<'EOF'
 feat(Component[method]) add feature description
 
 why: Explanation of the change.
+
 what:
 - First change
 - Second change
@@ -366,10 +367,15 @@ Format commit messages as:
 Scope(type[detail]): concise description
 
 why: Explanation of necessity or impact.
+
 what:
 - Specific technical changes made
 - Focused on a single topic
 ```
+
+Keep the subject ≤50 chars (excluding any trailing `(#NN)` PR ref); wrap
+body lines at ≤72 chars. Separate the `why:` and `what:` blocks with a
+blank line.
 
 The `why:` must be the pragmatic, contextual reason behind the change — never cite AGENTS.md, CLAUDE.md, or other rule files as the justification. If you feel compelled to write "AGENTS.md says..." or "CLAUDE.md requires...", look at `git log -n 10 -p`, the PR description, and the ticket for the real engineering reason (e.g., "function had no doctest coverage" not "CLAUDE.md requires doctests").
 
@@ -390,6 +396,7 @@ Examples:
 cli(add[repo]) Add support for custom remote URLs
 
 why: Enable users to specify alternative remote URLs for repositories
+
 what:
 - Add remote_url parameter to add_repo function
 - Update CLI argument parser to accept --remote-url option
@@ -401,6 +408,7 @@ For docs/_ext changes, use `docs` as the top-level component:
 docs(sphinx_argparse_neo[renderer]) Escape asterisks in quoted strings
 
 why: Glob patterns like "django-*" cause RST emphasis issues
+
 what:
 - Add _escape_glob_asterisks() helper method
 - Call it before RST parsing in _parse_text()
