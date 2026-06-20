@@ -37,6 +37,12 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Dependencies
+
+Minimum `libvcs>=0.43.0` (was `>=0.42.0`). libvcs 0.43.0 restores
+pytest 9.1 compatibility for projects that auto-load its pytest plugin
+(#555).
+
 ## vcspull v1.62.0 (2026-05-31)
 
 vcspull v1.62.0 lets a workspace keep a small window of git history per
