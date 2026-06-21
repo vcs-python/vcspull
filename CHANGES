@@ -37,6 +37,13 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Dependencies
+
+Minimum `libvcs>=0.44.0` (was `>=0.43.0`). libvcs 0.44.0 returns VCS
+command output verbatim instead of trimming each line; vcspull syncs
+through libvcs's high-level helpers, which are unaffected, so there are
+no configuration or CLI changes (#556).
+
 ## vcspull v1.63.0 (2026-06-20)
 
 vcspull v1.63.0 is a maintenance release that raises the libvcs floor to
