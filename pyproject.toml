@@ -73,10 +73,10 @@ dev = [
   "gp-sphinx==0.0.1a31",
   "sphinx-autodoc-argparse==0.0.1a31",
   "sphinx-autodoc-api-style==0.0.1a31",
-  "gp-libs",
+  "gp-libs>=0.0.18",
   "sphinx-autobuild",
   # Testing
-  "gp-libs",
+  "gp-libs>=0.0.18",
   "pytest",
   "syrupy",
   "pytest-asyncio",
@@ -102,11 +102,11 @@ docs = [
   "gp-sphinx==0.0.1a31",
   "sphinx-autodoc-argparse==0.0.1a31",
   "sphinx-autodoc-api-style==0.0.1a31",
-  "gp-libs",
+  "gp-libs>=0.0.18",
   "sphinx-autobuild",
 ]
 testing = [
-  "gp-libs",
+  "gp-libs>=0.0.18",
   "pytest",
   "syrupy",
   "pytest-asyncio",
