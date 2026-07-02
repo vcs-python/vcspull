@@ -1,6 +1,6 @@
 # Changelog
 
-To install the unreleased vcspull version, see [developmental releases](https://vcspull.git-pull.com/quickstart.html#developmental-releases).
+To install the unreleased vcspull version, see [developmental releases](https://vcspull.git-pull.com/quickstart/#developmental-releases).
 
 [pip](https://pip.pypa.io/en/stable/):
 
@@ -16,8 +16,9 @@ $ pipx install \
     --pip-args '\--pre' \
     --force \
     'vcspull'
-// Usage: vcspull@next sync [config]
 ```
+
+The suffixed command is then available as `vcspull@next sync [config]`.
 
 [uv](https://docs.astral.sh/uv/):
 
