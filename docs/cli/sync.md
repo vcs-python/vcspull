@@ -18,6 +18,122 @@ synchronized with remote repositories.
     :path: sync
 ```
 
+## Filtering repos
+
+Running `vcspull sync` with no patterns syncs nothing and prints the help
+text — you always say which repositories to touch, with patterns or `--all`:
+
+```vcspull-console
+$ vcspull sync
+usage: vcspull sync [-h] [-f FILE] [-w DIR] [--dry-run] [--json] [--ndjson]
+...
+```
+
+### Sync all repos
+
+Sync everything with the `*` pattern:
+
+```console
+$ vcspull sync '*'
+```
+
+Depending on how your shell expands the [wild card / asterisk], you may not
+need to quote `*`.
+
+[wild card / asterisk]: https://tldp.org/LDP/abs/html/special-chars.html#:~:text=wild%20card%20%5Basterisk%5D.
+
+### Filtering
+
+Filter repos starting with "django-":
+
+```console
+$ vcspull sync 'django-*'
+```
+
+### Multiple terms
+
+Name several repositories exactly:
+
+```console
+$ vcspull sync 'django-anymail' 'django-guardian'
+```
+
+## Configuration file selection
+
+Specify a custom config file with `-f/--file`:
+
+```console
+$ vcspull sync --file ~/projects/.vcspull.yaml '*'
+```
+
+By default, vcspull searches for config files in:
+1. Current directory (`.vcspull.yaml`)
+2. Home directory (`~/.vcspull.yaml`)
+3. [XDG](https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+   config directory (`~/.config/vcspull/`)
+
+## Workspace filtering
+
+Filter repositories by workspace root with `-w/--workspace` or `--workspace-root`:
+
+```console
+$ vcspull sync --workspace ~/code/ '*'
+```
+
+This syncs only repositories in the specified workspace root, useful for:
+- Selective workspace updates
+- Multi-workspace setups
+- Targeted sync operations
+
+The `-w`, `--workspace`, and `--workspace-root` spellings work identically:
+
+```console
+$ vcspull sync --workspace-root ~/code/ '*'
+```
+
+## Error handling
+
+### Repos not found in config
+
+If a repo term has no match in your configurations, vcspull shows a warning:
+
+```vcspull-console
+$ vcspull sync non_existent_repo
+No repo found in config(s) for "non_existent_repo"
+```
+
+```vcspull-console
+$ vcspull sync non_existent_repo existing_repo
+No repo found in config(s) for "non_existent_repo"
+```
+
+```vcspull-console
+$ vcspull sync non_existent_repo existing_repo another_repo_not_in_config
+No repo found in config(s) for "non_existent_repo"
+No repo found in config(s) for "another_repo_not_in_config"
+```
+
+Sync terms act as a filter rather than a lookup, so the message is a
+warning — it does not stop the run, even with `--exit-on-error`.
+
+### Continuing past errors
+
+When syncing multiple repositories, vcspull continues to the next repository
+if one fails.
+
+Pass `--exit-on-error` / `-x` to stop the whole run at the first failing
+repository instead:
+
+```console
+$ vcspull sync --exit-on-error grako django
+```
+
+Print traceback for errored repos:
+
+```console
+$ vcspull --log-level DEBUG sync --exit-on-error grako django
+```
+
 ## Dry run mode
 
 Preview what would be synchronized without making changes:
@@ -106,45 +222,6 @@ Each line is a JSON object representing a sync event, ideal for:
 - Progress monitoring
 - Log aggregation
 
-## Configuration file selection
-
-Specify a custom config file with `-f/--file`:
-
-```console
-$ vcspull sync --file ~/projects/.vcspull.yaml '*'
-```
-
-By default, vcspull searches for config files in:
-1. Current directory (`.vcspull.yaml`)
-2. Home directory (`~/.vcspull.yaml`)
-3. [XDG](https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html)
-   config directory (`~/.config/vcspull/`)
-
-## Workspace filtering
-
-Filter repositories by workspace root with `-w/--workspace` or `--workspace-root`:
-
-```console
-$ vcspull sync --workspace ~/code/ '*'
-```
-
-This syncs only repositories in the specified workspace root,  useful for:
-- Selective workspace updates
-- Multi-workspace setups
-- Targeted sync operations
-
-All three flag names work identically. Using `--workspace`:
-
-```console
-$ vcspull sync --workspace ~/code/ '*'
-```
-
-Or using `--workspace-root`:
-
-```console
-$ vcspull sync --workspace-root ~/code/ '*'
-```
-
 ## Color output
 
 Control colored output with `--color`:
@@ -155,82 +232,3 @@ Control colored output with `--color`:
 
 The [`NO_COLOR`](https://no-color.org/) environment variable is also
 respected.
-
-## Filtering repos
-
-Running `vcspull sync` with no patterns syncs nothing and prints the help
-text — you always say which repositories to touch, with patterns or `--all`:
-
-```vcspull-console
-$ vcspull sync
-usage: vcspull sync [-h] [-f FILE] [-w DIR] [--dry-run] [--json] [--ndjson]
-...
-```
-
-### Sync all repos
-
-Depending on how your terminal works with shell escapes for expands such as the [wild card / asterisk], you may not need to quote `*`.
-
-```console
-$ vcspull sync '*'
-```
-
-[wild card / asterisk]: https://tldp.org/LDP/abs/html/special-chars.html#:~:text=wild%20card%20%5Basterisk%5D.
-
-### Filtering
-
-Filter all repos start with "django-":
-
-```console
-$ vcspull sync 'django-*'
-```
-
-### Multiple terms
-
-Filter all repos start with "django-":
-
-```console
-$ vcspull sync 'django-anymail' 'django-guardian'
-```
-
-## Error handling
-
-### Repos not found in config
-
-As of 1.13.x, if you enter a repo term (or terms) that aren't found throughout
-your configurations, it will show a warning:
-
-```vcspull-console
-$ vcspull sync non_existent_repo
-No repo found in config(s) for "non_existent_repo"
-```
-
-```vcspull-console
-$ vcspull sync non_existent_repo existing_repo
-No repo found in config(s) for "non_existent_repo"
-```
-
-```vcspull-console
-$ vcspull sync non_existent_repo existing_repo another_repo_not_in_config
-No repo found in config(s) for "non_existent_repo"
-No repo found in config(s) for "another_repo_not_in_config"
-```
-
-Since syncing terms are treated as a filter rather than a lookup, the message is
-considered a warning, so will not exit even if `--exit-on-error` flag is used.
-
-### Syncing
-
-As of 1.13.x, vcspull will continue to the next repo if an error is encountered when syncing multiple repos.
-
-To imitate the old behavior, the `--exit-on-error` / `-x` flag:
-
-```console
-$ vcspull sync --exit-on-error grako django
-```
-
-Print traceback for errored repos:
-
-```console
-$ vcspull --log-level DEBUG sync --exit-on-error grako django
-```
