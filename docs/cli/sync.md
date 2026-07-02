@@ -24,9 +24,14 @@ Preview what would be synchronized without making changes:
 
 ```vcspull-console
 $ vcspull sync --dry-run '*'
-Would sync flask at ~/code/flask
-Would sync django at ~/code/django
-Would sync requests at ~/code/requests
+Plan: 2 to clone (+), 0 to update (~), 2 unchanged (✓), 0 blocked (⚠), 0 errors (✗)
+
+~/code/
+  + django-extensions  ~/code/django-extensions  missing
+
+~/study/ai/
+  + tiktoken  ~/study/ai/tiktoken  missing
+Tip: run without --dry-run to apply. Use --show-unchanged to include ✓ rows.
 ```
 
 Use `--dry-run` or `-n` to:
@@ -40,30 +45,48 @@ Use `--dry-run` or `-n` to:
 Export sync operations as JSON for automation:
 
 ```console
-$ vcspull sync --dry-run --json '*'
+$ vcspull sync --dry-run --json 'flask' 'tiktoken'
+```
+
+Output:
+
+```json
 [
   {
-    "reason": "sync",
-    "name": "flask",
-    "path": "~/code/flask",
-    "workspace_root": "~/code/",
-    "status": "preview"
+    "format_version": "1",
+    "type": "operation",
+    "name": "tiktoken",
+    "path": "~/study/ai/tiktoken",
+    "workspace_root": "~/study/ai/",
+    "action": "clone",
+    "detail": "missing",
+    "url": "git+https://github.com/openai/tiktoken.git"
   },
   {
-    "reason": "summary",
-    "total": 3,
-    "synced": 0,
-    "previewed": 3,
-    "failed": 0
+    "format_version": "1",
+    "type": "summary",
+    "clone": 1,
+    "update": 0,
+    "unchanged": 1,
+    "blocked": 0,
+    "errors": 0,
+    "total": 2,
+    "duration_ms": 8
   }
 ]
 ```
 
 Each event emitted during the run includes:
 
-- `reason`: `"sync"` for repository events, `"summary"` for the final summary
-- `name`, `path`, `workspace_root`: Repository metadata from your config
-- `status`: `"synced"`, `"preview"`, or `"error"` (with an `error` field)
+- `format_version`: Schema version of the event stream (currently `"1"`)
+- `type`: `"operation"` for repository events, `"summary"` for the final
+  summary
+- `name`, `path`, `workspace_root`, `url`: Repository metadata from your
+  config
+- `action`: `"clone"`, `"update"`, `"unchanged"`, `"blocked"`, or `"error"`
+- `detail`: Short explanation of the action, when available
+- `branch`, `ahead`, `behind`, `dirty`: Working-tree state for existing
+  checkouts
 
 Use `--json` without `--dry-run` to capture actual sync executions—successful
 and failed repositories are emitted with their final state.
@@ -73,9 +96,9 @@ and failed repositories are emitted with their final state.
 Stream sync events line-by-line with `--ndjson`:
 
 ```console
-$ vcspull sync --dry-run --ndjson '*'
-{"reason":"sync","name":"flask","path":"~/code/flask","workspace_root":"~/code/","status":"preview"}
-{"reason":"summary","total":3,"synced":0,"previewed":3,"failed":0}
+$ vcspull sync --dry-run --ndjson 'flask' 'tiktoken'
+{"format_version": "1", "type": "operation", "name": "tiktoken", "path": "~/study/ai/tiktoken", "workspace_root": "~/study/ai/", "action": "clone", "detail": "missing", "url": "git+https://github.com/openai/tiktoken.git"}
+{"format_version": "1", "type": "summary", "clone": 1, "update": 0, "unchanged": 1, "blocked": 0, "errors": 0, "total": 2, "duration_ms": 7}
 ```
 
 Each line is a JSON object representing a sync event, ideal for:
