@@ -47,6 +47,9 @@ centralizing the behavior in a `pathlib.Path` subclass we get:
 If you need alternative redaction behavior, consider composing your own helper
 around `PrivatePath` instead of reintroducing ad hoc string munging.
 
+The generated reference below covers the full surface of
+{mod}`vcspull._internal.private_path`.
+
 ```{eval-rst}
 .. automodule:: vcspull._internal.private_path
    :members:

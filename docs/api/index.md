@@ -2,6 +2,10 @@
 
 # API Reference
 
+Most readers only need the {ref}`CLI <cli>` — this section documents
+vcspull's Python modules for the rarer cases where you script against your
+configuration from Python.
+
 :::{seealso}
 For granular control see the [libvcs documentation](https://libvcs.git-pull.com/en/latest/)---especially the sections on [commands](https://libvcs.git-pull.com/en/latest/usage/commands.html) and [projects](https://libvcs.git-pull.com/en/latest/usage/projects.html).
 :::

@@ -1,5 +1,9 @@
 # vcspull list - `vcspull.cli.list`
 
+{mod}`vcspull.cli.list` is the implementation behind
+{ref}`vcspull list <cli-list>` — it prints the repositories your
+configuration defines.
+
 ```{eval-rst}
 .. automodule:: vcspull.cli.list
    :members:

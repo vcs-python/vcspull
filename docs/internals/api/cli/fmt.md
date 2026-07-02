@@ -1,5 +1,9 @@
 # vcspull fmt - `vcspull.cli.fmt`
 
+{mod}`vcspull.cli.fmt` is the implementation behind
+{ref}`vcspull fmt <cli-fmt>` — it normalizes configuration files to
+vcspull's canonical shape.
+
 ```{eval-rst}
 .. automodule:: vcspull.cli.fmt
    :members:

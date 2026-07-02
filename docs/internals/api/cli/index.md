@@ -22,6 +22,10 @@ migrate
 
 ## vcspull CLI - `vcspull.cli`
 
+{mod}`vcspull.cli` assembles the argument parser and dispatches each
+subcommand to its module — start here to trace how a command line becomes a
+function call.
+
 ```{eval-rst}
 .. automodule:: vcspull.cli
    :members:
