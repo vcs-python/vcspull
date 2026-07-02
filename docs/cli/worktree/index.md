@@ -131,18 +131,19 @@ log aggregation.
 
 ## Safety
 
-vcspull applies several safety checks before modifying worktrees:
+vcspull refuses to touch work it could destroy:
 
-**Dirty worktrees are BLOCKED.** If a worktree has uncommitted changes, vcspull
-will not update or remove it. Commit or stash your changes first.
+**Uncommitted changes stop updates.** If a worktree has uncommitted changes,
+vcspull will not update or remove it — commit or stash first. These entries
+show as blocked (`⚠`) in {ref}`vcspull worktree list <cli-worktree-list>`.
 
-**Missing refs are ERROR.** If a configured tag, branch, or commit doesn't exist
-in the repository, the entry is marked as an error. Fetch from the remote to
-make the ref available.
+**Unknown refs stop creation.** If a configured tag, branch, or commit
+doesn't exist in the repository, the entry is reported as an error (`✗`)
+rather than guessed at. Fetch from the remote to make the ref available.
 
-**Lock support.** Worktrees created with `lock: true` or `lock_reason` are
-locked via `git worktree lock`, preventing accidental removal with
-`git worktree remove`.
+**Locks guard against removal.** Worktrees created with `lock: true` or
+`lock_reason` are locked via `git worktree lock`, preventing accidental
+removal with `git worktree remove`.
 
 ## Pattern filtering
 
