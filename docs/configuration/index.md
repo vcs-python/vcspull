@@ -347,7 +347,7 @@ See {ref}`cli-import` for full details on `--sync` and `--prune`.
 
 For git remotes using SSH authorization such as `git+git@github.com:tony/kaptan.git` use `git+ssh`:
 
-```console
+```text
 git+ssh://git@github.com/tony/kaptan.git
 ```
 

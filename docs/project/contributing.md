@@ -300,12 +300,28 @@ See `[tool.mypy]` in pyproject.toml.
 [uv] handles virtualenv creation, package requirements, versioning,
 building, and publishing. Therefore there is no setup.py or requirements files.
 
-Update `__version__` in `__about__.py` and `pyproject.toml`::
+Update `__version__` in `__about__.py` and `pyproject.toml`, then commit the
+bump:
 
-    git commit -m 'build(vcspull): Tag v0.1.1'
-    git tag v0.1.1
-    git push
-    git push --tags
+```console
+$ git commit -m 'build(vcspull): Tag v0.1.1'
+```
+
+Tag it:
+
+```console
+$ git tag v0.1.1
+```
+
+Push the branch and the tag:
+
+```console
+$ git push
+```
+
+```console
+$ git push --tags
+```
 
 [GitHub Actions](https://github.com/features/actions) will detect the new
 git tag, and in its own workflow run `uv build` and push to

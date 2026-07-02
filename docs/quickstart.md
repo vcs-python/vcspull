@@ -51,9 +51,14 @@ In their versions you will see notification like `a1`, `b1`, and `rc1`, respecti
 - [pipx]\:
 
   ```console
-  $ pipx install --suffix=@next 'vcspull' --pip-args '\--pre' --force
-  // Usage: vcspull@next sync [config]
+  $ pipx install \
+      --suffix=@next \
+      --pip-args '\--pre' \
+      --force \
+      'vcspull'
   ```
+
+  The suffixed command is then available as `vcspull@next sync [config]`.
 
 - [uv tool install][uv-tools]\:
 
@@ -84,7 +89,10 @@ via trunk (can break easily):
 - [pipx]\:
 
   ```console
-  $ pipx install --suffix=@master 'vcspull @ git+https://github.com/vcs-python/vcspull.git@master' --force
+  $ pipx install \
+      --suffix=@master \
+      --force \
+      'vcspull @ git+https://github.com/vcs-python/vcspull.git@master'
   ```
 
 - [uv]\:

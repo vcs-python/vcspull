@@ -33,8 +33,11 @@ $ uvx shtab
 :::{tab} bash
 
 ```console
-$ shtab --shell=bash -u vcspull.cli.create_parser \
-  | sudo tee "$BASH_COMPLETION_COMPAT_DIR"/VCSPULL
+$ shtab \
+    --shell=bash \
+    --error-unimportable \
+    vcspull.cli.create_parser \
+    | sudo tee "$BASH_COMPLETION_COMPAT_DIR"/VCSPULL
 ```
 
 :::
@@ -42,8 +45,11 @@ $ shtab --shell=bash -u vcspull.cli.create_parser \
 :::{tab} zsh
 
 ```console
-$ shtab --shell=zsh -u vcspull.cli.create_parser \
-  | sudo tee /usr/local/share/zsh/site-functions/_VCSPULL
+$ shtab \
+    --shell=zsh \
+    --error-unimportable \
+    vcspull.cli.create_parser \
+    | sudo tee /usr/local/share/zsh/site-functions/_VCSPULL
 ```
 
 :::
@@ -51,8 +57,11 @@ $ shtab --shell=zsh -u vcspull.cli.create_parser \
 :::{tab} tcsh
 
 ```console
-$ shtab --shell=tcsh -u vcspull.cli.create_parser \
-  | sudo tee /etc/profile.d/VCSPULL.completion.csh
+$ shtab \
+    --shell=tcsh \
+    --error-unimportable \
+    vcspull.cli.create_parser \
+    | sudo tee /etc/profile.d/VCSPULL.completion.csh
 ```
 
 :::

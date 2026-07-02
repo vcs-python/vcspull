@@ -213,7 +213,7 @@ After discovering repositories, consider:
 
 If a repository already exists in your configuration, vcspull will detect it:
 
-```vcspull-console
+```vcspull-output
 Repository: flask
   Path: ~/code/flask
   Remote: git+https://github.com/pallets/flask.git
