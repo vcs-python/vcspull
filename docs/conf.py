@@ -47,6 +47,9 @@ conf = merge_sphinx_config(
     html_favicon="_static/favicon.ico",
     html_extra_path=["manifest.json"],
     rediraffe_redirects="redirects.txt",
+    # AGENTS.md is agent guidance, not a site page; keep Sphinx from
+    # treating it as an orphan document.
+    exclude_patterns=["_build", "AGENTS.md", "CLAUDE.md"],
 )
 
 _gp_setup = conf.pop("setup")
