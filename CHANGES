@@ -38,6 +38,19 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Documentation
+
+- Command examples are re-captured from real runs; the sync and status
+  pages now show the shipped output and JSON event schema, and the front
+  page's at-a-glance sync works as written.
+- Commands, configuration concepts, Python modules, and external tools
+  cross-link on their first mention, and every API reference page opens
+  with a prose introduction ({mod}`vcspull.cli.search` now renders its
+  reference, which a formatting bug previously hid).
+- Broken and dead links are repaired (docs-site self-links, retired
+  pip/flask/jq homes), and shell examples follow the documented console
+  block conventions.
+
 ## vcspull v1.64.0 (2026-06-21)
 
 vcspull v1.64.0 is a maintenance release that raises the libvcs floor to
