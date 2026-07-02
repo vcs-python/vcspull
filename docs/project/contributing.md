@@ -7,7 +7,7 @@ structure and workflow. At a later point these will refer to that website for do
 
 ## Bootstrap the project
 
-Install and [git] and [uv]
+Install [git] and [uv] (see uv's [installation documentation]).
 
 Clone:
 
@@ -32,7 +32,7 @@ $ uv sync --all-extras --dev
 
 ### Tests
 
-[pytest] is used for tests.
+Tests run on [pytest].
 
 [pytest]: https://pytest.org/
 
@@ -94,7 +94,7 @@ $ env PYTEST_ADDOPTS="--pdbcls=IPython.terminal.debugger:TerminalPdb" \
 
 ### Documentation
 
-[sphinx] is used for documentation generation. In the future this may change to
+[sphinx] generates the documentation. In the future this may change to
 [docusaurus].
 
 Default preview server: http://localhost:8022
@@ -165,7 +165,7 @@ $ just serve
 
 ### ruff
 
-The project uses [ruff] to handle formatting, sorting imports and linting.
+[ruff] handles formatting, import sorting, and linting.
 
 ````{tab} Command
 
@@ -219,7 +219,7 @@ $ ruff check . --fix
 
 #### ruff format
 
-[ruff format] is used for formatting.
+[ruff format] formats the code.
 
 ````{tab} Command
 
@@ -247,7 +247,7 @@ $ just ruff-format
 
 ### mypy
 
-[mypy] is used for static type checking.
+[mypy] checks static types.
 
 ````{tab} Command
 
@@ -286,7 +286,7 @@ requires [`entr(1)`].
 
 See `[tool.mypy]` in pyproject.toml.
 
-```{literalinclude} ../pyproject.toml
+```{literalinclude} ../../pyproject.toml
 :language: toml
 :start-at: "[tool.mypy]"
 :end-before: "[tool"
