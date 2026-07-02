@@ -27,8 +27,8 @@ _via #552_
 
 The per-repository `rev`, `shallow`, and the new `depth` keys are now written
 under an `options:` block instead of the repository entry root. The top-level
-form still loads, but `vcspull sync` now warns when it reads it and points you
-here. Rewrite your configs in place:
+form still loads, but {ref}`vcspull sync <cli-sync>` now warns when it reads
+it and points you here. Rewrite your configs in place:
 
 ```console
 $ vcspull migrate --write
@@ -65,7 +65,8 @@ boolean `shallow` (depth 1) is too little. See {ref}`configuration` and
 
 _via #403_
 
-After updating, you can re-run [shtab]'s setup (see [completions page]) completion of:
+After updating, you can re-run [shtab]'s setup (see the
+{ref}`completions page <cli-completions>`) completion of:
 
 ```console
 $ vcspull sync -c [tab]
@@ -81,11 +82,11 @@ $ vcspull sync --config [tab]
 
 _via #400_
 
-Completions now use a different tool: [shtab]. See the [completions page] for more information.
+Completions now use a different tool: [shtab]. See the
+{ref}`completions page <cli-completions>` for more information.
 
 If you were using earlier versions of vcspull (earlier than 1.15.0), you may need to uninstall the old completions, first.
 
-[completions page]: https://vcspull.git-pull.com/cli/completion.html
 [shtab]: https://docs.iterative.ai/shtab/
 
 ## vcspull v1.13.0 (2022-09-25)
