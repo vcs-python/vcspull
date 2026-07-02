@@ -6,13 +6,18 @@
 
 # Completions
 
+Shell completions let your shell suggest vcspull's subcommands and flags as
+you type — press tab and the rest is filled in. vcspull 1.15+ generates the
+completion scripts with [shtab](https://docs.iterative.ai/shtab/); support
+is provisional, and shtab is **installed separately**.
+
 ## vcspull 1.15+ (experimental)
 
 ```{note}
 See the [shtab library's documentation on shell completion](https://docs.iterative.ai/shtab/use/#cli-usage) for the most up to date way of connecting completion for vcspull.
 ```
 
-Provisional support for completions in vcspull 1.15+ are powered by [shtab](https://docs.iterative.ai/shtab/). This must be **installed separately**, as it's **not currently bundled with vcspull**.
+Install shtab first — it is **not bundled with vcspull**:
 
 ```console
 $ pip install shtab --user
@@ -29,6 +34,8 @@ For one-time use without installation:
 ```console
 $ uvx shtab
 ```
+
+Then generate and install the completion script for your shell:
 
 :::{tab} bash
 
