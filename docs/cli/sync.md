@@ -133,11 +133,13 @@ The `NO_COLOR` environment variable is also respected.
 
 ## Filtering repos
 
-As of 1.13.x, `$ vcspull sync` with no args passed will show a help dialog:
+Running `vcspull sync` with no patterns syncs nothing and prints the help
+text — you always say which repositories to touch, with patterns or `--all`:
 
-```console
+```vcspull-console
 $ vcspull sync
-Usage: vcspull sync [OPTIONS] [REPO_TERMS]...
+usage: vcspull sync [-h] [-f FILE] [-w DIR] [--dry-run] [--json] [--ndjson]
+...
 ```
 
 ### Sync all repos

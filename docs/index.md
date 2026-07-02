@@ -76,7 +76,7 @@ See [Quickstart](quickstart.md) for all installation methods and first steps.
 ```
 
 ```console
-$ vcspull sync
+$ vcspull sync --all
 ```
 
 ```{image} _static/vcspull-demo.gif

@@ -35,7 +35,7 @@ You can place the file in one of three places:
    $ echo $XDG_CONFIG_HOME
    ```
 
-3. Anywhere (and trigger via `vcspull sync -c ./path/to/file.yaml sync [repo_name]`)
+3. Anywhere (and trigger via `vcspull sync --file ./path/to/file.yaml [repo_name]`)
 
 [xdg]: https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
