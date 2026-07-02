@@ -83,11 +83,15 @@ class VcspullOutputLexer(RegexLexer):
                 r"(\+)(\s+)([a-zA-Z][-a-zA-Z0-9_.]+)",
                 bygroups(Generic.Inserted, Whitespace, Name.Function),  # type: ignore[no-untyped-call]
             ),
+            # Clone/add symbol standalone (green) - e.g. plan legend "(+)"
+            (r"\+", Generic.Inserted),
             # Update/change symbol with repo name (yellow)
             (
                 r"(~)(\s+)([a-zA-Z][-a-zA-Z0-9_.]+)",
                 bygroups(Name.Exception, Whitespace, Name.Function),  # type: ignore[no-untyped-call]
             ),
+            # Update/change symbol standalone (yellow) - must not eat "~/" paths
+            (r"~(?![/\w])", Name.Exception),
             # Bullet (muted)
             (r"•", Comment),
             # Arrow (muted)
@@ -109,7 +113,7 @@ class VcspullOutputLexer(RegexLexer):
             # Labels (muted) - common vcspull output labels
             (
                 r"(Summary:|Progress:|Path:|Branch:|url:|workspace:|Ahead/Behind:|"
-                r"Remote:|Repository:|Note:|Usage:)",
+                r"Remote:|Repository:|Note:|Usage:|Plan:|Tip:)",
                 Generic.Heading,
             ),
             # vcspull command and subcommands (for pretty docs)
