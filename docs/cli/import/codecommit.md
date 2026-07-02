@@ -2,7 +2,8 @@
 
 # vcspull import codecommit
 
-Import repositories from AWS CodeCommit.
+Import repositories from
+[AWS CodeCommit](https://aws.amazon.com/codecommit/).
 
 ## Command
 
@@ -28,9 +29,10 @@ $ vcspull import codecommit \
 
 ## Authentication
 
-- **Auth**: AWS CLI credentials (`aws configure`) — no token env var
+- **Auth**: [AWS CLI](https://aws.amazon.com/cli/) credentials
+  (`aws configure`) — no token env var
 - **CLI args**: `--region`, `--profile`
-- **IAM permissions required**:
+- **[IAM](https://aws.amazon.com/iam/) permissions required**:
   - `codecommit:ListRepositories` (resource: `*`)
   - `codecommit:BatchGetRepositories` (resource: repo ARNs or `*`)
 - **Dependency**: AWS CLI must be installed (`pip install awscli`)

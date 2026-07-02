@@ -3,7 +3,8 @@
 # vcspull list
 
 The `vcspull list` command displays configured repositories from your vcspull
-configuration files. Use this introspection command to verify your configuration,
+{ref}`configuration files <configuration>`. Use this introspection command to
+verify your configuration,
 filter repositories by patterns, and export structured data for automation.
 
 ## Command
@@ -29,7 +30,7 @@ $ vcspull list
 
 ## Filtering repositories
 
-Filter repositories using fnmatch-style patterns:
+Filter repositories using {mod}`fnmatch`-style patterns:
 
 ```vcspull-console
 $ vcspull list 'flask*'
@@ -119,7 +120,9 @@ $ vcspull list --ndjson | grep 'study' | jq -r '.name'
 ## Choosing configuration files
 
 By default, vcspull searches for config files in standard locations
-(`~/.vcspull.yaml`, `./.vcspull.yaml`, and XDG config directories).
+(`~/.vcspull.yaml`, `./.vcspull.yaml`, and
+[XDG](https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+config directories).
 
 Specify a custom config file with `-f/--file`:
 
@@ -154,6 +157,7 @@ Control colored output with `--color`:
 - `--color always`: Always use colors
 - `--color never`: Never use colors
 
-The `NO_COLOR` environment variable is also respected.
+The [`NO_COLOR`](https://no-color.org/) environment variable is also
+respected.
 
-[jq]: https://stedolan.github.io/jq/
+[jq]: https://jqlang.github.io/jq/

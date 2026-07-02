@@ -2,7 +2,8 @@
 
 # vcspull worktree list
 
-Show configured worktrees and their planned status without making changes.
+Show {ref}`configured worktrees <cli-worktree>` and their planned status
+without making changes.
 
 ## Command
 
@@ -40,7 +41,7 @@ Filter to specific repositories:
 $ vcspull worktree list 'myproject'
 ```
 
-Use fnmatch-style patterns:
+Use {mod}`fnmatch`-style patterns:
 
 ```console
 $ vcspull worktree list 'django*'

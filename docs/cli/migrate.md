@@ -2,7 +2,8 @@
 
 # vcspull migrate
 
-`vcspull migrate` rewrites configuration files to the current schema, moving the
+`vcspull migrate` rewrites {ref}`configuration files <configuration>` to the
+current schema, moving the
 per-repository `rev`, `shallow`, and `depth` keys from the entry root into the
 `options:` block. By default it prints the proposed changes; apply them in place
 with `--write`.
@@ -66,7 +67,9 @@ $ vcspull migrate \
 ```
 
 Use `--all` to iterate over the default search locations: the current working
-directory, `~/.vcspull.*`, and the XDG configuration directory.
+directory, `~/.vcspull.*`, and the
+[XDG](https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+configuration directory.
 
 ```console
 $ vcspull migrate --all --write

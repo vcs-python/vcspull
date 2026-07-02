@@ -1,12 +1,12 @@
 # PrivatePath – `vcspull._internal.private_path`
 
 :::{warning}
-`PrivatePath` is an internal helper. Its import path and behavior may change
+{class}`~vcspull._internal.private_path.PrivatePath` is an internal helper. Its import path and behavior may change
 without notice. File an issue if you rely on it downstream so we can discuss a
 supported API.
 :::
 
-`PrivatePath` subclasses `pathlib.Path` and normalizes every textual rendering
+`PrivatePath` subclasses {class}`pathlib.Path` and normalizes every textual rendering
 (`str()`/`repr()`) so the current user’s home directory is collapsed to `~`.
 The class behaves exactly like the standard path object for filesystem ops; it
 only alters how the path is displayed. This keeps CLI logs, JSON/NDJSON output,
@@ -42,7 +42,7 @@ centralizing the behavior in a `pathlib.Path` subclass we get:
   filter.
 - Consistent behavior across every CLI command and test fixture.
 - Easier mocking in tests, because `PrivatePath` respects monkeypatched
-  `Path.home()` implementations.
+  {meth}`Path.home() <pathlib.Path.home>` implementations.
 
 If you need alternative redaction behavior, consider composing your own helper
 around `PrivatePath` instead of reintroducing ad hoc string munging.

@@ -3,7 +3,7 @@
 # vcspull worktree
 
 The `vcspull worktree` command manages [git worktrees] declaratively from your
-vcspull configuration. Instead of manually running `git worktree add` for each
+vcspull {ref}`configuration <configuration>`. Instead of manually running `git worktree add` for each
 branch or tag, you declare the desired worktrees in YAML and let vcspull
 create, update, and prune them.
 
@@ -77,8 +77,8 @@ Exactly one of `tag`, `branch`, or `commit` must be specified per entry.
 
 ## Integration with vcspull sync
 
-The `vcspull sync` command can sync worktrees alongside repositories using the
-`--include-worktrees` flag:
+The {ref}`vcspull sync <cli-sync>` command can sync worktrees alongside
+repositories using the `--include-worktrees` flag:
 
 ```console
 $ vcspull sync --include-worktrees '*'
@@ -127,7 +127,7 @@ $ vcspull worktree list --ndjson 'myproject'
 Each line is a self-contained JSON object, suitable for piping to [jq] or
 log aggregation.
 
-[jq]: https://stedolan.github.io/jq/
+[jq]: https://jqlang.github.io/jq/
 
 ## Safety
 
@@ -146,7 +146,7 @@ locked via `git worktree lock`, preventing accidental removal with
 
 ## Pattern filtering
 
-Filter which repositories are processed using fnmatch-style patterns:
+Filter which repositories are processed using {mod}`fnmatch`-style patterns:
 
 ```console
 $ vcspull worktree list 'django*'
@@ -182,7 +182,8 @@ Control colored output with `--color`:
 - `--color always`: Always use colors
 - `--color never`: Never use colors
 
-The `NO_COLOR` environment variable is also respected.
+The [`NO_COLOR`](https://no-color.org/) environment variable is also
+respected.
 
 ## Use cases
 

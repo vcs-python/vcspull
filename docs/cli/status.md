@@ -3,8 +3,9 @@
 # vcspull status
 
 The `vcspull status` command checks the health of configured repositories,
-showing which repositories exist on disk, which are missing, and their Git status.
-This introspection command helps verify your local workspace matches your configuration.
+showing which repositories exist on disk, which are missing, and their
+[Git](https://git-scm.com/) status. This introspection command helps verify
+your local workspace matches your {ref}`configuration <configuration>`.
 
 ## Command
 
@@ -37,7 +38,7 @@ The command shows:
 
 ## Filtering repositories
 
-Filter repositories using fnmatch-style patterns:
+Filter repositories using {mod}`fnmatch`-style patterns:
 
 ```vcspull-console
 $ vcspull status 'django*'
@@ -181,7 +182,7 @@ $ vcspull status --json \
     | jq -r '.[] | select(.reason == "status" and .exists == false) | .name'
 ```
 
-Check which repositories need syncing:
+Check which repositories need {ref}`syncing <cli-sync>`:
 
 ```console
 $ vcspull status --json \
@@ -219,6 +220,7 @@ Control colored output with `--color`:
 - `--color always`: Always use colors
 - `--color never`: Never use colors
 
-The `NO_COLOR` environment variable is also respected.
+The [`NO_COLOR`](https://no-color.org/) environment variable is also
+respected.
 
-[jq]: https://stedolan.github.io/jq/
+[jq]: https://jqlang.github.io/jq/

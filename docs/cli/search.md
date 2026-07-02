@@ -3,7 +3,8 @@
 # vcspull search
 
 The `vcspull search` command looks up repositories across your vcspull
-configuration with an rg-like query syntax. Queries are regex by default, can
+{ref}`configuration <configuration>` with an
+[rg](https://github.com/BurntSushi/ripgrep)-like query syntax. Queries are regex by default, can
 scope to specific fields, and can emit structured JSON for automation.
 
 ## Command

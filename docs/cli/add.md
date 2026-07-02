@@ -2,15 +2,17 @@
 
 # vcspull add
 
-The `vcspull add` command registers a repository in your configuration by
-pointing vcspull at a checkout on disk. The command inspects the directory,
+The `vcspull add` command registers a repository in your
+{ref}`configuration <configuration>` by pointing vcspull at a checkout on
+disk. The command inspects the directory,
 merges duplicate workspace roots by default, and prompts before writing unless
 you pass `--yes`.
 
 ```{note}
 This command replaces the old `vcspull import <name> <url>` from v1.36--v1.39.
 For bulk scanning of local repositories, see {ref}`cli-discover`.
-For bulk import from remote services (GitHub, GitLab, etc.), see {ref}`cli-import`.
+For bulk import from remote services ([GitHub](https://github.com),
+[GitLab](https://gitlab.com), etc.), see {ref}`cli-import`.
 ```
 
 ## Command
@@ -54,7 +56,7 @@ $ vcspull add ~/study/python/pytest-docker --name docker-pytest
 
 ### Override the remote URL
 
-vcspull reads the Git `origin` remote automatically. Supply `--url` when you
+vcspull reads the [Git](https://git-scm.com/) `origin` remote automatically. Supply `--url` when you
 need to register a different remote or when the checkout does not have one yet:
 
 ```console
@@ -62,7 +64,8 @@ $ vcspull add ~/study/python/example --url https://github.com/org/example
 ```
 
 URLs follow [pip's VCS format][pip vcs url]; vcspull inserts the `git+` prefix
-for HTTPS URLs so the resulting configuration matches `vcspull fmt` output.
+for HTTPS URLs so the resulting configuration matches
+{ref}`vcspull fmt <cli-fmt>` output.
 
 ### Select a workspace explicitly
 
@@ -111,8 +114,8 @@ a summary of the merge. Prefer to inspect duplicates yourself? Add
 
 ## Pinned entries
 
-Repositories whose configuration includes a pin on the `add` operation are
-skipped with a warning. For example, given this configuration:
+Repositories whose configuration includes a {ref}`pin <config-pin>` on the
+`add` operation are skipped with a warning. For example, given this configuration:
 
 ```yaml
 ~/code/:

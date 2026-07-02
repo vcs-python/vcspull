@@ -16,7 +16,8 @@ Import repos from forges and generate config automatically.
 ## URL Format
 
 Repo type and address is [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986) style URLs.
-You may recognize this from `pip`'s [VCS URL] format.
+You may recognize this from [pip](https://pip.pypa.io/en/stable/)'s
+[VCS URL] format.
 
 [vcs url]: https://pip.pypa.io/en/latest/topics/vcs-support/
 
@@ -132,7 +133,7 @@ checkout. Mutation policy such as `pin` lives in the same block (see
 {ref}`cli-sync` checks out. This lets a config capture a reproducible snapshot
 instead of tracking the branch tip. It is distinct from `options.pin` (see
 {ref}`config-pin`), which guards the config entry from being overwritten rather
-than pinning a git ref.
+than pinning a [git](https://git-scm.com/) ref.
 
 ```yaml
 ~/code/:

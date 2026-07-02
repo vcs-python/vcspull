@@ -2,7 +2,7 @@
 
 # vcspull import codeberg
 
-Import repositories from Codeberg.
+Import repositories from [Codeberg](https://codeberg.org).
 
 ## Command
 

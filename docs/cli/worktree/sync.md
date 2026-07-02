@@ -2,7 +2,7 @@
 
 # vcspull worktree sync
 
-Create or update worktrees to match configuration.
+Create or update {ref}`worktrees <cli-worktree>` to match configuration.
 
 ## Command
 
@@ -44,7 +44,7 @@ Sync worktrees for specific repositories:
 $ vcspull worktree sync 'myproject'
 ```
 
-Use fnmatch-style patterns:
+Use {mod}`fnmatch`-style patterns:
 
 ```console
 $ vcspull worktree sync 'django*'

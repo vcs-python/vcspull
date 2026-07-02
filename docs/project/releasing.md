@@ -13,4 +13,4 @@ vcspull follows [semantic versioning](https://semver.org/). Internal APIs
 2. Bump the version in `src/vcspull/__about__.py`.
 3. Create a signed tag: `git tag -s v<version>`.
 4. Push the tag: `git push --tags`.
-5. Publish to PyPI: `uv build && uv publish`.
+5. Publish to [PyPI](https://pypi.org/): `uv build && uv publish`.

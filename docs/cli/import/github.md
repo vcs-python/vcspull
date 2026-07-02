@@ -2,7 +2,8 @@
 
 # vcspull import github
 
-Import repositories from GitHub or GitHub Enterprise.
+Import repositories from [GitHub](https://github.com) or
+[GitHub Enterprise](https://github.com/enterprise).
 
 ## Command
 

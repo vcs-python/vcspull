@@ -2,7 +2,8 @@
 
 # vcspull import gitea
 
-Import repositories from a self-hosted Gitea instance.
+Import repositories from a self-hosted [Gitea](https://about.gitea.com/)
+instance.
 
 ## Command
 

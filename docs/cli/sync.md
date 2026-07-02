@@ -5,7 +5,7 @@
 # vcspull sync
 
 The `vcspull sync` command clones and updates repositories defined in your
-vcspull configuration. It's the primary command for keeping your local workspace
+vcspull {ref}`configuration <configuration>`. It's the primary command for keeping your local workspace
 synchronized with remote repositories.
 
 ## Command
@@ -94,7 +94,8 @@ $ vcspull sync --file ~/projects/.vcspull.yaml '*'
 By default, vcspull searches for config files in:
 1. Current directory (`.vcspull.yaml`)
 2. Home directory (`~/.vcspull.yaml`)
-3. XDG config directory (`~/.config/vcspull/`)
+3. [XDG](https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+   config directory (`~/.config/vcspull/`)
 
 ## Workspace filtering
 
@@ -129,7 +130,8 @@ Control colored output with `--color`:
 - `--color always`: Always use colors
 - `--color never`: Never use colors
 
-The `NO_COLOR` environment variable is also respected.
+The [`NO_COLOR`](https://no-color.org/) environment variable is also
+respected.
 
 ## Filtering repos
 

@@ -7,7 +7,9 @@ hide-toc: true
 # vcspull
 
 CLI workspace manager for VCS repos. Sync, organize, and manage multiple
-git (and hg/svn) repositories from a single YAML config.
+[git](https://git-scm.com/) (and [hg](https://www.mercurial-scm.org/)/
+[svn](https://subversion.apache.org/)) repositories from a single
+[YAML](https://yaml.org/) config.
 
 ::::{grid} 1 2 3 3
 :gutter: 2 2 3 3
@@ -63,7 +65,7 @@ $ uv tool install vcspull
 $ pipx install vcspull
 ```
 
-See [Quickstart](quickstart.md) for all installation methods and first steps.
+See {ref}`quickstart` for all installation methods and first steps.
 
 ## At a glance
 

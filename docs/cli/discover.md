@@ -2,8 +2,9 @@
 
 # vcspull discover
 
-The `vcspull discover` command scans directories for existing Git repositories
-and adds them to your vcspull configuration. This is ideal for importing existing
+The `vcspull discover` command scans directories for existing
+[Git](https://git-scm.com/) repositories and adds them to your vcspull
+{ref}`configuration <configuration>`. This is ideal for importing existing
 workspaces or migrating from other tools.
 
 ## Command
@@ -157,7 +158,7 @@ Skipping local-project
 ```
 
 These repositories are skipped by default. You can add them manually with
-`vcspull add` if needed.
+{ref}`vcspull add <cli-add>` if needed.
 
 ## Examples
 
@@ -257,7 +258,7 @@ configuration.
 
 ## Migration from vcspull import --scan
 
-If you previously used `vcspull import --scan`:
+If you previously used {ref}`vcspull import <cli-import>` with `--scan`:
 
 ```diff
 - $ vcspull import --scan ~/code --recursive -c ~/.vcspull.yaml --yes

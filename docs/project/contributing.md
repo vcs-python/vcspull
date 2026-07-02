@@ -77,7 +77,7 @@ Verbose:
 $ env PYTEST_ADDOPTS="-verbose" just start
 ```
 
-Drop into `pdb` on first error:
+Drop into {mod}`pdb` on first error:
 
 ```console
 $ env PYTEST_ADDOPTS="-x -s --pdb" just start
@@ -307,8 +307,9 @@ Update `__version__` in `__about__.py` and `pyproject.toml`::
     git push
     git push --tags
 
-GitHub Actions will detect the new git tag, and in its own workflow run `uv
-build` and push to PyPI.
+[GitHub Actions](https://github.com/features/actions) will detect the new
+git tag, and in its own workflow run `uv build` and push to
+[PyPI](https://pypi.org/).
 
 [uv]: https://github.com/astral-sh/uv
 [entr(1)]: http://eradman.com/entrproject/

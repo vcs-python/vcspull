@@ -2,7 +2,8 @@
 
 # vcspull worktree prune
 
-Remove worktrees that are no longer in your configuration.
+Remove {ref}`worktrees <cli-worktree>` that are no longer in your
+configuration.
 
 ## Command
 
@@ -22,7 +23,8 @@ Prune orphaned worktrees:
 $ vcspull worktree prune '*'
 ```
 
-Prune scans all git worktrees registered with each matched repository and
+Prune scans all [git worktrees](https://git-scm.com/docs/git-worktree)
+registered with each matched repository and
 removes any that don't appear in the current config. Repositories that have
 had their `worktrees` config removed entirely are also scanned.
 

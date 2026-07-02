@@ -2,8 +2,8 @@
 
 # vcspull fmt
 
-`vcspull fmt` normalizes configuration files so directory keys and repository
-entries stay consistent. By default the formatter prints the proposed changes to
+`vcspull fmt` normalizes {ref}`configuration files <configuration>` so
+directory keys and repository entries stay consistent. By default the formatter prints the proposed changes to
 stdout. Apply the updates in place with `--write`.
 
 When duplicate workspace roots are encountered, the formatter merges them into a
@@ -100,12 +100,13 @@ $ vcspull fmt \
 ```
 
 Use `--all` to iterate over the default search locations: the current working
-directory, `~/.vcspull.*`, and the XDG configuration directory. Each formatted
-file is reported individually.
+directory, `~/.vcspull.*`, and the
+[XDG](https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html)
+configuration directory. Each formatted file is reported individually.
 
 ```console
 $ vcspull fmt --all --write
 ```
 
-Pair the formatter with [`vcspull discover`](cli-discover) after scanning the file
-system to keep newly added repositories ordered and normalized.
+Pair the formatter with {ref}`vcspull discover <cli-discover>` after scanning
+the file system to keep newly added repositories ordered and normalized.

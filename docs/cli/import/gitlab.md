@@ -2,7 +2,8 @@
 
 # vcspull import gitlab
 
-Import repositories from GitLab or a self-hosted GitLab instance.
+Import repositories from [GitLab](https://gitlab.com) or a self-hosted
+GitLab instance.
 
 ## Command
 

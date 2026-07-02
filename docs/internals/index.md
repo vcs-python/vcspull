@@ -7,7 +7,7 @@ Everything in this section is **internal implementation detail**. There is
 no stability guarantee. Interfaces may change or be removed without notice
 between any release.
 
-If you are building workflows with vcspull, use the [CLI](../cli/index.md)
+If you are building workflows with vcspull, use the {ref}`CLI <cli>`
 or refer to the [libvcs API](https://libvcs.git-pull.com/).
 ```
 

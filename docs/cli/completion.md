@@ -18,7 +18,7 @@ Provisional support for completions in vcspull 1.15+ are powered by [shtab](http
 $ pip install shtab --user
 ```
 
-Or using uv:
+Or using [uv](https://docs.astral.sh/uv/):
 
 ```console
 $ uv tool install shtab

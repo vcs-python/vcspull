@@ -3,12 +3,15 @@
 # vcspull import
 
 The `vcspull import` command bulk-imports repositories from remote hosting
-services into your vcspull configuration. It connects to the service API,
+services into your vcspull {ref}`configuration <configuration>`. It connects
+to the service API,
 fetches a list of repositories, and writes them to your config file in a single
 step.
 
-Supported services: **GitHub**, **GitLab**, **Codeberg**, **Gitea**,
-**Forgejo**, and **AWS CodeCommit**.
+Supported services: **[GitHub](https://github.com)**,
+**[GitLab](https://gitlab.com)**, **[Codeberg](https://codeberg.org)**,
+**[Gitea](https://about.gitea.com/)**, **[Forgejo](https://forgejo.org)**, and
+**[AWS CodeCommit](https://aws.amazon.com/codecommit/)**.
 
 ## Command
 

@@ -2,7 +2,8 @@
 
 # vcspull import forgejo
 
-Import repositories from a self-hosted Forgejo instance.
+Import repositories from a self-hosted [Forgejo](https://forgejo.org)
+instance.
 
 ## Command
 
