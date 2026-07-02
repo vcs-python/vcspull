@@ -2,9 +2,15 @@
 
 # Quickstart
 
+vcspull syncs a workspace of [git](https://git-scm.com/),
+[mercurial](https://www.mercurial-scm.org/), and
+[subversion](https://subversion.apache.org/) repositories from one
+[YAML](https://yaml.org/) or JSON configuration file. Install it, declare
+your repositories, and pull everything with a single command.
+
 ## Installation
 
-For latest official version:
+For the latest official version:
 
 ```console
 $ pip install --user vcspull
@@ -38,8 +44,9 @@ $ uv tool upgrade vcspull
 
 ### Developmental releases
 
-New versions of vcspull are published to PyPI as alpha, beta, or release candidates.
-In their versions you will see notification like `a1`, `b1`, and `rc1`, respectively.
+New versions of vcspull are published to [PyPI](https://pypi.org/) as alpha,
+beta, or release candidates. Their versions carry suffixes like `a1`, `b1`,
+and `rc1`, respectively.
 `1.10.0b4` would mean the 4th beta release of `1.10.0` before general availability.
 
 - [pip]\:
@@ -113,7 +120,7 @@ via trunk (can break easily):
 {ref}`configuration` and {ref}`cli-import`.
 ```
 
-We will check out the source code of [flask][flask] to `~/code/flask`.
+You'll check out the source code of [flask][flask] to `~/code/flask`.
 
 Prefer JSON? Create a `~/.vcspull.json` file:
 
@@ -139,12 +146,12 @@ options such as `--workspace-root` and `--yes` for unattended runs. After editin
 discovering repositories, run `vcspull fmt --write` (documented in {ref}`cli-fmt`) to
 normalize keys and keep your configuration tidy.
 
-The `git+` in front of the repository URL. Mercurial repositories use
-`hg+` and Subversion will use `svn+`. Repo type and address is
-specified in [pip vcs url][pip vcs url] format.
+The `git+` prefix tells vcspull the repository type. Mercurial repositories
+use `hg+`; Subversion uses `svn+`. Repository type and address are specified
+in [pip VCS URL][pip vcs url] format.
 
-Now run the command, to pull all the repositories in your
-`.vcspull.yaml` / `.vcspull.json`.
+Now run the command to pull all the repositories in your
+`.vcspull.yaml` / `.vcspull.json`:
 
 ```console
 $ vcspull sync --all
@@ -153,9 +160,9 @@ $ vcspull sync --all
 Want to manage multiple branches or tags of the same repository?
 See {ref}`cli-worktree` for declarative worktree support.
 
-Also, you can sync arbitrary projects, lets assume you have a mercurial
-repo but need a git dependency, in your project add `.deps.yaml` (can
-be any name):
+You can also sync arbitrary projects. Let's say you have a mercurial
+repository but need a git dependency — add a `.deps.yaml` to your project
+(any name works):
 
 ```yaml
 ./vendor/:
@@ -168,8 +175,8 @@ Use `-f/--file` to specify a config.
 $ vcspull sync --file .deps.yaml --all
 ```
 
-You can also use [fnmatch] to pull repositories from your config in
-various fashions, e.g.:
+You can also use {mod}`fnmatch` patterns to pull repositories from your
+config in various fashions:
 
 ```console
 $ vcspull sync django
@@ -185,8 +192,8 @@ $ vcspull sync "django*"
 
 Filter by VCS URL:
 
-Any repo beginning with `http`, `https` or `git` will be look up
-repos by the vcs url.
+Any repo term beginning with `http`, `https`, or `git` looks up
+repositories by their VCS URL.
 
 Pull / update repositories you have with github in the repo url:
 
@@ -202,8 +209,8 @@ $ vcspull sync "git+https://*bitbucket*"
 
 Filter by the path of the repo on your local machine:
 
-Any repo beginning with `/`, `./`, `~` or `$HOME` will scan
-for patterns of where the project is on your system:
+Any repo term beginning with `/`, `./`, `~`, or `$HOME` matches against
+the project's path on your system.
 
 Pull all repos inside of _~/study/python_:
 
@@ -211,12 +218,11 @@ Pull all repos inside of _~/study/python_:
 $ vcspull sync "$HOME/study/python"
 ```
 
-Pull all the repos you have in directories in my config with "python":
+Pull all the repos in your config under directories containing "python":
 
 ```console
 $ vcspull sync ~/*python*
 ```
 
-[pip vcs url]: http://www.pip-installer.org/en/latest/logic.html#vcs-support
-[flask]: http://flask.pocoo.org/
-[fnmatch]: http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html
+[pip vcs url]: https://pip.pypa.io/en/stable/topics/vcs-support/
+[flask]: https://flask.palletsprojects.com/
