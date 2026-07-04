@@ -811,7 +811,12 @@ SYNC_REV_BRANCH_MISMATCH_FIXTURES: list[SyncRevBranchMismatchFixture] = [
     SyncRevBranchMismatchFixture(
         test_id="rev-master-on-main-only-remote",
         sync_args=["my_repo"],
-        expected_in_out="Failed syncing",
+        expected_in_out=[
+            "Failed syncing",
+            "could not be checked out",
+            "options.rev",
+            "Available remote branches: origin/main",
+        ],
         expected_not_in_out="Synced my_repo",
     ),
     SyncRevBranchMismatchFixture(

@@ -1184,6 +1184,137 @@ def _emit_rerun_recipe(
         )
 
 
+_BRANCH_ERROR_SIGNATURES = (
+    "invalid upstream",
+    "no upstream",
+    "ambiguous argument",
+    "did not match any file",
+    "couldn't find remote ref",
+    "unknown revision",
+)
+
+
+def _looks_like_branch_error(err_msg: str, *, has_rev: bool) -> bool:
+    """Return True when a sync failure looks branch/revision-related.
+
+    A failed ``git checkout`` is only treated as a branch problem when the
+    repository pins a ``rev`` -- otherwise it may be an unrelated checkout
+    failure we should not second-guess.
+
+    Parameters
+    ----------
+    err_msg : str
+        The failure message surfaced by the sync.
+    has_rev : bool
+        Whether the repository configures an ``options.rev``.
+
+    Returns
+    -------
+    bool
+        True if the failure resembles a missing branch or revision.
+    """
+    lowered = err_msg.lower()
+    if has_rev and "git checkout" in lowered:
+        return True
+    return any(signature in lowered for signature in _BRANCH_ERROR_SIGNATURES)
+
+
+def _list_remote_branches(repo_path: pathlib.Path) -> list[str]:
+    """Return a repository's remote-tracking branch names (best-effort).
+
+    Parameters
+    ----------
+    repo_path : pathlib.Path
+        Local path to the repository.
+
+    Returns
+    -------
+    list of str
+        Remote-tracking branch names (e.g. ``origin/main``), empty on failure.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_path),
+                "for-each-ref",
+                "--format=%(refname:short)",
+                "refs/remotes",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if result.returncode != 0:
+        return []
+    branches = []
+    for line in result.stdout.splitlines():
+        # A remote-tracking branch is always remote-qualified (``origin/main``);
+        # the bare remote name comes from the ``refs/remotes/<remote>/HEAD``
+        # symref and is not a branch.
+        name = line.strip()
+        if name and "/" in name and not name.endswith("/HEAD"):
+            branches.append(name)
+    return branches
+
+
+def _emit_branch_error_guidance(
+    formatter: OutputFormatter,
+    colors: Colors,
+    *,
+    repo: ConfigDict,
+    err_msg: str,
+) -> None:
+    """Emit actionable guidance when a sync fails on a branch/revision error.
+
+    Reacts to an actual failure rather than pre-checking, so healthy
+    repositories never see a spurious warning.
+
+    Parameters
+    ----------
+    formatter : OutputFormatter
+        Sink for human-facing text.
+    colors : Colors
+        Palette used to style the guidance.
+    repo : ConfigDict
+        The repository whose sync failed.
+    err_msg : str
+        The failure message surfaced by the sync.
+    """
+    rev = repo.get("rev")
+    if not _looks_like_branch_error(err_msg, has_rev=bool(rev)):
+        return
+
+    repo_path = pathlib.Path(str(repo.get("path", "")))
+    display_path = str(PrivatePath(repo_path))
+
+    formatter.emit_text("")
+    if rev:
+        formatter.emit_text(
+            f"{colors.info('→')} Revision {colors.warning(str(rev))} could not be "
+            f"checked out; it may not exist on the remote.",
+        )
+    else:
+        formatter.emit_text(
+            f"{colors.info('→')} This branch has no matching remote branch.",
+        )
+    formatter.emit_text(
+        f"    Pin an existing branch with {colors.muted('options.rev')}, or run "
+        f"{colors.muted(f'git -C {shlex.quote(display_path)} checkout <branch>')}",
+    )
+
+    branches = _list_remote_branches(repo_path)
+    if branches:
+        formatter.emit_text(
+            f"{colors.info('→')} Available remote branches: "
+            f"{colors.muted(', '.join(branches[:10]))}",
+        )
+
+
 def sync(
     repo_patterns: list[str],
     config: pathlib.Path | None,
@@ -1737,6 +1868,13 @@ def _run_sync_loop(
                 traceback.print_exception(type(err), err, err.__traceback__)
             if not wrote_final:
                 formatter.emit_text(permanent)
+            if is_human:
+                _emit_branch_error_guidance(
+                    formatter,
+                    colors,
+                    repo=repo,
+                    err_msg=err_msg,
+                )
             if exit_on_error:
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()

@@ -38,6 +38,16 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### Clearer branch and revision sync failures (#557)
+
+When {ref}`cli-sync` cannot check out a configured branch, tag, or revision, the
+error output now names the requested `options.rev`, suggests pinning an existing
+branch or checking out a branch locally, and shows the remote branches Git
+reported. This turns a low-level checkout failure into guidance for repairing
+the repository configuration.
+
 ### Documentation
 
 - Command examples are re-captured from real runs; the sync and status
