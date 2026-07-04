@@ -22,7 +22,7 @@ from libvcs.sync.hg import HgSync
 from libvcs.sync.svn import SvnSync
 
 from vcspull._internal.config_reader import ConfigReader
-from vcspull.cli.sync import sync, update_repo
+from vcspull.cli.sync import _looks_like_branch_error, sync, update_repo
 from vcspull.config import (
     detect_git_depth,
     detect_git_shallow,
@@ -666,3 +666,61 @@ def test_load_configs_warns_on_legacy_options(
     assert "vcspull migrate" in record.getMessage()
     assert record.vcspull_config_path == str(config_file)
     assert record.vcspull_legacy_count == affected_count
+
+
+class BranchErrorDetectionFixture(t.NamedTuple):
+    """pytest fixture for _looks_like_branch_error classification."""
+
+    test_id: str
+    err_msg: str
+    has_rev: bool
+    expected: bool
+
+
+BRANCH_ERROR_DETECTION_FIXTURES: list[BranchErrorDetectionFixture] = [
+    BranchErrorDetectionFixture(
+        test_id="rev-checkout-failure",
+        err_msg="Command failed with code 1: git checkout master",
+        has_rev=True,
+        expected=True,
+    ),
+    BranchErrorDetectionFixture(
+        test_id="checkout-failure-without-rev",
+        err_msg="Command failed with code 1: git checkout master",
+        has_rev=False,
+        expected=False,
+    ),
+    BranchErrorDetectionFixture(
+        test_id="invalid-upstream",
+        err_msg="fatal: invalid upstream 'origin/feature'",
+        has_rev=False,
+        expected=True,
+    ),
+    BranchErrorDetectionFixture(
+        test_id="ambiguous-argument",
+        err_msg="fatal: ambiguous argument 'notes': unknown revision",
+        has_rev=False,
+        expected=True,
+    ),
+    BranchErrorDetectionFixture(
+        test_id="unrelated-network-error",
+        err_msg="fatal: unable to access; Could not resolve host: example.com",
+        has_rev=True,
+        expected=False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(BranchErrorDetectionFixture._fields),
+    BRANCH_ERROR_DETECTION_FIXTURES,
+    ids=[test.test_id for test in BRANCH_ERROR_DETECTION_FIXTURES],
+)
+def test_looks_like_branch_error(
+    test_id: str,
+    err_msg: str,
+    has_rev: bool,
+    expected: bool,
+) -> None:
+    """Test _looks_like_branch_error classifies sync failures correctly."""
+    assert _looks_like_branch_error(err_msg, has_rev=has_rev) is expected
