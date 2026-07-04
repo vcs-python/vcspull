@@ -1,4 +1,4 @@
-# vcspull sync - `vcspull.cli.sync`
+# Sync command internals
 
 {mod}`vcspull.cli.sync` is the implementation behind
 {ref}`vcspull sync <cli-sync>` — the planning, filtering, and execution

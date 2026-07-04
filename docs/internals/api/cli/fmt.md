@@ -1,4 +1,4 @@
-# vcspull fmt - `vcspull.cli.fmt`
+# Format command internals
 
 {mod}`vcspull.cli.fmt` is the implementation behind
 {ref}`vcspull fmt <cli-fmt>` — it normalizes configuration files to

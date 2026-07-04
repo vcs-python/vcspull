@@ -110,6 +110,7 @@ completion
     :func: create_parser
     :prog: vcspull
     :nosubcommands:
+    :no-description:
 
     subparser_name : @replace
         See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-import`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-search`, :ref:`cli-status`, :ref:`cli-worktree`, :ref:`cli-fmt`, :ref:`cli-migrate`

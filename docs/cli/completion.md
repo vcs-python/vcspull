@@ -86,9 +86,7 @@ vcspull 0.9 to 1.14 use [click](https://click.palletsprojects.com)'s completion:
 _~/.bashrc_:
 
 ```bash
-
 eval "$(_VCSPULL_COMPLETE=bash_source vcspull)"
-
 ```
 
 :::
@@ -98,9 +96,7 @@ eval "$(_VCSPULL_COMPLETE=bash_source vcspull)"
 _~/.zshrc_:
 
 ```zsh
-
 eval "$(_VCSPULL_COMPLETE=zsh_source vcspull)"
-
 ```
 
 :::

@@ -1,4 +1,4 @@
-# Validation - `vcspull.validator`
+# Validation
 
 {mod}`vcspull.validator` checks that a parsed configuration has the shape
 vcspull expects — workspace roots mapping to repository entries — before the

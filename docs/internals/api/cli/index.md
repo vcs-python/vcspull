@@ -20,7 +20,7 @@ fmt
 migrate
 ```
 
-## vcspull CLI - `vcspull.cli`
+## CLI dispatcher internals
 
 {mod}`vcspull.cli` assembles the argument parser and dispatches each
 subcommand to its module — start here to trace how a command line becomes a

@@ -1,4 +1,4 @@
-# Typings - `vcspull.types`
+# Typings
 
 {mod}`vcspull.types` defines the typed dictionaries and aliases that
 describe configuration data on its way from file to sync — the annotations

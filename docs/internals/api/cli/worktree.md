@@ -1,4 +1,4 @@
-# vcspull worktree - `vcspull.cli.worktree`
+# Worktree command internals
 
 {mod}`vcspull.cli.worktree` is the implementation behind
 {ref}`vcspull worktree <cli-worktree>` — it plans and applies declared

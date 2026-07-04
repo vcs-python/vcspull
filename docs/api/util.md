@@ -1,4 +1,4 @@
-# Utilities - `vcspull.util`
+# Utilities
 
 {mod}`vcspull.util` collects the small helpers shared across vcspull's
 modules — configuration-directory lookup and recursive dictionary merging.

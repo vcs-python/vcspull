@@ -1,4 +1,4 @@
-# Config - `vcspull.config`
+# Config
 
 {mod}`vcspull.config` finds, loads, and filters vcspull configuration from
 Python — the same functions the CLI uses to locate configuration files,

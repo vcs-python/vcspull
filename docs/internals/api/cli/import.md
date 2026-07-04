@@ -1,4 +1,4 @@
-# vcspull import - `vcspull.cli.import_cmd`
+# Import command internals
 
 {mod}`vcspull.cli.import_cmd` is the implementation behind
 {ref}`vcspull import <cli-import>` — one submodule per forge, sharing

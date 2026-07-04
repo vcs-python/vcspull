@@ -1,4 +1,4 @@
-# vcspull status - `vcspull.cli.status`
+# Status command internals
 
 {mod}`vcspull.cli.status` is the implementation behind
 {ref}`vcspull status <cli-status>` — it checks configured repositories

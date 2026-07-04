@@ -1,4 +1,4 @@
-# vcspull add - `vcspull.cli.add`
+# Add command internals
 
 {mod}`vcspull.cli.add` is the implementation behind
 {ref}`vcspull add <cli-add>` — it resolves a checkout on disk into a
