@@ -1,4 +1,4 @@
-# Logging - `vcspull.log`
+# Logging
 
 {mod}`vcspull.log` holds the logging setup for the vcspull CLI — the
 formatters and colorized output behind its console messages.

@@ -1,4 +1,4 @@
-# PrivatePath – `vcspull._internal.private_path`
+# Path redaction internals
 
 :::{warning}
 {class}`~vcspull._internal.private_path.PrivatePath` is an internal helper. Its import path and behavior may change

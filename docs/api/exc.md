@@ -1,4 +1,4 @@
-# Exceptions - `vcspull.exc`
+# Exceptions
 
 When configuration loading or a worktree operation fails, vcspull raises an
 exception from {mod}`vcspull.exc`. Catch

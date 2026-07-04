@@ -1,4 +1,4 @@
-# vcspull search - `vcspull.cli.search`
+# Search command internals
 
 {mod}`vcspull.cli.search` is the implementation behind
 {ref}`vcspull search <cli-search>` — it matches repositories with

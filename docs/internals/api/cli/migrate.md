@@ -1,4 +1,4 @@
-# vcspull migrate - `vcspull.cli.migrate`
+# Migrate command internals
 
 {mod}`vcspull.cli.migrate` is the implementation behind
 {ref}`vcspull migrate <cli-migrate>` — it rewrites deprecated configuration
