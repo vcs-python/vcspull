@@ -6,7 +6,8 @@ without notice. File an issue if you rely on it downstream so we can discuss a
 supported API.
 :::
 
-`PrivatePath` subclasses {class}`pathlib.Path` and normalizes every textual rendering
+{class}`~vcspull._internal.private_path.PrivatePath` subclasses
+{class}`pathlib.Path` and normalizes every textual rendering
 (`str()`/`repr()`) so the current user’s home directory is collapsed to `~`.
 The class behaves exactly like the standard path object for filesystem ops; it
 only alters how the path is displayed. This keeps CLI logs, JSON/NDJSON output,
