@@ -79,6 +79,7 @@ PLAN_ORDER: dict[PlanAction, int] = {
 PLAN_TIP_MESSAGE = (
     "Tip: run without --dry-run to apply. Use --show-unchanged to include ✓ rows."
 )
+PLAN_TIP_MESSAGE_FILTERED = "Tip: run without --dry-run to apply."
 
 DEFAULT_PLAN_CONCURRENCY = max(1, min(32, (os.cpu_count() or 4) * 2))
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -426,7 +427,8 @@ def _render_plan(
                 entry.name.lower(),
             ),
         ),
-        show_unchanged=render_options.show_unchanged,
+        show_unchanged=render_options.show_unchanged
+        or render_options.has_explicit_patterns,
     )
 
     if not display_entries:
@@ -499,7 +501,12 @@ def _render_plan(
                     formatter.emit_text(f"    {colors.muted(msg)}")
 
     if dry_run:
-        formatter.emit_text(colors.muted(PLAN_TIP_MESSAGE))
+        tip = (
+            PLAN_TIP_MESSAGE_FILTERED
+            if render_options.has_explicit_patterns
+            else PLAN_TIP_MESSAGE
+        )
+        formatter.emit_text(colors.muted(tip))
 
 
 def _emit_plan_output(
@@ -525,7 +532,8 @@ def _emit_plan_output(
 
     display_entries = _filter_entries_for_display(
         plan.entries,
-        show_unchanged=render_options.show_unchanged,
+        show_unchanged=render_options.show_unchanged
+        or render_options.has_explicit_patterns,
     )
 
     for entry in display_entries:
@@ -1469,6 +1477,7 @@ def _sync_impl(
     verbosity_level = clamp(verbosity, 0, 2)
     render_options = PlanRenderOptions(
         show_unchanged=show_unchanged,
+        has_explicit_patterns=not sync_all and bool(repo_patterns),
         summary_only=summary_only,
         long=long_view,
         verbosity=verbosity_level,
