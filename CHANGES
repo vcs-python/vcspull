@@ -48,6 +48,13 @@ branch or checking out a branch locally, and shows the remote branches Git
 reported. This turns a low-level checkout failure into guidance for repairing
 the repository configuration.
 
+#### Runtime installs stay lean (#486)
+
+vcspull now checks the same runtime-only install path users get from package
+tools, instead of relying only on the development test environment. That keeps
+production installs free of dev-only typing dependencies while still exercising
+the import and CLI help paths before changes ship.
+
 ### Documentation
 
 - Command examples are re-captured from real runs; the sync and status
