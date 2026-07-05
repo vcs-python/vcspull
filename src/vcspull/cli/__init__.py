@@ -85,9 +85,12 @@ CLI_DESCRIPTION = build_description(
         (
             "add",
             [
-                "vcspull add mylib https://github.com/example/mylib.git",
-                "vcspull add mylib URL -w ~/code",
-                "vcspull add mylib URL --dry-run",
+                "vcspull add ~/code/mylib",
+                "vcspull add ~/src/mylib --workspace ~/code",
+                (
+                    "vcspull add ~/code/mylib "
+                    "--url https://github.com/example/mylib.git --dry-run"
+                ),
             ],
         ),
         (
@@ -199,9 +202,12 @@ ADD_DESCRIPTION = build_description(
         (
             None,
             [
-                "vcspull add mylib https://github.com/example/mylib.git",
-                "vcspull add mylib URL -w ~/code",
-                "vcspull add mylib URL --dry-run",
+                "vcspull add ~/code/mylib",
+                "vcspull add ~/src/mylib --workspace ~/code",
+                (
+                    "vcspull add ~/code/mylib "
+                    "--url https://github.com/example/mylib.git --dry-run"
+                ),
             ],
         ),
     ),

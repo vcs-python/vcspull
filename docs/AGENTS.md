@@ -63,12 +63,13 @@ not inside it paraphrasing it into vagueness.
 
 ## Examples that stay honest
 
-Code blocks under `docs/` do not execute — pytest's `testpaths` covers
-`src/vcspull`, `tests`, and `docs/_ext`, so a drifted docs example
-fails no test. Honesty is manual: copy commands and output from a run
-you actually made, keep YAML consistent with the real schema (workspace
-root → repository entry), and re-check a page's examples whenever the
-flags or keys they show change.
+Sphinx does not execute code blocks under `docs/`. Pytest checks the
+Markdown fence conventions and parses documented `vcspull ...` commands with
+the real argparse tree, but it does not run mutating, networked, or VCS
+commands from the pages. Honesty is still manual: copy commands and output
+from a run you actually made, keep YAML consistent with the real schema
+(workspace root → repository entry), and re-check a page's examples whenever
+the flags or keys they show change.
 
 ## Console blocks and reference pages
 
