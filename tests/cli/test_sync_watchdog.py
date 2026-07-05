@@ -127,14 +127,14 @@ def test_watchdog_preserves_failed_outcome(
 ) -> None:
     """Synchronous exceptions from ``update_repo`` surface as ``failed``."""
 
-    class _Boom(RuntimeError):
+    class _BoomError(RuntimeError):
         """Sentinel used to trace exception propagation."""
 
     def _raising_update_repo(
         repo: dict[str, t.Any], *, progress_callback: t.Any
     ) -> None:
         msg = "remote exploded"
-        raise _Boom(msg)
+        raise _BoomError(msg)
 
     monkeypatch.setattr(sync_module, "update_repo", _raising_update_repo)
 
@@ -146,7 +146,7 @@ def test_watchdog_preserves_failed_outcome(
     )
 
     assert outcome.status == "failed"
-    assert isinstance(outcome.error, _Boom)
+    assert isinstance(outcome.error, _BoomError)
     assert "remote exploded" in str(outcome.error)
 
 
