@@ -38,6 +38,34 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Breaking changes
+
+#### Exceptions renamed with an `Error` suffix (#420)
+
+Two public exceptions were renamed to match the `Error`-suffix naming
+convention (pep8-naming `N818`), with no aliases kept:
+
+- {exc}`~vcspull.exc.VCSPullError` — the base every vcspull error derives
+  from (was `VCSPullException`).
+- {exc}`~vcspull.exc.MultipleConfigError` — raised when the home directory
+  holds more than one eligible config file (was `MultipleConfigWarning`;
+  it was always raised as a hard error, never a warning).
+
+Update `except` clauses accordingly:
+
+```python
+# Before
+except vcspull.exc.VCSPullException:
+    ...
+
+# After
+except vcspull.exc.VCSPullError:
+    ...
+```
+
+Other subclasses ({exc}`~vcspull.exc.WorktreeError` and friends) keep their
+names.
+
 ## vcspull v1.65.0 (2026-07-05)
 
 vcspull v1.65.0 sharpens the feedback you get when a sync cannot check out
