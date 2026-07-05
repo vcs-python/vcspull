@@ -203,11 +203,12 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path) -> None:
     json_conf_file.touch()
     yaml_conf_file = tmp_path / ".vcspull.yaml"
     yaml_conf_file.touch()
-    with EnvironmentVarGuard() as env, pytest.raises(exc.MultipleConfigWarning):
+    with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
         assert pathlib.Path.home() == tmp_path
 
-        config.find_home_config_files()
+        with pytest.raises(exc.MultipleConfigWarning):
+            config.find_home_config_files()
 
 
 def test_find_home_config_files_filetype_yaml_only(tmp_path: pathlib.Path) -> None:
@@ -239,9 +240,10 @@ def test_find_home_config_files_both_types_still_raises(
     """Default filetype still raises MultipleConfigWarning when both exist."""
     (tmp_path / ".vcspull.yaml").touch()
     (tmp_path / ".vcspull.json").touch()
-    with EnvironmentVarGuard() as env, pytest.raises(exc.MultipleConfigWarning):
+    with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
-        config.find_home_config_files()
+        with pytest.raises(exc.MultipleConfigWarning):
+            config.find_home_config_files()
 
 
 def test_find_home_config_files_preserves_symlink_suffix(

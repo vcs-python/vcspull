@@ -225,6 +225,7 @@ select = [
   "SIM", # flake8-simplify
   "TRY", # Trycertatops
   "PERF", # Perflint
+  "PT", # flake8-pytest-style
   "RUF", # Ruff-specific rules
   "D", # pydocstyle
   "FA100",  # future annotations

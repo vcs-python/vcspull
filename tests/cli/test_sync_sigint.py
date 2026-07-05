@@ -66,7 +66,8 @@ def test_exit_on_sigint_produces_wifsignaled_sigint() -> None:
     # vcspull. Prepending the parent's resolved package dir keeps the child
     # importable regardless of the surrounding install style.
     vcspull_spec = importlib.util.find_spec("vcspull")
-    assert vcspull_spec is not None and vcspull_spec.origin is not None
+    assert vcspull_spec is not None
+    assert vcspull_spec.origin is not None
     vcspull_parent = str(pathlib.Path(vcspull_spec.origin).resolve().parent.parent)
     env = {
         **os.environ,

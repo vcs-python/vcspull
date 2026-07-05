@@ -196,7 +196,8 @@ def test_rerun_recipe_emits_one_line_per_workspace(
     # One rerun command per distinct workspace root, with the repo names
     # appended as positional args -- this is what the user copy-pastes.
     assert "vcspull sync --workspace" in captured
-    assert "codex" in captured and "rust" in captured
+    assert "codex" in captured
+    assert "rust" in captured
     assert "opentelemetry-rust" in captured
     # Suggest 10x the current timeout, clamped to 120 s minimum.
     assert "--timeout 120" in captured
@@ -306,10 +307,10 @@ def _fake_sigint_escalation(
     monkeypatch.setattr(sync_module, "_exit_on_sigint", _fake)
 
 
+@pytest.mark.usefixtures("_fake_sigint_escalation")
 def test_sync_handles_keyboard_interrupt_during_config_load(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    _fake_sigint_escalation: None,
 ) -> None:
     """Ctrl-C during pre-loop work (e.g. YAML parse) exits cleanly with 130.
 

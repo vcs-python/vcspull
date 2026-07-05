@@ -126,8 +126,8 @@ def test_worktree_config_parsing(
     }
 
     if expected_error:
+        typed_config = t.cast("RawConfigDict", full_config)
         with pytest.raises(exc.VCSPullException, match=expected_error):
-            typed_config = t.cast("RawConfigDict", full_config)
             vcspull_config.extract_repos(typed_config, cwd=tmp_path)
     else:
         # Validate each worktree individually
@@ -1026,8 +1026,8 @@ def test_extract_repos_worktrees_validation_error(tmp_path: pathlib.Path) -> Non
         },
     }
 
+    typed_config = t.cast("RawConfigDict", raw_config)
     with pytest.raises(exc.VCSPullException, match="must specify one of"):
-        typed_config = t.cast("RawConfigDict", raw_config)
         vcspull_config.extract_repos(typed_config, cwd=tmp_path)
 
 
