@@ -31,16 +31,14 @@ from __future__ import annotations
 
 import pathlib
 import typing as t
-from typing import TypeAlias
-
-from typing_extensions import NotRequired, TypedDict
+from typing import TypeAlias, TypedDict
 
 if t.TYPE_CHECKING:
     from libvcs._internal.types import StrPath, VCSLiteral
     from libvcs.sync.git import GitSyncRemoteDict
 
 
-class WorktreeConfigDict(TypedDict):
+class _WorktreeConfigDictRequired(TypedDict):
     """Configuration for a single git worktree.
 
     Worktrees allow checking out multiple branches/tags/commits of a repository
@@ -66,23 +64,34 @@ class WorktreeConfigDict(TypedDict):
     dir: str
     """Path for the worktree (relative to workspace root or absolute)."""
 
-    tag: NotRequired[str | None]
+
+class _WorktreeConfigDictOptional(TypedDict, total=False):
+    """Optional configuration for a single git worktree."""
+
+    tag: str | None
     """Tag to checkout (creates detached HEAD)."""
 
-    branch: NotRequired[str | None]
+    branch: str | None
     """Branch to checkout (can be updated/pulled)."""
 
-    commit: NotRequired[str | None]
+    commit: str | None
     """Commit SHA to checkout (creates detached HEAD)."""
 
-    detach: NotRequired[bool | None]
+    detach: bool | None
     """Force detached HEAD. Default: True for tag/commit, False for branch."""
 
-    lock: NotRequired[bool | None]
+    lock: bool | None
     """Lock the worktree to prevent accidental removal."""
 
-    lock_reason: NotRequired[str | None]
+    lock_reason: str | None
     """Reason for locking. If provided, implies lock=True."""
+
+
+class WorktreeConfigDict(
+    _WorktreeConfigDictRequired,
+    _WorktreeConfigDictOptional,
+):
+    """Configuration for a single git worktree."""
 
 
 RepoPinDict = TypedDict(
@@ -160,20 +169,20 @@ class RepoOptionsDict(TypedDict, total=False):
           allow_overwrite: false
     """
 
-    rev: NotRequired[str]
+    rev: str
     """Commit, tag, or branch to check out on sync (libvcs ``rev``).
 
     Distinct from ``pin``, which guards config mutation rather than pinning a
     git ref.
     """
 
-    shallow: NotRequired[bool]
+    shallow: bool
     """If ``True``, clone with ``--depth 1`` on sync (libvcs ``git_shallow``).
 
     Sugar for ``depth: 1``; ``depth`` wins when both are set.
     """
 
-    depth: NotRequired[int]
+    depth: int
     """Clone with history truncated to ``depth`` commits (libvcs ``depth``).
 
     Takes precedence over ``shallow``.
@@ -195,7 +204,7 @@ class RepoOptionsDict(TypedDict, total=False):
     """Human-readable reason shown in log output when an op is skipped due to pin."""
 
 
-class RepoEntryDict(TypedDict):
+class _RepoEntryDictRequired(TypedDict):
     """Raw per-repository entry as written to .vcspull.yaml.
 
     Examples
@@ -223,20 +232,28 @@ class RepoEntryDict(TypedDict):
     repo: str
     """VCS URL in vcspull format, e.g. ``git+git@github.com:user/repo.git``."""
 
-    rev: NotRequired[str]
+
+class _RepoEntryDictOptional(TypedDict, total=False):
+    """Optional raw per-repository entry fields."""
+
+    rev: str
     """Deprecated top-level form of ``options.rev``; still read, with a warning.
 
     Run ``vcspull migrate`` to relocate it under ``options:``.
     """
 
-    shallow: NotRequired[bool]
+    shallow: bool
     """Deprecated top-level form of ``options.shallow``; still read, with a warning.
 
     Run ``vcspull migrate`` to relocate it under ``options:``.
     """
 
-    options: NotRequired[RepoOptionsDict]
+    options: RepoOptionsDict
     """Sync tuning (``rev``/``shallow``/``depth``) plus mutation policy."""
+
+
+class RepoEntryDict(_RepoEntryDictRequired, _RepoEntryDictOptional):
+    """Raw per-repository entry as written to .vcspull.yaml."""
 
 
 class RawConfigDict(t.TypedDict):
@@ -253,21 +270,30 @@ RawConfigDir = dict[str, RawConfigDict]
 RawConfig = dict[str, RawConfigDir]
 
 
-class ConfigDict(TypedDict):
-    """Configuration map for vcspull after shorthands and variables resolved."""
+class _ConfigDictRequired(TypedDict):
+    """Required fields for resolved vcspull configuration entries."""
 
     vcs: VCSLiteral | None
     name: str
     path: pathlib.Path
     url: str
     workspace_root: str
-    rev: NotRequired[str | None]
-    shallow: NotRequired[bool | None]
-    depth: NotRequired[int | None]
-    remotes: NotRequired[GitSyncRemoteDict | None]
-    shell_command_after: NotRequired[list[str] | None]
-    worktrees: NotRequired[list[WorktreeConfigDict] | None]
-    options: NotRequired[RepoOptionsDict]
+
+
+class _ConfigDictOptional(TypedDict, total=False):
+    """Optional fields for resolved vcspull configuration entries."""
+
+    rev: str | None
+    shallow: bool | None
+    depth: int | None
+    remotes: GitSyncRemoteDict | None
+    shell_command_after: list[str] | None
+    worktrees: list[WorktreeConfigDict] | None
+    options: RepoOptionsDict
+
+
+class ConfigDict(_ConfigDictRequired, _ConfigDictOptional):
+    """Configuration map for vcspull after shorthands and variables resolved."""
 
 
 ConfigDir = dict[str, ConfigDict]
