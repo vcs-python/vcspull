@@ -20,6 +20,8 @@ from vcspull.cli.add import (
     AddAction,
     _classify_add_action,
     _collapse_ordered_items_to_dict,
+    _extract_current_url,
+    _save_config_or_log_error,
     add_repo,
     create_add_subparser,
     handle_add_command,
@@ -1714,3 +1716,93 @@ def test_collapse_ordered_items_to_dict(
     for label, expected_keys in expected_repo_keys.items():
         assert label in result
         assert set(result[label].keys()) == expected_keys
+
+
+class ExtractCurrentUrlFixture(t.NamedTuple):
+    """Fixture for _extract_current_url derivation cases."""
+
+    test_id: str
+    existing_config: object
+    expected: str
+
+
+EXTRACT_CURRENT_URL_FIXTURES: list[ExtractCurrentUrlFixture] = [
+    ExtractCurrentUrlFixture(
+        test_id="plain-string",
+        existing_config="git+https://github.com/user/repo.git",
+        expected="git+https://github.com/user/repo.git",
+    ),
+    ExtractCurrentUrlFixture(
+        test_id="dict-repo-key",
+        existing_config={"repo": "git+https://github.com/user/repo.git"},
+        expected="git+https://github.com/user/repo.git",
+    ),
+    ExtractCurrentUrlFixture(
+        test_id="dict-url-key",
+        existing_config={"url": "https://example.com/repo.git"},
+        expected="https://example.com/repo.git",
+    ),
+    ExtractCurrentUrlFixture(
+        test_id="dict-repo-wins-over-url",
+        existing_config={"repo": "git+ssh://a", "url": "https://b"},
+        expected="git+ssh://a",
+    ),
+    ExtractCurrentUrlFixture(
+        test_id="dict-empty-values",
+        existing_config={"repo": None, "url": None},
+        expected="unknown",
+    ),
+    ExtractCurrentUrlFixture(
+        test_id="non-str-non-dict",
+        existing_config=42,
+        expected="42",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ExtractCurrentUrlFixture._fields),
+    EXTRACT_CURRENT_URL_FIXTURES,
+    ids=[fixture.test_id for fixture in EXTRACT_CURRENT_URL_FIXTURES],
+)
+def test_extract_current_url(
+    test_id: str,
+    existing_config: object,
+    expected: str,
+) -> None:
+    """_extract_current_url derives a display URL from any entry shape."""
+    assert _extract_current_url(existing_config) == expected
+
+
+def test_save_config_or_log_error_success(tmp_path: pathlib.Path) -> None:
+    """A successful save callable returns True and logs no error."""
+    calls: list[int] = []
+
+    assert (
+        _save_config_or_log_error(
+            lambda: calls.append(1),
+            config_file_path=tmp_path / "cfg.yaml",
+        )
+        is True
+    )
+    assert calls == [1]
+
+
+def test_save_config_or_log_error_failure(
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A raising save callable returns False and logs the failure."""
+
+    def _boom() -> None:
+        error_message = "disk full"
+        raise RuntimeError(error_message)
+
+    with caplog.at_level(logging.ERROR, logger="vcspull.cli.add"):
+        result = _save_config_or_log_error(
+            _boom,
+            config_file_path=tmp_path / "cfg.yaml",
+        )
+
+    assert result is False
+    assert any(record.levelno == logging.ERROR for record in caplog.records)
