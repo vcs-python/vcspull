@@ -205,9 +205,12 @@ $ vcspull discover ~/company/repos \
 
 After discovering repositories, consider:
 
-1. Running `vcspull fmt --write` to normalize and sort your configuration (see {ref}`cli-fmt`)
-2. Running `vcspull list --tree` to verify the workspace organization (see {ref}`cli-list`)
-3. Running `vcspull status` to confirm all repositories are tracked (see {ref}`cli-status`)
+1. Running {ref}`vcspull fmt <cli-fmt>` with `--write` to normalize and sort
+   your configuration.
+2. Running {ref}`vcspull list <cli-list>` with `--tree` to verify the workspace
+   organization.
+3. Running {ref}`vcspull status <cli-status>` to confirm all repositories are
+   tracked.
 
 ## Handling existing entries
 
@@ -247,9 +250,8 @@ emitted, so pass `--log-level debug` to see which entries were skipped due to
 pins:
 
 ```console
-$ vcspull discover ~/code \
-    --recursive \
-    --log-level debug
+$ vcspull --log-level debug discover ~/code \
+    --recursive
 ```
 
 Both `options.pin: true` (global) and `options.pin.discover: true`

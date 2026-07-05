@@ -2,8 +2,8 @@
 
 # Config generation
 
-The `vcspull import` command can generate configuration by fetching
-repositories from remote services. See {ref}`cli-import` for details.
+The {ref}`vcspull import <cli-import>` command can generate configuration by
+fetching repositories from remote services. See {ref}`cli-import` for details.
 
 Supported services: {ref}`GitHub <cli-import-github>`,
 {ref}`GitLab <cli-import-gitlab>`, {ref}`Codeberg <cli-import-codeberg>`,

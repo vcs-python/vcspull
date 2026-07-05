@@ -20,14 +20,9 @@ synchronized with remote repositories.
 
 ## Filtering repos
 
-Running `vcspull sync` with no patterns syncs nothing and prints the help
-text — you always say which repositories to touch, with patterns or `--all`:
-
-```vcspull-console
-$ vcspull sync
-usage: vcspull sync [-h] [-f FILE] [-w DIR] [--dry-run] [--json] [--ndjson]
-...
-```
+Running `vcspull sync` with no patterns syncs nothing and prints the generated
+help text. You always say which repositories to touch, with patterns or
+`--all`.
 
 ### Sync all repos
 
@@ -213,6 +208,9 @@ Stream sync events line-by-line with `--ndjson`:
 
 ```console
 $ vcspull sync --dry-run --ndjson 'flask' 'tiktoken'
+```
+
+```vcspull-output
 {"format_version": "1", "type": "operation", "name": "tiktoken", "path": "~/study/ai/tiktoken", "workspace_root": "~/study/ai/", "action": "clone", "detail": "missing", "url": "git+https://github.com/openai/tiktoken.git"}
 {"format_version": "1", "type": "summary", "clone": 1, "update": 0, "unchanged": 1, "blocked": 0, "errors": 0, "total": 2, "duration_ms": 7}
 ```

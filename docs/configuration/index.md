@@ -2,6 +2,18 @@
 
 # Configuration
 
+Configuration maps workspace roots to repository entries. A workspace root is
+where repositories live on disk, and each entry tells vcspull which VCS URL to
+clone or update when you run {ref}`vcspull sync <cli-sync>`.
+
+Most users can start with one `~/.vcspull.yaml` file:
+
+```yaml
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+```
+
 ::::{grid} 1 1 2 2
 :gutter: 2 2 3 3
 
@@ -36,7 +48,8 @@ You can place the file in one of three places:
    $ echo $XDG_CONFIG_HOME
    ```
 
-3. Anywhere (and trigger via `vcspull sync --file ./path/to/file.yaml [repo_name]`)
+3. Anywhere (and trigger via {ref}`vcspull sync <cli-sync>` with
+   `--file ./path/to/file.yaml [repo_name]`)
 
 [xdg]: https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
@@ -143,9 +156,9 @@ than pinning a [git](https://git-scm.com/) ref.
       rev: v3.0.0
 ```
 
-`vcspull add <path> --pin <ref>` and `vcspull discover <dir> --pin <ref>` record
-this key when importing an existing checkout. See {ref}`cli-add` and
-{ref}`cli-discover`.
+{ref}`vcspull add <cli-add>` with `<path> --pin <ref>` and
+{ref}`vcspull discover <cli-discover>` with `<dir> --pin <ref>` record this
+key when importing an existing checkout.
 
 ### Shallow clones
 
@@ -161,9 +174,9 @@ many repositories.
       shallow: true
 ```
 
-`vcspull add` and `vcspull discover` detect an existing depth-1 checkout
-automatically and record `options.shallow: true`; the `--shallow` flag forces it
-on even for a full checkout.
+{ref}`vcspull add <cli-add>` and {ref}`vcspull discover <cli-discover>` detect
+an existing depth-1 checkout automatically and record `options.shallow: true`;
+the `--shallow` flag forces it on even for a full checkout.
 
 ### Clone depth
 
@@ -179,9 +192,10 @@ of recent commits for `git log` or `git bisect`.
       depth: 50
 ```
 
-`vcspull add <path> --depth N` and `vcspull discover <dir> --depth N` record this
-key. When importing an existing shallow checkout, both detect its depth: a
-depth-1 checkout records `options.shallow: true` and a deeper window records
+{ref}`vcspull add <cli-add>` with `<path> --depth N` and
+{ref}`vcspull discover <cli-discover>` with `<dir> --depth N` record this key.
+When importing an existing shallow checkout, both detect its depth: a depth-1
+checkout records `options.shallow: true` and a deeper window records
 `options.depth: N`. `depth` takes precedence over `shallow` when both are set.
 
 ### Migrating from the top-level form
@@ -267,16 +281,17 @@ Available pin keys:
 
 | Key        | Blocks                                                     |
 |------------|-----------------------------------------------------------|
-| `import`   | `vcspull import --sync` from replacing this URL            |
-| `add`      | `vcspull add` from overwriting this entry                  |
-| `discover` | `vcspull discover` from overwriting this entry             |
-| `fmt`      | `vcspull fmt` from normalizing this entry                  |
+| `import`   | {ref}`vcspull import <cli-import>` with `--sync` from replacing this URL |
+| `add`      | {ref}`vcspull add <cli-add>` from overwriting this entry                 |
+| `discover` | {ref}`vcspull discover <cli-discover>` from overwriting this entry       |
+| `fmt`      | {ref}`vcspull fmt <cli-fmt>` from normalizing this entry                 |
 | `merge`    | Duplicate-workspace-root merge from displacing this entry  |
 
 ### Shorthand: allow_overwrite
 
 `allow_overwrite: false` is a convenience shorthand equivalent to
-`pin: {import: true}`. It only guards against `vcspull import --sync`:
+`pin: {import: true}`. It only guards against
+{ref}`vcspull import <cli-import>` with `--sync`:
 
 ```yaml
 ~/code/:
@@ -304,10 +319,10 @@ Each command handles pins differently:
 
 | Command | Pin effect | Log level |
 |---------|------------|-----------|
-| `vcspull import --sync` | Skips URL replacement | info |
-| `vcspull add` | Skips with warning | warning |
-| `vcspull discover` | Silently skips | debug |
-| `vcspull fmt` | Preserves entry verbatim | (silent) |
+| {ref}`vcspull import <cli-import>` with `--sync` | Skips URL replacement | info |
+| {ref}`vcspull add <cli-add>` | Skips with warning | warning |
+| {ref}`vcspull discover <cli-discover>` | Silently skips | debug |
+| {ref}`vcspull fmt <cli-fmt>` | Preserves entry verbatim | (silent) |
 | Workspace merge | Pinned entry wins conflict | info |
 
 ```{note}

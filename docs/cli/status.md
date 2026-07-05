@@ -162,6 +162,9 @@ For streaming output, use `--ndjson`:
 
 ```console
 $ vcspull status --ndjson flask tiktoken
+```
+
+```vcspull-output
 {"reason": "status", "name": "tiktoken", "path": "~/study/ai/tiktoken", "workspace_root": "~/study/ai/", "exists": false, "is_git": false, "clean": null, "branch": null, "ahead": null, "behind": null}
 {"reason": "status", "name": "flask", "path": "~/code/flask", "workspace_root": "~/code/", "exists": true, "is_git": true, "clean": true, "branch": null, "ahead": null, "behind": null}
 {"reason": "summary", "total": 2, "exists": 1, "missing": 1, "clean": 1, "dirty": 0, "duration_ms": 4}

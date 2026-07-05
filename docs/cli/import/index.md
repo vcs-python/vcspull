@@ -462,7 +462,7 @@ details.
 
 ## After importing
 
-1. Run `vcspull fmt --write` to normalize and sort the configuration (see
-   {ref}`cli-fmt`).
-2. Run `vcspull list` to verify the imported entries (see {ref}`cli-list`).
-3. Run `vcspull sync` to clone the repositories (see {ref}`cli-sync`).
+1. Run {ref}`vcspull fmt <cli-fmt>` with `--write` to normalize and sort the
+   configuration.
+2. Run {ref}`vcspull list <cli-list>` to verify the imported entries.
+3. Run {ref}`vcspull sync <cli-sync>` to clone the repositories.

@@ -45,7 +45,7 @@ ref type: `tag`, `branch`, or `commit`.
 ```yaml
 ~/code/:
   myproject:
-    url: "git+https://github.com/myorg/myproject.git"
+    repo: "git+https://github.com/myorg/myproject.git"
     worktrees:
       # Pin a stable release (detached HEAD)
       - dir: "../myproject-v2.0"
@@ -195,7 +195,7 @@ Clone a repository trunk and pin multiple release tags for reference:
 ```yaml
 ~/code/:
   cpython:
-    url: "git+https://github.com/python/cpython.git"
+    repo: "git+https://github.com/python/cpython.git"
     worktrees:
       - dir: "../cpython-3.12"
         tag: "v3.12.0"
@@ -213,7 +213,7 @@ Work on multiple feature branches without switching:
 ```yaml
 ~/code/:
   webapp:
-    url: "git+https://github.com/myorg/webapp.git"
+    repo: "git+https://github.com/myorg/webapp.git"
     worktrees:
       - dir: "../webapp-feature-auth"
         branch: "feature/auth"
@@ -228,7 +228,7 @@ Lock stable releases to prevent accidental modification:
 ```yaml
 ~/code/:
   library:
-    url: "git+https://github.com/myorg/library.git"
+    repo: "git+https://github.com/myorg/library.git"
     worktrees:
       - dir: "../library-v1"
         tag: "v1.0.0"

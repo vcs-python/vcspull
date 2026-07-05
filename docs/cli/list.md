@@ -104,6 +104,9 @@ For streaming and line-oriented processing, use `--ndjson`:
 
 ```console
 $ vcspull list --ndjson
+```
+
+```vcspull-output
 {"name":"tiktoken","url":"git+https://github.com/openai/tiktoken.git","path":"~/study/ai/tiktoken","workspace_root":"~/study/ai/"}
 {"name":"flask","url":"git+https://github.com/pallets/flask.git","path":"~/code/flask","workspace_root":"~/code/"}
 ```

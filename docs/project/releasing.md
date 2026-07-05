@@ -4,8 +4,9 @@
 
 ## Version policy
 
-vcspull follows [semantic versioning](https://semver.org/). Internal APIs
-(everything under `_internal/`) carry no stability guarantee.
+vcspull follows [semantic versioning](https://semver.org/).
+{ref}`Internal APIs <internals-api>` (everything under `_internal/`) carry no
+stability guarantee.
 
 ## Release checklist
 

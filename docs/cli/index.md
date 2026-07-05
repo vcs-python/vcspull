@@ -7,64 +7,64 @@
 ::::{grid} 1 2 3 3
 :gutter: 2 2 3 3
 
-:::{grid-item-card} vcspull sync
+:::{grid-item-card} Sync
 :link: sync
 :link-type: doc
-Pull / clone repositories from config.
+{ref}`vcspull sync <cli-sync>` pulls and clones repositories from config.
 :::
 
-:::{grid-item-card} vcspull add
+:::{grid-item-card} Add
 :link: add
 :link-type: doc
-Add a repository to your config file.
+{ref}`vcspull add <cli-add>` records one repository in your config file.
 :::
 
-:::{grid-item-card} vcspull list
+:::{grid-item-card} List
 :link: list
 :link-type: doc
-List configured repositories.
+{ref}`vcspull list <cli-list>` shows configured repositories.
 :::
 
-:::{grid-item-card} vcspull search
+:::{grid-item-card} Search
 :link: search
 :link-type: doc
-Search repos by name, path, or URL.
+{ref}`vcspull search <cli-search>` searches repos by name, path, or URL.
 :::
 
-:::{grid-item-card} vcspull status
+:::{grid-item-card} Status
 :link: status
 :link-type: doc
-Show working-tree status for each repo.
+{ref}`vcspull status <cli-status>` checks working-tree status.
 :::
 
-:::{grid-item-card} vcspull discover
+:::{grid-item-card} Discover
 :link: discover
 :link-type: doc
-Scan directories for existing repos.
+{ref}`vcspull discover <cli-discover>` scans directories for existing repos.
 :::
 
-:::{grid-item-card} vcspull fmt
+:::{grid-item-card} Format
 :link: fmt
 :link-type: doc
-Normalize and format config files.
+{ref}`vcspull fmt <cli-fmt>` normalizes config files.
 :::
 
-:::{grid-item-card} vcspull migrate
+:::{grid-item-card} Migrate
 :link: migrate
 :link-type: doc
-Move rev/shallow/depth under options:.
+{ref}`vcspull migrate <cli-migrate>` moves sync options under `options:`.
 :::
 
-:::{grid-item-card} vcspull import
+:::{grid-item-card} Import
 :link: import/index
 :link-type: doc
-Import repos from GitHub, GitLab, and more.
+{ref}`vcspull import <cli-import>` imports repos from GitHub, GitLab, and more.
 :::
 
-:::{grid-item-card} vcspull worktree
+:::{grid-item-card} Worktrees
 :link: worktree/index
 :link-type: doc
-Manage git worktrees declaratively.
+{ref}`vcspull worktree <cli-worktree>` manages git worktrees declaratively.
 :::
 
 :::{grid-item-card} Completion

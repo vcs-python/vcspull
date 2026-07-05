@@ -140,10 +140,10 @@ See {ref}`config-pin` for full pin configuration.
 
 ## After adding repositories
 
-1. Run `vcspull fmt --write` to normalize your configuration (see
-   {ref}`cli-fmt`).
-2. Run `vcspull list` to verify the new entry (see {ref}`cli-list`).
-3. Run `vcspull sync` to clone or update the working tree (see {ref}`cli-sync`).
+1. Run {ref}`vcspull fmt <cli-fmt>` with `--write` to normalize your
+   configuration.
+2. Run {ref}`vcspull list <cli-list>` to verify the new entry.
+3. Run {ref}`vcspull sync <cli-sync>` to clone or update the working tree.
 
 ## Migration from the old vcspull import
 

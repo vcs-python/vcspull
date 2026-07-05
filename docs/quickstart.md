@@ -40,14 +40,61 @@ Or with uv:
 $ uv tool upgrade vcspull
 ```
 
+## Configuration
+
+```{seealso}
+{ref}`configuration` and {ref}`cli-import`.
+```
+
+You'll check out the source code of [flask][flask] to `~/code/flask`.
+
+Prefer JSON? Create a `~/.vcspull.json` file:
+
+```json
+{
+  "~/code/": {
+    "flask": "git+https://github.com/mitsuhiko/flask.git"
+  }
+}
+```
+
+YAML? Create a `~/.vcspull.yaml` file:
+
+```yaml
+~/code/:
+  "flask": "git+https://github.com/mitsuhiko/flask.git"
+```
+
+Already have repositories cloned locally? Use
+{ref}`vcspull discover <cli-discover>` with `~/code --recursive` to detect
+existing Git checkouts and append them to your configuration. See
+{ref}`cli-discover` for more details and options such as `--workspace-root`
+and `--yes` for unattended runs. After editing or discovering repositories,
+run {ref}`vcspull fmt <cli-fmt>` with `--write` to normalize keys and keep
+your configuration tidy.
+
+The `git+` prefix tells vcspull the repository type. Mercurial repositories
+use `hg+`; Subversion uses `svn+`. Repository type and address are specified
+in [pip VCS URL][pip vcs url] format.
+
+Now run the command to pull all the repositories in your
+`.vcspull.yaml` / `.vcspull.json`:
+
+```console
+$ vcspull sync --all
+```
+
+Want to manage multiple branches or tags of the same repository?
+See {ref}`cli-worktree` for declarative worktree support.
+
 (developmental-releases)=
 
 ### Developmental releases
 
-New versions of vcspull are published to [PyPI](https://pypi.org/) as alpha,
-beta, or release candidates. Their versions carry suffixes like `a1`, `b1`,
-and `rc1`, respectively.
-`1.10.0b4` would mean the 4th beta release of `1.10.0` before general availability.
+Most readers can stop here. If you need a prerelease, vcspull publishes alpha,
+beta, and release-candidate builds to [PyPI](https://pypi.org/) with version
+suffixes like `a1`, `b1`, and `rc1`. `1.10.0b4` would mean the fourth beta of
+`1.10.0` before general availability.
 
 - [pip]\:
 
@@ -85,7 +132,10 @@ and `rc1`, respectively.
   $ uvx --from 'vcspull' --prerelease allow vcspull
   ```
 
-via trunk (can break easily):
+### Install from unreleased code
+
+Installing from `master` is for testing unreleased changes and can break
+without notice.
 
 - [pip]\:
 
@@ -107,58 +157,6 @@ via trunk (can break easily):
   ```console
   $ uv tool install vcspull --from git+https://github.com/vcs-python/vcspull.git
   ```
-
-[pip]: https://pip.pypa.io/en/stable/
-[pipx]: https://pypa.github.io/pipx/docs/
-[uv]: https://docs.astral.sh/uv/
-[uv-tools]: https://docs.astral.sh/uv/concepts/tools/
-[uvx]: https://docs.astral.sh/uv/guides/tools/
-
-## Configuration
-
-```{seealso}
-{ref}`configuration` and {ref}`cli-import`.
-```
-
-You'll check out the source code of [flask][flask] to `~/code/flask`.
-
-Prefer JSON? Create a `~/.vcspull.json` file:
-
-```json
-{
-  "~/code/": {
-    "flask": "git+https://github.com/mitsuhiko/flask.git"
-  }
-}
-```
-
-YAML? Create a `~/.vcspull.yaml` file:
-
-```yaml
-~/code/:
-  "flask": "git+https://github.com/mitsuhiko/flask.git"
-```
-
-Already have repositories cloned locally? Use
-`vcspull discover ~/code --recursive` to detect existing Git checkouts and
-append them to your configuration. See {ref}`cli-discover` for more details and
-options such as `--workspace-root` and `--yes` for unattended runs. After editing or
-discovering repositories, run `vcspull fmt --write` (documented in {ref}`cli-fmt`) to
-normalize keys and keep your configuration tidy.
-
-The `git+` prefix tells vcspull the repository type. Mercurial repositories
-use `hg+`; Subversion uses `svn+`. Repository type and address are specified
-in [pip VCS URL][pip vcs url] format.
-
-Now run the command to pull all the repositories in your
-`.vcspull.yaml` / `.vcspull.json`:
-
-```console
-$ vcspull sync --all
-```
-
-Want to manage multiple branches or tags of the same repository?
-See {ref}`cli-worktree` for declarative worktree support.
 
 You can also sync arbitrary projects. Let's say you have a mercurial
 repository but need a git dependency — add a `.deps.yaml` to your project
@@ -226,3 +224,8 @@ $ vcspull sync ~/*python*
 
 [pip vcs url]: https://pip.pypa.io/en/stable/topics/vcs-support/
 [flask]: https://flask.palletsprojects.com/
+[pip]: https://pip.pypa.io/en/stable/
+[pipx]: https://pypa.github.io/pipx/docs/
+[uv]: https://docs.astral.sh/uv/
+[uv-tools]: https://docs.astral.sh/uv/concepts/tools/
+[uvx]: https://docs.astral.sh/uv/guides/tools/

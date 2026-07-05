@@ -13,40 +13,40 @@ For granular control see the [libvcs documentation](https://libvcs.git-pull.com/
 ::::{grid} 1 2 3 3
 :gutter: 2 2 3 3
 
-:::{grid-item-card} vcspull.config
+:::{grid-item-card} Config
 :link: config
 :link-type: doc
-Configuration loading and repo extraction.
+{mod}`vcspull.config` loads configuration and extracts repositories.
 :::
 
-:::{grid-item-card} vcspull.exc
+:::{grid-item-card} Exceptions
 :link: exc
 :link-type: doc
-Exception hierarchy.
+{mod}`vcspull.exc` defines the exception hierarchy.
 :::
 
-:::{grid-item-card} vcspull.log
+:::{grid-item-card} Logging
 :link: log
 :link-type: doc
-Logging helpers.
+{mod}`vcspull.log` formats CLI and file logging.
 :::
 
-:::{grid-item-card} vcspull.validator
+:::{grid-item-card} Validation
 :link: validator
 :link-type: doc
-Config validation utilities.
+{mod}`vcspull.validator` checks parsed configuration shape.
 :::
 
-:::{grid-item-card} vcspull.util
+:::{grid-item-card} Utilities
 :link: util
 :link-type: doc
-General-purpose utilities.
+{mod}`vcspull.util` collects shared helpers.
 :::
 
-:::{grid-item-card} vcspull.types
+:::{grid-item-card} Types
 :link: types
 :link-type: doc
-Type definitions and aliases.
+{mod}`vcspull.types` documents configuration data shapes.
 :::
 
 ::::
