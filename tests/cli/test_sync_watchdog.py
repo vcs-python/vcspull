@@ -14,9 +14,11 @@ from vcspull.cli._colors import ColorMode, Colors
 from vcspull.cli._output import OutputFormatter, OutputMode
 from vcspull.cli.sync import (
     _DEFAULT_REPO_TIMEOUT_SECONDS,
+    _emit_repo_result,
     _emit_rerun_recipe,
     _resolve_repo_timeout,
     _sync_repo_with_watchdog,
+    _SyncOutcome,
     _TimedOutRepo,
 )
 
@@ -676,3 +678,76 @@ def test_run_parallel_sync_loop_async_respects_semaphore(
 
     assert peak <= 3
     assert summary["synced"] == 20
+
+
+class RepoResultGuidanceFixture(t.NamedTuple):
+    """Fixture for branch-error guidance emitted via ``_emit_repo_result``."""
+
+    test_id: str
+    err_msg: str
+    rev: str | None
+    expect_guidance: bool
+
+
+REPO_RESULT_GUIDANCE_FIXTURES: list[RepoResultGuidanceFixture] = [
+    RepoResultGuidanceFixture(
+        test_id="branch-error-with-rev",
+        err_msg="fatal: invalid upstream 'origin/feature'",
+        rev="v1.2.3",
+        expect_guidance=True,
+    ),
+    RepoResultGuidanceFixture(
+        test_id="branch-error-without-rev",
+        err_msg="fatal: ambiguous argument 'x': unknown revision",
+        rev=None,
+        expect_guidance=True,
+    ),
+    RepoResultGuidanceFixture(
+        test_id="network-error-no-guidance",
+        err_msg="fatal: unable to access; Could not resolve host: example.com",
+        rev="v1.2.3",
+        expect_guidance=False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(RepoResultGuidanceFixture._fields),
+    REPO_RESULT_GUIDANCE_FIXTURES,
+    ids=[fixture.test_id for fixture in REPO_RESULT_GUIDANCE_FIXTURES],
+)
+def test_emit_repo_result_surfaces_branch_guidance(
+    test_id: str,
+    err_msg: str,
+    rev: str | None,
+    expect_guidance: bool,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A failed outcome routed through ``_emit_repo_result`` emits guidance.
+
+    Both the serial and parallel sync loops funnel per-repo outcomes
+    through ``_emit_repo_result``; folding the branch-error guidance into
+    the helper (rather than the serial call site) keeps the v1.65.0
+    guidance and extends it to ``--jobs`` mode. Guidance must fire only
+    when the failure looks like a branch/revision problem.
+    """
+    formatter = OutputFormatter(OutputMode.HUMAN)
+    colors = Colors(ColorMode.NEVER)
+    repo: dict[str, t.Any] = {"name": "repo", "path": "/nonexistent/repo"}
+    if rev is not None:
+        repo["rev"] = rev
+
+    status = _emit_repo_result(
+        repo=t.cast("t.Any", repo),
+        outcome=_SyncOutcome(status="failed", error=RuntimeError(err_msg)),
+        formatter=formatter,
+        colors=colors,
+        summary={},
+        timed_out_repos=[],
+        is_human=True,
+        final_writer=lambda _line: False,
+    )
+
+    captured = capsys.readouterr().out
+    assert status == "failed"
+    assert ("Pin an existing branch" in captured) is expect_guidance
