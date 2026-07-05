@@ -18,6 +18,7 @@ from vcspull.config import (
     normalize_workspace_roots,
     workspace_root_label,
 )
+from vcspull.types import ConfigStyle
 
 if t.TYPE_CHECKING:
     from _pytest.logging import LogCaptureFixture
@@ -627,3 +628,47 @@ def test_classify_fmt_action(
     """Test _classify_fmt_action covers all permutations."""
     action, _result = _classify_fmt_action(repo_data)
     assert action == expected_action
+
+
+class FmtStyleFixture(t.NamedTuple):
+    """Fixture for format_config style conversion."""
+
+    test_id: str
+    style: ConfigStyle
+    expected_entry: object
+
+
+FMT_STYLE_FIXTURES: list[FmtStyleFixture] = [
+    FmtStyleFixture(
+        test_id="concise-collapses-to-string",
+        style=ConfigStyle.CONCISE,
+        expected_entry="git+https://github.com/pallets/flask.git",
+    ),
+    FmtStyleFixture(
+        test_id="standard-uses-repo-dict",
+        style=ConfigStyle.STANDARD,
+        expected_entry={"repo": "git+https://github.com/pallets/flask.git"},
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(FmtStyleFixture._fields),
+    FMT_STYLE_FIXTURES,
+    ids=[fixture.test_id for fixture in FMT_STYLE_FIXTURES],
+)
+def test_format_config_applies_style(
+    test_id: str,
+    style: ConfigStyle,
+    expected_entry: object,
+) -> None:
+    """format_config(style=...) restyles entries to the requested form."""
+    config_data = {
+        "~/code/": {"flask": {"repo": "git+https://github.com/pallets/flask.git"}},
+    }
+
+    formatted, changes = format_config(config_data, style=style)
+
+    assert formatted["~/code/"]["flask"] == expected_entry
+    if style is ConfigStyle.CONCISE:
+        assert changes >= 1

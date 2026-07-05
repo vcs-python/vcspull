@@ -13,6 +13,7 @@ from libvcs.__about__ import __version__ as libvcs_version
 from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
+from .._internal.settings import resolve_style
 from ._formatter import VcspullHelpFormatter
 from .add import add_repo, create_add_subparser, handle_add_command
 from .discover import create_discover_subparser, discover_repos
@@ -587,6 +588,7 @@ def cli(_args: list[str] | None = None) -> None:
             args.write,
             args.all,
             merge_roots=args.merge_roots,
+            style=resolve_style(args.style) if args.style else None,
         )
     elif args.subparser_name == "migrate":
         migrate_config_file(
