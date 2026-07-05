@@ -32,11 +32,21 @@ $ uv add vcspull --prerelease allow
 $ uvx --from 'vcspull' --prerelease allow vcspull
 ```
 
-## vcspull v1.65.x (unreleased)
+## vcspull v1.66.x (unreleased)
 
 <!-- KEEP THIS PLACEHOLDER - DO NOT REMOVE OR MODIFY THIS LINE -->
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
+
+## vcspull v1.65.0 (2026-07-05)
+
+vcspull v1.65.0 sharpens the feedback you get when a sync cannot check out
+a configured branch, tag, or revision: the error now names the requested
+revision, suggests how to repair the configuration, and lists the branches
+Git actually reported. The release also hardens packaging by exercising the
+runtime-only install path end users receive, keeping production installs
+free of dev-only dependencies. Documentation is re-captured from real
+command runs, with cross-links and dead links repaired throughout.
 
 ### What's new
 
