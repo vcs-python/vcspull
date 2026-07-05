@@ -1419,8 +1419,8 @@ def test_import_repos_catches_multiple_config_warning(
     monkeypatch: MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test _run_import logs error instead of crashing on MultipleConfigWarning."""
-    from vcspull.exc import MultipleConfigWarning
+    """Test _run_import logs error instead of crashing on MultipleConfigError."""
+    from vcspull.exc import MultipleConfigError
 
     caplog.set_level(logging.ERROR)
 
@@ -1430,9 +1430,9 @@ def test_import_repos_catches_multiple_config_warning(
 
     importer = MockImporter(repos=[_make_repo("repo1")])
 
-    # Mock _resolve_config_file: raise MultipleConfigWarning to test error handling
+    # Mock _resolve_config_file: raise MultipleConfigError to test error handling
     def raise_multiple_config(_: str | None) -> pathlib.Path:
-        raise MultipleConfigWarning(MultipleConfigWarning.message)
+        raise MultipleConfigError(MultipleConfigError.message)
 
     monkeypatch.setattr(
         import_common_mod,

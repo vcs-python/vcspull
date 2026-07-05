@@ -207,7 +207,7 @@ def test_multiple_config_files_raises_exception(tmp_path: pathlib.Path) -> None:
         env.set("HOME", str(tmp_path))
         assert pathlib.Path.home() == tmp_path
 
-        with pytest.raises(exc.MultipleConfigWarning):
+        with pytest.raises(exc.MultipleConfigError):
             config.find_home_config_files()
 
 
@@ -217,7 +217,7 @@ def test_find_home_config_files_filetype_yaml_only(tmp_path: pathlib.Path) -> No
     (tmp_path / ".vcspull.json").touch()
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
-        # Should NOT raise MultipleConfigWarning because json is filtered out
+        # Should NOT raise MultipleConfigError because json is filtered out
         results = config.find_home_config_files(filetype=["yaml"])
         assert len(results) == 1
         assert results[0].suffix == ".yaml"
@@ -237,12 +237,12 @@ def test_find_home_config_files_filetype_json_only(tmp_path: pathlib.Path) -> No
 def test_find_home_config_files_both_types_still_raises(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Default filetype still raises MultipleConfigWarning when both exist."""
+    """Default filetype still raises MultipleConfigError when both exist."""
     (tmp_path / ".vcspull.yaml").touch()
     (tmp_path / ".vcspull.json").touch()
     with EnvironmentVarGuard() as env:
         env.set("HOME", str(tmp_path))
-        with pytest.raises(exc.MultipleConfigWarning):
+        with pytest.raises(exc.MultipleConfigError):
             config.find_home_config_files()
 
 
@@ -507,5 +507,5 @@ def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path) ->
     )
     assert config1 in config_files
     assert config2 in config_files
-    with pytest.raises(exc.VCSPullException):
+    with pytest.raises(exc.VCSPullError):
         config.load_configs(config_files)

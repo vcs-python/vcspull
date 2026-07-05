@@ -2026,14 +2026,14 @@ def guess_vcs(url: str) -> VCSLiteral | None:
     return t.cast("VCSLiteral", vcs_matches[0].vcs)
 
 
-class CouldNotGuessVCSFromURL(exc.VCSPullException):
+class CouldNotGuessVCSFromURL(exc.VCSPullError):
     """Raised when no VCS could be guessed from a URL."""
 
     def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
-class SyncFailedError(exc.VCSPullException):
+class SyncFailedError(exc.VCSPullError):
     """Raised when a sync operation completes but with errors."""
 
     def __init__(

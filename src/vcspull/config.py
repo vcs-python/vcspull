@@ -121,7 +121,7 @@ def _validate_worktrees_config(
 
     Raises
     ------
-    VCSPullException
+    VCSPullError
         If the worktrees configuration is invalid.
 
     Examples
@@ -157,35 +157,35 @@ def _validate_worktrees_config(
     >>> _validate_worktrees_config("not-a-list", "myrepo")
     Traceback (most recent call last):
         ...
-    vcspull.exc.VCSPullException: ...worktrees must be a list, got str
+    vcspull.exc.VCSPullError: ...worktrees must be a list, got str
 
     Error: worktree entry must be a dict:
 
     >>> _validate_worktrees_config(["not-a-dict"], "myrepo")
     Traceback (most recent call last):
         ...
-    vcspull.exc.VCSPullException: ...must be a dict, got str
+    vcspull.exc.VCSPullError: ...must be a dict, got str
 
     Error: missing required 'dir' field:
 
     >>> _validate_worktrees_config([{"tag": "v1.0.0"}], "myrepo")
     Traceback (most recent call last):
         ...
-    vcspull.exc.VCSPullException: ...missing required 'dir' field
+    vcspull.exc.VCSPullError: ...missing required 'dir' field
 
     Error: no ref type specified:
 
     >>> _validate_worktrees_config([{"dir": "../wt"}], "myrepo")
     Traceback (most recent call last):
         ...
-    vcspull.exc.VCSPullException: ...must specify one of: tag, branch, or commit
+    vcspull.exc.VCSPullError: ...must specify one of: tag, branch, or commit
 
     Error: empty ref value:
 
     >>> _validate_worktrees_config([{"dir": "../wt", "tag": ""}], "myrepo")
     Traceback (most recent call last):
         ...
-    vcspull.exc.VCSPullException: ...empty ref value...
+    vcspull.exc.VCSPullError: ...empty ref value...
 
     Error: multiple refs specified:
 
@@ -194,14 +194,14 @@ def _validate_worktrees_config(
     ... )
     Traceback (most recent call last):
         ...
-    vcspull.exc.VCSPullException: ...cannot specify multiple refs...
+    vcspull.exc.VCSPullError: ...cannot specify multiple refs...
     """
     if not isinstance(worktrees_raw, list):
         msg = (
             f"Repository '{repo_name}': worktrees must be a list, "
             f"got {type(worktrees_raw).__name__}"
         )
-        raise exc.VCSPullException(msg)
+        raise exc.VCSPullError(msg)
 
     validated: list[WorktreeConfigDict] = []
 
@@ -211,7 +211,7 @@ def _validate_worktrees_config(
                 f"Repository '{repo_name}': worktree entry {idx} must be a dict, "
                 f"got {type(wt).__name__}"
             )
-            raise exc.VCSPullException(msg)
+            raise exc.VCSPullError(msg)
 
         # Validate required 'dir' field
         if "dir" not in wt or not wt["dir"]:
@@ -219,14 +219,14 @@ def _validate_worktrees_config(
                 f"Repository '{repo_name}': worktree entry {idx} "
                 "missing required 'dir' field"
             )
-            raise exc.VCSPullException(msg)
+            raise exc.VCSPullError(msg)
 
         if not isinstance(wt["dir"], str):
             msg = (
                 f"Repository '{repo_name}': worktree entry {idx} "
                 f"'dir' must be a string, got {type(wt['dir']).__name__}"
             )
-            raise exc.VCSPullException(msg)
+            raise exc.VCSPullError(msg)
 
         # Validate exactly one ref type
         tag = wt.get("tag")
@@ -243,19 +243,19 @@ def _validate_worktrees_config(
                 f"Repository '{repo_name}': worktree entry {idx} "
                 "must specify one of: tag, branch, or commit"
             )
-            raise exc.VCSPullException(msg)
+            raise exc.VCSPullError(msg)
         if refs_specified == 0 and empty_refs > 0:
             msg = (
                 f"Repository '{repo_name}': worktree entry {idx} "
                 "has empty ref value (tag, branch, or commit)"
             )
-            raise exc.VCSPullException(msg)
+            raise exc.VCSPullError(msg)
         if refs_specified > 1:
             msg = (
                 f"Repository '{repo_name}': worktree entry {idx} "
                 "cannot specify multiple refs (tag, branch, commit)"
             )
-            raise exc.VCSPullException(msg)
+            raise exc.VCSPullError(msg)
 
         # Validate ref types are strings
         for ref_name, ref_val in [("tag", tag), ("branch", branch), ("commit", commit)]:
@@ -264,7 +264,7 @@ def _validate_worktrees_config(
                     f"Repository '{repo_name}': worktree entry {idx} "
                     f"'{ref_name}' must be a string, got {type(ref_val).__name__}"
                 )
-                raise exc.VCSPullException(msg)
+                raise exc.VCSPullError(msg)
 
         # Build validated worktree config
         wt_config: WorktreeConfigDict = {"dir": wt["dir"]}
@@ -447,7 +447,7 @@ def find_home_config_files(
         )
     else:
         if sum(filter(None, [has_json_config, has_yaml_config])) > 1:
-            raise exc.MultipleConfigWarning
+            raise exc.MultipleConfigError
         if has_yaml_config:
             configs.append(yaml_config)
         if has_json_config:
@@ -616,7 +616,7 @@ def load_configs(
 
         if len(dupes) > 0:
             msg = ("repos with same path + different VCS detected!", dupes)
-            raise exc.VCSPullException(msg)
+            raise exc.VCSPullError(msg)
         repos.extend(newrepos)
 
     return repos
