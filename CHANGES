@@ -38,6 +38,22 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### `vcspull sync`: parallel batch sync via `--jobs` (#546)
+
+{ref}`cli-sync` can now update repositories concurrently. Pass `--jobs N`
+(or `-j N`, or set `VCSPULL_JOBS`) to sync up to N repositories at once;
+the default scales with the machine and is capped to stay polite to
+remote hosts. A large workspace of already-current repositories finishes
+in a fraction of the previous wall-clock time.
+
+In a terminal the progress display switches to a fixed set of active
+rows, with each completed repository scrolling into history above them.
+Pass `--jobs 1` to keep the original single-repository view. Branch and
+revision failure guidance is emitted for every repository regardless of
+the concurrency level.
+
 ## vcspull v1.65.0 (2026-07-05)
 
 vcspull v1.65.0 sharpens the feedback you get when a sync cannot check out
