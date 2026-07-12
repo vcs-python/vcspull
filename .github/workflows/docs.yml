@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - screen-recording-2026-07-12  # [DO NOT MERGE] temporary docs preview
   workflow_dispatch:
 
 permissions:
@@ -38,7 +39,8 @@ jobs:
               - uv.lock
 
       - name: Should publish
-        if: github.event_name == 'workflow_dispatch' || steps.changes.outputs.docs == 'true' || steps.changes.outputs.root_docs == 'true' || steps.changes.outputs.python_files == 'true'
+        # [DO NOT MERGE] force publish on the preview branch regardless of changed paths
+        if: github.ref == 'refs/heads/screen-recording-2026-07-12' || github.event_name == 'workflow_dispatch' || steps.changes.outputs.docs == 'true' || steps.changes.outputs.root_docs == 'true' || steps.changes.outputs.python_files == 'true'
         run: echo "PUBLISH=$(echo true)" >> $GITHUB_ENV
 
       - name: Install uv
