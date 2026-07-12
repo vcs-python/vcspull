@@ -15,6 +15,12 @@ For bulk import from remote services ([GitHub](https://github.com),
 [GitLab](https://gitlab.com), etc.), see {ref}`cli-import`.
 ```
 
+```{image} ../_static/demos/asciinema/vcspull-add.gif
+:alt: vcspull add registering a repository from its checkout
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}

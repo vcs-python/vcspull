@@ -7,6 +7,12 @@ The `vcspull discover` command scans directories for existing
 {ref}`configuration <configuration>`. This is ideal for importing existing
 workspaces or migrating from other tools.
 
+```{image} ../_static/demos/asciinema/vcspull-discover.gif
+:alt: vcspull discover scanning a directory tree for repositories
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}

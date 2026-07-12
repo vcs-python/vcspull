@@ -7,6 +7,12 @@ showing which repositories exist on disk, which are missing, and their
 [Git](https://git-scm.com/) status. This introspection command helps verify
 your local workspace matches your {ref}`configuration <configuration>`.
 
+```{image} ../_static/demos/asciinema/vcspull-status.gif
+:alt: vcspull status reporting clean, dirty, and missing repositories
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}

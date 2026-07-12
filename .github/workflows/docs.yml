@@ -30,6 +30,7 @@ jobs:
               - README.*
             docs:
               - 'docs/**'
+              - 'docs/_static/demos/asciinema/*.gif'
               - 'examples/**'
             python_files:
               - 'src/vcspull/**'
