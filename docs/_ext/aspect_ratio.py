@@ -2,9 +2,10 @@
 
 Sphinx's HTML writer renders image ``:width:`` as an inline pixel style, which
 overrides the theme's ``height: auto`` and distorts responsive images. Instead
-this stamps each demo ``<img>`` with ``width:100%; aspect-ratio:W/H`` (computed
-from the source GIF), so the browser reserves the correct box before the image
-loads while keeping it fluid.
+this stamps each demo ``<img>`` with ``width:<W>px; max-width:100%;
+aspect-ratio:W/H`` (computed from the source GIF): the gif shows at its real
+size, shrinks on a narrow screen, never scales up, and the browser reserves the
+correct box before it loads (no layout shift).
 """
 
 from __future__ import annotations
@@ -49,7 +50,7 @@ def _inject(
         size = _sizes.get(name)
         if size is None or "aspect-ratio" in tag:
             return tag
-        style = f"width:100%;aspect-ratio:{size[0]}/{size[1]}"
+        style = f"width:{size[0]}px;max-width:100%;aspect-ratio:{size[0]}/{size[1]}"
         if 'style="' in tag:
             return _STYLE.sub(f'style="{style}"', tag)
         return tag[:-1].rstrip("/") + f' style="{style}" />'
