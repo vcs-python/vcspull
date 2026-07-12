@@ -38,6 +38,7 @@ conf = merge_sphinx_config(
     extra_extensions=[
         "sphinx_autodoc_api_style",
         "sphinx_autodoc_argparse.exemplar",
+        "aspect_ratio",
     ],
     intersphinx_mapping={
         "py": ("https://docs.python.org/", None),
