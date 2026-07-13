@@ -126,8 +126,8 @@ def test_worktree_config_parsing(
     }
 
     if expected_error:
-        with pytest.raises(exc.VCSPullException, match=expected_error):
-            typed_config = t.cast("RawConfigDict", full_config)
+        typed_config = t.cast("RawConfigDict", full_config)
+        with pytest.raises(exc.VCSPullError, match=expected_error):
             vcspull_config.extract_repos(typed_config, cwd=tmp_path)
     else:
         # Validate each worktree individually
@@ -285,9 +285,9 @@ def test_worktree_exception_construction(
 def test_worktree_exception_hierarchy() -> None:
     """Test worktree exceptions inherit from correct base classes."""
     assert issubclass(exc.WorktreeRefNotFoundError, exc.WorktreeError)
-    assert issubclass(exc.WorktreeRefNotFoundError, exc.VCSPullException)
+    assert issubclass(exc.WorktreeRefNotFoundError, exc.VCSPullError)
     assert issubclass(exc.WorktreeDirtyError, exc.WorktreeError)
-    assert issubclass(exc.WorktreeDirtyError, exc.VCSPullException)
+    assert issubclass(exc.WorktreeDirtyError, exc.VCSPullError)
 
 
 # ---------------------------------------------------------------------------
@@ -1026,8 +1026,8 @@ def test_extract_repos_worktrees_validation_error(tmp_path: pathlib.Path) -> Non
         },
     }
 
-    with pytest.raises(exc.VCSPullException, match="must specify one of"):
-        typed_config = t.cast("RawConfigDict", raw_config)
+    typed_config = t.cast("RawConfigDict", raw_config)
+    with pytest.raises(exc.VCSPullError, match="must specify one of"):
         vcspull_config.extract_repos(typed_config, cwd=tmp_path)
 
 
@@ -2044,7 +2044,7 @@ def test_validate_empty_string_refs() -> None:
         )
 
     # config-level validation should also reject empty refs
-    with pytest.raises(exc.VCSPullException, match="empty ref value"):
+    with pytest.raises(exc.VCSPullError, match="empty ref value"):
         vcspull_config._validate_worktrees_config(
             [{"dir": "../wt", "branch": ""}], "myrepo"
         )

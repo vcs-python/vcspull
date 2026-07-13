@@ -69,17 +69,12 @@ def xdg_config_path(
 @pytest.fixture
 def config_path(
     xdg_config_path: pathlib.Path,
-    request: pytest.FixtureRequest,
-) -> pathlib.Path:
+) -> t.Generator[pathlib.Path, None, None]:
     """Ensure and return vcspull configuration path."""
     conf_path = xdg_config_path / "vcspull"
     conf_path.mkdir(exist_ok=True)
-
-    def clean() -> None:
-        shutil.rmtree(conf_path)
-
-    request.addfinalizer(clean)
-    return conf_path
+    yield conf_path
+    shutil.rmtree(conf_path)
 
 
 @pytest.fixture(autouse=True)
@@ -92,16 +87,14 @@ def set_xdg_config_path(
 
 
 @pytest.fixture
-def repos_path(user_path: pathlib.Path, request: pytest.FixtureRequest) -> pathlib.Path:
+def repos_path(
+    user_path: pathlib.Path,
+) -> t.Generator[pathlib.Path, None, None]:
     """Return temporary directory for repository checkout guaranteed unique."""
     path = user_path / "repos"
     path.mkdir(exist_ok=True)
-
-    def clean() -> None:
-        shutil.rmtree(path)
-
-    request.addfinalizer(clean)
-    return path
+    yield path
+    shutil.rmtree(path)
 
 
 def pytest_collection_modifyitems(

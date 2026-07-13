@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 
-class VCSPullException(Exception):
+class VCSPullError(Exception):
     """Standard exception raised by vcspull."""
 
 
-class MultipleConfigWarning(VCSPullException):
+class MultipleConfigError(VCSPullError):
     """Multiple eligible config files found at the same time."""
 
     message = "Multiple configs found in home directory use only one. .yaml, .json."
 
 
-class WorktreeError(VCSPullException):
+class WorktreeError(VCSPullError):
     """Base exception for worktree operations."""
 
 
