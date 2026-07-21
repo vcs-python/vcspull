@@ -2,11 +2,12 @@
 
 # vcspull add
 
-The `vcspull add` command registers a repository in your
-{ref}`configuration <configuration>` by pointing vcspull at a checkout on
-disk. The command inspects the directory,
-merges duplicate workspace roots by default, and prompts before writing unless
-you pass `--yes`.
+The `vcspull add` command registers a single repository in your
+{ref}`configuration <configuration>`. Point it at a checkout on disk and it
+reads the details out of the directory; give it a repository URL and it records
+the entry without cloning anything, leaving the working tree to
+{ref}`vcspull sync <cli-sync>`. Either way it merges duplicate workspace roots
+by default and prompts before writing unless you pass `--yes`.
 
 ```{note}
 This command replaces the old `vcspull import <name> <url>` from v1.36--v1.39.
@@ -43,6 +44,37 @@ The parent directory (`~/study/python/` in this example) becomes the workspace
 root. vcspull shortens paths under `$HOME` to `~/...` in its log output so the
 preview stays readable.
 
+## Declaring a repository you have not cloned
+
+Pass a repository URL instead of a path when you want the entry in your
+configuration but do not have the code yet:
+
+```vcspull-console
+$ vcspull add https://github.com/pallets/flask.git
+Found new repository to import:
+  + flask (https://github.com/pallets/flask.git)
+  • workspace: ~/code/
+  ↳ path: ~/code/flask
+  • workspace roots in ~/.vcspull.yaml:
+      1) ~/code/ (default)
+      2) ~/study/python/
+? Import this repository? [y/N/1-2]: y
+✓ Successfully added 'flask' (git+https://github.com/pallets/flask.git) to ~/.vcspull.yaml under '~/code/'.
+```
+
+The repository name comes from the URL — `flask` here — unless you pass
+`--name`. Nothing is fetched: the entry lands in your configuration and
+{ref}`vcspull sync <cli-sync>` clones it the next time you run it.
+
+Because there is no parent directory to infer a workspace from, vcspull offers
+the workspace roots your configuration already declares. Answering `y` accepts
+the default, answering with a number picks a different root, and `--workspace`
+names one outright and skips the list. When the configuration declares no roots
+yet, the current directory becomes the workspace.
+
+A directory on disk always wins. If the argument names something that exists,
+vcspull treats it as a path even when the same text would also parse as a URL.
+
 ## Overriding detected information
 
 ### Choose a different name
@@ -63,13 +95,18 @@ need to register a different remote or when the checkout does not have one yet:
 $ vcspull add ~/study/python/example --url https://github.com/org/example
 ```
 
+`--url` accompanies a path. When the argument is already a URL, pass it once and
+leave `--url` off — supplying both is ambiguous, so vcspull stops rather than
+guessing which one you meant.
+
 URLs follow [pip's VCS format][pip vcs url]; vcspull inserts the `git+` prefix
 for HTTPS URLs so the resulting configuration matches
 {ref}`vcspull fmt <cli-fmt>` output.
 
 ### Select a workspace explicitly
 
-The workspace defaults to the checkout's parent directory. Pass
+The workspace defaults to the checkout's parent directory, or — when you add by
+URL — to the first workspace root your configuration declares. Pass
 `--workspace`/`--workspace-root` to store the repository under a different
 section:
 
@@ -152,15 +189,17 @@ by `vcspull add`:
 
 ```diff
 - $ vcspull import flask https://github.com/pallets/flask.git -c ~/.vcspull.yaml
-+ $ vcspull add ~/code/flask --url https://github.com/pallets/flask.git --file ~/.vcspull.yaml
++ $ vcspull add https://github.com/pallets/flask.git --file ~/.vcspull.yaml
 ```
 
 Key differences:
 
-- `vcspull add` derives the name from the filesystem unless you pass `--name`.
-- The parent directory becomes the workspace automatically; use `--workspace`
-  to override.
-- Use `--url` to record a remote when the checkout does not have one.
+- `vcspull add` derives the name from the URL, or from the directory when you
+  add a checkout, unless you pass `--name`.
+- The workspace comes from the checkout's parent directory, or from the
+  workspace roots your configuration declares when you add by URL; use
+  `--workspace` to override either.
+- Use `--url` to record a remote when a checkout does not have one.
 
 ```{note}
 Starting with v1.55, `vcspull import` is a *different* command that bulk-imports
