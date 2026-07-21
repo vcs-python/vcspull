@@ -498,12 +498,15 @@ def test_merge_nested_dict(tmp_path: pathlib.Path, config_path: pathlib.Path) ->
         ),
     )
 
-    # Duplicate path + name with different repo URL / remotes raises.
-    config_files = config.find_config_files(
-        path=config_path,
-        match="repoduplicate[1-2]",
+    # A repeated destination resolves to the nearest file's whole entry, and
+    # distinct destinations union.
+    config_files = sorted(
+        config.find_config_files(path=config_path, match="repoduplicate[1-2]"),
     )
     assert config1 in config_files
     assert config2 in config_files
-    with pytest.raises(exc.VCSPullException):
-        config.load_configs(config_files)
+
+    repos = config.load_configs(config_files)
+    by_name = {repo["name"]: repo for repo in repos}
+    assert set(by_name) == {"subRepoDiffVCS", "subRepoSameVCS", "vcsOn1", "vcsOn2"}
+    assert by_name["subRepoDiffVCS"]["url"] == "git+file:///path/to/diffrepo"

@@ -8,7 +8,7 @@ import typing as t
 
 import pytest
 
-from vcspull import exc
+from vcspull import config, exc
 from vcspull._internal import scopes
 
 from .helpers import write_config
@@ -74,6 +74,63 @@ def test_project_dirs_walk(
         ceilings=frozenset(pathlib.Path(ceiling) for ceiling in ceilings),
     )
     assert result == tuple(pathlib.Path(path) for path in expected)
+
+
+class DivergenceFixture(t.NamedTuple):
+    """Fixture for the override-conflict warning."""
+
+    test_id: str
+    nearest_url: str
+    warns: bool
+
+
+DIVERGENCE_FIXTURES: list[DivergenceFixture] = [
+    DivergenceFixture(
+        test_id="identical-is-silent",
+        nearest_url="git+https://example.com/upstream.git",
+        warns=False,
+    ),
+    DivergenceFixture(
+        test_id="different-url-warns",
+        nearest_url="git+https://example.com/fork.git",
+        warns=True,
+    ),
+    DivergenceFixture(
+        test_id="different-vcs-warns",
+        nearest_url="hg+https://example.com/upstream.git",
+        warns=True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(DivergenceFixture._fields),
+    DIVERGENCE_FIXTURES,
+    ids=[fixture.test_id for fixture in DIVERGENCE_FIXTURES],
+)
+def test_override_warns_only_on_real_divergence(
+    test_id: str,
+    nearest_url: str,
+    warns: bool,
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An identical duplicate across scopes is the harmless, silent case."""
+    weakest = write_config(
+        tmp_path / "weakest.yaml",
+        f"{tmp_path}/code/:\n  shared: git+https://example.com/upstream.git\n",
+    )
+    nearest = write_config(
+        tmp_path / "nearest.yaml",
+        f"{tmp_path}/code/:\n  shared: {nearest_url}\n",
+    )
+
+    with caplog.at_level("WARNING", logger="vcspull.config"):
+        repos = config.load_configs([weakest, nearest])
+
+    assert [repo["name"] for repo in repos] == ["shared"]
+    assert repos[0]["url"] == nearest_url
+    assert bool(caplog.records) is warns
 
 
 def test_symlinked_home_stops_the_walk_and_loads_once(

@@ -24,6 +24,7 @@ from ._internal.config_reader import (
     DuplicateAwareConfigReader,
     config_format_from_path,
 )
+from ._internal.private_path import PrivatePath
 from .types import ConfigDict, RawConfigDict, WorktreeConfigDict
 from .util import get_config_dir, update_dict
 
@@ -524,12 +525,17 @@ def load_configs(
     merge_duplicates: bool = True,
     warn_legacy_options: bool = False,
 ) -> list[ConfigDict]:
-    """Return repos from a list of files.
+    """Return repos from a list of files, nearest file winning.
+
+    *files* are ordered weakest to strongest. Repositories with distinct
+    destination paths are unioned; when two files name the same destination the
+    later one replaces the earlier entry whole, so a project config that
+    repoints a repository never inherits the weaker file's ``options:``.
 
     Parameters
     ----------
     files : list
-        paths to config file
+        paths to config file, weakest first
     cwd : pathlib.Path
         current path (pass down for :func:`extract_repos`
     warn_legacy_options : bool
@@ -541,12 +547,9 @@ def load_configs(
     -------
     list of dict :
         expanded config dict item
-
-    Todo
-    ----
-    Validate scheme, check for duplicate destinations, VCS urls
     """
-    repos: list[ConfigDict] = []
+    merged: dict[pathlib.Path, ConfigDict] = {}
+    origins: dict[pathlib.Path, pathlib.Path] = {}
     if callable(cwd):
         cwd = cwd()
 
@@ -606,20 +609,42 @@ def load_configs(
                 )
 
         assert is_valid_config(config_content)
-        newrepos = extract_repos(config_content, cwd=cwd)
+        repos = extract_repos(config_content, cwd=cwd)
 
-        if not repos:
-            repos.extend(newrepos)
-            continue
+        for repo in repos:
+            key = pathlib.Path(repo["path"]).parent / repo["name"]
+            displaced = merged.get(key)
+            if displaced is not None and _entries_diverge(displaced, repo):
+                log.warning(
+                    "%s overrides %s for '%s' (url or vcs differs)",
+                    PrivatePath(file),
+                    PrivatePath(origins[key]),
+                    PrivatePath(key),
+                )
+            merged[key] = repo
+            origins[key] = file
 
-        dupes = detect_duplicate_repos(repos, newrepos)
+    return list(merged.values())
 
-        if len(dupes) > 0:
-            msg = ("repos with same path + different VCS detected!", dupes)
-            raise exc.VCSPullException(msg)
-        repos.extend(newrepos)
 
-    return repos
+def _entries_diverge(displaced: ConfigDict, winner: ConfigDict) -> bool:
+    """Return whether two entries for one destination really disagree.
+
+    Identical duplicates across a user and a project file are the common,
+    harmless case, so only a differing URL or VCS is worth a warning.
+
+    Examples
+    --------
+    >>> entry = {"url": "git+https://x", "vcs": "git"}
+    >>> _entries_diverge(entry, dict(entry))
+    False
+    >>> _entries_diverge(entry, {"url": "git+https://fork", "vcs": "git"})
+    True
+    """
+    return (displaced.get("url"), displaced.get("vcs")) != (
+        winner.get("url"),
+        winner.get("vcs"),
+    )
 
 
 def detect_duplicate_repos(
