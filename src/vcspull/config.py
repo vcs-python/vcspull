@@ -462,8 +462,8 @@ def find_home_config_files(
 def find_config_files(
     path: list[pathlib.Path] | pathlib.Path | None = None,
     match: list[str] | str | None = None,
-    filetype: t.Literal["json", "yaml", "*"]
-    | list[t.Literal["json", "yaml", "*"]]
+    filetype: t.Literal["json", "yaml", "yml", "*"]
+    | list[t.Literal["json", "yaml", "yml", "*"]]
     | None = None,
     include_home: bool = False,
 ) -> list[pathlib.Path]:
@@ -491,7 +491,7 @@ def find_config_files(
         list of absolute paths to config files.
     """
     if filetype is None:
-        filetype = ["json", "yaml"]
+        filetype = ["json", "yaml", "yml"]
     if match is None:
         match = ["*"]
     config_files = []
@@ -504,7 +504,6 @@ def find_config_files(
     if isinstance(path, list):
         for p in path:
             config_files.extend(find_config_files(p, match, filetype))
-            return config_files
     else:
         path = path.expanduser()
         if isinstance(match, list):
