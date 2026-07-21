@@ -15,6 +15,7 @@ from colorama import Fore, Style
 
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
+from vcspull._internal.scopes import classify_scope
 from vcspull.config import (
     build_repo_entry,
     canonicalize_workspace_path,
@@ -82,66 +83,6 @@ def _classify_discover_action(existing_entry: t.Any) -> DiscoverAction:
     if is_pinned_for_op(existing_entry, "discover"):
         return DiscoverAction.SKIP_PINNED
     return DiscoverAction.SKIP_EXISTING
-
-
-ConfigScope = t.Literal["system", "user", "project", "external"]
-
-
-def _classify_config_scope(
-    config_path: pathlib.Path,
-    *,
-    cwd: pathlib.Path,
-    home: pathlib.Path,
-) -> ConfigScope:
-    """Determine whether a config lives in user, system, project, or external scope."""
-    resolved = config_path.expanduser().resolve()
-    home = home.expanduser().resolve()
-    cwd = cwd.expanduser().resolve()
-
-    default_user_configs = {
-        (home / ".vcspull.yaml").resolve(),
-        (home / ".vcspull.json").resolve(),
-    }
-    if resolved in default_user_configs:
-        return "user"
-
-    xdg_config_home = (
-        pathlib.Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
-        .expanduser()
-        .resolve()
-    )
-    user_config_root = (xdg_config_home / "vcspull").resolve()
-    try:
-        resolved.relative_to(user_config_root)
-    except ValueError:
-        pass
-    else:
-        return "user"
-
-    xdg_config_dirs_value = os.environ.get("XDG_CONFIG_DIRS")
-    if xdg_config_dirs_value:
-        config_dir_bases = [
-            pathlib.Path(entry).expanduser().resolve()
-            for entry in xdg_config_dirs_value.split(os.pathsep)
-            if entry
-        ]
-    else:
-        config_dir_bases = [pathlib.Path("/etc/xdg").resolve()]
-
-    for base in config_dir_bases:
-        candidate = (base / "vcspull").resolve()
-        try:
-            resolved.relative_to(candidate)
-        except ValueError:
-            continue
-        else:
-            return "system"
-
-    try:
-        resolved.relative_to(cwd)
-    except ValueError:
-        return "external"
-    return "project"
 
 
 def is_git_worktree(path: pathlib.Path) -> bool:
@@ -413,7 +354,7 @@ def discover_repos(
 
     cwd = pathlib.Path.cwd()
     home = pathlib.Path.home()
-    config_scope = _classify_config_scope(config_file_path, cwd=cwd, home=home)
+    config_scope = classify_scope(config_file_path, cwd=cwd, home=home)
     allow_relative_workspace = config_scope == "project"
 
     raw_config: dict[str, t.Any]
