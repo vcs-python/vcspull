@@ -21,6 +21,7 @@ from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     build_repo_entry,
     canonicalize_workspace_path,
+    ensure_config_trusted,
     expand_dir,
     find_home_config_files,
     get_pin_reason,
@@ -144,7 +145,10 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         "--file",
         dest="config",
         metavar="FILE",
-        help="path to config file (default: ~/.vcspull.yaml or ./.vcspull.yaml)",
+        help=(
+            "path to config file to write "
+            "(default: ~/.vcspull.yaml, else ./.vcspull.yaml)"
+        ),
     )
     parser.add_argument(
         "-w",
@@ -545,6 +549,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
         workspace_root_path=workspace_root_input,
         dry_run=args.dry_run,
         merge_duplicates=args.merge_duplicates,
+        trust_project=getattr(args, "trust_project", False),
         rev=getattr(args, "pin", None),
         shallow=shallow,
         depth=depth,
@@ -560,6 +565,7 @@ def add_repo(
     dry_run: bool,
     *,
     merge_duplicates: bool = True,
+    trust_project: bool = False,
     rev: str | None = None,
     shallow: bool = False,
     depth: int | None = None,
@@ -608,6 +614,9 @@ def add_repo(
             return
         else:
             config_file_path = home_configs[0]
+
+    if not ensure_config_trusted(config_file_path, trust_project=trust_project):
+        return
 
     # Load existing config
     raw_config: dict[str, t.Any]

@@ -2303,13 +2303,8 @@ def test_sync_human_output_redacts_repo_paths(
 
     monkeypatch.setattr(
         sync_module,
-        "load_configs",
+        "load_scoped_configs",
         lambda _paths, **_kwargs: [repo_config],
-    )
-    monkeypatch.setattr(
-        sync_module,
-        "find_config_files",
-        lambda include_home=True: [],
     )
 
     def _fake_filter_repos(

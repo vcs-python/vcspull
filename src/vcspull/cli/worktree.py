@@ -15,7 +15,7 @@ from vcspull._internal.worktree_sync import (
     prune_worktrees,
     sync_all_worktrees,
 )
-from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
+from vcspull.config import expand_dir, filter_repos, load_scoped_configs
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
@@ -91,7 +91,7 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
         "--file",
         dest="config",
         metavar="FILE",
-        help="path to config file (default: ~/.vcspull.yaml or ./.vcspull.yaml)",
+        help="path to config file (replaces the resolved scope stack)",
     )
     parser.add_argument(
         "-w",
@@ -141,10 +141,11 @@ def handle_worktree_command(args: argparse.Namespace) -> None:
 
     # Load configs
     config_path = pathlib.Path(args.config) if args.config else None
-    if config_path:
-        configs = load_configs([config_path])
-    else:
-        configs = load_configs(find_config_files(include_home=True))
+    configs = load_scoped_configs(
+        config_path,
+        include_project=not getattr(args, "no_project", False),
+        trust_project=getattr(args, "trust_project", False),
+    )
 
     # Filter by patterns
     if args.repo_patterns:

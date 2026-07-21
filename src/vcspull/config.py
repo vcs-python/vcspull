@@ -10,15 +10,17 @@ import logging
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import typing as t
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Sequence
 
 from libvcs.sync.git import GitRemote
 
 from vcspull.validator import is_valid_config
 
 from . import exc
+from ._internal import scopes
 from ._internal.config_reader import (
     ConfigReader,
     DuplicateAwareConfigReader,
@@ -518,12 +520,21 @@ def find_config_files(
     return config_files
 
 
+ConfigGate = Callable[[pathlib.Path, Sequence[ConfigDict]], bool]
+"""Decides whether a resolved configuration file may contribute.
+
+Receives the file and the entries it expands to, and returns ``False`` to skip
+it. Raising aborts the load.
+"""
+
+
 def load_configs(
     files: list[pathlib.Path],
     cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
     *,
     merge_duplicates: bool = True,
     warn_legacy_options: bool = False,
+    gate: ConfigGate | None = None,
 ) -> list[ConfigDict]:
     """Return repos from a list of files, nearest file winning.
 
@@ -542,6 +553,9 @@ def load_configs(
         If ``True``, log a deprecation warning for entries that still carry
         top-level ``rev``/``shallow``/``depth`` keys (see
         :func:`detect_legacy_repo_options`).
+    gate : ConfigGate, optional
+        Consulted with each file and the destinations it resolves to before the
+        file contributes. Returning ``False`` skips the file.
 
     Returns
     -------
@@ -611,6 +625,12 @@ def load_configs(
         assert is_valid_config(config_content)
         repos = extract_repos(config_content, cwd=cwd)
 
+        # Gated on the expanded entries, not the raw keys: an entry may
+        # override its destination with ``path:`` and never touch the
+        # workspace root the key declares.
+        if gate is not None and not gate(file, repos):
+            continue
+
         for repo in repos:
             key = pathlib.Path(repo["path"]).parent / repo["name"]
             displaced = merged.get(key)
@@ -645,6 +665,248 @@ def _entries_diverge(displaced: ConfigDict, winner: ConfigDict) -> bool:
         winner.get("url"),
         winner.get("vcs"),
     )
+
+
+def load_scoped_configs(
+    config_path: pathlib.Path | None = None,
+    *,
+    cwd: pathlib.Path | None = None,
+    include_project: bool = True,
+    trust_project: bool = False,
+    warn_legacy_options: bool = False,
+) -> list[ConfigDict]:
+    """Return every repository the configuration scopes in effect define.
+
+    An explicit *config_path* replaces the whole stack. Otherwise the system,
+    user, and project scopes are unioned nearest-wins, and each project config
+    that would check a repository out beyond its own directory must be trusted
+    first.
+
+    Parameters
+    ----------
+    config_path : pathlib.Path, optional
+        Explicit configuration file from ``-f``/``--file``.
+    cwd : pathlib.Path, optional
+        Working directory the project walk starts from.
+    include_project : bool
+        Set ``False`` to skip the project scope entirely (``--no-project``).
+    trust_project : bool
+        Trust escaping project configs without prompting
+        (``--trust-project``).
+    warn_legacy_options : bool
+        Warn about entries still using top-level ``rev``/``shallow``/``depth``.
+
+    Raises
+    ------
+    exc.VCSPullException
+        When an escaping project config cannot be confirmed because there is no
+        terminal to ask on.
+    """
+    cwd = cwd or pathlib.Path.cwd()
+
+    if config_path is not None:
+        return load_configs(
+            [config_path],
+            cwd=cwd,
+            warn_legacy_options=warn_legacy_options,
+        )
+
+    sources = scopes.resolve_sources(cwd=cwd, include_project=include_project)
+    by_path = {source.path: source for source in sources}
+    state_file = scopes.trust_state_file()
+    trusted = scopes.read_trusted(state_file)
+
+    def gate(path: pathlib.Path, repos: Sequence[ConfigDict]) -> bool:
+        source = by_path[path]
+        escaping = scopes.requires_trust(
+            source,
+            repo_destinations(repos),
+            cwd=cwd,
+            trusted=trusted,
+        )
+        if not escaping:
+            return True
+        return _authorize_config(
+            source,
+            escaping,
+            state_file=state_file,
+            trust_project=trust_project,
+        )
+
+    return load_configs(
+        [source.path for source in sources],
+        cwd=cwd,
+        warn_legacy_options=warn_legacy_options,
+        gate=gate,
+    )
+
+
+def repo_destinations(repos: Iterable[ConfigDict]) -> list[pathlib.Path]:
+    """Return where each entry would be checked out.
+
+    ``path:`` overrides the workspace root, so this is the only honest answer
+    to "where does this configuration write?".
+
+    Examples
+    --------
+    >>> repo_destinations(
+    ...     extract_repos(
+    ...         {"./vendor/": {"evil": {"repo": "git+https://e.com/e.git",
+    ...                                 "path": "~/.ssh/evil"}}},
+    ...         cwd=pathlib.Path("/w"),
+    ...     )
+    ... )
+    [PosixPath('~/.ssh/evil')]
+    """
+    return [pathlib.Path(repo["path"]) for repo in repos]
+
+
+def source_escapes(
+    source: scopes.ConfigSource,
+    *,
+    cwd: pathlib.Path,
+) -> tuple[pathlib.Path, ...]:
+    """Return the destinations *source* declares that need consent, if any.
+
+    Never prompts and never raises, so a reporting command can ask the same
+    question the loader does without changing anything.
+
+    Parameters
+    ----------
+    source : scopes.ConfigSource
+        Resolved configuration file.
+    cwd : pathlib.Path
+        Working directory, used to resolve relative destinations.
+    """
+    try:
+        content, _duplicates, _items = DuplicateAwareConfigReader.load_with_duplicates(
+            source.path,
+        )
+        destinations = repo_destinations(
+            extract_repos(t.cast("RawConfigDict", content), cwd=cwd),
+        )
+    except Exception:
+        # An unreadable config declares no destinations, so it cannot escape.
+        # Let the caller's own load report the real parse error.
+        return ()
+    return scopes.requires_trust(
+        source,
+        destinations,
+        cwd=cwd,
+        trusted=scopes.read_trusted(scopes.trust_state_file()),
+    )
+
+
+def ensure_config_trusted(
+    config_path: pathlib.Path,
+    *,
+    cwd: pathlib.Path | None = None,
+    trust_project: bool = False,
+    explicit: bool = False,
+) -> bool:
+    """Return whether a write command may target *config_path*.
+
+    A repository that ships a configuration redirecting your writes deserves
+    the same gate as one that redirects your clones, so ``add``, ``discover``,
+    ``fmt``, and ``migrate`` ask this before touching a project file vcspull
+    found on its own. Files that do not exist yet, and files outside the
+    project scope, are always allowed.
+
+    Naming a file with ``--file`` is consent, and *explicit* says so. The read
+    path does not gate ``--file`` either — it replaces the stack rather than
+    joining the project tier — and gating a reformat of a file you named while
+    ``vcspull sync --file`` clones from it freely would be incoherent.
+
+    Parameters
+    ----------
+    config_path : pathlib.Path
+        File the command is about to read or rewrite.
+    cwd : pathlib.Path, optional
+        Working directory. Defaults to :meth:`pathlib.Path.cwd`.
+    trust_project : bool
+        Trust an escaping config without prompting (``--trust-project``).
+    explicit : bool
+        The caller named this file with ``--file``.
+
+    Examples
+    --------
+    A file that does not exist yet is not a project config anybody shipped:
+
+    >>> ensure_config_trusted(tmp_path / "brand-new.yaml", cwd=tmp_path)
+    True
+    """
+    cwd = cwd or pathlib.Path.cwd()
+    if explicit or not config_path.is_file():
+        return True
+
+    scope = scopes.classify_scope(
+        config_path,
+        cwd=cwd,
+        home=pathlib.Path.home(),
+    )
+    if scope != "project":
+        return True
+
+    source = scopes.ConfigSource("project", config_path, config_path.parent)
+    escaping = source_escapes(source, cwd=cwd)
+    if not escaping:
+        return True
+    return _authorize_config(
+        source,
+        escaping,
+        state_file=scopes.trust_state_file(),
+        trust_project=trust_project,
+    )
+
+
+def _authorize_config(
+    source: scopes.ConfigSource,
+    escaping: Sequence[pathlib.Path],
+    *,
+    state_file: pathlib.Path,
+    trust_project: bool,
+) -> bool:
+    """Ask whether an escaping project config may act, and remember ``always``.
+
+    Raises
+    ------
+    exc.VCSPullException
+        When there is no terminal to prompt on. A sync must never block on a
+        hidden prompt, so this is a hard error rather than a silent skip.
+    """
+    config = PrivatePath(source.path)
+    directory = PrivatePath(os.path.realpath(source.trust_root))
+
+    if trust_project or scopes.env_flag("VCSPULL_YES"):
+        log.debug("trusting %s without prompting", config)
+        return True
+
+    if not sys.stdin.isatty():
+        listed = ", ".join(str(PrivatePath(path)) for path in escaping)
+        msg = (
+            f"{config} would check repositories out outside its directory "
+            f"({listed}) and there is no terminal to confirm on. "
+            f"Run 'vcspull trust {directory}' to allow it, pass "
+            "--trust-project, or use --no-project to skip project configs."
+        )
+        raise exc.VCSPullException(msg)
+
+    print(
+        f"! {config} would check repositories out outside its directory:",
+        file=sys.stderr,
+    )
+    for path in escaping:
+        print(f"    {PrivatePath(path)}", file=sys.stderr)
+    answer = input("  Trust this config? [y/N/always] ").strip().lower()
+
+    if answer == "always":
+        scopes.trust_directory(state_file, source.trust_root)
+        return True
+    if answer in {"y", "yes"}:
+        return True
+
+    log.warning("skipping untrusted config %s", config)
+    return False
 
 
 def detect_duplicate_repos(

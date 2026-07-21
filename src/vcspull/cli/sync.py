@@ -36,7 +36,7 @@ from vcspull._internal.worktree_sync import (
     plan_worktree_sync,
     sync_all_worktrees,
 )
-from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
+from vcspull.config import expand_dir, filter_repos, load_scoped_configs
 from vcspull.log import default_debug_log_path, setup_file_logger, teardown_file_logger
 from vcspull.types import ConfigDict
 
@@ -540,7 +540,7 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         "--file",
         dest="config",
         metavar="FILE",
-        help="path to config file (default: ~/.vcspull.yaml or ./.vcspull.yaml)",
+        help="path to config file (replaces the resolved scope stack)",
     )
     parser.add_argument(
         "-w",
@@ -1339,6 +1339,8 @@ def sync(
     log_file: str | pathlib.Path | None = None,
     no_log_file: bool = False,
     panel_lines: int | None = None,
+    include_project: bool = True,
+    trust_project: bool = False,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Prevent git from blocking on credential prompts during batch sync
@@ -1392,6 +1394,8 @@ def sync(
             log_file_path=log_file_path,
             dry_run=dry_run,
             panel_lines=resolved_panel_lines,
+            include_project=include_project,
+            trust_project=trust_project,
         )
     except KeyboardInterrupt as err:
         # Catch Ctrl-C from ANY phase of the sync -- the repo loop (where
@@ -1446,6 +1450,8 @@ def _sync_impl(
     repo_timeout: int,
     log_file_path: pathlib.Path | None,
     panel_lines: int,
+    include_project: bool,
+    trust_project: bool,
 ) -> None:
     """Run the core body of :func:`sync`.
 
@@ -1476,13 +1482,12 @@ def _sync_impl(
     )
     plan_config = SyncPlanConfig(fetch=bool(fetch and not offline), offline=offline)
 
-    if config:
-        configs = load_configs([config], warn_legacy_options=True)
-    else:
-        configs = load_configs(
-            find_config_files(include_home=True),
-            warn_legacy_options=True,
-        )
+    configs = load_scoped_configs(
+        config,
+        include_project=include_project,
+        trust_project=trust_project,
+        warn_legacy_options=True,
+    )
     found_repos: list[ConfigDict] = []
     unmatched_count = 0
 

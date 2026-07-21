@@ -12,10 +12,11 @@ import typing as t
 
 from colorama import Fore, Style
 
+from vcspull._internal import scopes
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
-    find_config_files,
+    ensure_config_trusted,
     find_home_config_files,
     is_pinned_for_op,
     merge_duplicate_workspace_roots,
@@ -42,7 +43,7 @@ def create_fmt_subparser(parser: argparse.ArgumentParser) -> None:
         "--file",
         dest="config",
         metavar="FILE",
-        help="path to config file (default: .vcspull.yaml or ~/.vcspull.yaml)",
+        help="path to config file (default: ~/.vcspull.yaml, else ./.vcspull.yaml)",
     )
     parser.add_argument(
         "--write",
@@ -232,6 +233,8 @@ def format_single_config(
     write: bool,
     *,
     merge_roots: bool,
+    trust_project: bool = False,
+    explicit: bool = False,
 ) -> bool:
     """Format a single vcspull configuration file.
 
@@ -243,6 +246,10 @@ def format_single_config(
         Whether to write changes back to file
     merge_roots : bool
         Merge duplicate workspace roots when True (default behavior)
+    trust_project : bool
+        Trust an escaping project config without prompting.
+    explicit : bool
+        The caller named this file with ``--file``.
 
     Returns
     -------
@@ -262,6 +269,13 @@ def format_single_config(
             display_config_path,
             Style.RESET_ALL,
         )
+        return False
+
+    if not ensure_config_trusted(
+        config_file_path,
+        trust_project=trust_project,
+        explicit=explicit,
+    ):
         return False
 
     # Load existing config
@@ -484,6 +498,7 @@ def format_config_file(
     format_all: bool = False,
     *,
     merge_roots: bool = True,
+    trust_project: bool = False,
 ) -> None:
     """Format vcspull configuration file(s).
 
@@ -497,20 +512,12 @@ def format_config_file(
         If True, format all discovered config files
     merge_roots : bool
         Merge duplicate workspace roots when True (default)
+    trust_project : bool
+        Trust escaping project configs without prompting.
     """
     if format_all:
-        # Format all discovered config files
-        config_files = find_config_files(include_home=True)
-
-        # Also check for local .vcspull.yaml
-        local_yaml = pathlib.Path.cwd() / ".vcspull.yaml"
-        if local_yaml.exists() and local_yaml not in config_files:
-            config_files.append(local_yaml)
-
-        # Also check for local .vcspull.json
-        local_json = pathlib.Path.cwd() / ".vcspull.json"
-        if local_json.exists() and local_json not in config_files:
-            config_files.append(local_json)
+        cwd = pathlib.Path.cwd()
+        config_files = [source.path for source in scopes.resolve_sources(cwd=cwd)]
 
         if not config_files:
             log.error(
@@ -549,6 +556,7 @@ def format_config_file(
                 config_file,
                 write,
                 merge_roots=merge_roots,
+                trust_project=trust_project,
             ):
                 success_count += 1
 
@@ -602,4 +610,6 @@ def format_config_file(
             config_file_path,
             write,
             merge_roots=merge_roots,
+            trust_project=trust_project,
+            explicit=bool(config_file_path_str),
         )

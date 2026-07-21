@@ -28,7 +28,7 @@ import typing as t
 from ..util import get_config_dir
 
 if t.TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
 
 ConfigScope = t.Literal["system", "user", "project", "external"]
 """Where a configuration file lives, and therefore how much it is trusted."""
@@ -419,3 +419,224 @@ def _is_within(path: pathlib.Path, directory: pathlib.Path) -> bool:
     False
     """
     return path == directory or directory in path.parents
+
+
+def escaping_destinations(
+    destinations: Iterable[pathlib.Path],
+    *,
+    config_dir: pathlib.Path,
+    cwd: pathlib.Path,
+) -> tuple[pathlib.Path, ...]:
+    """Return the repository destinations that resolve outside *config_dir*.
+
+    A configuration is *contained* when every repository it declares would be
+    checked out at or beneath the directory holding it. Containment is what
+    keeps the trust gate quiet for the overwhelming majority of project
+    configs, which target ``./vendor`` or a sibling checkout.
+
+    The check is over destinations rather than the workspace-root keys, because
+    a repository entry may override its destination with ``path:`` and never
+    consult its workspace root at all. Symlinks are followed on both sides, so
+    a destination that points out of the tree through a link is still reported.
+
+    Parameters
+    ----------
+    destinations : Iterable[pathlib.Path]
+        Checkout destinations, as :func:`vcspull.config.extract_repos` computes
+        them.
+    config_dir : pathlib.Path
+        Directory holding the configuration file.
+    cwd : pathlib.Path
+        Working directory, used to resolve relative destinations.
+
+    Returns
+    -------
+    tuple of pathlib.Path
+        Offending destinations, resolved, in order and without duplicates.
+        Empty when the configuration is contained.
+
+    Examples
+    --------
+    >>> project = tmp_path / "project"
+    >>> project.mkdir()
+    >>> escaping_destinations(
+    ...     [project / "vendor" / "flask"], config_dir=project, cwd=project
+    ... )
+    ()
+    >>> escaping_destinations(
+    ...     [pathlib.Path("~/.ssh/evil")], config_dir=project, cwd=project
+    ... ) == (_real(pathlib.Path("~/.ssh/evil")),)
+    True
+    """
+    root = _real(config_dir)
+    escaping: list[pathlib.Path] = []
+
+    for destination in destinations:
+        target = pathlib.Path(os.path.expandvars(str(destination)))
+        if not target.expanduser().is_absolute():
+            target = cwd / target
+        resolved = _real(target)
+        if not _is_within(resolved, root):
+            escaping.append(resolved)
+
+    return tuple(dict.fromkeys(escaping))
+
+
+def requires_trust(
+    source: ConfigSource,
+    destinations: Iterable[pathlib.Path],
+    *,
+    cwd: pathlib.Path,
+    trusted: frozenset[pathlib.Path],
+) -> tuple[pathlib.Path, ...]:
+    """Return the destinations that need explicit consent before loading.
+
+    Empty means the source may load silently: system, user, and explicit
+    configurations are automatic, an already-trusted project directory is
+    remembered, and a contained project config never asks.
+
+    Parameters
+    ----------
+    source : ConfigSource
+        Source under consideration.
+    destinations : Iterable[pathlib.Path]
+        Checkout destinations that file declares.
+    cwd : pathlib.Path
+        Working directory, used to resolve relative destinations.
+    trusted : frozenset of pathlib.Path
+        Resolved directories from :func:`read_trusted`.
+
+    Examples
+    --------
+    >>> project = tmp_path / "project"
+    >>> project.mkdir()
+    >>> source = ConfigSource("project", project / ".vcspull.yaml", project)
+    >>> escaping = [pathlib.Path("~/.ssh/evil")]
+    >>> requires_trust(
+    ...     source, escaping, cwd=project, trusted=frozenset()
+    ... ) == (_real(pathlib.Path("~/.ssh/evil")),)
+    True
+
+    A user-scope source is never gated, and neither is a trusted directory:
+
+    >>> user = ConfigSource("user", tmp_path / "u.yaml", tmp_path)
+    >>> requires_trust(user, escaping, cwd=project, trusted=frozenset())
+    ()
+    >>> requires_trust(
+    ...     source, escaping, cwd=project, trusted=frozenset({_real(project)})
+    ... )
+    ()
+    """
+    if not source.gated:
+        return ()
+    if _real(source.trust_root) in trusted:
+        return ()
+    return escaping_destinations(
+        destinations,
+        config_dir=source.trust_root,
+        cwd=cwd,
+    )
+
+
+def trust_state_file(
+    *,
+    home: pathlib.Path | None = None,
+    environ: Mapping[str, str] = os.environ,
+) -> pathlib.Path:
+    """Return the file recording trusted project directories.
+
+    Parameters
+    ----------
+    home : pathlib.Path, optional
+        User home directory. Defaults to :meth:`pathlib.Path.home`.
+    environ : Mapping[str, str]
+        Environment to read from. Defaults to :data:`os.environ`.
+
+    Examples
+    --------
+    >>> trust_state_file(
+    ...     home=pathlib.Path("/home/u"), environ={"XDG_STATE_HOME": "/state"}
+    ... )
+    PosixPath('/state/vcspull/trusted')
+    >>> trust_state_file(home=pathlib.Path("/home/u"), environ={})
+    PosixPath('/home/u/.local/state/vcspull/trusted')
+    """
+    home = (home or pathlib.Path.home()).expanduser()
+    state_home = environ.get("XDG_STATE_HOME")
+    base = (
+        pathlib.Path(state_home).expanduser()
+        if state_home
+        else home / ".local" / "state"
+    )
+    return base / "vcspull" / "trusted"
+
+
+def read_trusted(state_file: pathlib.Path) -> frozenset[pathlib.Path]:
+    """Return the trusted project directories recorded in *state_file*.
+
+    A missing or unreadable state file means nothing is trusted yet.
+
+    Examples
+    --------
+    >>> read_trusted(tmp_path / "never-written")
+    frozenset()
+    >>> state = tmp_path / "trusted"
+    >>> write_trusted(state, [pathlib.Path("/w/api")])
+    >>> read_trusted(state)
+    frozenset({PosixPath('/w/api')})
+    """
+    try:
+        content = state_file.read_text(encoding="utf-8")
+    except OSError:
+        return frozenset()
+    return frozenset(
+        pathlib.Path(line.strip()) for line in content.splitlines() if line.strip()
+    )
+
+
+def write_trusted(
+    state_file: pathlib.Path,
+    directories: Iterable[pathlib.Path],
+) -> None:
+    """Record *directories* as the complete set of trusted project directories.
+
+    Examples
+    --------
+    >>> state = tmp_path / "state" / "trusted"
+    >>> write_trusted(state, [pathlib.Path("/w/b"), pathlib.Path("/w/a")])
+    >>> state.read_text(encoding="utf-8").splitlines()
+    ['/w/a', '/w/b']
+    """
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    lines = sorted(str(directory) for directory in directories)
+    state_file.write_text("".join(f"{line}\n" for line in lines), encoding="utf-8")
+
+
+def trust_directory(state_file: pathlib.Path, directory: pathlib.Path) -> None:
+    """Add *directory* to the trusted set.
+
+    The project directory is recorded rather than the file, so a second config
+    in an already-trusted project does not ask again.
+
+    Examples
+    --------
+    >>> state = tmp_path / "trusted"
+    >>> trust_directory(state, tmp_path / "api")
+    >>> _real(tmp_path / "api") in read_trusted(state)
+    True
+    """
+    write_trusted(state_file, read_trusted(state_file) | {_real(directory)})
+
+
+def untrust_directory(state_file: pathlib.Path, directory: pathlib.Path) -> None:
+    """Remove *directory* from the trusted set.
+
+    Examples
+    --------
+    >>> state = tmp_path / "trusted"
+    >>> trust_directory(state, tmp_path / "api")
+    >>> untrust_directory(state, tmp_path / "api")
+    >>> read_trusted(state)
+    frozenset()
+    """
+    write_trusted(state_file, read_trusted(state_file) - {_real(directory)})

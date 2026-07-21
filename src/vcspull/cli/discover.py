@@ -19,6 +19,7 @@ from vcspull._internal.scopes import classify_scope
 from vcspull.config import (
     build_repo_entry,
     canonicalize_workspace_path,
+    ensure_config_trusted,
     expand_dir,
     find_home_config_files,
     get_pin_reason,
@@ -173,7 +174,10 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
         "--file",
         dest="config",
         metavar="FILE",
-        help="path to config file (default: ~/.vcspull.yaml or ./.vcspull.yaml)",
+        help=(
+            "path to config file to write "
+            "(default: ~/.vcspull.yaml, else ./.vcspull.yaml)"
+        ),
     )
     parser.add_argument(
         "-w",
@@ -286,6 +290,7 @@ def discover_repos(
     yes: bool,
     dry_run: bool,
     *,
+    trust_project: bool = False,
     merge_duplicates: bool = True,
     include_worktrees: bool = False,
     rev: str | None = None,
@@ -356,6 +361,13 @@ def discover_repos(
     home = pathlib.Path.home()
     config_scope = classify_scope(config_file_path, cwd=cwd, home=home)
     allow_relative_workspace = config_scope == "project"
+
+    if not ensure_config_trusted(
+        config_file_path,
+        cwd=cwd,
+        trust_project=trust_project,
+    ):
+        return
 
     raw_config: dict[str, t.Any]
     duplicate_root_occurrences: dict[str, list[t.Any]]
