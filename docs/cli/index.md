@@ -67,6 +67,18 @@
 {ref}`vcspull worktree <cli-worktree>` manages git worktrees declaratively.
 :::
 
+:::{grid-item-card} Config
+:link: config
+:link-type: doc
+{ref}`vcspull config <cli-config>` shows which config files are in effect.
+:::
+
+:::{grid-item-card} Trust
+:link: trust
+:link-type: doc
+{ref}`vcspull trust <cli-trust>` allows a project config to act outside its directory.
+:::
+
 :::{grid-item-card} Completion
 :link: completion
 :link-type: doc
@@ -89,6 +101,8 @@ status
 worktree/index
 fmt
 migrate
+config
+trust
 ```
 
 ```{toctree}
@@ -113,5 +127,5 @@ completion
     :no-description:
 
     subparser_name : @replace
-        See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-import`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-search`, :ref:`cli-status`, :ref:`cli-worktree`, :ref:`cli-fmt`, :ref:`cli-migrate`
+        See :ref:`cli-sync`, :ref:`cli-add`, :ref:`cli-import`, :ref:`cli-discover`, :ref:`cli-list`, :ref:`cli-search`, :ref:`cli-status`, :ref:`cli-worktree`, :ref:`cli-fmt`, :ref:`cli-migrate`, :ref:`cli-config`, :ref:`cli-trust`
 ```

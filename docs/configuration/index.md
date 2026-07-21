@@ -17,6 +17,12 @@ Most users can start with one `~/.vcspull.yaml` file:
 ::::{grid} 1 1 2 2
 :gutter: 2 2 3 3
 
+:::{grid-item-card} Configuration scopes
+:link: scopes
+:link-type: doc
+Where vcspull looks, in what order, and how project configs are trusted.
+:::
+
 :::{grid-item-card} Config Generation
 :link: generation
 :link-type: doc
@@ -50,6 +56,10 @@ You can place the file in one of three places:
 
 3. Anywhere (and trigger via {ref}`vcspull sync <cli-sync>` with
    `--file ./path/to/file.yaml [repo_name]`)
+
+vcspull reads all of these, plus a `.vcspull.yaml` in your project, and
+resolves them in a fixed order. See {ref}`config-scopes` for that order, how
+overlapping entries merge, and when a project config asks before it acts.
 
 [xdg]: https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
@@ -369,5 +379,6 @@ git+ssh://git@github.com/tony/kaptan.git
 ```{toctree}
 :hidden:
 
+scopes
 generation
 ```
