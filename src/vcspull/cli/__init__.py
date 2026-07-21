@@ -17,6 +17,12 @@ from vcspull.log import setup_logger
 
 from ._formatter import VcspullHelpFormatter
 from .add import add_repo, create_add_subparser, handle_add_command
+from .config import (
+    config_ls,
+    create_config_subparser,
+    create_trust_subparser,
+    trust_command,
+)
 from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
 from .import_cmd import create_import_subparser
@@ -301,6 +307,47 @@ IMPORT_DESCRIPTION = build_description(
     ),
 )
 
+CONFIG_DESCRIPTION = build_description(
+    """
+    Inspect the configuration scopes in effect.
+
+    'vcspull config ls' prints every configuration file vcspull would load
+    from the current directory, weakest first, with its scope, its repository
+    count, and whether a nearer file overrode any of its entries.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull config ls",
+                "vcspull --no-project config ls",
+            ],
+        ),
+    ),
+)
+
+TRUST_DESCRIPTION = build_description(
+    """
+    Trust a project directory's configuration.
+
+    A project config that would check a repository out beyond its own
+    directory needs your consent before vcspull will act on it. Trust is
+    recorded per directory, so a second config in the same project does not
+    re-ask.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull trust",
+                "vcspull trust ~/work/api",
+                "vcspull trust --untrust ~/work/api",
+                "vcspull trust --show",
+            ],
+        ),
+    ),
+)
+
 WORKTREE_DESCRIPTION = build_description(
     """
     Manage git worktrees for repositories.
@@ -483,6 +530,25 @@ def create_parser(
     )
     create_import_subparser(import_parser)
 
+    # Config command
+    config_parser = subparsers.add_parser(
+        "config",
+        help="inspect the configuration scopes in effect",
+        formatter_class=VcspullHelpFormatter,
+        description=CONFIG_DESCRIPTION,
+        parents=[scope_parent],
+    )
+    create_config_subparser(config_parser, scope_parent)
+
+    # Trust command
+    trust_parser = subparsers.add_parser(
+        "trust",
+        help="trust a project directory's configuration",
+        formatter_class=VcspullHelpFormatter,
+        description=TRUST_DESCRIPTION,
+    )
+    create_trust_subparser(trust_parser)
+
     # Worktree command
     worktree_parser = subparsers.add_parser(
         "worktree",
@@ -506,6 +572,7 @@ def create_parser(
             migrate_parser,
             import_parser,
             worktree_parser,
+            config_parser,
         )
     return parser
 
@@ -540,6 +607,7 @@ def _run(_args: list[str] | None) -> None:
         _migrate_parser,
         _import_parser,
         _worktree_parser,
+        config_parser,
     ) = subparsers
     args = parser.parse_args(_args)
 
@@ -677,5 +745,19 @@ def _run(_args: list[str] | None) -> None:
         result = handler(args)
         if result:
             raise SystemExit(result)
+    elif args.subparser_name == "config":
+        if args.config_command != "ls":
+            config_parser.print_help()
+            return
+        config_ls(
+            include_project=not getattr(args, "no_project", False),
+            trust_project=getattr(args, "trust_project", False),
+        )
+    elif args.subparser_name == "trust":
+        trust_command(
+            args.directory,
+            untrust=args.untrust,
+            show=args.show,
+        )
     elif args.subparser_name == "worktree":
         handle_worktree_command(args)
