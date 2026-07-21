@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import sys
 import textwrap
 import typing as t
 
 from libvcs.__about__ import __version__ as libvcs_version
 
+from vcspull import exc
 from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
@@ -509,7 +511,23 @@ def create_parser(
 
 
 def cli(_args: list[str] | None = None) -> None:
-    """CLI entry point for vcspull."""
+    """CLI entry point for vcspull.
+
+    A :exc:`vcspull.exc.VCSPullException` is the tool telling you something
+    actionable — an untrusted project config, an unreadable file — so it is
+    reported as one line rather than a traceback. Run with
+    ``--log-level debug`` to see the stack.
+    """
+    try:
+        _run(_args)
+    except exc.VCSPullException as error:
+        log.debug("vcspull command failed", exc_info=True)
+        print(f"vcspull: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+
+
+def _run(_args: list[str] | None) -> None:
+    """Parse arguments and dispatch to the selected subcommand."""
     parser, subparsers = create_parser(return_subparsers=True)
     (
         sync_parser,
