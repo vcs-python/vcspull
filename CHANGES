@@ -38,6 +38,19 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### Add a repository by URL
+
+{ref}`cli-add` now accepts a repository URL in place of a path, so you can
+record a repository you have not cloned yet. The entry lands in your
+configuration and {ref}`vcspull sync <cli-sync>` clones it on the next run.
+
+The name comes from the URL unless you pass `--name`. Because there is no parent
+directory to infer a workspace from, vcspull offers the workspace roots your
+configuration already declares, and `--workspace` names one outright. Adding a
+checkout by path is unchanged — an existing directory still takes precedence.
+
 ## vcspull v1.65.0 (2026-07-05)
 
 vcspull v1.65.0 sharpens the feedback you get when a sync cannot check out
