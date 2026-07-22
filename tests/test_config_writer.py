@@ -18,7 +18,7 @@ from vcspull.config import (
 if t.TYPE_CHECKING:
     import pathlib
 
-FixtureEntry = tuple[str, dict[str, t.Any]]
+FixtureEntry = tuple[str, dict[str, dict[str, str]]]
 
 
 @pytest.mark.parametrize(

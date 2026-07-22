@@ -37,6 +37,13 @@ from vcspull.config import (
 log = logging.getLogger(__name__)
 
 
+class _OrderedItem(t.TypedDict):
+    """Ordered config entry preserving label/section pairs."""
+
+    label: str
+    section: object
+
+
 class AddAction(enum.Enum):
     """Action resolved for a single repo during ``vcspull add``."""
 
@@ -251,37 +258,40 @@ def _normalize_detected_url(remote: str | None) -> tuple[str, str]:
 
 
 def _build_ordered_items(
-    top_level_items: list[tuple[str, t.Any]] | None,
-    raw_config: dict[str, t.Any],
-) -> list[dict[str, t.Any]]:
+    top_level_items: list[tuple[str, object]] | None,
+    raw_config: dict[str, object],
+) -> list[_OrderedItem]:
     """Return deep-copied top-level items preserving original ordering."""
-    source: list[tuple[str, t.Any]] = top_level_items or list(raw_config.items())
+    source: list[tuple[str, object]] = top_level_items or list(raw_config.items())
 
-    ordered: list[dict[str, t.Any]] = []
+    ordered: list[_OrderedItem] = []
     for label, section in source:
         ordered.append({"label": label, "section": copy.deepcopy(section)})
     return ordered
 
 
 def _aggregate_from_ordered_items(
-    items: list[dict[str, t.Any]],
-) -> dict[str, t.Any]:
+    items: list[_OrderedItem],
+) -> dict[str, object]:
     """Collapse ordered top-level items into a mapping grouped by label."""
-    aggregated: dict[str, t.Any] = {}
+    aggregated: dict[str, object] = {}
     for entry in items:
         label = entry["label"]
         section = entry["section"]
         if isinstance(section, dict):
-            workspace_section = aggregated.setdefault(label, {})
+            workspace_section = t.cast(
+                "dict[str, object]",
+                aggregated.setdefault(label, {}),
+            )
             for repo_name, repo_config in section.items():
-                workspace_section[repo_name] = copy.deepcopy(repo_config)
+                workspace_section[str(repo_name)] = copy.deepcopy(repo_config)
         else:
             aggregated[label] = copy.deepcopy(section)
     return aggregated
 
 
 def _collapse_ordered_items_to_dict(
-    ordered_items: list[dict[str, t.Any]],
+    ordered_items: list[_OrderedItem],
 ) -> dict[str, t.Any]:
     """Collapse ordered items into a flat dict for JSON serialization.
 
@@ -326,10 +336,10 @@ def _collapse_ordered_items_to_dict(
 
 
 def _collect_duplicate_sections(
-    items: list[dict[str, t.Any]],
-) -> dict[str, list[t.Any]]:
+    items: list[_OrderedItem],
+) -> dict[str, list[object]]:
     """Return mapping of labels to their repeated sections (>= 2 occurrences)."""
-    occurrences: dict[str, list[t.Any]] = {}
+    occurrences: dict[str, list[object]] = {}
     for entry in items:
         label = entry["label"]
         occurrences.setdefault(label, []).append(copy.deepcopy(entry["section"]))
@@ -341,7 +351,7 @@ def _collect_duplicate_sections(
 
 def _save_ordered_items(
     config_file_path: pathlib.Path,
-    ordered_items: list[dict[str, t.Any]],
+    ordered_items: list[_OrderedItem],
 ) -> None:
     """Persist ordered items in the format matching the config file extension.
 
@@ -610,9 +620,9 @@ def add_repo(
             config_file_path = home_configs[0]
 
     # Load existing config
-    raw_config: dict[str, t.Any]
-    duplicate_root_occurrences: dict[str, list[t.Any]]
-    top_level_items: list[tuple[str, t.Any]]
+    raw_config: dict[str, object]
+    duplicate_root_occurrences: dict[str, list[object]]
+    top_level_items: list[tuple[str, object]]
     display_config_path = str(PrivatePath(config_file_path))
 
     if config_file_path.exists() and config_file_path.is_file():
@@ -666,7 +676,7 @@ def add_repo(
     new_repo_entry = build_repo_entry(url, rev=rev, shallow=shallow, depth=depth)
 
     def _ensure_workspace_label_for_merge(
-        config_data: dict[str, t.Any],
+        config_data: dict[str, object],
     ) -> tuple[str, bool]:
         workspace_map: dict[pathlib.Path, str] = {}
         for label, section in config_data.items():
@@ -700,7 +710,7 @@ def add_repo(
         return workspace_label, relabelled
 
     def _prepare_no_merge_items(
-        items: list[dict[str, t.Any]],
+        items: list[_OrderedItem],
     ) -> tuple[str, int, bool]:
         matching_indexes: list[int] = []
         for idx, entry in enumerate(items):

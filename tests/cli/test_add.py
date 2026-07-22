@@ -20,6 +20,7 @@ from vcspull.cli.add import (
     AddAction,
     _classify_add_action,
     _collapse_ordered_items_to_dict,
+    _OrderedItem,
     add_repo,
     create_add_subparser,
     handle_add_command,
@@ -28,6 +29,9 @@ from vcspull.cli.add import (
 if t.TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
     from syrupy.assertion import SnapshotAssertion
+
+
+ConfigData: t.TypeAlias = dict[str, dict[str, dict[str, object]]]
 
 
 class AddRepoFixture(t.NamedTuple):
@@ -40,8 +44,8 @@ class AddRepoFixture(t.NamedTuple):
     path_relative: str | None
     dry_run: bool
     use_default_config: bool
-    preexisting_config: dict[str, t.Any] | None
-    expected_in_config: dict[str, t.Any]
+    preexisting_config: ConfigData | None
+    expected_in_config: ConfigData
     expected_log_messages: list[str]
     rev: str | None = None
     shallow: bool = False
@@ -261,8 +265,8 @@ def test_add_repo(
     path_relative: str | None,
     dry_run: bool,
     use_default_config: bool,
-    preexisting_config: dict[str, t.Any] | None,
-    expected_in_config: dict[str, t.Any],
+    preexisting_config: ConfigData | None,
+    expected_in_config: ConfigData,
     expected_log_messages: list[str],
     rev: str | None,
     shallow: bool,
@@ -1665,7 +1669,7 @@ class CollapseOrderedItemsFixture(t.NamedTuple):
     """Fixture for _collapse_ordered_items_to_dict unit tests."""
 
     test_id: str
-    ordered_items: list[dict[str, t.Any]]
+    ordered_items: list[_OrderedItem]
     expected_labels: list[str]
     expected_repo_keys: dict[str, set[str]]
 
@@ -1702,7 +1706,7 @@ COLLAPSE_ORDERED_ITEMS_FIXTURES: list[CollapseOrderedItemsFixture] = [
 )
 def test_collapse_ordered_items_to_dict(
     test_id: str,
-    ordered_items: list[dict[str, t.Any]],
+    ordered_items: list[_OrderedItem],
     expected_labels: list[str],
     expected_repo_keys: dict[str, set[str]],
 ) -> None:

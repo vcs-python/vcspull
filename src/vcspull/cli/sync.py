@@ -42,6 +42,8 @@ from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
 from ._output import (
+    JsonObject,
+    JsonValue,
     OutputFormatter,
     OutputMode,
     PlanAction,
@@ -53,7 +55,7 @@ from ._output import (
 )
 from ._progress import SyncStatusIndicator, build_indicator
 from ._workspaces import filter_by_workspace
-from .status import check_repo_status
+from .status import StatusResult, check_repo_status
 
 log = logging.getLogger(__name__)
 
@@ -224,7 +226,7 @@ def _maybe_fetch(
 
 
 def _determine_plan_action(
-    status: dict[str, t.Any],
+    status: StatusResult,
     *,
     config: SyncPlanConfig,
 ) -> tuple[PlanAction, str | None]:
@@ -1767,7 +1769,7 @@ def _run_sync_loop(
         summary["total"] += 1
         indicator.heartbeat()
 
-        event: dict[str, t.Any] = {
+        event: dict[str, JsonValue] = {
             "reason": "sync",
             "name": repo_name,
             "path": display_repo_path,
@@ -1966,7 +1968,7 @@ def _emit_summary(
     summary: dict[str, int],
 ) -> None:
     """Emit the structured summary event and optional human-readable text."""
-    formatter.emit({"reason": "summary", **summary})
+    formatter.emit(t.cast("JsonObject", {"reason": "summary", **summary}))
     if formatter.mode == OutputMode.HUMAN:
         previewed = summary.get("previewed", 0)
         unmatched = summary.get("unmatched", 0)
@@ -2029,7 +2031,7 @@ def guess_vcs(url: str) -> VCSLiteral | None:
 class CouldNotGuessVCSFromURL(exc.VCSPullException):
     """Raised when no VCS could be guessed from a URL."""
 
-    def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
+    def __init__(self, repo_url: str) -> None:
         return super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
