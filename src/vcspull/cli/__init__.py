@@ -5,16 +5,24 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import sys
 import textwrap
 import typing as t
 
 from libvcs.__about__ import __version__ as libvcs_version
 
+from vcspull import exc
 from vcspull.__about__ import __version__
 from vcspull.log import setup_logger
 
 from ._formatter import VcspullHelpFormatter
 from .add import add_repo, create_add_subparser, handle_add_command
+from .config import (
+    config_ls,
+    create_config_subparser,
+    create_trust_subparser,
+    trust_command,
+)
 from .discover import create_discover_subparser, discover_repos
 from .fmt import create_fmt_subparser, format_config_file
 from .import_cmd import create_import_subparser
@@ -299,6 +307,47 @@ IMPORT_DESCRIPTION = build_description(
     ),
 )
 
+CONFIG_DESCRIPTION = build_description(
+    """
+    Inspect the configuration scopes in effect.
+
+    'vcspull config ls' prints every configuration file vcspull would load
+    from the current directory, weakest first, with its scope, its repository
+    count, and whether a nearer file overrode any of its entries.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull config ls",
+                "vcspull --no-project config ls",
+            ],
+        ),
+    ),
+)
+
+TRUST_DESCRIPTION = build_description(
+    """
+    Trust a project directory's configuration.
+
+    A project config that would check a repository out beyond its own
+    directory needs your consent before vcspull will act on it. Trust is
+    recorded per directory, so a second config in the same project does not
+    re-ask.
+    """,
+    (
+        (
+            None,
+            [
+                "vcspull trust",
+                "vcspull trust ~/work/api",
+                "vcspull trust --untrust ~/work/api",
+                "vcspull trust --show",
+            ],
+        ),
+    ),
+)
+
 WORKTREE_DESCRIPTION = build_description(
     """
     Manage git worktrees for repositories.
@@ -320,6 +369,40 @@ WORKTREE_DESCRIPTION = build_description(
 )
 
 
+def _trust_parser() -> argparse.ArgumentParser:
+    """Return the shared parent parser carrying ``--trust-project``.
+
+    Every command that may act on a project ``.vcspull.*`` accepts the trust
+    bypass, and the root parser inherits it too, so both
+    ``vcspull --trust-project sync`` and ``vcspull sync --trust-project``
+    parse. ``SUPPRESS`` keeps the subcommand from clobbering a value the root
+    already set.
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        "--trust-project",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help=(
+            "load project configs that check repositories out beyond their "
+            "own directory (also VCSPULL_YES=1)"
+        ),
+    )
+    return parser
+
+
+def _scope_parser(trust: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    """Return the shared parent parser for commands that resolve the stack."""
+    parser = argparse.ArgumentParser(add_help=False, parents=[trust])
+    parser.add_argument(
+        "--no-project",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="skip .vcspull.* files found above the working directory",
+    )
+    return parser
+
+
 @t.overload
 def create_parser(
     return_subparsers: t.Literal[True],
@@ -334,10 +417,14 @@ def create_parser(
     return_subparsers: bool = False,
 ) -> argparse.ArgumentParser | tuple[argparse.ArgumentParser, t.Any]:
     """Create CLI argument parser for vcspull."""
+    trust_parent = _trust_parser()
+    scope_parent = _scope_parser(trust_parent)
+
     parser = argparse.ArgumentParser(
         prog="vcspull",
         formatter_class=VcspullHelpFormatter,
         description=CLI_DESCRIPTION,
+        parents=[scope_parent],
     )
     parser.add_argument(
         "--version",
@@ -352,7 +439,6 @@ def create_parser(
         default="INFO",
         help="log level (debug, info, warning, error, critical)",
     )
-
     subparsers = parser.add_subparsers(dest="subparser_name")
 
     # Sync command
@@ -361,6 +447,7 @@ def create_parser(
         help="synchronize repositories",
         formatter_class=VcspullHelpFormatter,
         description=SYNC_DESCRIPTION,
+        parents=[scope_parent],
     )
     create_sync_subparser(sync_parser)
 
@@ -370,6 +457,7 @@ def create_parser(
         help="list configured repositories",
         formatter_class=VcspullHelpFormatter,
         description=LIST_DESCRIPTION,
+        parents=[scope_parent],
     )
     create_list_subparser(list_parser)
 
@@ -379,6 +467,7 @@ def create_parser(
         help="check repository status",
         formatter_class=VcspullHelpFormatter,
         description=STATUS_DESCRIPTION,
+        parents=[scope_parent],
     )
     create_status_subparser(status_parser)
 
@@ -388,6 +477,7 @@ def create_parser(
         help="search configured repositories",
         formatter_class=VcspullHelpFormatter,
         description=SEARCH_DESCRIPTION,
+        parents=[scope_parent],
     )
     create_search_subparser(search_parser)
 
@@ -397,6 +487,7 @@ def create_parser(
         help="add a single repository",
         formatter_class=VcspullHelpFormatter,
         description=ADD_DESCRIPTION,
+        parents=[trust_parent],
     )
     create_add_subparser(add_parser)
 
@@ -406,6 +497,7 @@ def create_parser(
         help="discover repositories from filesystem",
         formatter_class=VcspullHelpFormatter,
         description=DISCOVER_DESCRIPTION,
+        parents=[trust_parent],
     )
     create_discover_subparser(discover_parser)
 
@@ -415,6 +507,7 @@ def create_parser(
         help="format configuration files",
         formatter_class=VcspullHelpFormatter,
         description=FMT_DESCRIPTION,
+        parents=[scope_parent],
     )
     create_fmt_subparser(fmt_parser)
 
@@ -424,6 +517,7 @@ def create_parser(
         help="migrate configuration files to the options: form",
         formatter_class=VcspullHelpFormatter,
         description=MIGRATE_DESCRIPTION,
+        parents=[scope_parent],
     )
     create_migrate_subparser(migrate_parser)
 
@@ -436,12 +530,32 @@ def create_parser(
     )
     create_import_subparser(import_parser)
 
+    # Config command
+    config_parser = subparsers.add_parser(
+        "config",
+        help="inspect the configuration scopes in effect",
+        formatter_class=VcspullHelpFormatter,
+        description=CONFIG_DESCRIPTION,
+        parents=[scope_parent],
+    )
+    create_config_subparser(config_parser, scope_parent)
+
+    # Trust command
+    trust_parser = subparsers.add_parser(
+        "trust",
+        help="trust a project directory's configuration",
+        formatter_class=VcspullHelpFormatter,
+        description=TRUST_DESCRIPTION,
+    )
+    create_trust_subparser(trust_parser)
+
     # Worktree command
     worktree_parser = subparsers.add_parser(
         "worktree",
         help="manage git worktrees",
         formatter_class=VcspullHelpFormatter,
         description=WORKTREE_DESCRIPTION,
+        parents=[scope_parent],
     )
     create_worktree_subparser(worktree_parser)
 
@@ -458,12 +572,29 @@ def create_parser(
             migrate_parser,
             import_parser,
             worktree_parser,
+            config_parser,
         )
     return parser
 
 
 def cli(_args: list[str] | None = None) -> None:
-    """CLI entry point for vcspull."""
+    """CLI entry point for vcspull.
+
+    A :exc:`vcspull.exc.VCSPullException` is the tool telling you something
+    actionable — an untrusted project config, an unreadable file — so it is
+    reported as one line rather than a traceback. Run with
+    ``--log-level debug`` to see the stack.
+    """
+    try:
+        _run(_args)
+    except exc.VCSPullException as error:
+        log.debug("vcspull command failed", exc_info=True)
+        print(f"vcspull: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+
+
+def _run(_args: list[str] | None) -> None:
+    """Parse arguments and dispatch to the selected subcommand."""
     parser, subparsers = create_parser(return_subparsers=True)
     (
         sync_parser,
@@ -476,6 +607,7 @@ def cli(_args: list[str] | None = None) -> None:
         _migrate_parser,
         _import_parser,
         _worktree_parser,
+        config_parser,
     ) = subparsers
     args = parser.parse_args(_args)
 
@@ -516,6 +648,8 @@ def cli(_args: list[str] | None = None) -> None:
             log_file=getattr(args, "log_file", None),
             no_log_file=getattr(args, "no_log_file", False),
             panel_lines=getattr(args, "panel_lines", None),
+            include_project=not getattr(args, "no_project", False),
+            trust_project=getattr(args, "trust_project", False),
         )
     elif args.subparser_name == "list":
         list_repos(
@@ -527,6 +661,8 @@ def cli(_args: list[str] | None = None) -> None:
             output_ndjson=args.output_ndjson,
             color=args.color,
             include_worktrees=getattr(args, "include_worktrees", False),
+            include_project=not getattr(args, "no_project", False),
+            trust_project=getattr(args, "trust_project", False),
         )
     elif args.subparser_name == "status":
         status_repos(
@@ -539,6 +675,8 @@ def cli(_args: list[str] | None = None) -> None:
             color=args.color,
             concurrent=not getattr(args, "no_concurrent", False),
             max_concurrent=getattr(args, "max_concurrent", None),
+            include_project=not getattr(args, "no_project", False),
+            trust_project=getattr(args, "trust_project", False),
         )
     elif args.subparser_name == "search":
         if not args.query_terms:
@@ -558,6 +696,8 @@ def cli(_args: list[str] | None = None) -> None:
             word_regexp=getattr(args, "word_regexp", False),
             invert_match=getattr(args, "invert_match", False),
             match_any=getattr(args, "match_any", False),
+            include_project=not getattr(args, "no_project", False),
+            trust_project=getattr(args, "trust_project", False),
         )
     elif args.subparser_name == "add":
         if not args.repo_path:
@@ -574,6 +714,7 @@ def cli(_args: list[str] | None = None) -> None:
             recursive=args.recursive,
             workspace_root_override=args.workspace_root_path,
             yes=args.yes,
+            trust_project=getattr(args, "trust_project", False),
             dry_run=args.dry_run,
             merge_duplicates=args.merge_duplicates,
             include_worktrees=getattr(args, "include_worktrees", False),
@@ -587,12 +728,14 @@ def cli(_args: list[str] | None = None) -> None:
             args.write,
             args.all,
             merge_roots=args.merge_roots,
+            trust_project=getattr(args, "trust_project", False),
         )
     elif args.subparser_name == "migrate":
         migrate_config_file(
             args.config,
             args.write,
             args.all,
+            trust_project=getattr(args, "trust_project", False),
         )
     elif args.subparser_name == "import":
         handler = getattr(args, "import_handler", None)
@@ -602,5 +745,19 @@ def cli(_args: list[str] | None = None) -> None:
         result = handler(args)
         if result:
             raise SystemExit(result)
+    elif args.subparser_name == "config":
+        if args.config_command != "ls":
+            config_parser.print_help()
+            return
+        config_ls(
+            include_project=not getattr(args, "no_project", False),
+            trust_project=getattr(args, "trust_project", False),
+        )
+    elif args.subparser_name == "trust":
+        trust_command(
+            args.directory,
+            untrust=args.untrust,
+            show=args.show,
+        )
     elif args.subparser_name == "worktree":
         handle_worktree_command(args)

@@ -11,7 +11,8 @@ import typing as t
 import pytest
 
 from vcspull._internal.private_path import PrivatePath
-from vcspull.cli.discover import ConfigScope, _classify_config_scope, discover_repos
+from vcspull._internal.scopes import ConfigScope, classify_scope
+from vcspull.cli.discover import discover_repos
 
 if t.TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -667,7 +668,7 @@ def test_discover_detects_numeric_depth(
     CONFIG_SCOPE_FIXTURES,
     ids=[fixture.test_id for fixture in CONFIG_SCOPE_FIXTURES],
 )
-def test_classify_config_scope(
+def test_classify_scope(
     test_id: str,
     config_template: str,
     cwd_template: str,
@@ -719,7 +720,7 @@ def test_classify_config_scope(
             expanded_value = expanded_value.replace(f"{{{name}}}", str(path))
         monkeypatch.setenv(key, expanded_value)
 
-    scope = _classify_config_scope(config_path, cwd=cwd_path, home=base_home)
+    scope = classify_scope(config_path, cwd=cwd_path, home=base_home)
     assert scope == expected_scope
 
 

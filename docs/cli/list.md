@@ -122,10 +122,11 @@ $ vcspull list --ndjson | grep 'study' | jq -r '.name'
 
 ## Choosing configuration files
 
-By default, vcspull searches for config files in standard locations
-(`~/.vcspull.yaml`, `./.vcspull.yaml`, and
+By default, `list` unions every configuration scope in effect: system, your
 [XDG](https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html)
-config directories).
+config directory, `~/.vcspull.yaml`, and any `.vcspull.*` file above your
+working directory. See {ref}`config-scopes` for the resolution order, or run
+`vcspull config ls` to see what applies where you are standing.
 
 Specify a custom config file with `-f/--file`:
 

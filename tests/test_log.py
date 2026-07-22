@@ -432,6 +432,7 @@ def test_get_cli_logger_names_includes_base() -> None:
         "vcspull.cli._progress",
         "vcspull.cli._workspaces",
         "vcspull.cli.add",
+        "vcspull.cli.config",
         "vcspull.cli.discover",
         "vcspull.cli.fmt",
         "vcspull.cli.import_cmd",
@@ -500,6 +501,7 @@ def test_setup_logger_leaves_cli_loggers_propagating(caplog: LogCaptureFixture) 
 
     for logger_name in [
         "vcspull.cli.add",
+        "vcspull.cli.config",
         "vcspull.cli.sync",
     ]:
         logger = logging.getLogger(logger_name)

@@ -7,7 +7,7 @@ import logging
 import pathlib
 
 from vcspull._internal.private_path import PrivatePath
-from vcspull.config import filter_repos, find_config_files, load_configs
+from vcspull.config import filter_repos, load_scoped_configs
 from vcspull.types import ConfigDict
 
 from ._colors import Colors, get_color_mode
@@ -30,7 +30,7 @@ def create_list_subparser(parser: argparse.ArgumentParser) -> None:
         "--file",
         dest="config",
         metavar="FILE",
-        help="path to config file (default: ~/.vcspull.yaml or ./.vcspull.yaml)",
+        help="path to config file (replaces the resolved scope stack)",
     )
     parser.add_argument(
         "-w",
@@ -86,6 +86,8 @@ def list_repos(
     output_ndjson: bool,
     color: str,
     include_worktrees: bool = False,
+    include_project: bool = True,
+    trust_project: bool = False,
 ) -> None:
     """List configured repositories.
 
@@ -107,12 +109,17 @@ def list_repos(
         Color mode (auto, always, never)
     include_worktrees : bool
         Include configured worktrees in the listing (default: False)
+    include_project : bool
+        Include ``.vcspull.*`` files found above the working directory
+    trust_project : bool
+        Trust project configs that check repositories out beyond their directory
     """
     # Load configs
-    if config_path:
-        configs = load_configs([config_path])
-    else:
-        configs = load_configs(find_config_files(include_home=True))
+    configs = load_scoped_configs(
+        config_path,
+        include_project=include_project,
+        trust_project=trust_project,
+    )
 
     # Filter by patterns if provided
     if repo_patterns:

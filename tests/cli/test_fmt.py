@@ -400,26 +400,6 @@ def test_format_all_configs(
 
     monkeypatch.chdir(local_root)
 
-    def fake_find_config_files(include_home: bool = False) -> list[pathlib.Path]:
-        files: list[pathlib.Path] = [work_config]
-        if include_home:
-            files.insert(0, home_config)
-        return files
-
-    def fake_find_home_config_files(
-        filetype: list[str] | None = None,
-    ) -> list[pathlib.Path]:
-        return [home_config]
-
-    monkeypatch.setattr(
-        "vcspull.cli.fmt.find_config_files",
-        fake_find_config_files,
-    )
-    monkeypatch.setattr(
-        "vcspull.cli.fmt.find_home_config_files",
-        fake_find_home_config_files,
-    )
-
     with caplog.at_level(logging.INFO):
         format_config_file(None, write=False, format_all=True)
 

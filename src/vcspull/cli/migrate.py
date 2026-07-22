@@ -11,11 +11,12 @@ import typing as t
 
 from colorama import Fore, Style
 
+from vcspull._internal import scopes
 from vcspull._internal.config_reader import DuplicateAwareConfigReader
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
     LEGACY_REPO_OPTION_KEYS,
-    find_config_files,
+    ensure_config_trusted,
     find_home_config_files,
     migrate_repo_entry,
     normalize_config_file_path,
@@ -32,7 +33,7 @@ def create_migrate_subparser(parser: argparse.ArgumentParser) -> None:
         "--file",
         dest="config",
         metavar="FILE",
-        help="path to config file (default: .vcspull.yaml or ~/.vcspull.yaml)",
+        help="path to config file (default: ~/.vcspull.yaml, else ./.vcspull.yaml)",
     )
     parser.add_argument(
         "--write",
@@ -89,7 +90,13 @@ def migrate_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int
     return migrated, change_count
 
 
-def migrate_single_config(config_file_path: pathlib.Path, write: bool) -> bool:
+def migrate_single_config(
+    config_file_path: pathlib.Path,
+    write: bool,
+    *,
+    trust_project: bool = False,
+    explicit: bool = False,
+) -> bool:
     """Migrate a single vcspull configuration file.
 
     Parameters
@@ -98,6 +105,10 @@ def migrate_single_config(config_file_path: pathlib.Path, write: bool) -> bool:
         Path to config file.
     write : bool
         Whether to write changes back to file.
+    trust_project : bool
+        Trust an escaping project config without prompting.
+    explicit : bool
+        The caller named this file with ``--file``.
 
     Returns
     -------
@@ -115,6 +126,13 @@ def migrate_single_config(config_file_path: pathlib.Path, write: bool) -> bool:
             display_config_path,
             Style.RESET_ALL,
         )
+        return False
+
+    if not ensure_config_trusted(
+        config_file_path,
+        trust_project=trust_project,
+        explicit=explicit,
+    ):
         return False
 
     try:
@@ -215,6 +233,8 @@ def migrate_config_file(
     config_file_path_str: str | None,
     write: bool,
     migrate_all: bool = False,
+    *,
+    trust_project: bool = False,
 ) -> None:
     """Migrate vcspull configuration file(s) to the ``options:`` form.
 
@@ -226,17 +246,12 @@ def migrate_config_file(
         Whether to write changes back to file.
     migrate_all : bool
         If True, migrate all discovered config files.
+    trust_project : bool
+        Trust escaping project configs without prompting.
     """
     if migrate_all:
-        config_files = find_config_files(include_home=True)
-
-        local_yaml = pathlib.Path.cwd() / ".vcspull.yaml"
-        if local_yaml.exists() and local_yaml not in config_files:
-            config_files.append(local_yaml)
-
-        local_json = pathlib.Path.cwd() / ".vcspull.json"
-        if local_json.exists() and local_json not in config_files:
-            config_files.append(local_json)
+        cwd = pathlib.Path.cwd()
+        config_files = [source.path for source in scopes.resolve_sources(cwd=cwd)]
 
         if not config_files:
             log.error(
@@ -268,7 +283,11 @@ def migrate_config_file(
 
         success_count = 0
         for config_file in config_files:
-            if migrate_single_config(config_file, write):
+            if migrate_single_config(
+                config_file,
+                write,
+                trust_project=trust_project,
+            ):
                 success_count += 1
 
         if success_count == len(config_files):
@@ -313,4 +332,9 @@ def migrate_config_file(
         else:
             config_file_path = home_configs[0]
 
-    migrate_single_config(config_file_path, write)
+    migrate_single_config(
+        config_file_path,
+        write,
+        trust_project=trust_project,
+        explicit=bool(config_file_path_str),
+    )

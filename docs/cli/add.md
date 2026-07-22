@@ -92,11 +92,12 @@ change.
 
 ## Choosing configuration files
 
-vcspull searches for configuration files in this order:
+vcspull resolves configuration from several scopes at once — system, user,
+and the `.vcspull.*` files above your working directory. See
+{ref}`config-scopes` for the full order.
 
-1. `./.vcspull.yaml`
-2. `~/.vcspull.yaml`
-3. `~/.config/vcspull/*.yaml`
+`add` writes to your user configuration by default, and falls back to
+creating `./.vcspull.yaml` when you have none.
 
 Specify a file explicitly with `-f/--file`:
 
