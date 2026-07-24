@@ -14,9 +14,11 @@ from vcspull.cli._colors import ColorMode, Colors
 from vcspull.cli._output import OutputFormatter, OutputMode
 from vcspull.cli.sync import (
     _DEFAULT_REPO_TIMEOUT_SECONDS,
+    _emit_repo_result,
     _emit_rerun_recipe,
     _resolve_repo_timeout,
     _sync_repo_with_watchdog,
+    _SyncOutcome,
     _TimedOutRepo,
 )
 
@@ -474,3 +476,278 @@ def test_resolve_panel_lines_ignores_bogus_env_value(
 
     monkeypatch.setenv("VCSPULL_PROGRESS_LINES", "many")
     assert _resolve_panel_lines(None) == 3
+
+
+def test_resolve_jobs_prefers_cli_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI ``--jobs N`` should win over the env var and the default."""
+    from vcspull.cli.sync import _resolve_jobs
+
+    monkeypatch.setenv("VCSPULL_JOBS", "16")
+    assert _resolve_jobs(4) == 4
+
+
+def test_resolve_jobs_falls_back_to_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without a CLI flag, ``VCSPULL_JOBS`` takes over."""
+    from vcspull.cli.sync import _resolve_jobs
+
+    monkeypatch.setenv("VCSPULL_JOBS", "12")
+    assert _resolve_jobs(None) == 12
+
+
+def test_resolve_jobs_uses_default_when_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default is ``min(8, CPU*2)`` when neither flag nor env is set."""
+    from vcspull.cli.sync import _DEFAULT_MAX_JOBS, _resolve_jobs
+
+    monkeypatch.delenv("VCSPULL_JOBS", raising=False)
+    resolved = _resolve_jobs(None)
+    assert 1 <= resolved <= _DEFAULT_MAX_JOBS
+
+
+def test_resolve_jobs_ignores_bogus_env_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-integer env value is logged and ignored; default applies."""
+    from vcspull.cli.sync import _DEFAULT_MAX_JOBS, _resolve_jobs
+
+    monkeypatch.setenv("VCSPULL_JOBS", "all-of-them")
+    resolved = _resolve_jobs(None)
+    assert 1 <= resolved <= _DEFAULT_MAX_JOBS
+
+
+def test_resolve_jobs_ignores_zero_and_negative(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-positive flag values fall through to env / default."""
+    from vcspull.cli.sync import _resolve_jobs
+
+    monkeypatch.setenv("VCSPULL_JOBS", "5")
+    assert _resolve_jobs(0) == 5
+    assert _resolve_jobs(-1) == 5
+
+
+def test_run_parallel_sync_loop_async_dispatches_each_repo_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``jobs=4`` against 10 fake repos -- every repo gets one sync event.
+
+    Mocks ``update_repo`` to a near-no-op so the test exercises the
+    asyncio orchestrator (``Semaphore`` cap, ``as_completed`` streaming)
+    end-to-end without touching real VCS state. The semaphore is the
+    only thing keeping in-flight count bounded; we assert via summary
+    counters that each repo ran exactly once.
+    """
+    import asyncio
+
+    from vcspull.cli._progress import build_indicator
+    from vcspull.cli.sync import _run_parallel_sync_loop_async
+
+    repos: list[dict[str, t.Any]] = [
+        {
+            "name": f"repo-{i}",
+            "path": f"/tmp/vcspull-test/repo-{i}",
+            "url": f"git+file:///tmp/fake/{i}",
+            "vcs": "git",
+            "workspace_root": "/tmp/vcspull-test/",
+        }
+        for i in range(10)
+    ]
+    call_count = {"n": 0}
+
+    def fake_update_repo(repo: dict[str, t.Any], **_: t.Any) -> None:
+        call_count["n"] += 1
+        # Simulate a tiny amount of subprocess time so workers
+        # actually overlap in flight under the semaphore.
+        time.sleep(0.005)
+
+    monkeypatch.setattr(sync_module, "update_repo", fake_update_repo)
+
+    formatter = OutputFormatter(OutputMode.NDJSON)
+    colors = Colors(ColorMode.NEVER)
+    indicator = build_indicator(human=False, color="never", slots=4)
+    summary: dict[str, int] = {
+        "total": 0,
+        "synced": 0,
+        "previewed": 0,
+        "failed": 0,
+        "timed_out": 0,
+        "unmatched": 0,
+    }
+    timed_out: list[_TimedOutRepo] = []
+
+    asyncio.run(
+        _run_parallel_sync_loop_async(
+            found_repos=t.cast("t.Any", repos),
+            jobs=4,
+            formatter=formatter,
+            colors=colors,
+            summary=summary,
+            timed_out_repos=timed_out,
+            progress_callback=_noop_progress,
+            is_human=False,
+            repo_timeout=10,
+            exit_on_error=False,
+            include_worktrees=False,
+            dry_run=False,
+            parser=None,
+            log_file_path=None,
+            indicator=indicator,
+        ),
+    )
+    indicator.close()
+
+    assert call_count["n"] == 10
+    assert summary["total"] == 10
+    assert summary["synced"] == 10
+    assert summary["failed"] == 0
+
+
+def test_run_parallel_sync_loop_async_respects_semaphore(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Concurrent in-flight count never exceeds ``jobs``."""
+    import asyncio
+    import threading
+
+    from vcspull.cli._progress import build_indicator
+    from vcspull.cli.sync import _run_parallel_sync_loop_async
+
+    in_flight = 0
+    peak = 0
+    lock = threading.Lock()
+
+    def fake_update_repo(repo: dict[str, t.Any], **_: t.Any) -> None:
+        nonlocal in_flight, peak
+        with lock:
+            in_flight += 1
+            peak = max(peak, in_flight)
+        time.sleep(0.02)
+        with lock:
+            in_flight -= 1
+
+    monkeypatch.setattr(sync_module, "update_repo", fake_update_repo)
+
+    repos: list[dict[str, t.Any]] = [
+        {
+            "name": f"r-{i}",
+            "path": f"/tmp/vcspull-test/r-{i}",
+            "url": f"git+file:///tmp/fake/{i}",
+            "vcs": "git",
+            "workspace_root": "/tmp/vcspull-test/",
+        }
+        for i in range(20)
+    ]
+
+    formatter = OutputFormatter(OutputMode.NDJSON)
+    colors = Colors(ColorMode.NEVER)
+    indicator = build_indicator(human=False, color="never", slots=3)
+    summary: dict[str, int] = {
+        "total": 0,
+        "synced": 0,
+        "previewed": 0,
+        "failed": 0,
+        "timed_out": 0,
+        "unmatched": 0,
+    }
+
+    asyncio.run(
+        _run_parallel_sync_loop_async(
+            found_repos=t.cast("t.Any", repos),
+            jobs=3,
+            formatter=formatter,
+            colors=colors,
+            summary=summary,
+            timed_out_repos=[],
+            progress_callback=_noop_progress,
+            is_human=False,
+            repo_timeout=10,
+            exit_on_error=False,
+            include_worktrees=False,
+            dry_run=False,
+            parser=None,
+            log_file_path=None,
+            indicator=indicator,
+        ),
+    )
+    indicator.close()
+
+    assert peak <= 3
+    assert summary["synced"] == 20
+
+
+class RepoResultGuidanceFixture(t.NamedTuple):
+    """Fixture for branch-error guidance emitted via ``_emit_repo_result``."""
+
+    test_id: str
+    err_msg: str
+    rev: str | None
+    expect_guidance: bool
+
+
+REPO_RESULT_GUIDANCE_FIXTURES: list[RepoResultGuidanceFixture] = [
+    RepoResultGuidanceFixture(
+        test_id="branch-error-with-rev",
+        err_msg="fatal: invalid upstream 'origin/feature'",
+        rev="v1.2.3",
+        expect_guidance=True,
+    ),
+    RepoResultGuidanceFixture(
+        test_id="branch-error-without-rev",
+        err_msg="fatal: ambiguous argument 'x': unknown revision",
+        rev=None,
+        expect_guidance=True,
+    ),
+    RepoResultGuidanceFixture(
+        test_id="network-error-no-guidance",
+        err_msg="fatal: unable to access; Could not resolve host: example.com",
+        rev="v1.2.3",
+        expect_guidance=False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(RepoResultGuidanceFixture._fields),
+    REPO_RESULT_GUIDANCE_FIXTURES,
+    ids=[fixture.test_id for fixture in REPO_RESULT_GUIDANCE_FIXTURES],
+)
+def test_emit_repo_result_surfaces_branch_guidance(
+    test_id: str,
+    err_msg: str,
+    rev: str | None,
+    expect_guidance: bool,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A failed outcome routed through ``_emit_repo_result`` emits guidance.
+
+    Both the serial and parallel sync loops funnel per-repo outcomes
+    through ``_emit_repo_result``; folding the branch-error guidance into
+    the helper (rather than the serial call site) keeps the v1.65.0
+    guidance and extends it to ``--jobs`` mode. Guidance must fire only
+    when the failure looks like a branch/revision problem.
+    """
+    formatter = OutputFormatter(OutputMode.HUMAN)
+    colors = Colors(ColorMode.NEVER)
+    repo: dict[str, t.Any] = {"name": "repo", "path": "/nonexistent/repo"}
+    if rev is not None:
+        repo["rev"] = rev
+
+    status = _emit_repo_result(
+        repo=t.cast("t.Any", repo),
+        outcome=_SyncOutcome(status="failed", error=RuntimeError(err_msg)),
+        formatter=formatter,
+        colors=colors,
+        summary={},
+        timed_out_repos=[],
+        is_human=True,
+        final_writer=lambda _line: False,
+    )
+
+    captured = capsys.readouterr().out
+    assert status == "failed"
+    assert ("Pin an existing branch" in captured) is expect_guidance
