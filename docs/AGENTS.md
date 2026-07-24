@@ -86,6 +86,39 @@ Two mechanical conventions, separate from voice:
   `.. automodule::`. Introduce them in prose; never paraphrase their
   content into sentences that will drift.
 
+## Demo recordings
+
+The animated demos under `docs/_static/demos/asciinema/*.gif` — embedded
+in the CLI pages, the homepage, and the README — come from the
+`/screen-record` skill: asciinema casts rendered to GIF with `agg`, with
+VHS tapes producing the MP4/WebM alternates. `setup-sandbox.sh`, committed
+beside them, rebuilds the config and repositories every recording drives
+against, so re-render from it rather than hand-editing a frame.
+
+One post-step the skill does not do: **crop each shipped GIF to its
+content.** `agg` and VHS render the full terminal width, but a command's
+output fills only part of it, leaving a wide horizontal band of dead space
+that makes the demo read small once embedded. ffmpeg `cropdetect`,
+ImageMagick `TrimBounds`, and `cropdetect=mode=mvedges` all fail on a
+non-black, full-frame terminal capture — the background sits above the
+black threshold, so every frame reads as content and nothing is trimmed.
+The approach that holds is an ImageMagick union-trim that pads with the
+terminal's *own* background:
+
+```console
+$ magick demo.gif -coalesce -fuzz 4% -trim +repage \
+    -bordercolor "$(magick demo.gif[0] -format '%[pixel:p{0,0}]' info:)" \
+    -border 10 \
+    -layers Optimize \
+    demo-cropped.gif
+```
+
+`-fuzz 4% -trim` crops to the content bounding box. Sampling the pad colour
+from the GIF's own corner pixel — the terminal background — makes the 10px
+margin bit-identical to the terminal, so it reads as breathing room rather
+than a frame. Each crop adapts to its command: wide output stays wide,
+short output tightens, and `-layers Optimize` keeps the file small.
+
 ## Cross-references
 
 Point the advanced reader at the deep-dive rather than inlining it,

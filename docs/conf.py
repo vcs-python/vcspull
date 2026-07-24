@@ -38,6 +38,7 @@ conf = merge_sphinx_config(
     extra_extensions=[
         "sphinx_autodoc_api_style",
         "sphinx_autodoc_argparse.exemplar",
+        "aspect_ratio",
     ],
     intersphinx_mapping={
         "py": ("https://docs.python.org/", None),
@@ -48,8 +49,10 @@ conf = merge_sphinx_config(
     html_extra_path=["manifest.json"],
     rediraffe_redirects="redirects.txt",
     # AGENTS.md is agent guidance, not a site page; keep Sphinx from
-    # treating it as an orphan document.
-    exclude_patterns=["_build", "AGENTS.md", "CLAUDE.md"],
+    # treating it as an orphan document. "demos/**" keeps the recorded
+    # demo sources in the repo but out of the published _static copy —
+    # the referenced GIFs still reach the build via _images/.
+    exclude_patterns=["_build", "AGENTS.md", "CLAUDE.md", "demos/**"],
 )
 
 _gp_setup = conf.pop("setup")
