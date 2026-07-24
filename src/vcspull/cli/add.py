@@ -382,6 +382,99 @@ def _save_ordered_items(
         save_config_yaml_with_items(config_file_path, items)
 
 
+def _save_config_or_log_error(
+    save_fn: t.Callable[[], None],
+    *,
+    config_file_path: pathlib.Path,
+) -> bool:
+    """Execute a config-save callable with standardised error handling.
+
+    Wraps the save call in a try/except block, logging an exception message on
+    failure and optionally printing the traceback when DEBUG logging is active.
+    The success message is left to the caller, since each save site phrases it
+    differently (e.g. "added" vs "label adjustments saved").
+
+    Parameters
+    ----------
+    save_fn : Callable[[], None]
+        Zero-argument callable that performs the actual file write (e.g. a
+        lambda wrapping ``save_config`` or ``_save_ordered_items``).
+    config_file_path : pathlib.Path
+        Path to the config file, used only for error-log messages.
+
+    Returns
+    -------
+    bool
+        ``True`` if the save succeeded, ``False`` otherwise.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> p = pathlib.Path("/tmp/x.yaml")
+    >>> def _ok_save() -> None:
+    ...     pass
+    >>> _save_config_or_log_error(_ok_save, config_file_path=p)
+    True
+
+    >>> def _bad_save() -> None:
+    ...     raise RuntimeError("disk full")
+    >>> _save_config_or_log_error(_bad_save, config_file_path=p)
+    False
+    """
+    try:
+        save_fn()
+    except Exception:
+        log.exception(
+            "Error saving config to %s",
+            PrivatePath(config_file_path),
+        )
+        if log.isEnabledFor(logging.DEBUG):
+            traceback.print_exc()
+        return False
+    return True
+
+
+def _extract_current_url(existing_config: t.Any) -> str:
+    """Derive a display URL from an existing repository config entry.
+
+    Parameters
+    ----------
+    existing_config : Any
+        The value stored in the workspace section for a given repo name.
+        May be a plain URL string, a dict with ``repo`` / ``url`` keys,
+        or any other object.
+
+    Returns
+    -------
+    str
+        A human-readable URL string suitable for log messages.
+
+    Examples
+    --------
+    >>> _extract_current_url("git+https://github.com/user/repo.git")
+    'git+https://github.com/user/repo.git'
+
+    >>> _extract_current_url({"repo": "git+https://github.com/user/repo.git"})
+    'git+https://github.com/user/repo.git'
+
+    >>> _extract_current_url({"url": "https://example.com/repo.git"})
+    'https://example.com/repo.git'
+
+    >>> _extract_current_url({"repo": None, "url": None})
+    'unknown'
+
+    >>> _extract_current_url(42)
+    '42'
+    """
+    if isinstance(existing_config, str):
+        return existing_config
+    if isinstance(existing_config, dict):
+        repo_value = existing_config.get("repo")
+        url_value = existing_config.get("url")
+        return repo_value or url_value or "unknown"
+    return str(existing_config)
+
+
 def handle_add_command(args: argparse.Namespace) -> None:
     """Entry point for the ``vcspull add`` CLI command."""
     repo_input = getattr(args, "repo_path", None)
@@ -790,8 +883,10 @@ def add_repo(
                 f" ({reason})" if reason else "",
             )
             if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
-                try:
-                    save_config(config_file_path, raw_config)
+                if _save_config_or_log_error(
+                    lambda: save_config(config_file_path, raw_config),
+                    config_file_path=config_file_path,
+                ):
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -800,13 +895,6 @@ def add_repo(
                         display_config_path,
                         Style.RESET_ALL,
                     )
-                except Exception:
-                    log.exception(
-                        "Error saving config to %s",
-                        PrivatePath(config_file_path),
-                    )
-                    if log.isEnabledFor(logging.DEBUG):
-                        traceback.print_exc()
             elif (duplicate_merge_changes > 0 or config_was_relabelled) and dry_run:
                 log.info(
                     "%s→%s Would save workspace label adjustments to %s%s%s.",
@@ -818,14 +906,7 @@ def add_repo(
                 )
             return
         elif add_action == AddAction.SKIP_EXISTING:
-            if isinstance(existing_config, str):
-                current_url = existing_config
-            elif isinstance(existing_config, dict):
-                repo_value = existing_config.get("repo")
-                url_value = existing_config.get("url")
-                current_url = repo_value or url_value or "unknown"
-            else:
-                current_url = str(existing_config)
+            current_url = _extract_current_url(existing_config)
 
             log.warning(
                 "Repository '%s' already exists under '%s'. Current URL: %s. "
@@ -836,8 +917,10 @@ def add_repo(
             )
 
             if (duplicate_merge_changes > 0 or config_was_relabelled) and not dry_run:
-                try:
-                    save_config(config_file_path, raw_config)
+                if _save_config_or_log_error(
+                    lambda: save_config(config_file_path, raw_config),
+                    config_file_path=config_file_path,
+                ):
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -846,13 +929,6 @@ def add_repo(
                         display_config_path,
                         Style.RESET_ALL,
                     )
-                except Exception:
-                    log.exception(
-                        "Error saving config to %s",
-                        PrivatePath(config_file_path),
-                    )
-                    if log.isEnabledFor(logging.DEBUG):
-                        traceback.print_exc()
             elif (duplicate_merge_changes > 0 or config_was_relabelled) and dry_run:
                 log.info(
                     "%s→%s Would save workspace label adjustments to %s%s%s.",
@@ -886,8 +962,10 @@ def add_repo(
             )
             return
 
-        try:
-            save_config(config_file_path, raw_config)
+        if _save_config_or_log_error(
+            lambda: save_config(config_file_path, raw_config),
+            config_file_path=config_file_path,
+        ):
             log.info(
                 "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
                 Fore.GREEN,
@@ -905,13 +983,6 @@ def add_repo(
                 workspace_label,
                 Style.RESET_ALL,
             )
-        except Exception:
-            log.exception(
-                "Error saving config to %s",
-                PrivatePath(config_file_path),
-            )
-            if log.isEnabledFor(logging.DEBUG):
-                traceback.print_exc()
         return
 
     ordered_items = _build_ordered_items(top_level_items, raw_config)
@@ -970,8 +1041,10 @@ def add_repo(
                     Style.RESET_ALL,
                 )
             else:
-                try:
-                    _save_ordered_items(config_file_path, ordered_items)
+                if _save_config_or_log_error(
+                    lambda: _save_ordered_items(config_file_path, ordered_items),
+                    config_file_path=config_file_path,
+                ):
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -980,23 +1053,9 @@ def add_repo(
                         display_config_path,
                         Style.RESET_ALL,
                     )
-                except Exception:
-                    log.exception(
-                        "Error saving config to %s",
-                        PrivatePath(config_file_path),
-                    )
-                    if log.isEnabledFor(logging.DEBUG):
-                        traceback.print_exc()
         return
     elif no_merge_add_action == AddAction.SKIP_EXISTING:
-        if isinstance(existing_config, str):
-            current_url = existing_config
-        elif isinstance(existing_config, dict):
-            repo_value = existing_config.get("repo")
-            url_value = existing_config.get("url")
-            current_url = repo_value or url_value or "unknown"
-        else:
-            current_url = str(existing_config)
+        current_url = _extract_current_url(existing_config)
 
         log.warning(
             "Repository '%s' already exists under '%s'. Current URL: %s. "
@@ -1017,8 +1076,10 @@ def add_repo(
                     Style.RESET_ALL,
                 )
             else:
-                try:
-                    _save_ordered_items(config_file_path, ordered_items)
+                if _save_config_or_log_error(
+                    lambda: _save_ordered_items(config_file_path, ordered_items),
+                    config_file_path=config_file_path,
+                ):
                     log.info(
                         "%s✓%s Workspace label adjustments saved to %s%s%s.",
                         Fore.GREEN,
@@ -1027,13 +1088,6 @@ def add_repo(
                         display_config_path,
                         Style.RESET_ALL,
                     )
-                except Exception:
-                    log.exception(
-                        "Error saving config to %s",
-                        PrivatePath(config_file_path),
-                    )
-                    if log.isEnabledFor(logging.DEBUG):
-                        traceback.print_exc()
         return
 
     target_section = ordered_items[target_index]["section"]
@@ -1067,8 +1121,10 @@ def add_repo(
         )
         return
 
-    try:
-        _save_ordered_items(config_file_path, ordered_items)
+    if _save_config_or_log_error(
+        lambda: _save_ordered_items(config_file_path, ordered_items),
+        config_file_path=config_file_path,
+    ):
         log.info(
             "%s✓%s Successfully added %s'%s'%s (%s%s%s) to %s%s%s under '%s%s%s'.",
             Fore.GREEN,
@@ -1086,10 +1142,3 @@ def add_repo(
             workspace_label,
             Style.RESET_ALL,
         )
-    except Exception:
-        log.exception(
-            "Error saving config to %s",
-            PrivatePath(config_file_path),
-        )
-        if log.isEnabledFor(logging.DEBUG):
-            traceback.print_exc()
