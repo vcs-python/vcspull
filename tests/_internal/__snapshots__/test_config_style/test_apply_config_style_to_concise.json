@@ -1,0 +1,6 @@
+{
+  "~/code/": {
+    "django": "git+https://github.com/django/django.git",
+    "flask": "git+https://github.com/pallets/flask.git"
+  }
+}

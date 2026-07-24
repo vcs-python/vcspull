@@ -38,6 +38,20 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### Config output styles: `vcspull fmt --style` (#516)
+
+Repository entries can now be rewritten in a chosen style. `vcspull fmt
+--style concise` collapses entries to a bare URL string, `--style
+standard` uses the `{repo: ...}` dict form, and `--style verbose`
+expands them with discovered remotes. Restyling happens only when
+`--style` is passed, so plain `vcspull fmt` keeps its existing
+normalize-and-sort behavior. The conversion is lossy in one direction
+only (verbose → concise drops extra keys), and fmt warns when that
+happens. A `{class}`~vcspull.types.ConfigStyle`` enum and a central
+formatter back the feature.
+
 ## vcspull v1.65.0 (2026-07-05)
 
 vcspull v1.65.0 sharpens the feedback you get when a sync cannot check out
