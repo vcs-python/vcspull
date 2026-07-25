@@ -203,11 +203,28 @@ ADD_DESCRIPTION = build_description(
             None,
             [
                 "vcspull add ~/code/mylib",
+                "vcspull add https://github.com/example/mylib.git",
                 "vcspull add ~/src/mylib --workspace ~/code",
-                (
-                    "vcspull add ~/code/mylib "
-                    "--url https://github.com/example/mylib.git --dry-run"
-                ),
+                "vcspull add https://git.example.com/.git --name mylib",
+                ("vcspull add ~/code/mylib --url https://github.com/example/mylib.git"),
+            ],
+        ),
+        (
+            "Pinning",
+            [
+                "vcspull add ~/code/mylib --pin v1.0",
+                "vcspull add git+https://github.com/example/mylib.git@v1.0",
+                "vcspull add ~/code/mylib --shallow",
+                "vcspull add ~/code/mylib --depth 50",
+            ],
+        ),
+        (
+            "Automation",
+            [
+                "vcspull add ~/code/mylib --dry-run",
+                "vcspull add https://github.com/example/mylib.git --yes",
+                "vcspull add ~/code/mylib --file ~/configs/python.yaml",
+                "vcspull add ~/code/mylib --no-merge",
             ],
         ),
     ),
