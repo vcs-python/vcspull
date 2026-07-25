@@ -328,6 +328,25 @@ def _resolve_config_file(config_file_path_str: str | None) -> ConfigFileResoluti
     -------
     ConfigFileResolution
         ``path`` is ``None`` only when ``ambiguous`` is ``True``.
+
+    Examples
+    --------
+    An explicit ``-f/--file`` path is taken as given:
+
+    >>> resolution = _resolve_config_file(str(tmp_path / "custom.yaml"))
+    >>> resolution.path.name
+    'custom.yaml'
+    >>> resolution.creates_new_default, resolution.ambiguous
+    (False, False)
+
+    With no explicit path and no config in the home directory, ``add`` falls
+    back to creating one in the current directory:
+
+    >>> resolution = _resolve_config_file(None)
+    >>> resolution.path.name
+    '.vcspull.yaml'
+    >>> resolution.creates_new_default
+    True
     """
     if config_file_path_str:
         return ConfigFileResolution(
