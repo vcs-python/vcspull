@@ -20,6 +20,7 @@ from vcspull.cli.add import (
     AddAction,
     _classify_add_action,
     _collapse_ordered_items_to_dict,
+    _parse_repo_url,
     add_repo,
     create_add_subparser,
     handle_add_command,
@@ -1714,3 +1715,691 @@ def test_collapse_ordered_items_to_dict(
     for label, expected_keys in expected_repo_keys.items():
         assert label in result
         assert set(result[label].keys()) == expected_keys
+
+
+TWO_ROOT_CONFIG = textwrap.dedent(
+    """\
+    ~/code/:
+      existing: git+https://example.com/existing.git
+    ~/study/:
+      other: git+https://example.com/other.git
+    """,
+)
+
+
+class UrlAddFixture(t.NamedTuple):
+    """Fixture describing CLI URL-mode add scenarios."""
+
+    test_id: str
+    repo_url: str
+    override_name: str | None
+    workspace_override: str | None
+    preexisting_yaml: str | None
+    prompt_response: str | None
+    assume_yes: bool
+    expected_name: str
+    expected_workspace: str
+    expected_url: str
+    expected_written: bool
+
+
+URL_ADD_FIXTURES: list[UrlAddFixture] = [
+    UrlAddFixture(
+        test_id="url-defaults-to-first-declared-root",
+        repo_url="https://github.com/pallets/flask.git",
+        override_name=None,
+        workspace_override=None,
+        preexisting_yaml=TWO_ROOT_CONFIG,
+        prompt_response=None,
+        assume_yes=True,
+        expected_name="flask",
+        expected_workspace="~/code/",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_written=True,
+    ),
+    UrlAddFixture(
+        test_id="url-selects-second-declared-root",
+        repo_url="https://github.com/psf/requests.git",
+        override_name=None,
+        workspace_override=None,
+        preexisting_yaml=TWO_ROOT_CONFIG,
+        prompt_response="2",
+        assume_yes=False,
+        expected_name="requests",
+        expected_workspace="~/study/",
+        expected_url="git+https://github.com/psf/requests.git",
+        expected_written=True,
+    ),
+    UrlAddFixture(
+        test_id="url-declined-writes-nothing",
+        repo_url="https://github.com/psf/requests.git",
+        override_name=None,
+        workspace_override=None,
+        preexisting_yaml=TWO_ROOT_CONFIG,
+        prompt_response="n",
+        assume_yes=False,
+        expected_name="requests",
+        expected_workspace="~/code/",
+        expected_url="git+https://github.com/psf/requests.git",
+        expected_written=False,
+    ),
+    UrlAddFixture(
+        test_id="url-out-of-range-selection-aborts",
+        repo_url="https://github.com/psf/requests.git",
+        override_name=None,
+        workspace_override=None,
+        preexisting_yaml=TWO_ROOT_CONFIG,
+        prompt_response="9",
+        assume_yes=False,
+        expected_name="requests",
+        expected_workspace="~/code/",
+        expected_url="git+https://github.com/psf/requests.git",
+        expected_written=False,
+    ),
+    UrlAddFixture(
+        test_id="url-workspace-override-skips-prompt-list",
+        repo_url="https://github.com/pallets/flask.git",
+        override_name=None,
+        workspace_override="~/projects/",
+        preexisting_yaml=TWO_ROOT_CONFIG,
+        prompt_response=None,
+        assume_yes=True,
+        expected_name="flask",
+        expected_workspace="~/projects/",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_written=True,
+    ),
+    UrlAddFixture(
+        test_id="url-no-declared-roots-falls-back-to-cwd",
+        repo_url="https://github.com/pallets/flask.git",
+        override_name=None,
+        workspace_override=None,
+        preexisting_yaml=None,
+        prompt_response=None,
+        assume_yes=True,
+        expected_name="flask",
+        expected_workspace="./",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_written=True,
+    ),
+    UrlAddFixture(
+        test_id="url-scp-style-preserved-verbatim",
+        repo_url="git@github.com:vcs-python/libvcs.git",
+        override_name=None,
+        workspace_override="~/code/",
+        preexisting_yaml=TWO_ROOT_CONFIG,
+        prompt_response=None,
+        assume_yes=True,
+        expected_name="libvcs",
+        expected_workspace="~/code/",
+        expected_url="git@github.com:vcs-python/libvcs.git",
+        expected_written=True,
+    ),
+    UrlAddFixture(
+        test_id="url-explicit-git-plus-prefix-kept",
+        repo_url="git+https://github.com/pallets/flask.git",
+        override_name=None,
+        workspace_override="~/code/",
+        preexisting_yaml=TWO_ROOT_CONFIG,
+        prompt_response=None,
+        assume_yes=True,
+        expected_name="flask",
+        expected_workspace="~/code/",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_written=True,
+    ),
+    UrlAddFixture(
+        test_id="url-name-override",
+        repo_url="https://github.com/pallets/flask.git",
+        override_name="flask-alias",
+        workspace_override="~/code/",
+        preexisting_yaml=TWO_ROOT_CONFIG,
+        prompt_response=None,
+        assume_yes=True,
+        expected_name="flask-alias",
+        expected_workspace="~/code/",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_written=True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(UrlAddFixture._fields),
+    URL_ADD_FIXTURES,
+    ids=[fixture.test_id for fixture in URL_ADD_FIXTURES],
+)
+def test_handle_add_command_url_mode(
+    test_id: str,
+    repo_url: str,
+    override_name: str | None,
+    workspace_override: str | None,
+    preexisting_yaml: str | None,
+    prompt_response: str | None,
+    assume_yes: bool,
+    expected_name: str,
+    expected_workspace: str,
+    expected_url: str,
+    expected_written: bool,
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """CLI URL mode declares a repository without requiring a checkout."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    if preexisting_yaml is not None:
+        config_file.write_text(preexisting_yaml, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda _: prompt_response if prompt_response is not None else "y",
+    )
+
+    args = argparse.Namespace(
+        repo_path=repo_url,
+        url=None,
+        override_name=override_name,
+        config=str(config_file),
+        workspace_root_path=workspace_override,
+        dry_run=False,
+        assume_yes=assume_yes,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    import yaml
+
+    if not expected_written:
+        assert "Aborted import" in caplog.text
+        config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+        for section in config_data.values():
+            assert expected_name not in section
+        return
+
+    config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+    assert expected_workspace in config_data
+    assert config_data[expected_workspace][expected_name] == {"repo": expected_url}
+
+    # Declaring must not touch the filesystem; sync does the cloning.
+    destination = (
+        pathlib.Path(expected_workspace.replace("~", str(tmp_path), 1)) / expected_name
+    )
+    assert not destination.exists()
+
+
+def test_handle_add_command_url_rejects_redundant_url_flag(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Passing a URL argument and --url together is ambiguous, so it errors."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/pallets/flask.git",
+        url="https://github.com/psf/requests.git",
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    assert "Cannot combine a repository URL argument with --url" in caplog.text
+    assert not config_file.exists()
+
+
+def test_handle_add_command_existing_directory_wins_over_url(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A directory that parses as a URL is still treated as a path.
+
+    ``git@github.com:flask.git`` is both a valid scp-style remote and a legal
+    single-segment directory name, so it pins down the precedence rule.
+    """
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    ambiguous = "git@github.com:flask.git"
+    repo_path = tmp_path / "workspace" / ambiguous
+    init_git_repo(repo_path, "https://github.com/pallets/flask.git")
+
+    config_file = tmp_path / ".vcspull.yaml"
+
+    monkeypatch.setattr("builtins.input", lambda _: "y")
+
+    args = argparse.Namespace(
+        repo_path=str(repo_path),
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    import yaml
+
+    config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+
+    # Path mode: the name comes from the directory and the URL from its remote.
+    assert config_data["~/workspace/"][ambiguous] == {
+        "repo": "git+https://github.com/pallets/flask.git",
+    }
+
+
+def test_handle_add_command_prompt_declines_non_decimal_digit(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """'²' is a digit but not an ``int()``, so it declines instead of raising."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    # str.isdigit() accepts '²' but int() rejects it; str.isdecimal() does not.
+    assert "²".isdigit()
+    assert not "²".isdecimal()
+
+    monkeypatch.setattr("builtins.input", lambda _: "²")
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/pallets/click.git",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=False,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    assert "Aborted import" in caplog.text
+    assert config_file.read_text(encoding="utf-8") == before
+
+
+class ParseRepoUrlFixture(t.NamedTuple):
+    """Fixture describing how a URL splits into a name, URL, and revision."""
+
+    test_id: str
+    repo_url: str
+    expected_name: str | None
+    expected_url: str
+    expected_rev: str | None
+
+
+PARSE_REPO_URL_FIXTURES: list[ParseRepoUrlFixture] = [
+    ParseRepoUrlFixture(
+        test_id="https-dot-git",
+        repo_url="https://github.com/pallets/flask.git",
+        expected_name="flask",
+        expected_url="https://github.com/pallets/flask.git",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="pip-prefixed",
+        repo_url="git+https://github.com/pallets/flask.git",
+        expected_name="flask",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="scp-style",
+        repo_url="git@github.com:vcs-python/libvcs.git",
+        expected_name="libvcs",
+        expected_url="git@github.com:vcs-python/libvcs.git",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="trailing-slash",
+        repo_url="https://github.com/pallets/flask/",
+        expected_name="flask",
+        expected_url="https://github.com/pallets/flask/",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="no-git-suffix",
+        repo_url="https://github.com/pallets/flask",
+        expected_name="flask",
+        expected_url="https://github.com/pallets/flask",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="pip-file-url-keeps-suffix-on-path",
+        repo_url="git+file:///srv/git/flask.git",
+        expected_name="flask",
+        expected_url="git+file:///srv/git/flask.git",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="pip-rev-splits-out",
+        repo_url="git+https://github.com/pallets/flask.git@v1.0",
+        expected_name="flask",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_rev="v1.0",
+    ),
+    ParseRepoUrlFixture(
+        test_id="pip-rev-with-slash",
+        repo_url="git+ssh://git@github.com/pallets/flask.git@release/1.x",
+        expected_name="flask",
+        expected_url="git+ssh://git@github.com/pallets/flask.git",
+        expected_rev="release/1.x",
+    ),
+    ParseRepoUrlFixture(
+        test_id="no-path-segment-yields-no-name",
+        repo_url="https://host/.git",
+        expected_name=None,
+        expected_url="https://host/.git",
+        expected_rev=None,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ParseRepoUrlFixture._fields),
+    PARSE_REPO_URL_FIXTURES,
+    ids=[fixture.test_id for fixture in PARSE_REPO_URL_FIXTURES],
+)
+def test_parse_repo_url(
+    test_id: str,
+    repo_url: str,
+    expected_name: str | None,
+    expected_url: str,
+    expected_rev: str | None,
+) -> None:
+    """URL names and revisions come from libvcs's parse, not string surgery."""
+    parsed = _parse_repo_url(repo_url)
+
+    assert parsed.name == expected_name
+    assert parsed.url == expected_url
+    assert parsed.rev == expected_rev
+
+
+def test_handle_add_command_url_without_derivable_name_errors(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A URL with no path segment names ``--name`` rather than writing a key."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="https://host/.git",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert "--name" in errors[0].getMessage()
+    assert config_file.read_text(encoding="utf-8") == before
+
+
+def test_handle_add_command_url_without_derivable_name_accepts_override(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """``--name`` supplies what the URL cannot, so the entry still lands."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="https://host/.git",
+        url=None,
+        override_name="bare",
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    import yaml
+
+    config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+
+    assert config_data["~/code/"]["bare"] == {"repo": "git+https://host/.git"}
+
+
+def test_handle_add_command_url_rev_becomes_option(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A pip-style ``@rev`` is recorded as ``options.rev``, not in the URL."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="git+https://github.com/pallets/flask.git@v1.0",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    import yaml
+
+    config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+
+    assert config_data["~/code/"]["flask"] == {
+        "repo": "git+https://github.com/pallets/flask.git",
+        "options": {"rev": "v1.0"},
+    }
+
+
+def test_handle_add_command_url_rev_conflicts_with_pin(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A revision in the URL and ``--pin`` name the same field, so it errors."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="git+https://github.com/pallets/flask.git@v1.0",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        pin="v2.0",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert "--pin" in errors[0].getMessage()
+    assert config_file.read_text(encoding="utf-8") == before
+
+
+def test_handle_add_command_preview_matches_chosen_workspace(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Picking a non-default root previews that root, not the default."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+
+    monkeypatch.setattr("builtins.input", lambda _: "2")
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/psf/requests.git",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=False,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", caplog.text)
+
+    workspace_lines = [line for line in plain.splitlines() if "workspace: " in line]
+    path_lines = [line for line in plain.splitlines() if "path: " in line]
+
+    # Announced exactly once, naming the root the entry is written under.
+    assert [line.split("workspace: ")[-1] for line in workspace_lines] == ["~/study/"]
+    assert [line.split("path: ")[-1] for line in path_lines] == ["~/study/requests"]
+
+    import yaml
+
+    config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+
+    assert "requests" in config_data["~/study/"]
+    assert "requests" not in config_data["~/code/"]
+
+
+def test_handle_add_command_rejects_depth_before_preview(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An invalid --depth stops before previewing an entry it will not add."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/pallets/flask.git",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        depth=0,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", caplog.text)
+
+    assert "--depth must be a positive integer (got 0)" in plain
+    assert "Found new repository to import" not in plain
+    assert config_file.read_text(encoding="utf-8") == before
+
+
+def test_handle_add_command_refuses_unparsed_url_revision(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A revision libvcs cannot parse is refused, not recorded in the URL."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/pallets/flask.git@v1.0",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+
+    assert len(errors) == 1
+    assert "--pin v1.0" in errors[0].getMessage()
+    assert config_file.read_text(encoding="utf-8") == before
+
+
+def test_parse_repo_url_does_not_mistake_userinfo_for_a_revision() -> None:
+    """A ``user@host`` prefix is not a revision, even without a pip prefix."""
+    parsed = _parse_repo_url("https://user@host/pallets/flask.git")
+
+    assert parsed.name == "flask"
+    assert parsed.rev is None
+    assert parsed.unparsed_rev is None
+    assert parsed.url == "https://user@host/pallets/flask.git"

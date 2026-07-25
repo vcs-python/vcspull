@@ -12,6 +12,7 @@ import traceback
 import typing as t
 
 from colorama import Fore, Style
+from libvcs.url.git import GitURL
 
 from vcspull._internal.config_reader import (
     DuplicateAwareConfigReader,
@@ -99,19 +100,27 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         nargs="?",
         default=None,
         help=(
-            "Filesystem path to an existing project. The parent directory "
-            "becomes the workspace unless overridden with --workspace."
+            "Filesystem path to an existing project, or a repository URL to "
+            "declare without checking it out. A path's parent directory "
+            "becomes the workspace; a URL uses --workspace, else a workspace "
+            "root already declared in the config."
         ),
     )
     parser.add_argument(
         "--name",
         dest="override_name",
-        help="Override detected repository name when importing from a path",
+        help=(
+            "Override the repository name detected from the path or URL. "
+            "Required when a URL has no path segment to name."
+        ),
     )
     parser.add_argument(
         "--url",
         dest="url",
-        help="Repository URL to record (overrides detected remotes)",
+        help=(
+            "Repository URL to record for a path (overrides detected remotes). "
+            "Omit when the argument is already a URL."
+        ),
     )
     parser.add_argument(
         "--pin",
@@ -250,6 +259,347 @@ def _normalize_detected_url(remote: str | None) -> tuple[str, str]:
     return display_url, config_url
 
 
+class ParsedRepoUrl(t.NamedTuple):
+    """What ``add`` needs from a repository URL, as libvcs parses it.
+
+    Attributes
+    ----------
+    name : str | None
+        Repository name taken from the URL's path, or ``None`` when the URL
+        carries no path segment to name.
+    url : str
+        The URL without any pip-style ``@rev``, suitable to record as ``repo``.
+    rev : str | None
+        Revision from a pip-style ``@rev``, to record as ``options.rev``.
+    unparsed_rev : str | None
+        Revision trailing a URL libvcs does not parse revisions for, which
+        would otherwise stay in the recorded URL and fail to clone.
+    """
+
+    name: str | None
+    url: str
+    rev: str | None
+    unparsed_rev: str | None
+
+
+def _parse_repo_url(url: str) -> ParsedRepoUrl:
+    """Split a repository URL into a name, a rev-free URL, and a revision.
+
+    ``add`` accepts a URL argument on :meth:`GitURL.is_valid`, so it derives
+    the name and revision from that same parse rather than splitting strings
+    itself. Two libvcs details shape this:
+
+    - :meth:`GitURL.to_url` re-appends a revision the input already carried, so
+      the rev-free URL drops the parsed revision from the tail instead.
+    - The pip ``file://`` rule leaves ``.git`` on ``path`` instead of moving it
+      to ``suffix``, so the final segment is trimmed unconditionally.
+
+    Only pip-style URLs (``git+…``) carry a revision; libvcs parses ``@rev`` on
+    a bare ``https://`` URL as part of the path.
+
+    Parameters
+    ----------
+    url : str
+        Repository URL, already accepted by :meth:`GitURL.is_valid`.
+
+    Returns
+    -------
+    ParsedRepoUrl
+        ``name`` is ``None`` when the URL has no path segment to name.
+
+    Examples
+    --------
+    >>> _parse_repo_url("https://github.com/pallets/flask.git").name
+    'flask'
+
+    A pip-style revision moves out of the URL:
+
+    >>> parsed = _parse_repo_url("git+https://github.com/pallets/flask.git@v1.0")
+    >>> parsed.name, parsed.rev
+    ('flask', 'v1.0')
+    >>> parsed.url
+    'git+https://github.com/pallets/flask.git'
+
+    Scp-style remotes, trailing slashes, and a missing ``.git`` all resolve:
+
+    >>> _parse_repo_url("git@github.com:pallets/flask.git").name
+    'flask'
+    >>> _parse_repo_url("https://github.com/pallets/flask/").name
+    'flask'
+    >>> _parse_repo_url("git+file:///srv/git/flask.git").name
+    'flask'
+
+    A URL with no path segment yields no name:
+
+    >>> _parse_repo_url("https://host/.git").name is None
+    True
+
+    A revision on a URL libvcs parses no revision for is reported, not kept:
+
+    >>> _parse_repo_url("https://github.com/pallets/flask.git@v1.0").unparsed_rev
+    'v1.0'
+    >>> _parse_repo_url("https://user@host/pallets/flask.git").unparsed_rev is None
+    True
+    """
+    cleaned = url.strip()
+    parsed = GitURL(url=cleaned)
+
+    rev = parsed.rev or None
+    if rev is not None and cleaned.endswith(f"@{rev}"):
+        cleaned = cleaned[: -(len(rev) + 1)]
+
+    segment = (parsed.path or "").rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
+
+    # Only pip-style URLs expose a revision, so on any other shape an ``@rev``
+    # stays in the URL and git cannot clone it. Anchor the search on the parsed
+    # path rather than scanning for ``@``, which would also match ``user@host``.
+    unparsed_rev = None
+    if rev is None and parsed.path:
+        trailer = cleaned.rsplit(parsed.path, 1)[-1]
+        if "@" in trailer:
+            unparsed_rev = trailer.rsplit("@", 1)[-1] or None
+
+    return ParsedRepoUrl(
+        name=segment or None,
+        url=cleaned,
+        rev=rev,
+        unparsed_rev=unparsed_rev,
+    )
+
+
+class RepoPlacement(t.NamedTuple):
+    """Where a repository lands, for the preview and the write to agree on.
+
+    Attributes
+    ----------
+    workspace_label : str
+        Workspace root label the entry is recorded under.
+    display_path : str
+        Destination path of the working tree, shortened for display.
+    """
+
+    workspace_label: str
+    display_path: str
+
+
+def _resolve_placement(
+    workspace_root_input: str,
+    repo_name: str,
+    repo_path: pathlib.Path,
+    *,
+    url_mode: bool,
+    cwd: pathlib.Path,
+) -> RepoPlacement:
+    """Derive the workspace label and destination path for a workspace root.
+
+    Called once the workspace root is settled — after the prompt, which may
+    swap in a different declared root — so the preview cannot announce a
+    workspace the entry is not written under.
+
+    Parameters
+    ----------
+    workspace_root_input : str
+        Workspace root as the user, the config, or the prompt supplied it.
+    repo_name : str
+        Repository name that becomes the config key.
+    repo_path : pathlib.Path
+        Existing checkout. Unused in URL mode, where nothing is on disk.
+    url_mode : bool
+        ``True`` when declaring from a URL rather than importing a checkout.
+    cwd : pathlib.Path
+        Current working directory, for resolving relative roots.
+
+    Returns
+    -------
+    RepoPlacement
+        Label and destination path to preview and to write under.
+
+    Examples
+    --------
+    In URL mode the destination is the workspace root joined with the name:
+
+    >>> placement = _resolve_placement(
+    ...     "~/code/",
+    ...     "flask",
+    ...     pathlib.Path("/nonexistent"),
+    ...     url_mode=True,
+    ...     cwd=pathlib.Path.cwd(),
+    ... )
+    >>> placement.workspace_label
+    '~/code/'
+    >>> placement.display_path
+    '~/code/flask'
+
+    In path mode the destination is the checkout itself:
+
+    >>> checkout = tmp_path / "workspace" / "flask"
+    >>> placement = _resolve_placement(
+    ...     str(tmp_path / "workspace"),
+    ...     "flask",
+    ...     checkout,
+    ...     url_mode=False,
+    ...     cwd=pathlib.Path.cwd(),
+    ... )
+    >>> placement.display_path == str(checkout)
+    True
+    """
+    workspace_path = expand_dir(pathlib.Path(workspace_root_input), cwd=cwd)
+    return RepoPlacement(
+        workspace_label=workspace_root_label(
+            workspace_path,
+            cwd=cwd,
+            home=pathlib.Path.home(),
+            preserve_cwd_label=workspace_root_input in {".", "./"},
+        ),
+        display_path=str(
+            PrivatePath(workspace_path / repo_name if url_mode else repo_path),
+        ),
+    )
+
+
+class ConfigFileResolution(t.NamedTuple):
+    """Outcome of deciding which config file ``add`` should write to.
+
+    Attributes
+    ----------
+    path : pathlib.Path | None
+        Config file to write to, or ``None`` when the choice was ambiguous.
+    creates_new_default : bool
+        Whether writing creates a config file that did not exist yet.
+    ambiguous : bool
+        Whether several home config files matched, so none can be chosen.
+    """
+
+    path: pathlib.Path | None
+    creates_new_default: bool
+    ambiguous: bool
+
+
+def _resolve_config_file(config_file_path_str: str | None) -> ConfigFileResolution:
+    """Resolve which config file ``add`` should write to.
+
+    Reports discovery outcomes rather than logging them, so callers that only
+    need the path (to read declared workspace roots, say) do not emit the
+    discovery messages a second time.
+
+    Parameters
+    ----------
+    config_file_path_str : str | None
+        Value of ``-f/--file``, or ``None`` to discover a default.
+
+    Returns
+    -------
+    ConfigFileResolution
+        ``path`` is ``None`` only when ``ambiguous`` is ``True``.
+
+    Examples
+    --------
+    An explicit ``-f/--file`` path is taken as given:
+
+    >>> resolution = _resolve_config_file(str(tmp_path / "custom.yaml"))
+    >>> resolution.path.name
+    'custom.yaml'
+    >>> resolution.creates_new_default, resolution.ambiguous
+    (False, False)
+
+    With no explicit path and no config in the home directory, ``add`` falls
+    back to creating one in the current directory:
+
+    >>> resolution = _resolve_config_file(None)
+    >>> resolution.path.name
+    '.vcspull.yaml'
+    >>> resolution.creates_new_default
+    True
+    """
+    if config_file_path_str:
+        return ConfigFileResolution(
+            path=normalize_config_file_path(pathlib.Path(config_file_path_str)),
+            creates_new_default=False,
+            ambiguous=False,
+        )
+
+    home_configs = find_home_config_files(filetype=["yaml"])
+    if not home_configs:
+        return ConfigFileResolution(
+            path=pathlib.Path.cwd() / ".vcspull.yaml",
+            creates_new_default=True,
+            ambiguous=False,
+        )
+    if len(home_configs) > 1:
+        return ConfigFileResolution(
+            path=None,
+            creates_new_default=False,
+            ambiguous=True,
+        )
+    return ConfigFileResolution(
+        path=home_configs[0],
+        creates_new_default=False,
+        ambiguous=False,
+    )
+
+
+def _declared_workspace_labels(config_file_path: pathlib.Path) -> list[str]:
+    r"""Return workspace root labels already declared in a config file.
+
+    Used to offer the workspace roots a user already keeps repositories under
+    when adding by URL, where there is no parent directory to infer from.
+    Duplicate labels collapse to their first occurrence, preserving file order.
+
+    Parameters
+    ----------
+    config_file_path : pathlib.Path
+        Config file to inspect. A missing or unreadable file yields ``[]``.
+
+    Returns
+    -------
+    list[str]
+        Workspace root labels in the order they appear in the file.
+
+    Examples
+    --------
+    A missing file has no declared roots:
+
+    >>> _declared_workspace_labels(tmp_path / "absent.yaml")
+    []
+
+    Labels come back in file order, without duplicates:
+
+    >>> config_file = tmp_path / "declared.yaml"
+    >>> _ = config_file.write_text(
+    ...     "~/code/:\n  a: git+https://example.com/a.git\n"
+    ...     "~/study/:\n  b: git+https://example.com/b.git\n",
+    ...     encoding="utf-8",
+    ... )
+    >>> _declared_workspace_labels(config_file)
+    ['~/code/', '~/study/']
+    """
+    if not (config_file_path.exists() and config_file_path.is_file()):
+        return []
+
+    try:
+        (
+            raw_config,
+            _duplicates,
+            top_level_items,
+        ) = DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
+    except Exception:
+        log.debug(
+            "Could not read workspace roots from %s",
+            PrivatePath(config_file_path),
+            exc_info=True,
+        )
+        return []
+
+    source = top_level_items or list(raw_config.items())
+    labels: list[str] = []
+    seen: set[str] = set()
+    for label, section in source:
+        if isinstance(section, dict) and label not in seen:
+            seen.add(label)
+            labels.append(label)
+    return labels
+
+
 def _build_ordered_items(
     top_level_items: list[tuple[str, t.Any]] | None,
     raw_config: dict[str, t.Any],
@@ -386,56 +736,154 @@ def handle_add_command(args: argparse.Namespace) -> None:
     """Entry point for the ``vcspull add`` CLI command."""
     repo_input = getattr(args, "repo_path", None)
     if repo_input is None:
-        log.error("A repository path must be provided.")
+        log.error("A repository path or URL must be provided.")
         return
 
     cwd = pathlib.Path.cwd()
     repo_path = expand_dir(pathlib.Path(repo_input), cwd=cwd)
+    explicit_url = getattr(args, "url", None)
 
-    if not repo_path.exists():
-        log.error("Repository path %s does not exist.", PrivatePath(repo_path))
-        return
+    # An existing directory always wins, so every path-mode invocation keeps
+    # behaving as before; a URL is only considered when nothing is on disk.
+    url_mode = not repo_path.exists() and GitURL.is_valid(repo_input)
 
-    if not repo_path.is_dir():
-        log.error("Repository path %s is not a directory.", PrivatePath(repo_path))
+    if not url_mode:
+        if not repo_path.exists():
+            log.error("Repository path %s does not exist.", PrivatePath(repo_path))
+            return
+
+        if not repo_path.is_dir():
+            log.error("Repository path %s is not a directory.", PrivatePath(repo_path))
+            return
+
+    resolution = _resolve_config_file(getattr(args, "config", None))
+    if resolution.ambiguous or resolution.path is None:
+        log.error(
+            "Multiple home config files found, please specify one with -f/--file",
+        )
         return
+    # Discovery messages stay in add_repo, which owns the write, so resolving
+    # here to read declared workspace roots does not duplicate them.
+    config_file_path = resolution.path
 
     override_name = getattr(args, "override_name", None)
-    repo_name = override_name or repo_path.name
+    pin_rev = getattr(args, "pin", None)
+    url_rev: str | None = None
 
-    explicit_url = getattr(args, "url", None)
-    if explicit_url:
-        display_url, config_url = _normalize_detected_url(explicit_url)
+    if url_mode:
+        if explicit_url:
+            log.error(
+                "Cannot combine a repository URL argument with --url; "
+                "pass the URL once.",
+            )
+            return
+        parsed_url = _parse_repo_url(repo_input)
+        if parsed_url.rev is not None and pin_rev:
+            log.error(
+                "Cannot combine the revision '@%s' in the URL with "
+                "--pin %s; pass the revision once.",
+                parsed_url.rev,
+                pin_rev,
+            )
+            return
+        if parsed_url.unparsed_rev is not None:
+            log.error(
+                "Cannot record the revision '@%s' from %s: only pip-style "
+                "'git+' URLs carry a revision. Pass the URL without it and "
+                "--pin %s instead.",
+                parsed_url.unparsed_rev,
+                repo_input,
+                parsed_url.unparsed_rev,
+            )
+            return
+        derived_name = override_name or parsed_url.name
+        if derived_name is None:
+            log.error(
+                "Could not derive a repository name from %s; pass --name to set one.",
+                repo_input,
+            )
+            return
+        url_rev = parsed_url.rev
+        repo_name = derived_name
+        display_url, config_url = _normalize_detected_url(parsed_url.url)
     else:
-        detected_remote = _detect_git_remote(repo_path)
-        display_url, config_url = _normalize_detected_url(detected_remote)
+        repo_name = override_name or repo_path.name
+        if explicit_url:
+            display_url, config_url = _normalize_detected_url(explicit_url)
+        else:
+            detected_remote = _detect_git_remote(repo_path)
+            display_url, config_url = _normalize_detected_url(detected_remote)
 
-    if not config_url:
-        display_url = str(PrivatePath(repo_path))
-        config_url = str(repo_path)
-        log.warning(
-            "Unable to determine git remote for %s; using local path in config.",
-            repo_path,
-        )
+        if not config_url:
+            display_url = str(PrivatePath(repo_path))
+            config_url = str(repo_path)
+            log.warning(
+                "Unable to determine git remote for %s; using local path in config.",
+                repo_path,
+            )
 
     workspace_root_arg = getattr(args, "workspace_root_path", None)
-    workspace_root_input = (
-        workspace_root_arg
-        if workspace_root_arg is not None
-        else repo_path.parent.as_posix()
-    )
+    workspace_candidates: list[str] = []
 
-    workspace_path = expand_dir(pathlib.Path(workspace_root_input), cwd=cwd)
-    workspace_label = workspace_root_label(
-        workspace_path,
-        cwd=cwd,
-        home=pathlib.Path.home(),
-        preserve_cwd_label=workspace_root_arg in {".", "./"},
-    )
+    if workspace_root_arg is not None:
+        workspace_root_input = workspace_root_arg
+    elif url_mode:
+        # No parent directory to infer from, so offer the roots this config
+        # already declares before falling back to the current directory.
+        workspace_candidates = _declared_workspace_labels(config_file_path)
+        if workspace_candidates:
+            workspace_root_input = workspace_candidates[0]
+        else:
+            workspace_root_input = workspace_root_label(
+                cwd,
+                cwd=cwd,
+                home=pathlib.Path.home(),
+                preserve_cwd_label=config_file_path.parent == cwd,
+            )
+    else:
+        workspace_root_input = repo_path.parent.as_posix()
 
     summary_url = display_url or config_url
 
-    display_path = str(PrivatePath(repo_path))
+    # Offering the choice inline keeps URL mode to a single prompt: confirming
+    # accepts the default root, a number picks a different declared one.
+    offer_choice = len(workspace_candidates) > 1
+    answers = "[y/N]" if not offer_choice else f"[y/N/1-{len(workspace_candidates)}]"
+    interactive = not args.dry_run and not getattr(args, "assume_yes", False)
+    # Only an answered choice can move the workspace, so anything else is
+    # already settled and previews in place.
+    workspace_settled = not (offer_choice and interactive)
+
+    def announce_placement() -> None:
+        """Log where the entry lands, reading the settled workspace root."""
+        placement = _resolve_placement(
+            workspace_root_input,
+            repo_name,
+            repo_path,
+            url_mode=url_mode,
+            cwd=cwd,
+        )
+        log.info(
+            "  %s•%s workspace: %s%s%s",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.MAGENTA,
+            placement.workspace_label,
+            Style.RESET_ALL,
+        )
+        log.info(
+            "  %s↳%s path: %s%s%s",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.BLUE,
+            placement.display_path,
+            Style.RESET_ALL,
+        )
+
+    explicit_depth = getattr(args, "depth", None)
+    if explicit_depth is not None and explicit_depth < 1:
+        log.error("--depth must be a positive integer (got %s)", explicit_depth)
+        return
 
     log.info("%sFound new repository to import:%s", Fore.GREEN, Style.RESET_ALL)
     log.info(
@@ -449,37 +897,18 @@ def handle_add_command(args: argparse.Namespace) -> None:
         summary_url,
         Style.RESET_ALL,
     )
-    log.info(
-        "  %s•%s workspace: %s%s%s",
-        Fore.BLUE,
-        Style.RESET_ALL,
-        Fore.MAGENTA,
-        workspace_label,
-        Style.RESET_ALL,
-    )
-    log.info(
-        "  %s↳%s path: %s%s%s",
-        Fore.BLUE,
-        Style.RESET_ALL,
-        Fore.BLUE,
-        display_path,
-        Style.RESET_ALL,
-    )
-    pin_rev = getattr(args, "pin", None)
-    if pin_rev:
+    if workspace_settled:
+        announce_placement()
+    effective_rev = pin_rev or url_rev
+    if effective_rev:
         log.info(
             "  %s•%s rev: %s%s%s",
             Fore.BLUE,
             Style.RESET_ALL,
             Fore.YELLOW,
-            pin_rev,
+            effective_rev,
             Style.RESET_ALL,
         )
-
-    explicit_depth = getattr(args, "depth", None)
-    if explicit_depth is not None and explicit_depth < 1:
-        log.error("--depth must be a positive integer (got %s)", explicit_depth)
-        return
 
     shallow, depth = resolve_clone_depth(
         repo_path,
@@ -504,22 +933,44 @@ def handle_add_command(args: argparse.Namespace) -> None:
             Style.RESET_ALL,
         )
 
-    prompt_text = f"{Fore.CYAN}?{Style.RESET_ALL} Import this repository? [y/N]: "
+    if offer_choice:
+        log.info(
+            "  %s•%s workspace roots in %s%s%s:",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.BLUE,
+            PrivatePath(config_file_path),
+            Style.RESET_ALL,
+        )
+        for index, candidate in enumerate(workspace_candidates, start=1):
+            log.info(
+                "      %s%d)%s %s%s%s%s",
+                Fore.YELLOW,
+                index,
+                Style.RESET_ALL,
+                Fore.MAGENTA,
+                candidate,
+                Style.RESET_ALL,
+                " (default)" if index == 1 else "",
+            )
 
-    proceed = True
+    prompt_text = f"{Fore.CYAN}?{Style.RESET_ALL} Import this repository? {answers}: "
+
     if args.dry_run:
         log.info(
-            "%s?%s Import this repository? [y/N]: %sskipped (dry-run)%s",
+            "%s?%s Import this repository? %s: %sskipped (dry-run)%s",
             Fore.CYAN,
             Style.RESET_ALL,
+            answers,
             Fore.YELLOW,
             Style.RESET_ALL,
         )
     elif getattr(args, "assume_yes", False):
         log.info(
-            "%s?%s Import this repository? [y/N]: %sy (auto-confirm)%s",
+            "%s?%s Import this repository? %s: %sy (auto-confirm)%s",
             Fore.CYAN,
             Style.RESET_ALL,
+            answers,
             Fore.GREEN,
             Style.RESET_ALL,
         )
@@ -528,24 +979,41 @@ def handle_add_command(args: argparse.Namespace) -> None:
             response = input(prompt_text)
         except EOFError:
             response = ""
-        proceed = response.strip().lower() in {"y", "yes"}
-        if not proceed:
+        answer = response.strip().lower()
+
+        chosen: str | None = None
+        if answer in {"y", "yes"}:
+            chosen = workspace_root_input
+        elif offer_choice and answer.isdecimal():
+            # ``isdecimal()`` and not ``isdigit()``: the latter accepts
+            # characters such as '²' that ``int()`` then rejects.
+            index = int(answer)
+            if 1 <= index <= len(workspace_candidates):
+                chosen = workspace_candidates[index - 1]
+
+        if chosen is None:
             log.info(
                 "Aborted import of '%s' from %s",
                 repo_name,
-                PrivatePath(repo_path),
+                repo_input if url_mode else PrivatePath(repo_path),
             )
             return
+        workspace_root_input = chosen
+
+    if not workspace_settled:
+        # The answer above may have swapped in a different declared root, so
+        # the placement is only announced once it can no longer change.
+        announce_placement()
 
     add_repo(
         name=repo_name,
         url=config_url,
         config_file_path_str=args.config,
-        path=str(repo_path),
+        path=None if url_mode else str(repo_path),
         workspace_root_path=workspace_root_input,
         dry_run=args.dry_run,
         merge_duplicates=args.merge_duplicates,
-        rev=getattr(args, "pin", None),
+        rev=effective_rev,
         shallow=shallow,
         depth=depth,
     )
@@ -588,26 +1056,18 @@ def add_repo(
         If set, record ``options.depth: N`` for the repository.
     """
     # Determine config file
-    config_file_path: pathlib.Path
-    if config_file_path_str:
-        config_file_path = normalize_config_file_path(
-            pathlib.Path(config_file_path_str)
+    resolution = _resolve_config_file(config_file_path_str)
+    if resolution.ambiguous or resolution.path is None:
+        log.error(
+            "Multiple home config files found, please specify one with -f/--file",
         )
-    else:
-        home_configs = find_home_config_files(filetype=["yaml"])
-        if not home_configs:
-            config_file_path = pathlib.Path.cwd() / ".vcspull.yaml"
-            log.info(
-                "No config specified and no default found, will create at %s",
-                PrivatePath(config_file_path),
-            )
-        elif len(home_configs) > 1:
-            log.error(
-                "Multiple home config files found, please specify one with -f/--file",
-            )
-            return
-        else:
-            config_file_path = home_configs[0]
+        return
+    config_file_path = resolution.path
+    if resolution.creates_new_default:
+        log.info(
+            "No config specified and no default found, will create at %s",
+            PrivatePath(config_file_path),
+        )
 
     # Load existing config
     raw_config: dict[str, t.Any]

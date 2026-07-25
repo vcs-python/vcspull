@@ -2,11 +2,12 @@
 
 # vcspull add
 
-The `vcspull add` command registers a repository in your
-{ref}`configuration <configuration>` by pointing vcspull at a checkout on
-disk. The command inspects the directory,
-merges duplicate workspace roots by default, and prompts before writing unless
-you pass `--yes`.
+The `vcspull add` command registers a single repository in your
+{ref}`configuration <configuration>`. Point it at a checkout on disk and it
+reads the details out of the directory; give it a repository URL and it records
+the entry without cloning anything, leaving the working tree to
+{ref}`vcspull sync <cli-sync>`. Either way it merges duplicate workspace roots
+by default and prompts before writing unless you pass `--yes`.
 
 ```{note}
 This command replaces the old `vcspull import <name> <url>` from v1.36--v1.39.
@@ -43,6 +44,56 @@ The parent directory (`~/study/python/` in this example) becomes the workspace
 root. vcspull shortens paths under `$HOME` to `~/...` in its log output so the
 preview stays readable.
 
+## Declaring a repository you have not cloned
+
+Pass a repository URL instead of a path when you want the entry in your
+configuration but do not have the code yet:
+
+```vcspull-console
+$ vcspull add https://github.com/pallets/flask.git
+Found new repository to import:
+  + flask (https://github.com/pallets/flask.git)
+  • workspace roots in ~/.vcspull.yaml:
+      1) ~/code/ (default)
+      2) ~/study/python/
+? Import this repository? [y/N/1-2]: y
+  • workspace: ~/code/
+  ↳ path: ~/code/flask
+✓ Successfully added 'flask' (git+https://github.com/pallets/flask.git) to ~/.vcspull.yaml under '~/code/'.
+```
+
+The repository name comes from the URL — `flask` here — unless you pass
+`--name`. A URL with no path to name, such as `https://host/.git`, stops with an
+error asking for `--name`. Nothing is fetched: the entry lands in your
+configuration and {ref}`vcspull sync <cli-sync>` clones it the next time you run
+it.
+
+Because there is no parent directory to infer a workspace from, vcspull offers
+the workspace roots your configuration already declares. Answering `y` accepts
+the default, answering with a number picks a different root, and `--workspace`
+names one outright and skips the list. When the configuration declares no roots
+yet, the current directory becomes the workspace. The workspace and path are
+reported once your answer settles them, so what you see named is the section the
+entry is written under.
+
+### Pinning a revision from the URL
+
+A [pip-style][pip vcs url] revision on a `git+` URL is recorded as
+`options.rev` rather than kept in the URL:
+
+```console
+$ vcspull add git+https://github.com/pallets/flask.git@v1.0
+```
+
+That stores `flask` with `rev: v1.0`. Because `--pin` records the same field,
+passing both is an error. Only `git+` URLs carry a revision this way — on a
+plain `https://` or scp-style URL the revision cannot be told apart from the
+path, so vcspull asks you to pass `--pin` instead of recording a URL that will
+not clone.
+
+A directory on disk always wins. If the argument names something that exists,
+vcspull treats it as a path even when the same text would also parse as a URL.
+
 ## Overriding detected information
 
 ### Choose a different name
@@ -54,6 +105,13 @@ isn't the label you want stored in the configuration:
 $ vcspull add ~/study/python/pytest-docker --name docker-pytest
 ```
 
+`--name` is required, rather than optional, when a URL carries no path segment
+to name — vcspull stops instead of writing an entry you could not address:
+
+```console
+$ vcspull add https://git.example.com/.git --name internal-tools
+```
+
 ### Override the remote URL
 
 vcspull reads the [Git](https://git-scm.com/) `origin` remote automatically. Supply `--url` when you
@@ -63,18 +121,59 @@ need to register a different remote or when the checkout does not have one yet:
 $ vcspull add ~/study/python/example --url https://github.com/org/example
 ```
 
+`--url` accompanies a path. When the argument is already a URL, pass it once and
+leave `--url` off — supplying both is ambiguous, so vcspull stops rather than
+guessing which one you meant.
+
 URLs follow [pip's VCS format][pip vcs url]; vcspull inserts the `git+` prefix
 for HTTPS URLs so the resulting configuration matches
 {ref}`vcspull fmt <cli-fmt>` output.
 
 ### Select a workspace explicitly
 
-The workspace defaults to the checkout's parent directory. Pass
+The workspace defaults to the checkout's parent directory, or — when you add by
+URL — to the first workspace root your configuration declares. Pass
 `--workspace`/`--workspace-root` to store the repository under a different
 section:
 
 ```console
 $ vcspull add ~/scratch/tmp-project --workspace ~/projects/python/
+```
+
+Naming a workspace also skips the list of declared roots you would otherwise be
+offered when adding by URL:
+
+```console
+$ vcspull add https://github.com/pallets/flask.git --workspace ~/code/
+```
+
+### Record a revision or clone depth
+
+By default an entry tracks its remote's default branch and clones with full
+history. Three flags change that, and each one costs you something in exchange.
+
+Pin the entry to a fixed commit, tag, or branch with `--pin`, which records
+{ref}`options.rev <config-pin>`. The repository stops following its branch until
+you change the pin:
+
+```console
+$ vcspull add ~/study/python/flask --pin v3.0.0
+```
+
+`--shallow` records `options.shallow: true`, so {ref}`vcspull sync <cli-sync>`
+clones with `--depth 1`. That trades git history for disk and time — useful
+across many repositories, awkward if you later need `git log` or `git bisect`.
+An already-shallow checkout is detected without the flag; this forces it on:
+
+```console
+$ vcspull add ~/study/python/django --shallow
+```
+
+When depth 1 is too little, `--depth N` keeps a window of history instead.
+It overrides `--shallow` when both are given:
+
+```console
+$ vcspull add ~/study/python/django --depth 50
 ```
 
 ## Confirmation and dry runs
@@ -89,6 +188,15 @@ $ vcspull add ~/study/python/pytest-docker --dry-run
 
 Dry runs still show duplicate merge diagnostics so you can see what would
 change.
+
+`--yes` answers both prompts for you — the confirmation and, when adding by URL,
+the workspace-root list — which is what you want from a script:
+
+```console
+$ vcspull add https://github.com/pallets/flask.git \
+    --workspace ~/code/ \
+    --yes
+```
 
 ## Choosing configuration files
 
@@ -110,7 +218,14 @@ $ vcspull add ~/study/python/pytest-docker \
 vcspull merges duplicate workspace sections before writing so existing
 repositories stay intact. When it collapses multiple sections, the command logs
 a summary of the merge. Prefer to inspect duplicates yourself? Add
-`--no-merge` to keep every section untouched.
+`--no-merge` to keep every section untouched:
+
+```console
+$ vcspull add ~/study/python/pytest-docker --no-merge
+```
+
+The entry is still written; only the merging of repeated workspace roots is
+skipped, and each duplicate is reported as a warning instead.
 
 ## Pinned entries
 
@@ -126,13 +241,21 @@ Repositories whose configuration includes a {ref}`pin <config-pin>` on the
       pin_reason: "pinned to company fork — update manually"
 ```
 
-Attempting to add a repo that matches an existing pinned entry produces a
-warning and leaves the entry untouched:
+Attempting to add a repo that matches an existing pinned entry previews it as
+usual, then warns and leaves the entry untouched:
 
 ```vcspull-console
 $ vcspull add ~/code/internal-fork
-⚠ Repository 'internal-fork' is pinned (pinned to company fork — update manually) — skipping
+Found new repository to import:
+  + internal-fork (git@github.com:myorg/internal-fork.git)
+  • workspace: ~/code/
+  ↳ path: ~/code/internal-fork
+? Import this repository? [y/N]: y
+Repository 'internal-fork' is pinned (pinned to company fork — update manually) — skipping
 ```
+
+The pin is checked when the entry is written, not when the preview is built, so
+confirming still reaches the warning rather than skipping the prompt.
 
 Both `options.pin: true` (global) and `options.pin.add: true` (per-operation)
 block the `add` command. The `pin_reason` (if set) is included in the warning.
@@ -152,15 +275,22 @@ by `vcspull add`:
 
 ```diff
 - $ vcspull import flask https://github.com/pallets/flask.git -c ~/.vcspull.yaml
-+ $ vcspull add ~/code/flask --url https://github.com/pallets/flask.git --file ~/.vcspull.yaml
++ $ vcspull add https://github.com/pallets/flask.git --file ~/.vcspull.yaml
 ```
 
 Key differences:
 
-- `vcspull add` derives the name from the filesystem unless you pass `--name`.
-- The parent directory becomes the workspace automatically; use `--workspace`
-  to override.
-- Use `--url` to record a remote when the checkout does not have one.
+- `vcspull add` derives the name from the URL, or from the directory when you
+  add a checkout, unless you pass `--name`.
+- The workspace comes from the checkout's parent directory, or from the
+  workspace roots your configuration declares when you add by URL; use
+  `--workspace` to override either.
+- Use `--url` to record a remote when a checkout does not have one.
+
+If you tried this migration between v1.43.0 and v1.65.0, it did not work: `add`
+required the repository to be checked out already, so a URL — or a path you had
+not cloned — stopped with `Repository path ... does not exist`. Passing the URL
+straight to `add`, as above, now does what the old command did.
 
 ```{note}
 Starting with v1.55, `vcspull import` is a *different* command that bulk-imports

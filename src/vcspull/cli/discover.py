@@ -42,7 +42,21 @@ class DiscoverAction(enum.Enum):
 
 
 class _FoundRepo(t.NamedTuple):
-    """A git checkout found while scanning, with its resolved clone depth."""
+    """A git checkout found while scanning, with its resolved clone depth.
+
+    Attributes
+    ----------
+    name : str
+        Repository name, which becomes the config key.
+    url : str
+        Remote URL to record for the repository.
+    workspace_path : pathlib.Path
+        Workspace root the entry is recorded under.
+    shallow : bool
+        Whether to record ``options.shallow: true``.
+    depth : int | None
+        Clone depth to record as ``options.depth``, or ``None`` for none.
+    """
 
     name: str
     url: str
