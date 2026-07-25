@@ -2358,3 +2358,48 @@ def test_handle_add_command_rejects_depth_before_preview(
     assert "--depth must be a positive integer (got 0)" in plain
     assert "Found new repository to import" not in plain
     assert config_file.read_text(encoding="utf-8") == before
+
+
+def test_handle_add_command_refuses_unparsed_url_revision(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A revision libvcs cannot parse is refused, not recorded in the URL."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/pallets/flask.git@v1.0",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+
+    assert len(errors) == 1
+    assert "--pin v1.0" in errors[0].getMessage()
+    assert config_file.read_text(encoding="utf-8") == before
+
+
+def test_parse_repo_url_does_not_mistake_userinfo_for_a_revision() -> None:
+    """A ``user@host`` prefix is not a revision, even without a pip prefix."""
+    parsed = _parse_repo_url("https://user@host/pallets/flask.git")
+
+    assert parsed.name == "flask"
+    assert parsed.rev is None
+    assert parsed.unparsed_rev is None
+    assert parsed.url == "https://user@host/pallets/flask.git"

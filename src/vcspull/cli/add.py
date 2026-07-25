@@ -271,11 +271,15 @@ class ParsedRepoUrl(t.NamedTuple):
         The URL without any pip-style ``@rev``, suitable to record as ``repo``.
     rev : str | None
         Revision from a pip-style ``@rev``, to record as ``options.rev``.
+    unparsed_rev : str | None
+        Revision trailing a URL libvcs does not parse revisions for, which
+        would otherwise stay in the recorded URL and fail to clone.
     """
 
     name: str | None
     url: str
     rev: str | None
+    unparsed_rev: str | None
 
 
 def _parse_repo_url(url: str) -> ParsedRepoUrl:
@@ -329,6 +333,13 @@ def _parse_repo_url(url: str) -> ParsedRepoUrl:
 
     >>> _parse_repo_url("https://host/.git").name is None
     True
+
+    A revision on a URL libvcs parses no revision for is reported, not kept:
+
+    >>> _parse_repo_url("https://github.com/pallets/flask.git@v1.0").unparsed_rev
+    'v1.0'
+    >>> _parse_repo_url("https://user@host/pallets/flask.git").unparsed_rev is None
+    True
     """
     cleaned = url.strip()
     parsed = GitURL(url=cleaned)
@@ -339,7 +350,21 @@ def _parse_repo_url(url: str) -> ParsedRepoUrl:
 
     segment = (parsed.path or "").rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
 
-    return ParsedRepoUrl(name=segment or None, url=cleaned, rev=rev)
+    # Only pip-style URLs expose a revision, so on any other shape an ``@rev``
+    # stays in the URL and git cannot clone it. Anchor the search on the parsed
+    # path rather than scanning for ``@``, which would also match ``user@host``.
+    unparsed_rev = None
+    if rev is None and parsed.path:
+        trailer = cleaned.rsplit(parsed.path, 1)[-1]
+        if "@" in trailer:
+            unparsed_rev = trailer.rsplit("@", 1)[-1] or None
+
+    return ParsedRepoUrl(
+        name=segment or None,
+        url=cleaned,
+        rev=rev,
+        unparsed_rev=unparsed_rev,
+    )
 
 
 class RepoPlacement(t.NamedTuple):
@@ -749,6 +774,16 @@ def handle_add_command(args: argparse.Namespace) -> None:
                 "--pin %s; pass the revision once.",
                 parsed_url.rev,
                 pin_rev,
+            )
+            return
+        if parsed_url.unparsed_rev is not None:
+            log.error(
+                "Cannot record the revision '@%s' from %s: only pip-style "
+                "'git+' URLs carry a revision. Pass the URL without it and "
+                "--pin %s instead.",
+                parsed_url.unparsed_rev,
+                repo_input,
+                parsed_url.unparsed_rev,
             )
             return
         derived_name = override_name or parsed_url.name
