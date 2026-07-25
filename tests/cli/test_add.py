@@ -20,6 +20,7 @@ from vcspull.cli.add import (
     AddAction,
     _classify_add_action,
     _collapse_ordered_items_to_dict,
+    _parse_repo_url,
     add_repo,
     create_add_subparser,
     handle_add_command,
@@ -2044,3 +2045,165 @@ def test_handle_add_command_prompt_declines_non_decimal_digit(
 
     assert "Aborted import" in caplog.text
     assert config_file.read_text(encoding="utf-8") == before
+
+
+class ParseRepoUrlFixture(t.NamedTuple):
+    """Fixture describing how a URL splits into a name, URL, and revision."""
+
+    test_id: str
+    repo_url: str
+    expected_name: str | None
+    expected_url: str
+    expected_rev: str | None
+
+
+PARSE_REPO_URL_FIXTURES: list[ParseRepoUrlFixture] = [
+    ParseRepoUrlFixture(
+        test_id="https-dot-git",
+        repo_url="https://github.com/pallets/flask.git",
+        expected_name="flask",
+        expected_url="https://github.com/pallets/flask.git",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="pip-prefixed",
+        repo_url="git+https://github.com/pallets/flask.git",
+        expected_name="flask",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="scp-style",
+        repo_url="git@github.com:vcs-python/libvcs.git",
+        expected_name="libvcs",
+        expected_url="git@github.com:vcs-python/libvcs.git",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="trailing-slash",
+        repo_url="https://github.com/pallets/flask/",
+        expected_name="flask",
+        expected_url="https://github.com/pallets/flask/",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="no-git-suffix",
+        repo_url="https://github.com/pallets/flask",
+        expected_name="flask",
+        expected_url="https://github.com/pallets/flask",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="pip-file-url-keeps-suffix-on-path",
+        repo_url="git+file:///srv/git/flask.git",
+        expected_name="flask",
+        expected_url="git+file:///srv/git/flask.git",
+        expected_rev=None,
+    ),
+    ParseRepoUrlFixture(
+        test_id="pip-rev-splits-out",
+        repo_url="git+https://github.com/pallets/flask.git@v1.0",
+        expected_name="flask",
+        expected_url="git+https://github.com/pallets/flask.git",
+        expected_rev="v1.0",
+    ),
+    ParseRepoUrlFixture(
+        test_id="pip-rev-with-slash",
+        repo_url="git+ssh://git@github.com/pallets/flask.git@release/1.x",
+        expected_name="flask",
+        expected_url="git+ssh://git@github.com/pallets/flask.git",
+        expected_rev="release/1.x",
+    ),
+    ParseRepoUrlFixture(
+        test_id="no-path-segment-yields-no-name",
+        repo_url="https://host/.git",
+        expected_name=None,
+        expected_url="https://host/.git",
+        expected_rev=None,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    list(ParseRepoUrlFixture._fields),
+    PARSE_REPO_URL_FIXTURES,
+    ids=[fixture.test_id for fixture in PARSE_REPO_URL_FIXTURES],
+)
+def test_parse_repo_url(
+    test_id: str,
+    repo_url: str,
+    expected_name: str | None,
+    expected_url: str,
+    expected_rev: str | None,
+) -> None:
+    """URL names and revisions come from libvcs's parse, not string surgery."""
+    parsed = _parse_repo_url(repo_url)
+
+    assert parsed.name == expected_name
+    assert parsed.url == expected_url
+    assert parsed.rev == expected_rev
+
+
+def test_handle_add_command_url_without_derivable_name_errors(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A URL with no path segment names ``--name`` rather than writing a key."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="https://host/.git",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert "--name" in errors[0].getMessage()
+    assert config_file.read_text(encoding="utf-8") == before
+
+
+def test_handle_add_command_url_without_derivable_name_accepts_override(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """``--name`` supplies what the URL cannot, so the entry still lands."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="https://host/.git",
+        url=None,
+        override_name="bare",
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    import yaml
+
+    config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+
+    assert config_data["~/code/"]["bare"] == {"repo": "git+https://host/.git"}

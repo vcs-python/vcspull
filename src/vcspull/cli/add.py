@@ -109,7 +109,10 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--name",
         dest="override_name",
-        help="Override detected repository name when importing from a path",
+        help=(
+            "Override the repository name detected from the path or URL. "
+            "Required when a URL has no path segment to name."
+        ),
     )
     parser.add_argument(
         "--url",
@@ -256,52 +259,87 @@ def _normalize_detected_url(remote: str | None) -> tuple[str, str]:
     return display_url, config_url
 
 
-def _repo_name_from_url(url: str) -> str:
-    """Derive a repository name from a VCS URL.
+class ParsedRepoUrl(t.NamedTuple):
+    """What ``add`` needs from a repository URL, as libvcs parses it.
 
-    Strips a ``git+`` prefix, trailing slashes, and a ``.git`` suffix, then
-    takes the final path segment. Handles scp-style remotes, which have no
-    ``/`` separating host from path.
+    Attributes
+    ----------
+    name : str | None
+        Repository name taken from the URL's path, or ``None`` when the URL
+        carries no path segment to name.
+    url : str
+        The URL without any pip-style ``@rev``, suitable to record as ``repo``.
+    rev : str | None
+        Revision from a pip-style ``@rev``, to record as ``options.rev``.
+    """
+
+    name: str | None
+    url: str
+    rev: str | None
+
+
+def _parse_repo_url(url: str) -> ParsedRepoUrl:
+    """Split a repository URL into a name, a rev-free URL, and a revision.
+
+    ``add`` accepts a URL argument on :meth:`GitURL.is_valid`, so it derives
+    the name and revision from that same parse rather than splitting strings
+    itself. Two libvcs details shape this:
+
+    - :meth:`GitURL.to_url` re-appends a revision the input already carried, so
+      the rev-free URL drops the parsed revision from the tail instead.
+    - The pip ``file://`` rule leaves ``.git`` on ``path`` instead of moving it
+      to ``suffix``, so the final segment is trimmed unconditionally.
+
+    Only pip-style URLs (``git+…``) carry a revision; libvcs parses ``@rev`` on
+    a bare ``https://`` URL as part of the path.
 
     Parameters
     ----------
     url : str
-        Repository URL to derive a name from.
+        Repository URL, already accepted by :meth:`GitURL.is_valid`.
 
     Returns
     -------
-    str
-        Repository name suitable as a config key.
+    ParsedRepoUrl
+        ``name`` is ``None`` when the URL has no path segment to name.
 
     Examples
     --------
-    >>> _repo_name_from_url("https://github.com/pallets/flask.git")
+    >>> _parse_repo_url("https://github.com/pallets/flask.git").name
     'flask'
 
-    >>> _repo_name_from_url("git+https://github.com/pallets/flask.git")
+    A pip-style revision moves out of the URL:
+
+    >>> parsed = _parse_repo_url("git+https://github.com/pallets/flask.git@v1.0")
+    >>> parsed.name, parsed.rev
+    ('flask', 'v1.0')
+    >>> parsed.url
+    'git+https://github.com/pallets/flask.git'
+
+    Scp-style remotes, trailing slashes, and a missing ``.git`` all resolve:
+
+    >>> _parse_repo_url("git@github.com:pallets/flask.git").name
+    'flask'
+    >>> _parse_repo_url("https://github.com/pallets/flask/").name
+    'flask'
+    >>> _parse_repo_url("git+file:///srv/git/flask.git").name
     'flask'
 
-    Scp-style remotes:
+    A URL with no path segment yields no name:
 
-    >>> _repo_name_from_url("git@github.com:pallets/flask.git")
-    'flask'
-
-    A trailing slash and a missing ``.git`` suffix are both tolerated:
-
-    >>> _repo_name_from_url("https://github.com/pallets/flask/")
-    'flask'
+    >>> _parse_repo_url("https://host/.git").name is None
+    True
     """
     cleaned = url.strip()
-    if cleaned.startswith("git+"):
-        cleaned = cleaned[len("git+") :]
-    cleaned = cleaned.rstrip("/")
+    parsed = GitURL(url=cleaned)
 
-    tail = cleaned.rsplit("/", 1)[-1]
-    if "/" not in tail and ":" in tail:
-        tail = tail.rsplit(":", 1)[-1]
-    if tail.endswith(".git"):
-        tail = tail[: -len(".git")]
-    return tail
+    rev = parsed.rev or None
+    if rev is not None and cleaned.endswith(f"@{rev}"):
+        cleaned = cleaned[: -(len(rev) + 1)]
+
+    segment = (parsed.path or "").rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
+
+    return ParsedRepoUrl(name=segment or None, url=cleaned, rev=rev)
 
 
 class ConfigFileResolution(t.NamedTuple):
@@ -612,7 +650,15 @@ def handle_add_command(args: argparse.Namespace) -> None:
                 "pass the URL once.",
             )
             return
-        repo_name = override_name or _repo_name_from_url(repo_input)
+        parsed_url = _parse_repo_url(repo_input)
+        derived_name = override_name or parsed_url.name
+        if derived_name is None:
+            log.error(
+                "Could not derive a repository name from %s; pass --name to set one.",
+                repo_input,
+            )
+            return
+        repo_name = derived_name
         display_url, config_url = _normalize_detected_url(repo_input)
     else:
         repo_name = override_name or repo_path.name
