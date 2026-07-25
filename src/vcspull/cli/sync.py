@@ -86,7 +86,18 @@ ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 @dataclass
 class SyncPlanConfig:
-    """Configuration options for building sync plans."""
+    """Configuration options for building sync plans.
+
+    Attributes
+    ----------
+    fetch : bool
+        Run ``git fetch --prune`` before reading status (``--fetch``), so
+        ahead/behind counts reflect current remote refs. Ignored when
+        ``offline`` is set.
+    offline : bool
+        Plan without touching the network (``--offline``). Repositories whose
+        remote state cannot be compared are planned as updates.
+    """
 
     fetch: bool
     offline: bool
