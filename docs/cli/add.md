@@ -279,6 +279,11 @@ Key differences:
   `--workspace` to override either.
 - Use `--url` to record a remote when a checkout does not have one.
 
+If you tried this migration between v1.43.0 and v1.65.0, it did not work: `add`
+required the repository to be checked out already, so a URL — or a path you had
+not cloned — stopped with `Repository path ... does not exist`. Passing the URL
+straight to `add`, as above, now does what the old command did.
+
 ```{note}
 Starting with v1.55, `vcspull import` is a *different* command that bulk-imports
 repositories from remote services (GitHub, GitLab, etc.). See {ref}`cli-import`
