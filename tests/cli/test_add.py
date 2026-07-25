@@ -2322,3 +2322,39 @@ def test_handle_add_command_preview_matches_chosen_workspace(
 
     assert "requests" in config_data["~/study/"]
     assert "requests" not in config_data["~/code/"]
+
+
+def test_handle_add_command_rejects_depth_before_preview(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An invalid --depth stops before previewing an entry it will not add."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/pallets/flask.git",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        depth=0,
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", caplog.text)
+
+    assert "--depth must be a positive integer (got 0)" in plain
+    assert "Found new repository to import" not in plain
+    assert config_file.read_text(encoding="utf-8") == before

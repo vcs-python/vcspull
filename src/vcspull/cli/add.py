@@ -835,6 +835,11 @@ def handle_add_command(args: argparse.Namespace) -> None:
             Style.RESET_ALL,
         )
 
+    explicit_depth = getattr(args, "depth", None)
+    if explicit_depth is not None and explicit_depth < 1:
+        log.error("--depth must be a positive integer (got %s)", explicit_depth)
+        return
+
     log.info("%sFound new repository to import:%s", Fore.GREEN, Style.RESET_ALL)
     log.info(
         "  %s+%s %s%s%s (%s%s%s)",
@@ -859,11 +864,6 @@ def handle_add_command(args: argparse.Namespace) -> None:
             effective_rev,
             Style.RESET_ALL,
         )
-
-    explicit_depth = getattr(args, "depth", None)
-    if explicit_depth is not None and explicit_depth < 1:
-        log.error("--depth must be a positive integer (got %s)", explicit_depth)
-        return
 
     shallow, depth = resolve_clone_depth(
         repo_path,
