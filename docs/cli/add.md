@@ -105,6 +105,13 @@ isn't the label you want stored in the configuration:
 $ vcspull add ~/study/python/pytest-docker --name docker-pytest
 ```
 
+`--name` is required, rather than optional, when a URL carries no path segment
+to name — vcspull stops instead of writing an entry you could not address:
+
+```console
+$ vcspull add https://git.example.com/.git --name internal-tools
+```
+
 ### Override the remote URL
 
 vcspull reads the [Git](https://git-scm.com/) `origin` remote automatically. Supply `--url` when you
@@ -133,6 +140,42 @@ section:
 $ vcspull add ~/scratch/tmp-project --workspace ~/projects/python/
 ```
 
+Naming a workspace also skips the list of declared roots you would otherwise be
+offered when adding by URL:
+
+```console
+$ vcspull add https://github.com/pallets/flask.git --workspace ~/code/
+```
+
+### Record a revision or clone depth
+
+By default an entry tracks its remote's default branch and clones with full
+history. Three flags change that, and each one costs you something in exchange.
+
+Pin the entry to a fixed commit, tag, or branch with `--pin`, which records
+{ref}`options.rev <config-pin>`. The repository stops following its branch until
+you change the pin:
+
+```console
+$ vcspull add ~/study/python/flask --pin v3.0.0
+```
+
+`--shallow` records `options.shallow: true`, so {ref}`vcspull sync <cli-sync>`
+clones with `--depth 1`. That trades git history for disk and time — useful
+across many repositories, awkward if you later need `git log` or `git bisect`.
+An already-shallow checkout is detected without the flag; this forces it on:
+
+```console
+$ vcspull add ~/study/python/django --shallow
+```
+
+When depth 1 is too little, `--depth N` keeps a window of history instead.
+It overrides `--shallow` when both are given:
+
+```console
+$ vcspull add ~/study/python/django --depth 50
+```
+
 ## Confirmation and dry runs
 
 `vcspull add` asks for confirmation before writing. Use `--yes` to skip the
@@ -145,6 +188,15 @@ $ vcspull add ~/study/python/pytest-docker --dry-run
 
 Dry runs still show duplicate merge diagnostics so you can see what would
 change.
+
+`--yes` answers both prompts for you — the confirmation and, when adding by URL,
+the workspace-root list — which is what you want from a script:
+
+```console
+$ vcspull add https://github.com/pallets/flask.git \
+    --workspace ~/code/ \
+    --yes
+```
 
 ## Choosing configuration files
 
@@ -166,7 +218,14 @@ $ vcspull add ~/study/python/pytest-docker \
 vcspull merges duplicate workspace sections before writing so existing
 repositories stay intact. When it collapses multiple sections, the command logs
 a summary of the merge. Prefer to inspect duplicates yourself? Add
-`--no-merge` to keep every section untouched.
+`--no-merge` to keep every section untouched:
+
+```console
+$ vcspull add ~/study/python/pytest-docker --no-merge
+```
+
+The entry is still written; only the merging of repeated workspace roots is
+skipped, and each duplicate is reported as a warning instead.
 
 ## Pinned entries
 
