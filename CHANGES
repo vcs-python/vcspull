@@ -32,11 +32,23 @@ $ uv add vcspull --prerelease allow
 $ uvx --from 'vcspull' --prerelease allow vcspull
 ```
 
-## vcspull v1.66.x (unreleased)
+## vcspull v1.67.x (unreleased)
 
 <!-- KEEP THIS PLACEHOLDER - DO NOT REMOVE OR MODIFY THIS LINE -->
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
+
+## vcspull v1.66.0 (2026-07-25)
+
+vcspull v1.66.0 lets you register a repository before you have cloned it.
+{ref}`vcspull add <cli-add>` now accepts a repository URL where it previously
+required a checkout on disk, and {ref}`vcspull sync <cli-sync>` clones the
+working tree on the next run. A pip-style revision carried on the URL is
+recorded as `options.rev` rather than left in place, so the stored entry is one
+git can clone. This also restores declaring an un-cloned repository at all —
+something the path-based rework in v1.43.0 removed, and which the documented
+migration away from the old `vcspull import <name> <url>` had been pointing at
+ever since.
 
 ### What's new
 
