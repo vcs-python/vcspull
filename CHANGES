@@ -38,6 +38,24 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### Add a repository by URL (#563)
+
+{ref}`cli-add` now accepts a repository URL in place of a filesystem path, so you
+can record a repository you have not cloned yet: the entry lands in your
+configuration and {ref}`vcspull sync <cli-sync>` clones it on the next run. The
+name comes from the URL — `--name` supplies one when the URL has no path segment
+to name — and because there is no parent directory to infer a workspace from,
+vcspull offers the workspace roots your configuration already declares, with
+`--workspace` to name one outright. An existing directory still takes
+precedence, so adding a checkout by path is unchanged.
+
+A pip-style revision on a `git+` URL is recorded as `options.rev` rather than
+left in the URL, so `git+https://github.com/pallets/flask.git@v1.0` stores
+`flask` pinned to `v1.0`. Passing `--pin` as well is an error, and a URL shape
+that cannot carry a revision asks you to use `--pin` instead.
+
 ## vcspull v1.65.0 (2026-07-05)
 
 vcspull v1.65.0 sharpens the feedback you get when a sync cannot check out
