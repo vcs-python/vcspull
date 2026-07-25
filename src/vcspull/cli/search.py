@@ -31,7 +31,16 @@ DEFAULT_FIELDS = ("name", "path", "url", "workspace")
 
 
 class SearchToken(t.NamedTuple):
-    """Parsed query token with optional field restrictions."""
+    """Parsed query token with optional field restrictions.
+
+    Attributes
+    ----------
+    fields : tuple[str, ...]
+        Repository fields to match against, empty when the token searches
+        every field.
+    pattern : str
+        Raw pattern from the query, before it is compiled.
+    """
 
     fields: tuple[str, ...]
     pattern: str
