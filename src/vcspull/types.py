@@ -257,7 +257,27 @@ class RepoEntryDict(_RepoEntryDictRequired, _RepoEntryDictOptional):
 
 
 class RawConfigDict(t.TypedDict):
-    """Configuration dictionary without any type marshalling or variable resolution."""
+    """Configuration dictionary without any type marshalling or variable resolution.
+
+    Counterpart to :class:`ConfigDict` in the shape a config file supplies:
+    paths stay as written and shorthand entries are not yet expanded.
+
+    Attributes
+    ----------
+    vcs : VCSLiteral
+        Version control system backing the repository — ``"git"``, ``"hg"``,
+        or ``"svn"``.
+    name : str
+        Repository name, taken from the key it sits under within its
+        workspace root.
+    path : StrPath
+        Checkout location as written, still a :class:`str` or
+        :class:`os.PathLike` carrying any ``~`` or environment variable.
+    url : str
+        VCS URL in vcspull format, e.g. ``git+git@github.com:user/repo.git``.
+    remotes : GitSyncRemoteDict
+        Extra git remotes to keep in sync, keyed by remote name.
+    """
 
     vcs: VCSLiteral
     name: str
