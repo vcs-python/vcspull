@@ -56,6 +56,13 @@ left in the URL, so `git+https://github.com/pallets/flask.git@v1.0` stores
 `flask` pinned to `v1.0`. Passing `--pin` as well is an error, and a URL shape
 that cannot carry a revision asks you to use `--pin` instead.
 
+### Fixes
+
+- Declaring a repository you have not cloned works again. From v1.43.0 the
+  migration documented for `vcspull import <name> <url>` failed with
+  `Repository path ... does not exist` unless you created an empty directory
+  first. (#563)
+
 ## vcspull v1.65.0 (2026-07-05)
 
 vcspull v1.65.0 sharpens the feedback you get when a sync cannot check out
