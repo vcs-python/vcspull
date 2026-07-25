@@ -2006,3 +2006,41 @@ def test_handle_add_command_existing_directory_wins_over_url(
     assert config_data["~/workspace/"][ambiguous] == {
         "repo": "git+https://github.com/pallets/flask.git",
     }
+
+
+def test_handle_add_command_prompt_declines_non_decimal_digit(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """'²' is a digit but not an ``int()``, so it declines instead of raising."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    # str.isdigit() accepts '²' but int() rejects it; str.isdecimal() does not.
+    assert "²".isdigit()
+    assert not "²".isdecimal()
+
+    monkeypatch.setattr("builtins.input", lambda _: "²")
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/pallets/click.git",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=False,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    assert "Aborted import" in caplog.text
+    assert config_file.read_text(encoding="utf-8") == before

@@ -788,7 +788,9 @@ def handle_add_command(args: argparse.Namespace) -> None:
         chosen: str | None = None
         if answer in {"y", "yes"}:
             chosen = workspace_root_input
-        elif offer_choice and answer.isdigit():
+        elif offer_choice and answer.isdecimal():
+            # ``isdecimal()`` and not ``isdigit()``: the latter accepts
+            # characters such as '²' that ``int()`` then rejects.
             index = int(answer)
             if 1 <= index <= len(workspace_candidates):
                 chosen = workspace_candidates[index - 1]
