@@ -21,6 +21,10 @@ well.
 
 ## Next release
 
+<!-- Maintainers, insert changes / features for the next release here -->
+
+## vcspull 1.62.0 (2026-05-31)
+
 ### Per-repository sync keys moved under `options:`
 
 _via #552_
@@ -56,8 +60,6 @@ After:
 `depth: N` is new — record a numeric clone depth (`git clone --depth N`) when a
 boolean `shallow` (depth 1) is too little. See {ref}`configuration` and
 {ref}`cli-migrate`.
-
-<!-- Maintainers, insert changes / features for the next release here -->
 
 ## vcspull 1.15.4 (2022-10-16)
 
