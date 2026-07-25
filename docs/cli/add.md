@@ -241,13 +241,21 @@ Repositories whose configuration includes a {ref}`pin <config-pin>` on the
       pin_reason: "pinned to company fork — update manually"
 ```
 
-Attempting to add a repo that matches an existing pinned entry produces a
-warning and leaves the entry untouched:
+Attempting to add a repo that matches an existing pinned entry previews it as
+usual, then warns and leaves the entry untouched:
 
 ```vcspull-console
 $ vcspull add ~/code/internal-fork
-⚠ Repository 'internal-fork' is pinned (pinned to company fork — update manually) — skipping
+Found new repository to import:
+  + internal-fork (git@github.com:myorg/internal-fork.git)
+  • workspace: ~/code/
+  ↳ path: ~/code/internal-fork
+? Import this repository? [y/N]: y
+Repository 'internal-fork' is pinned (pinned to company fork — update manually) — skipping
 ```
+
+The pin is checked when the entry is written, not when the preview is built, so
+confirming still reaches the warning rather than skipping the prompt.
 
 Both `options.pin: true` (global) and `options.pin.add: true` (per-operation)
 block the `add` command. The `pin_reason` (if set) is included in the warning.
