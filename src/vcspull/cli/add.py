@@ -458,7 +458,17 @@ def _resolve_placement(
 
 
 class ConfigFileResolution(t.NamedTuple):
-    """Outcome of deciding which config file ``add`` should write to."""
+    """Outcome of deciding which config file ``add`` should write to.
+
+    Attributes
+    ----------
+    path : pathlib.Path | None
+        Config file to write to, or ``None`` when the choice was ambiguous.
+    creates_new_default : bool
+        Whether writing creates a config file that did not exist yet.
+    ambiguous : bool
+        Whether several home config files matched, so none can be chosen.
+    """
 
     path: pathlib.Path | None
     creates_new_default: bool
