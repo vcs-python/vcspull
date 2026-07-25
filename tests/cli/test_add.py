@@ -2276,3 +2276,49 @@ def test_handle_add_command_url_rev_conflicts_with_pin(
     assert len(errors) == 1
     assert "--pin" in errors[0].getMessage()
     assert config_file.read_text(encoding="utf-8") == before
+
+
+def test_handle_add_command_preview_matches_chosen_workspace(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Picking a non-default root previews that root, not the default."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+
+    monkeypatch.setattr("builtins.input", lambda _: "2")
+
+    args = argparse.Namespace(
+        repo_path="https://github.com/psf/requests.git",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path=None,
+        dry_run=False,
+        assume_yes=False,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", caplog.text)
+
+    workspace_lines = [line for line in plain.splitlines() if "workspace: " in line]
+    path_lines = [line for line in plain.splitlines() if "path: " in line]
+
+    # Announced exactly once, naming the root the entry is written under.
+    assert [line.split("workspace: ")[-1] for line in workspace_lines] == ["~/study/"]
+    assert [line.split("path: ")[-1] for line in path_lines] == ["~/study/requests"]
+
+    import yaml
+
+    config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+
+    assert "requests" in config_data["~/study/"]
+    assert "requests" not in config_data["~/code/"]

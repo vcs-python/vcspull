@@ -342,6 +342,96 @@ def _parse_repo_url(url: str) -> ParsedRepoUrl:
     return ParsedRepoUrl(name=segment or None, url=cleaned, rev=rev)
 
 
+class RepoPlacement(t.NamedTuple):
+    """Where a repository lands, for the preview and the write to agree on.
+
+    Attributes
+    ----------
+    workspace_label : str
+        Workspace root label the entry is recorded under.
+    display_path : str
+        Destination path of the working tree, shortened for display.
+    """
+
+    workspace_label: str
+    display_path: str
+
+
+def _resolve_placement(
+    workspace_root_input: str,
+    repo_name: str,
+    repo_path: pathlib.Path,
+    *,
+    url_mode: bool,
+    cwd: pathlib.Path,
+) -> RepoPlacement:
+    """Derive the workspace label and destination path for a workspace root.
+
+    Called once the workspace root is settled — after the prompt, which may
+    swap in a different declared root — so the preview cannot announce a
+    workspace the entry is not written under.
+
+    Parameters
+    ----------
+    workspace_root_input : str
+        Workspace root as the user, the config, or the prompt supplied it.
+    repo_name : str
+        Repository name that becomes the config key.
+    repo_path : pathlib.Path
+        Existing checkout. Unused in URL mode, where nothing is on disk.
+    url_mode : bool
+        ``True`` when declaring from a URL rather than importing a checkout.
+    cwd : pathlib.Path
+        Current working directory, for resolving relative roots.
+
+    Returns
+    -------
+    RepoPlacement
+        Label and destination path to preview and to write under.
+
+    Examples
+    --------
+    In URL mode the destination is the workspace root joined with the name:
+
+    >>> placement = _resolve_placement(
+    ...     "~/code/",
+    ...     "flask",
+    ...     pathlib.Path("/nonexistent"),
+    ...     url_mode=True,
+    ...     cwd=pathlib.Path.cwd(),
+    ... )
+    >>> placement.workspace_label
+    '~/code/'
+    >>> placement.display_path
+    '~/code/flask'
+
+    In path mode the destination is the checkout itself:
+
+    >>> checkout = tmp_path / "workspace" / "flask"
+    >>> placement = _resolve_placement(
+    ...     str(tmp_path / "workspace"),
+    ...     "flask",
+    ...     checkout,
+    ...     url_mode=False,
+    ...     cwd=pathlib.Path.cwd(),
+    ... )
+    >>> placement.display_path == str(checkout)
+    True
+    """
+    workspace_path = expand_dir(pathlib.Path(workspace_root_input), cwd=cwd)
+    return RepoPlacement(
+        workspace_label=workspace_root_label(
+            workspace_path,
+            cwd=cwd,
+            home=pathlib.Path.home(),
+            preserve_cwd_label=workspace_root_input in {".", "./"},
+        ),
+        display_path=str(
+            PrivatePath(workspace_path / repo_name if url_mode else repo_path),
+        ),
+    )
+
+
 class ConfigFileResolution(t.NamedTuple):
     """Outcome of deciding which config file ``add`` should write to."""
 
@@ -708,19 +798,42 @@ def handle_add_command(args: argparse.Namespace) -> None:
     else:
         workspace_root_input = repo_path.parent.as_posix()
 
-    workspace_path = expand_dir(pathlib.Path(workspace_root_input), cwd=cwd)
-    workspace_label = workspace_root_label(
-        workspace_path,
-        cwd=cwd,
-        home=pathlib.Path.home(),
-        preserve_cwd_label=workspace_root_input in {".", "./"},
-    )
-
     summary_url = display_url or config_url
 
-    display_path = str(
-        PrivatePath(repo_path if not url_mode else workspace_path / repo_name),
-    )
+    # Offering the choice inline keeps URL mode to a single prompt: confirming
+    # accepts the default root, a number picks a different declared one.
+    offer_choice = len(workspace_candidates) > 1
+    answers = "[y/N]" if not offer_choice else f"[y/N/1-{len(workspace_candidates)}]"
+    interactive = not args.dry_run and not getattr(args, "assume_yes", False)
+    # Only an answered choice can move the workspace, so anything else is
+    # already settled and previews in place.
+    workspace_settled = not (offer_choice and interactive)
+
+    def announce_placement() -> None:
+        """Log where the entry lands, reading the settled workspace root."""
+        placement = _resolve_placement(
+            workspace_root_input,
+            repo_name,
+            repo_path,
+            url_mode=url_mode,
+            cwd=cwd,
+        )
+        log.info(
+            "  %s•%s workspace: %s%s%s",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.MAGENTA,
+            placement.workspace_label,
+            Style.RESET_ALL,
+        )
+        log.info(
+            "  %s↳%s path: %s%s%s",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.BLUE,
+            placement.display_path,
+            Style.RESET_ALL,
+        )
 
     log.info("%sFound new repository to import:%s", Fore.GREEN, Style.RESET_ALL)
     log.info(
@@ -734,22 +847,8 @@ def handle_add_command(args: argparse.Namespace) -> None:
         summary_url,
         Style.RESET_ALL,
     )
-    log.info(
-        "  %s•%s workspace: %s%s%s",
-        Fore.BLUE,
-        Style.RESET_ALL,
-        Fore.MAGENTA,
-        workspace_label,
-        Style.RESET_ALL,
-    )
-    log.info(
-        "  %s↳%s path: %s%s%s",
-        Fore.BLUE,
-        Style.RESET_ALL,
-        Fore.BLUE,
-        display_path,
-        Style.RESET_ALL,
-    )
+    if workspace_settled:
+        announce_placement()
     effective_rev = pin_rev or url_rev
     if effective_rev:
         log.info(
@@ -788,11 +887,6 @@ def handle_add_command(args: argparse.Namespace) -> None:
             Fore.YELLOW,
             Style.RESET_ALL,
         )
-
-    # Offering the choice inline keeps URL mode to a single prompt: confirming
-    # accepts the default root, a number picks a different declared one.
-    offer_choice = len(workspace_candidates) > 1
-    answers = "[y/N]" if not offer_choice else f"[y/N/1-{len(workspace_candidates)}]"
 
     if offer_choice:
         log.info(
@@ -860,6 +954,11 @@ def handle_add_command(args: argparse.Namespace) -> None:
             )
             return
         workspace_root_input = chosen
+
+    if not workspace_settled:
+        # The answer above may have swapped in a different declared root, so
+        # the placement is only announced once it can no longer change.
+        announce_placement()
 
     add_repo(
         name=repo_name,
