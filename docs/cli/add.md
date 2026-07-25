@@ -53,24 +53,43 @@ configuration but do not have the code yet:
 $ vcspull add https://github.com/pallets/flask.git
 Found new repository to import:
   + flask (https://github.com/pallets/flask.git)
-  • workspace: ~/code/
-  ↳ path: ~/code/flask
   • workspace roots in ~/.vcspull.yaml:
       1) ~/code/ (default)
       2) ~/study/python/
 ? Import this repository? [y/N/1-2]: y
+  • workspace: ~/code/
+  ↳ path: ~/code/flask
 ✓ Successfully added 'flask' (git+https://github.com/pallets/flask.git) to ~/.vcspull.yaml under '~/code/'.
 ```
 
 The repository name comes from the URL — `flask` here — unless you pass
-`--name`. Nothing is fetched: the entry lands in your configuration and
-{ref}`vcspull sync <cli-sync>` clones it the next time you run it.
+`--name`. A URL with no path to name, such as `https://host/.git`, stops with an
+error asking for `--name`. Nothing is fetched: the entry lands in your
+configuration and {ref}`vcspull sync <cli-sync>` clones it the next time you run
+it.
 
 Because there is no parent directory to infer a workspace from, vcspull offers
 the workspace roots your configuration already declares. Answering `y` accepts
 the default, answering with a number picks a different root, and `--workspace`
 names one outright and skips the list. When the configuration declares no roots
-yet, the current directory becomes the workspace.
+yet, the current directory becomes the workspace. The workspace and path are
+reported once your answer settles them, so what you see named is the section the
+entry is written under.
+
+### Pinning a revision from the URL
+
+A [pip-style][pip vcs url] revision on a `git+` URL is recorded as
+`options.rev` rather than kept in the URL:
+
+```console
+$ vcspull add git+https://github.com/pallets/flask.git@v1.0
+```
+
+That stores `flask` with `rev: v1.0`. Because `--pin` records the same field,
+passing both is an error. Only `git+` URLs carry a revision this way — on a
+plain `https://` or scp-style URL the revision cannot be told apart from the
+path, so vcspull asks you to pass `--pin` instead of recording a URL that will
+not clone.
 
 A directory on disk always wins. If the argument names something that exists,
 vcspull treats it as a path even when the same text would also parse as a URL.
