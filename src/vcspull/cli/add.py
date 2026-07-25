@@ -642,6 +642,8 @@ def handle_add_command(args: argparse.Namespace) -> None:
     config_file_path = resolution.path
 
     override_name = getattr(args, "override_name", None)
+    pin_rev = getattr(args, "pin", None)
+    url_rev: str | None = None
 
     if url_mode:
         if explicit_url:
@@ -651,6 +653,14 @@ def handle_add_command(args: argparse.Namespace) -> None:
             )
             return
         parsed_url = _parse_repo_url(repo_input)
+        if parsed_url.rev is not None and pin_rev:
+            log.error(
+                "Cannot combine the revision '@%s' in the URL with "
+                "--pin %s; pass the revision once.",
+                parsed_url.rev,
+                pin_rev,
+            )
+            return
         derived_name = override_name or parsed_url.name
         if derived_name is None:
             log.error(
@@ -658,8 +668,9 @@ def handle_add_command(args: argparse.Namespace) -> None:
                 repo_input,
             )
             return
+        url_rev = parsed_url.rev
         repo_name = derived_name
-        display_url, config_url = _normalize_detected_url(repo_input)
+        display_url, config_url = _normalize_detected_url(parsed_url.url)
     else:
         repo_name = override_name or repo_path.name
         if explicit_url:
@@ -739,14 +750,14 @@ def handle_add_command(args: argparse.Namespace) -> None:
         display_path,
         Style.RESET_ALL,
     )
-    pin_rev = getattr(args, "pin", None)
-    if pin_rev:
+    effective_rev = pin_rev or url_rev
+    if effective_rev:
         log.info(
             "  %s•%s rev: %s%s%s",
             Fore.BLUE,
             Style.RESET_ALL,
             Fore.YELLOW,
-            pin_rev,
+            effective_rev,
             Style.RESET_ALL,
         )
 
@@ -858,7 +869,7 @@ def handle_add_command(args: argparse.Namespace) -> None:
         workspace_root_path=workspace_root_input,
         dry_run=args.dry_run,
         merge_duplicates=args.merge_duplicates,
-        rev=getattr(args, "pin", None),
+        rev=effective_rev,
         shallow=shallow,
         depth=depth,
     )

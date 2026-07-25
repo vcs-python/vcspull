@@ -2207,3 +2207,72 @@ def test_handle_add_command_url_without_derivable_name_accepts_override(
     config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
 
     assert config_data["~/code/"]["bare"] == {"repo": "git+https://host/.git"}
+
+
+def test_handle_add_command_url_rev_becomes_option(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A pip-style ``@rev`` is recorded as ``options.rev``, not in the URL."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="git+https://github.com/pallets/flask.git@v1.0",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    import yaml
+
+    config_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+
+    assert config_data["~/code/"]["flask"] == {
+        "repo": "git+https://github.com/pallets/flask.git",
+        "options": {"rev": "v1.0"},
+    }
+
+
+def test_handle_add_command_url_rev_conflicts_with_pin(
+    tmp_path: pathlib.Path,
+    monkeypatch: MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A revision in the URL and ``--pin`` name the same field, so it errors."""
+    caplog.set_level(logging.INFO)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    config_file = tmp_path / ".vcspull.yaml"
+    config_file.write_text(TWO_ROOT_CONFIG, encoding="utf-8")
+    before = config_file.read_text(encoding="utf-8")
+
+    args = argparse.Namespace(
+        repo_path="git+https://github.com/pallets/flask.git@v1.0",
+        url=None,
+        override_name=None,
+        config=str(config_file),
+        workspace_root_path="~/code/",
+        pin="v2.0",
+        dry_run=False,
+        assume_yes=True,
+        merge_duplicates=True,
+    )
+
+    handle_add_command(args)
+
+    errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert "--pin" in errors[0].getMessage()
+    assert config_file.read_text(encoding="utf-8") == before
