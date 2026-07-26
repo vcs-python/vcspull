@@ -30,7 +30,18 @@ ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 @dataclass
 class StatusCheckConfig:
-    """Configuration options for status checking."""
+    """Configuration options for status checking.
+
+    Attributes
+    ----------
+    max_concurrent : int
+        Ceiling on repositories inspected at once (``--max-concurrent``),
+        bounding the semaphore that guards the async checks.
+    detailed : bool
+        Collect the current branch and ahead/behind counts on top of the
+        existence, VCS, and cleanliness checks (``--detailed``). Each extra
+        field costs another git invocation per repository.
+    """
 
     max_concurrent: int
     detailed: bool

@@ -29,7 +29,51 @@ class PlanAction(Enum):
 
 @dataclass
 class PlanEntry:
-    """Represents a single planned action for a repository."""
+    """Represents a single planned action for a repository.
+
+    Attributes
+    ----------
+    name : str
+        Repository name as keyed in the config file.
+    path : str
+        Checkout location on disk. Human and JSON output contract the home
+        directory to ``~``.
+    workspace_root : str
+        Workspace root the repository is grouped under; ``""`` when the config
+        entry carries none, which human output groups as ``(no workspace)``.
+    action : PlanAction
+        Action the plan resolved for this repository.
+    detail : str | None
+        Short explanation of the action, such as ``"missing"`` or
+        ``"behind 2"``; ``None`` when no explanation applies.
+    url : str | None
+        VCS URL to clone or pull from; ``None`` when the entry carries no URL.
+    branch : str | None
+        Branch currently checked out; ``None`` when the checkout is absent or
+        the branch could not be read.
+    remote_branch : str | None
+        Upstream tracking branch, such as ``"origin/main"``; ``None`` when
+        unknown.
+    current_rev : str | None
+        Revision the checkout sits at; ``None`` when unknown.
+    target_rev : str | None
+        Revision a sync would move the checkout to; ``None`` when unknown.
+    ahead : int | None
+        Commits the local branch holds that the upstream lacks; ``None`` when
+        the comparison is unavailable, as for a missing or non-git checkout.
+    behind : int | None
+        Commits the upstream holds that the local branch lacks; ``None`` when
+        the comparison is unavailable.
+    dirty : bool | None
+        ``True`` when the working tree has uncommitted changes; ``None`` when
+        cleanliness could not be determined.
+    error : str | None
+        Message describing why planning failed for this repository; ``None``
+        when planning succeeded.
+    diagnostics : list[str]
+        Extra messages carried into the serialised payload; empty when there
+        are none, and then omitted from the payload.
+    """
 
     name: str
     path: str
@@ -102,7 +146,26 @@ class PlanEntry:
 
 @dataclass
 class PlanSummary:
-    """Aggregate summary for a synchronization plan."""
+    """Aggregate summary for a synchronization plan.
+
+    Attributes
+    ----------
+    clone : int
+        Repositories with no checkout yet, to be cloned.
+    update : int
+        Repositories with upstream work to pull.
+    unchanged : int
+        Repositories already up to date.
+    blocked : int
+        Repositories held back by local state: a dirty working tree,
+        local-only commits, or divergence from the upstream.
+    errors : int
+        Repositories that could not be planned, such as when refreshing
+        remotes failed.
+    duration_ms : int | None
+        Wall-clock time spent building the plan, in milliseconds; ``None``
+        when no timing was recorded, and then omitted from the payload.
+    """
 
     clone: int = 0
     update: int = 0
@@ -151,7 +214,26 @@ class PlanSummary:
 
 @dataclass
 class PlanRenderOptions:
-    """Rendering options for human plan output."""
+    """Rendering options for human plan output.
+
+    Attributes
+    ----------
+    show_unchanged : bool
+        Keep repositories whose action is ``UNCHANGED`` in the rendered rows
+        (``--show-unchanged``); they are dropped otherwise.
+    summary_only : bool
+        Print the summary line alone and skip per-repository rows
+        (``--summary-only``).
+    long : bool
+        Show the extended block under each row with URL, ahead/behind counts,
+        and error text (``--long``).
+    verbosity : int
+        Repeated ``-v`` count, clamped to 0-2. At 1 or above, rows gain inline
+        detail extras; at 2 they gain the extended block.
+    relative_paths : bool
+        Render paths relative to the workspace root (``--relative-paths``)
+        instead of contracting the home directory to ``~``.
+    """
 
     show_unchanged: bool = False
     summary_only: bool = False
@@ -162,7 +244,16 @@ class PlanRenderOptions:
 
 @dataclass
 class PlanResult:
-    """Container for plan entries and their summary."""
+    """Container for plan entries and their summary.
+
+    Attributes
+    ----------
+    entries : list[PlanEntry]
+        One entry per repository the plan evaluated, in the order evaluation
+        finished; rendering sorts them by action and name.
+    summary : PlanSummary
+        Action counts tallied across ``entries``.
+    """
 
     entries: list[PlanEntry]
     summary: PlanSummary

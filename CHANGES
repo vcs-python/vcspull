@@ -38,6 +38,15 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Documentation
+
+#### Class fields describe themselves in the API reference (#567)
+
+The configuration `TypedDict`s and the sync, status, and search types now
+say what each field holds. They previously reached the rendered API
+reference as "Alias for field number 0" or as a bare name carrying only its
+type.
+
 ### Development
 
 #### CI actions updated to current majors

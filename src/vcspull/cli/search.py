@@ -48,7 +48,20 @@ class SearchToken(t.NamedTuple):
 
 @dataclass(frozen=True)
 class SearchPattern:
-    """Compiled search pattern tied to repository fields."""
+    """Compiled search pattern tied to repository fields.
+
+    Attributes
+    ----------
+    fields : tuple[str, ...]
+        Canonical field names the regex is applied to, carried over from the
+        token it was compiled from.
+    raw : str
+        Pattern text as typed, before ``--fixed-strings`` escaping or
+        ``--word-regexp`` boundary wrapping.
+    regex : re.Pattern[str]
+        Matcher compiled from ``raw``, case-insensitive when ``--ignore-case``
+        was given or smart-case resolved that way.
+    """
 
     fields: tuple[str, ...]
     raw: str
