@@ -38,7 +38,6 @@ class MockHTTPResponse:
 
     def __exit__(self, *args: t.Any) -> None:
         """Context manager exit."""
-        pass
 
 
 @pytest.fixture
