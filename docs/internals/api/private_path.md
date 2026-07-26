@@ -18,8 +18,8 @@ internal logic.
 from vcspull._internal.private_path import PrivatePath
 
 home_repo = PrivatePath("~/code/vcspull")
-print(home_repo)          # -> ~/code/vcspull
-print(repr(home_repo))    # -> "PrivatePath('~/code/vcspull')"
+print(home_repo)  # -> ~/code/vcspull
+print(repr(home_repo))  # -> "PrivatePath('~/code/vcspull')"
 ```
 
 ## Usage guidelines
