@@ -36,7 +36,7 @@ class MockHTTPResponse:
         """Context manager entry."""
         return self
 
-    def __exit__(self, *args: t.Any) -> None:
+    def __exit__(self, *args: object) -> None:
         """Context manager exit."""
 
 
