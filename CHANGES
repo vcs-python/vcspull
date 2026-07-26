@@ -56,6 +56,12 @@ Workflow actions moved to their current major releases: `actions/checkout` v7,
 and `dorny/paths-filter` v4. Workflow behavior is unchanged, though setup-uv no
 longer prunes the uv cache, so the first run after this repopulates it.
 
+#### Ruff floor raised to 0.16 (#568)
+
+Minimum `ruff>=0.16.0` (was unpinned). `ruff format` now formats Python code
+blocks inside Markdown, so documentation examples are held to the same
+formatting gate as source files. Lint diagnostics are unchanged.
+
 ## vcspull v1.66.0 (2026-07-25)
 
 vcspull v1.66.0 lets you register a repository before you have cloned it.
