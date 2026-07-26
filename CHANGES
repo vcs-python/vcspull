@@ -38,6 +38,15 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Development
+
+#### CI actions updated to current majors
+
+Workflow actions moved to their current major releases: `actions/checkout` v7,
+`actions/cache` v6, `astral-sh/setup-uv` v9.0.0, `codecov/codecov-action` v7,
+and `dorny/paths-filter` v4. Workflow behavior is unchanged, though setup-uv no
+longer prunes the uv cache, so the first run after this repopulates it.
+
 ## vcspull v1.66.0 (2026-07-25)
 
 vcspull v1.66.0 lets you register a repository before you have cloned it.
