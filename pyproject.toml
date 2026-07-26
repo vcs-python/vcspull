@@ -260,6 +260,10 @@ required-imports = [
 
 [tool.ruff.lint.per-file-ignores]
 "*/__init__.py" = ["F401"]
+# Sphinx conf.py reads the package's version metadata by exec'ing
+# src/vcspull/__about__.py, so conf.py stays importable without the
+# package installed. The input is a file in this repository.
+"docs/conf.py" = ["S102"]
 
 [tool.pytest.ini_options]
 addopts = "--tb=short --no-header --showlocals --doctest-modules"
