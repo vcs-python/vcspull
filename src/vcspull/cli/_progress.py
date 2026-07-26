@@ -24,6 +24,11 @@ import typing as t
 
 from ._colors import ColorMode, Colors, get_color_mode
 
+if t.TYPE_CHECKING:
+    import types
+
+    from typing_extensions import Self
+
 log = logging.getLogger(__name__)
 
 
@@ -580,7 +585,7 @@ class _RepoContext:
         self._indicator = indicator
         self._name = name
 
-    def __enter__(self) -> _RepoContext:
+    def __enter__(self) -> Self:
         self._indicator.start_repo(self._name)
         return self
 
@@ -588,7 +593,7 @@ class _RepoContext:
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: t.Any,
+        tb: types.TracebackType | None,
     ) -> None:
         self._indicator.stop_repo()
 

@@ -88,7 +88,7 @@ dev = [
   "coverage",
   "pytest-cov",
   # Lint
-  "ruff",
+  "ruff>=0.16.0",
   "mypy",
   # Annotations
   "types-docutils",
@@ -120,7 +120,7 @@ coverage =[
   "pytest-cov",
 ]
 lint = [
-  "ruff",
+  "ruff>=0.16.0",
   "mypy",
 ]
 typings = [
@@ -209,7 +209,10 @@ exclude_lines = [
 target-version = "py310"
 
 [tool.ruff.lint]
-select = [
+# `select` is deliberately unset: ruff 0.16 enables a curated default rule
+# set, and an explicit `select` would replace it rather than extend it.
+# `extend-select` layers this project's additional linters on top.
+extend-select = [
   "E", # pycodestyle
   "F", # pyflakes
   "I", # isort
@@ -226,7 +229,7 @@ select = [
   "PERF", # Perflint
   "RUF", # Ruff-specific rules
   "D", # pydocstyle
-  "FA100",  # future annotations
+  "FA100", # future annotations
 ]
 ignore = [
   "COM812", # missing trailing comma, ruff format conflict
@@ -257,6 +260,26 @@ required-imports = [
 
 [tool.ruff.lint.per-file-ignores]
 "*/__init__.py" = ["F401"]
+# Sphinx conf.py reads the package's version metadata by exec'ing
+# src/vcspull/__about__.py, so conf.py stays importable without the
+# package installed. The input is a file in this repository.
+"docs/conf.py" = ["S102"]
+# The smoke test's job is to report any failure from importing an
+# arbitrary module or invoking the CLI, so the catch has to be as wide
+# as the failures it is probing for.
+"scripts/runtime_dep_smoketest.py" = ["BLE001"]
+# atexit handlers that raise are swallowed by the interpreter, so the
+# cursor-restore handler logs and swallows to leave a breadcrumb
+# without masking other shutdown tasks.
+"src/vcspull/cli/_progress.py" = ["BLE001"]
+# The sync worker thread catches everything, including BaseException,
+# to hand the failure back to the main thread; narrowing would lose
+# the exception instead of reporting it.
+"src/vcspull/cli/sync.py" = ["BLE001"]
+# A log formatter that raises takes the application down with it, so
+# %-format failures in a caller's record become a "Bad message" line
+# rather than an exception.
+"src/vcspull/log.py" = ["BLE001"]
 
 [tool.pytest.ini_options]
 addopts = "--tb=short --no-header --showlocals --doctest-modules"

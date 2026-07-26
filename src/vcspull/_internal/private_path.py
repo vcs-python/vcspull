@@ -5,6 +5,8 @@ import pathlib
 import typing as t
 
 if t.TYPE_CHECKING:
+    from typing_extensions import Self
+
     PrivatePathBase = pathlib.Path
 else:
     PrivatePathBase = type(pathlib.Path())
@@ -34,7 +36,7 @@ class PrivatePath(PrivatePathBase):
     '~/notes.txt'
     """
 
-    def __new__(cls, *args: t.Any, **kwargs: t.Any) -> PrivatePath:
+    def __new__(cls, *args: t.Any, **kwargs: t.Any) -> Self:
         return super().__new__(cls, *args, **kwargs)
 
     @classmethod

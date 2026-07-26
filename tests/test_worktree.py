@@ -2546,6 +2546,7 @@ def test_ref_exists_remote_branch_fallback(
         ["git", "remote", "get-url", "origin"],
         cwd=git_repo.path,
         capture_output=True,
+        check=False,
     )
     if result.returncode == 0:
         subprocess.run(

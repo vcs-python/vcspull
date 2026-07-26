@@ -71,6 +71,7 @@ def test_git_commit_works_in_subprocess(
         cwd=repo_dir,
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 0, (
         f"git commit failed: {result.stderr}\n"

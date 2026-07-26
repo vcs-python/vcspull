@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Manage multiple git, mercurial, svn repositories from a YAML / JSON file.
 
 :copyright: Copyright 2013-2018 Tony Narlock.

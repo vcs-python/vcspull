@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import time
-import typing as t
 
 import pytest
 
@@ -12,9 +11,6 @@ from vcspull.cli._progress import (
     SyncStatusIndicator,
     build_indicator,
 )
-
-if t.TYPE_CHECKING:
-    pass
 
 
 def test_disabled_indicator_is_silent_noop() -> None:

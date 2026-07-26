@@ -138,6 +138,9 @@ def test_default_debug_log_path_encodes_distinct_invocations(
             cls.value += 1
 
             class _Stamp:
+                def astimezone(self) -> t.Any:
+                    return self
+
                 @staticmethod
                 def strftime(_fmt: str) -> str:
                     return f"2026042400000{_Fake.value}"

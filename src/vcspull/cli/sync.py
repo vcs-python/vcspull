@@ -1983,10 +1983,12 @@ def _emit_summary(
         unmatched = summary.get("unmatched", 0)
         timed_out = summary.get("timed_out", 0)
         parts = [
-            f"\n{colors.info('Summary:')} "
-            f"{colors.info(str(summary['total']))} repos, "
-            f"{colors.success(str(summary['synced']))} synced, "
-            f"{colors.error(str(summary['failed']))} failed",
+            (
+                f"\n{colors.info('Summary:')} "
+                f"{colors.info(str(summary['total']))} repos, "
+                f"{colors.success(str(summary['synced']))} synced, "
+                f"{colors.error(str(summary['failed']))} failed"
+            ),
         ]
         if timed_out > 0:
             parts.append(
@@ -2041,7 +2043,7 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
     """Raised when no VCS could be guessed from a URL."""
 
     def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
-        return super().__init__(f"Could not automatically determine VCS for {repo_url}")
+        super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
 class SyncFailedError(exc.VCSPullException):

@@ -8,6 +8,9 @@ import urllib.error
 
 import pytest
 
+if t.TYPE_CHECKING:
+    from typing_extensions import Self
+
 
 class MockHTTPResponse:
     """Mock HTTP response for testing."""
@@ -32,13 +35,12 @@ class MockHTTPResponse:
         """Return response headers as list of tuples."""
         return list(self._headers.items())
 
-    def __enter__(self) -> MockHTTPResponse:
+    def __enter__(self) -> Self:
         """Context manager entry."""
         return self
 
-    def __exit__(self, *args: t.Any) -> None:
+    def __exit__(self, *args: object) -> None:
         """Context manager exit."""
-        pass
 
 
 @pytest.fixture

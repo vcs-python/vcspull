@@ -112,8 +112,10 @@ class VcspullOutputLexer(RegexLexer):
             (r"\bfailed\b", Generic.Error),
             # Labels (muted) - common vcspull output labels
             (
-                r"(Summary:|Progress:|Path:|Branch:|url:|workspace:|Ahead/Behind:|"
-                r"Remote:|Repository:|Note:|Usage:|Plan:|Tip:)",
+                (
+                    r"(Summary:|Progress:|Path:|Branch:|url:|workspace:|Ahead/Behind:|"
+                    r"Remote:|Repository:|Note:|Usage:|Plan:|Tip:)"
+                ),
                 Generic.Heading,
             ),
             # vcspull command and subcommands (for pretty docs)
