@@ -264,6 +264,22 @@ required-imports = [
 # src/vcspull/__about__.py, so conf.py stays importable without the
 # package installed. The input is a file in this repository.
 "docs/conf.py" = ["S102"]
+# The smoke test's job is to report any failure from importing an
+# arbitrary module or invoking the CLI, so the catch has to be as wide
+# as the failures it is probing for.
+"scripts/runtime_dep_smoketest.py" = ["BLE001"]
+# atexit handlers that raise are swallowed by the interpreter, so the
+# cursor-restore handler logs and swallows to leave a breadcrumb
+# without masking other shutdown tasks.
+"src/vcspull/cli/_progress.py" = ["BLE001"]
+# The sync worker thread catches everything, including BaseException,
+# to hand the failure back to the main thread; narrowing would lose
+# the exception instead of reporting it.
+"src/vcspull/cli/sync.py" = ["BLE001"]
+# A log formatter that raises takes the application down with it, so
+# %-format failures in a caller's record become a "Bad message" line
+# rather than an exception.
+"src/vcspull/log.py" = ["BLE001"]
 
 [tool.pytest.ini_options]
 addopts = "--tb=short --no-header --showlocals --doctest-modules"
