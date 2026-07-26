@@ -2043,7 +2043,7 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
     """Raised when no VCS could be guessed from a URL."""
 
     def __init__(self, repo_url: str, *args: object, **kwargs: object) -> None:
-        return super().__init__(f"Could not automatically determine VCS for {repo_url}")
+        super().__init__(f"Could not automatically determine VCS for {repo_url}")
 
 
 class SyncFailedError(exc.VCSPullException):
