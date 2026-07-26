@@ -60,7 +60,14 @@ longer prunes the uv cache, so the first run after this repopulates it.
 
 Minimum `ruff>=0.16.0` (was unpinned). `ruff format` now formats Python code
 blocks inside Markdown, so documentation examples are held to the same
-formatting gate as source files. Lint diagnostics are unchanged.
+formatting gate as source files.
+
+Linting also adopts ruff's curated default rule set, which the project's
+explicit `select` had been replacing rather than extending. Its findings are
+fixed rather than silenced, with two exceptions kept as per-file ignores that
+carry their reason in `pyproject.toml`: the Sphinx `conf.py` `exec` that reads
+version metadata, and the deliberate catch-alls guarding the sync worker
+thread, the log formatter, interpreter shutdown, and the dependency smoke test.
 
 ## vcspull v1.66.0 (2026-07-25)
 
