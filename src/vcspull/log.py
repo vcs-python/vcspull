@@ -377,7 +377,7 @@ def default_debug_log_path() -> pathlib.Path:
     >>> path.parent.parent == pathlib.Path(tempfile.gettempdir())
     True
     """
-    stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    stamp = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S")
     pid = os.getpid()
     subdir = "vcspull-test" if "PYTEST_CURRENT_TEST" in os.environ else "vcspull"
     return pathlib.Path(tempfile.gettempdir()) / subdir / f"debug-{stamp}-{pid}.log"
