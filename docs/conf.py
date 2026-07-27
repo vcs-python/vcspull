@@ -58,79 +58,9 @@ _gp_setup = conf.pop("setup")
 _NUMPY_UNDERLINE = re.compile(r"^\s*-{2,}\s*$")
 
 
-def _numpy_attribute_names(doc: str | None) -> frozenset[str]:
-    """Return field names a NumPy ``Attributes`` section of *doc* documents."""
-    if not doc:
-        return frozenset()
-
-    lines = doc.expandtabs().splitlines()
-    names: set[str] = set()
-    index = 0
-    while index + 1 < len(lines):
-        heading = lines[index].strip() == "Attributes"
-        if not (heading and _NUMPY_UNDERLINE.match(lines[index + 1])):
-            index += 1
-            continue
-
-        indent = len(lines[index]) - len(lines[index].lstrip())
-        cursor = index + 2
-        while cursor < len(lines):
-            entry = lines[cursor]
-            if not entry.strip():
-                cursor += 1
-                continue
-            entry_indent = len(entry) - len(entry.lstrip())
-            if entry_indent < indent:
-                break
-            if entry_indent == indent:
-                # The next NumPy section header is underlined; stop before it.
-                if cursor + 1 < len(lines) and _NUMPY_UNDERLINE.match(
-                    lines[cursor + 1]
-                ):
-                    break
-                names.add(entry.split(":", 1)[0].strip())
-            cursor += 1
-        index = cursor
-
-    return frozenset(names)
-
-
-def _skip_documented_namedtuple_fields(
-    app: Sphinx,
-    what: str,
-    name: str,
-    obj: object,
-    skip: bool,
-    options: object,
-) -> bool | None:
-    """Drop NamedTuple field stubs the class docstring already documents.
-
-    ``typing.NamedTuple`` fields are descriptors whose ``__doc__`` is
-    ``"Alias for field number N"``. Autodoc counts that boilerplate as a real
-    docstring, so the field is documented no matter how ``undoc-members`` is
-    set. When the class docstring carries a NumPy ``Attributes`` section, the
-    docstring preprocessor has already emitted an ``.. attribute::`` block for
-    the same dotted name, and the Python domain warns about the duplicate.
-    """
-    if skip or what != "class":
-        return None
-
-    current = app.env.current_document
-    module = sys.modules.get(getattr(current, "autodoc_module", "") or "")
-    owner_name = (getattr(current, "autodoc_class", "") or "").partition(".")[0]
-    owner = getattr(module, owner_name, None)
-
-    fields = getattr(owner, "_fields", None)
-    if not isinstance(fields, tuple) or name not in fields:
-        return None
-
-    return name in _numpy_attribute_names(owner.__doc__)
-
-
 def setup(app: Sphinx) -> None:
     """Configure Sphinx app hooks and register vcspull-specific lexers."""
     _gp_setup(app)
-    app.connect("autodoc-skip-member", _skip_documented_namedtuple_fields)
 
     from vcspull_console_lexer import VcspullConsoleLexer
     from vcspull_output_lexer import VcspullOutputLexer
