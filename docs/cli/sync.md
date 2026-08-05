@@ -8,6 +8,12 @@ The `vcspull sync` command clones and updates repositories defined in your
 vcspull {ref}`configuration <configuration>`. It's the primary command for keeping your local workspace
 synchronized with remote repositories.
 
+```{image} ../_static/demos/asciinema/vcspull-sync.gif
+:alt: vcspull sync cloning a workspace of repositories
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}

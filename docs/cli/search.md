@@ -7,6 +7,12 @@ The `vcspull search` command looks up repositories across your vcspull
 [rg](https://github.com/BurntSushi/ripgrep)-like query syntax. Queries are regex by default, can
 scope to specific fields, and can emit structured JSON for automation.
 
+```{image} ../_static/demos/asciinema/vcspull-search.gif
+:alt: vcspull search narrowing a set of repositories to matches
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}

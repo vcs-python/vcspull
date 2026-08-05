@@ -11,6 +11,12 @@ single section so repositories are never dropped. Prefer to review duplicates
 without rewriting them? Pass `--no-merge` to leave the original sections in
 place while still showing a warning.
 
+```{image} ../_static/demos/asciinema/vcspull-fmt.gif
+:alt: vcspull fmt previewing a normalized configuration
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}

@@ -12,6 +12,12 @@ These keys shipped at the entry root in vcspull v1.61.0. They are still read,
 but {ref}`cli-sync` warns when it encounters them. Migrating clears the warning
 and keeps configs on the supported shape.
 
+```{image} ../_static/demos/asciinema/vcspull-migrate.gif
+:alt: vcspull migrate previewing configuration schema changes
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}
