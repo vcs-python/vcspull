@@ -7,6 +7,12 @@ The `vcspull list` command displays configured repositories from your vcspull
 verify your configuration,
 filter repositories by patterns, and export structured data for automation.
 
+```{image} ../_static/demos/asciinema/vcspull-list.gif
+:alt: vcspull list showing configured repositories
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}
@@ -60,6 +66,12 @@ $ vcspull list --tree
 
 ~/code/
   • flask → ~/code/flask
+```
+
+```{image} ../_static/demos/asciinema/vcspull-list-tree.gif
+:alt: vcspull list grouping repositories by workspace
+:width: 100%
+:loading: lazy
 ```
 
 ## JSON output

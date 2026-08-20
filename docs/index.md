@@ -81,7 +81,8 @@ See {ref}`quickstart` for all installation methods and first steps.
 $ vcspull sync --all
 ```
 
-```{image} _static/vcspull-demo.gif
+```{image} _static/demos/asciinema/vcspull-sync.gif
+:alt: vcspull sync cloning a workspace of repositories
 :width: 100%
 :loading: lazy
 ```

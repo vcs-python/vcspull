@@ -13,6 +13,12 @@ Supported services: **[GitHub](https://github.com)**,
 **[Gitea](https://about.gitea.com/)**, **[Forgejo](https://forgejo.org)**, and
 **[AWS CodeCommit](https://aws.amazon.com/codecommit/)**.
 
+```{image} ../../_static/demos/asciinema/vcspull-import.gif
+:alt: vcspull import fetching repositories from a remote service
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}

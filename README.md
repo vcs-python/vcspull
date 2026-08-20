@@ -21,6 +21,8 @@ See the [documentation](https://vcspull.git-pull.com/), [configuration](https://
 [myrepos]: http://myrepos.branchable.com/
 [mu-repo]: http://fabioz.github.io/mu-repo/
 
+<img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/demos/asciinema/vcspull-sync.gif" alt="vcspull sync cloning a workspace of repositories" width="100%" />
+
 # How to
 
 ## Install
@@ -109,6 +111,8 @@ $ vcspull add ~/projects/libs/my-lib
   yourself instead of having vcspull merge them automatically.
 - Follow with `vcspull sync my-lib` to clone or update the working tree after registration.
 
+<img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/demos/asciinema/vcspull-add.gif" alt="vcspull add registering a repository from its checkout" width="100%" />
+
 ### Discover local checkouts and add en masse
 
 Have a directory tree full of cloned Git repositories? Scan and append them to
@@ -122,6 +126,8 @@ The scan shows each repository before import unless you opt into `--yes`. Add
 `--workspace ~/code/` to pin the resulting workspace root or `-f/--file` to write somewhere other
 than the default `~/.vcspull.yaml`. Duplicate workspace roots are merged by
 default; include `--no-merge` to keep them separate while you review the log.
+
+<img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/demos/asciinema/vcspull-discover.gif" alt="vcspull discover scanning a directory tree for repositories" width="100%" />
 
 ### Import from remote services
 
@@ -158,6 +164,8 @@ $ vcspull list --json | jq '.[].name'
 `--json` emits a single JSON array, while `--ndjson` streams newline-delimited
 objects that are easy to consume from shell pipelines.
 
+<img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/demos/asciinema/vcspull-list.gif" alt="vcspull list showing configured repositories" width="100%" />
+
 Search across repositories with an rg-like query syntax:
 
 ```console
@@ -165,6 +173,8 @@ $ vcspull search django
 $ vcspull search name:django url:github
 $ vcspull search --fixed-strings 'git+https://github.com/org/repo.git'
 ```
+
+<img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/demos/asciinema/vcspull-search.gif" alt="vcspull search narrowing a set of repositories to matches" width="100%" />
 
 ### Check repository status
 
@@ -175,6 +185,8 @@ $ vcspull status
 $ vcspull status --detailed
 $ vcspull status --ndjson | jq --slurp 'map(select(.reason == "summary"))'
 ```
+
+<img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/demos/asciinema/vcspull-status.gif" alt="vcspull status reporting clean, dirty, and missing repositories" width="100%" />
 
 The status command respects `--workspace/-w` filters and the global
 `--color {auto,always,never}` flag. JSON and NDJSON output mirrors the list
@@ -284,8 +296,6 @@ $ vcspull sync "$HOME/code/*"
 ```
 
 [libvcs]: https://github.com/vcs-python/libvcs
-
-<img src="https://raw.githubusercontent.com/vcs-python/vcspull/master/docs/_static/vcspull-demo.gif" class="align-center" style="width:45.0%" alt="image" />
 
 # Donations
 

@@ -9,6 +9,12 @@ create, update, and prune them.
 
 [git worktrees]: https://git-scm.com/docs/git-worktree
 
+```{image} ../../_static/demos/asciinema/vcspull-worktree.gif
+:alt: vcspull worktree reporting configured worktree actions
+:width: 100%
+:loading: lazy
+```
+
 ## Command
 
 ```{eval-rst}
