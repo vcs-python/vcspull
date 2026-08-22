@@ -354,8 +354,7 @@ class DuplicateAwareConfigReader(ConfigReader):
         try:
             data = loader.get_single_data()
         finally:
-            dispose = t.cast("t.Callable[[], None]", loader.dispose)
-            dispose()
+            loader.dispose()
 
         if data is None:
             loaded: dict[str, t.Any] = {}
