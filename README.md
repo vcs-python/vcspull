@@ -1,13 +1,13 @@
 # $ vcspull &middot; [![Python Package](https://img.shields.io/pypi/v/vcspull.svg)](https://pypi.org/project/vcspull/) [![License](https://img.shields.io/github/license/vcs-python/vcspull.svg)](https://github.com/vcs-python/vcspull/blob/master/LICENSE) [![Code Coverage](https://codecov.io/gh/vcs-python/vcspull/branch/master/graph/badge.svg)](https://codecov.io/gh/vcs-python/vcspull)
 
-Manage and sync multiple git, svn, and mercurial repos via JSON or YAML file. Compare to
-[myrepos], [mu-repo]. Built on [libvcs].
+Manage and sync multiple git, svn, and mercurial repos via JSON or YAML
+file. Compare to [myrepos], [mu-repo]. Built on [libvcs].
 
 Great if you use the same repos at the same locations across multiple
 machines or want to clone / update a pattern of repos without having to
 `cd` into each one.
 
-- clone / update to the latest repos with `$ vcspull`
+- clone / update to the latest repos with `$ vcspull sync --all`
 - use filters to specify a location, repo url or pattern in the
   manifest to clone / update
 - supports svn, git, hg version control systems
@@ -43,7 +43,7 @@ $ uvx vcspull
 
 ### Developmental releases
 
-You can test the unpublished version of vcspull before its released.
+You can test the unpublished version of vcspull before it's released.
 
 - [pip](https://pip.pypa.io/en/stable/):
 
@@ -107,7 +107,8 @@ $ vcspull add ~/projects/libs/my-lib
 - `-f/--file` selects an alternate configuration file.
 - Append `--no-merge` if you prefer to review duplicate workspace roots
   yourself instead of having vcspull merge them automatically.
-- Follow with `vcspull sync my-lib` to clone or update the working tree after registration.
+- Follow with `vcspull sync my-lib` to clone or update the working tree
+  after registration.
 
 ### Discover local checkouts and add en masse
 
@@ -118,10 +119,11 @@ your configuration:
 $ vcspull discover ~/code --recursive
 ```
 
-The scan shows each repository before import unless you opt into `--yes`. Add
-`--workspace ~/code/` to pin the resulting workspace root or `-f/--file` to write somewhere other
-than the default `~/.vcspull.yaml`. Duplicate workspace roots are merged by
-default; include `--no-merge` to keep them separate while you review the log.
+The scan shows each repository before import unless you opt into `--yes`.
+Add `--workspace ~/code/` to pin the resulting workspace root or
+`-f/--file` to write somewhere other than the default `~/.vcspull.yaml`.
+Duplicate workspace roots are merged by default; include `--no-merge` to
+keep them separate while you review the log.
 
 ### Import from remote services
 
@@ -217,8 +219,8 @@ summary (`+/~/✓/⚠/✗`) grouped by workspace. Use `--summary-only`,
 `--relative-paths`, `--long`, or `-v/-vv` for alternate views, and
 `--fetch`/`--offline` to control how remote metadata is refreshed.
 
-Keep nested VCS repositories updated too, lets say you have a mercurial
-or svn project with a git dependency:
+Keep nested VCS repositories updated too — say you have a mercurial or svn
+project with a git dependency:
 
 `external_deps.yaml` in your project root (any filename will do):
 
@@ -238,14 +240,11 @@ more.
 
 ## Pulling specific repos
 
-Have a lot of repos?
-
-you can choose to update only select repos through
+Have a lot of repos? Choose to update only select repos through
 [fnmatch](http://pubs.opengroup.org/onlinepubs/009695399/functions/fnmatch.html)
-patterns. remember to add the repos to your `~/.vcspull.{json,yaml}`
-first.
+patterns. Add the repos to your `~/.vcspull.{json,yaml}` first.
 
-The patterns can be filtered by by directory, repo name or vcs url.
+The patterns filter by directory, repo name, or vcs url.
 
 Any repo starting with "fla":
 
@@ -265,10 +264,10 @@ Search by vcs + url, since urls are in this format <vcs>+<protocol>://<url>:
 $ vcspull sync "git+*"
 ```
 
-Any git repo with python in the vcspull:
+Any git repo with python in the vcs url:
 
 ```console
-$ vcspull sync "git+*python*
+$ vcspull sync "git+*python*"
 ```
 
 Any git repo with django in the vcs url:
