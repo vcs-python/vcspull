@@ -32,11 +32,15 @@ $ uv add vcspull --prerelease allow
 $ uvx --from 'vcspull' --prerelease allow vcspull
 ```
 
-## vcspull v1.67.x (unreleased)
+## vcspull v1.68.x (unreleased)
 
 <!-- KEEP THIS PLACEHOLDER - DO NOT REMOVE OR MODIFY THIS LINE -->
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
+
+## vcspull v1.67.0 (2026-08-30)
+
+vcspull v1.67.0 raises the libvcs floor to 0.46.0, which rejects an argument a VCS binary would parse as an option in the positions an end-of-options `--` cannot guard. vcspull syncs through libvcs's high-level helpers, so the hardening applies with no configuration or CLI changes. The release also documents what every field holds in the API reference and moves the CI actions to their current majors.
 
 ### Dependencies
 
