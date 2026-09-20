@@ -99,10 +99,10 @@ PIN_CONFIGS: list[PinConfig] = [
 
 
 def _entry(url: str, options: dict[str, t.Any] | None) -> dict[str, t.Any]:
-    """Build a repo entry dict, optionally including options."""
+    """Build a repo entry with canonical mutation policy fields."""
     entry: dict[str, t.Any] = {"repo": url}
     if options is not None:
-        entry["options"] = options
+        entry.update(options)
     return entry
 
 
@@ -529,8 +529,7 @@ def test_pin_reason_in_log(
         # discover logs pin_reason at DEBUG; verify config preserved it
         with config_file.open() as f:
             saved = yaml.safe_load(f)
-        saved_opts = saved["~/code/"]["myrepo"].get("options", {})
-        assert saved_opts.get("pin_reason") == pin_reason_text
+        assert saved["~/code/"]["myrepo"].get("pin_reason") == pin_reason_text
 
     elif operation == "fmt":
         config_file = tmp_path / ".vcspull.yaml"
@@ -557,4 +556,4 @@ def test_pin_reason_in_log(
         # For merge, pin_reason may appear in conflict messages or we check
         # the merged entry preserves pin_reason
         merged_entry = _merged["myrepo"]
-        assert merged_entry.get("options", {}).get("pin_reason") == pin_reason_text
+        assert merged_entry.get("pin_reason") == pin_reason_text

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import subprocess
 import textwrap
@@ -19,6 +20,7 @@ from vcspull.config import (
     migrate_repo_entry,
     resolve_clone_depth,
 )
+from vcspull.exc import VCSPullException
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -61,6 +63,128 @@ def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
         return dir_, configs, repos
 
     return fn
+
+
+@pytest.mark.parametrize(
+    ("entry", "field"),
+    [
+        ({"git": {"filtre": "blob:none"}}, "git.filtre"),
+        ({"git": {"filter": ["blob:none", {"kind": "nope"}]}}, "git.filter[1]"),
+        ({"git": {"filter": []}}, "git.filter"),
+        ({"git": {"filter": {"kind": "combine", "filters": ["auto"]}}}, "git.filter"),
+        ({"git": {"depth": True}}, "git.depth"),
+        ({"git": {"tls_verify": "false"}}, "git.tls_verify"),
+        ({"hg": {}}, "hg"),
+        ({"svn": {"depth": "files"}}, "svn"),
+        ({"git_options": {"typo": True}}, "git.typo"),
+        ({"working_coppy": {"branch": "main"}}, "working_coppy"),
+        (
+            {"remotes": {"upstream": {"fetch_url": "git+https://example.com/up.git"}}},
+            "remotes.upstream.push_url",
+        ),
+        ({"pin": {"sync": True}}, "pin.sync"),
+        (
+            {"repo": "hg+https://example.com/repo", "hg": {"ssh": "bad\0value"}},
+            "hg.ssh",
+        ),
+        (
+            {"repo": "hg+https://example.com/repo", "hg": {"remote_cmd": "bad\0value"}},
+            "hg.remote_cmd",
+        ),
+        (
+            {"repo": "svn+https://example.com/repo", "svn": {"username": "bad\0value"}},
+            "svn.username",
+        ),
+        (
+            {"repo": "svn+https://example.com/repo", "svn": {"password": "bad\0value"}},
+            "svn.password",
+        ),
+    ],
+)
+def test_load_rejects_invalid_backend_entry_at_source(
+    tmp_path: pathlib.Path,
+    entry: dict[str, t.Any],
+    field: str,
+) -> None:
+    """Malformed options name their file, workspace, repository, and field."""
+    path = tmp_path / "config.yaml"
+    config.save_config_yaml(
+        path,
+        {"~/code/": {"project": {"repo": "git+https://example.com/repo.git", **entry}}},
+    )
+
+    with pytest.raises(VCSPullException) as error:
+        config.load_configs([path])
+
+    for part in (str(path), "~/code/", "project", field):
+        assert part in str(error.value)
+
+
+def test_load_retains_nullable_shell_hook(tmp_path: pathlib.Path) -> None:
+    """An explicitly disabled post-sync hook remains valid entry metadata."""
+    path = tmp_path / "config.yaml"
+    config.save_config_yaml(
+        path,
+        {
+            "~/code/": {
+                "project": {
+                    "repo": "git+https://example.com/repo.git",
+                    "shell_command_after": None,
+                }
+            }
+        },
+    )
+
+    assert config.load_configs([path])[0]["shell_command_after"] is None
+
+
+def test_load_normalizes_legacy_options_and_warns(
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The in-memory entry has one canonical options layout with clear warnings."""
+    path = tmp_path / "config.yaml"
+    config.save_config_yaml(
+        path,
+        {
+            "~/code/": {
+                "project": {
+                    "repo": "git+https://example.com/repo.git",
+                    "options": {"rev": "v1", "shallow": True, "pin": True},
+                    "git_options": {"filter": "blob:none"},
+                }
+            }
+        },
+    )
+
+    with caplog.at_level(logging.WARNING, logger="vcspull.config"):
+        entry = config.load_configs([path])[0]
+
+    assert entry["working_copy"] == {"rev": "v1"}
+    assert entry["git"] == {"depth": 1, "filter": "blob:none"}
+    assert entry["pin"] is True
+    assert "options" not in entry
+    assert "rev" not in entry
+    assert "shallow" not in entry
+    assert any(
+        "'~/code/' -> 'project'" in record.getMessage() for record in caplog.records
+    )
+
+
+def test_backend_config_fields_match_libvcs_options() -> None:
+    """Every public backend knob has exactly one field in the config type."""
+    from libvcs import GitOptions, HgOptions, SvnOptions
+
+    from vcspull.types import GitOptionsDict, HgOptionsDict, SvnOptionsDict
+
+    for option_type, config_type in (
+        (GitOptions, GitOptionsDict),
+        (HgOptions, HgOptionsDict),
+        (SvnOptions, SvnOptionsDict),
+    ):
+        assert {field.name for field in dataclasses.fields(option_type)} == set(
+            t.get_type_hints(config_type)
+        )
 
 
 def test_simple_format(load_yaml: LoadYAMLFn) -> None:
@@ -399,7 +523,7 @@ def _seed_commits(repo_path: pathlib.Path, count: int) -> None:
 
 
 class ExtractOptionsFixture(t.NamedTuple):
-    """Fixture for extract_repos lifting sync keys onto the flat ConfigDict."""
+    """Legacy tuning normalizes into backend options and a checkout target."""
 
     test_id: str
     raw_config: dict[str, t.Any]
@@ -417,7 +541,7 @@ EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
                 },
             },
         },
-        expected={"rev": "v3.0.0", "depth": 50},
+        expected={"working_copy": {"rev": "v3.0.0"}, "git": {"depth": 50}},
     ),
     ExtractOptionsFixture(
         test_id="legacy-top-level",
@@ -430,7 +554,7 @@ EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
                 },
             },
         },
-        expected={"rev": "v1.0.0", "shallow": True},
+        expected={"working_copy": {"rev": "v1.0.0"}, "git": {"depth": 1}},
     ),
     ExtractOptionsFixture(
         test_id="options-wins-over-legacy",
@@ -444,7 +568,7 @@ EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
                 },
             },
         },
-        expected={"rev": "canonical", "depth": 99},
+        expected={"working_copy": {"rev": "canonical"}, "git": {"depth": 99}},
     ),
 ]
 
@@ -454,14 +578,14 @@ EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
     EXTRACT_OPTIONS_FIXTURES,
     ids=[f.test_id for f in EXTRACT_OPTIONS_FIXTURES],
 )
-def test_extract_repos_lifts_options_sync_keys(
+def test_extract_repos_normalizes_options_sync_keys(
     test_id: str,
     raw_config: dict[str, t.Any],
     expected: dict[str, t.Any],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """extract_repos surfaces options/legacy sync keys on the flat ConfigDict."""
+    """Legacy options resolve with the documented canonical precedence."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
 
@@ -738,7 +862,7 @@ LEGACY_OPTIONS_FIXTURES: list[LegacyOptionsFixture] = [
     ),
     LegacyOptionsFixture(
         test_id="canonical-not-flagged",
-        raw_config={"~/code/": {"flask": {"repo": "git+x", "options": {"depth": 5}}}},
+        raw_config={"~/code/": {"flask": {"repo": "git+x", "git": {"depth": 5}}}},
         expected=[],
     ),
     LegacyOptionsFixture(
@@ -751,7 +875,7 @@ LEGACY_OPTIONS_FIXTURES: list[LegacyOptionsFixture] = [
         raw_config={
             "~/code/": {
                 "flask": {"repo": "git+x", "rev": "v1"},
-                "django": {"repo": "git+y", "options": {"depth": 5}},
+                "django": {"repo": "git+y", "git": {"depth": 5}},
             },
         },
         expected=[("~/code/", "flask")],
@@ -774,5 +898,5 @@ def test_detect_legacy_repo_options(
     raw_config: t.Any,
     expected: list[tuple[str, str]],
 ) -> None:
-    """detect_legacy_repo_options reports only entries with top-level keys."""
+    """Legacy locations warn while backend blocks and shorthand stay quiet."""
     assert detect_legacy_repo_options(raw_config) == expected

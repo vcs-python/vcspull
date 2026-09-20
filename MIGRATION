@@ -65,6 +65,16 @@ After:
 Existing canonical values take precedence. Unknown legacy `options` keys
 produce an error before the file is written.
 
+Loading normalizes the same legacy locations in memory and warns once per
+file. Unknown entry or backend fields now fail during loading; metadata
+belongs in `metadata`, not in a libvcs constructor argument. Sync constructs
+the matching immutable libvcs options object from `git`, `hg`, or `svn`.
+
+To omit historical file contents without truncating commit history, add
+`git.filter: blob:none`. The value can also be a native filter string, a
+kind-tagged mapping, or a nonempty list of filters. Filter and depth changes
+only affect a new clone; they do not reconfigure an existing checkout.
+
 ## vcspull 1.62.0 (2026-05-31)
 
 ### Per-repository sync keys moved under `options:`

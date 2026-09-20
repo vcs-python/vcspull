@@ -24,9 +24,9 @@ from time import monotonic, perf_counter
 
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
-from libvcs.sync.git import GitSync
-from libvcs.sync.hg import HgSync
-from libvcs.sync.svn import SvnSync
+from libvcs.sync.git import GitOptions, GitSync
+from libvcs.sync.hg import HgOptions, HgSync
+from libvcs.sync.svn import SvnOptions, SvnSync
 from libvcs.url import registry as url_tools
 
 from vcspull import exc
@@ -36,7 +36,13 @@ from vcspull._internal.worktree_sync import (
     plan_worktree_sync,
     sync_all_worktrees,
 )
-from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
+from vcspull.config import (
+    expand_dir,
+    filter_repos,
+    find_config_files,
+    load_configs,
+    migrate_repo_entry,
+)
 from vcspull.log import default_debug_log_path, setup_file_logger, teardown_file_logger
 from vcspull.types import ConfigDict
 
@@ -1205,6 +1211,25 @@ _BRANCH_ERROR_SIGNATURES = (
 )
 
 
+def _configured_revision(repo: ConfigDict) -> str | None:
+    """Read a canonical checkout selector, retaining the legacy direct-call form."""
+    target = repo.get("working_copy", {})
+    selected = next(
+        (
+            value
+            for value in (
+                target.get("branch"),
+                target.get("tag"),
+                target.get("commit"),
+                target.get("rev"),
+            )
+            if value is not None
+        ),
+        repo.get("rev"),
+    )
+    return str(selected) if selected is not None else None
+
+
 def _looks_like_branch_error(err_msg: str, *, has_rev: bool) -> bool:
     """Return True when a sync failure looks branch/revision-related.
 
@@ -1217,7 +1242,7 @@ def _looks_like_branch_error(err_msg: str, *, has_rev: bool) -> bool:
     err_msg : str
         The failure message surfaced by the sync.
     has_rev : bool
-        Whether the repository configures an ``options.rev``.
+        Whether the repository configures a ``working_copy`` selector.
 
     Returns
     -------
@@ -1296,7 +1321,7 @@ def _emit_branch_error_guidance(
     err_msg : str
         The failure message surfaced by the sync.
     """
-    rev = repo.get("rev")
+    rev = _configured_revision(repo)
     if not _looks_like_branch_error(err_msg, has_rev=bool(rev)):
         return
 
@@ -1314,7 +1339,7 @@ def _emit_branch_error_guidance(
             f"{colors.info('→')} This branch has no matching remote branch.",
         )
     formatter.emit_text(
-        f"    Pin an existing branch with {colors.muted('options.rev')}, or run "
+        f"    Select a branch with {colors.muted('working_copy.branch')}, or run "
         f"{colors.muted(f'git -C {shlex.quote(display_path)} checkout <branch>')}",
     )
 
@@ -2070,39 +2095,24 @@ def update_repo(
     # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
 ) -> GitSync | HgSync | SvnSync:
     """Synchronize a single repository."""
-    repo_dict = deepcopy(repo_dict)
-    if "pip_url" not in repo_dict:
-        repo_dict["pip_url"] = repo_dict.pop("url")
-    if "url" not in repo_dict:
-        repo_dict["url"] = repo_dict.pop("pip_url")
+    _, repo_dict = migrate_repo_entry(deepcopy(repo_dict))
+    url = repo_dict.get("url", repo_dict.get("pip_url"))
+    vcs = repo_dict.get("vcs") or guess_vcs(url=url)
+    if vcs is None:
+        raise CouldNotGuessVCSFromURL(repo_url=url)
 
-    repo_dict["progress_callback"] = progress_callback or progress_cb
-
-    # The ConfigDict carries options.shallow/options.depth as flat ``shallow``/
-    # ``depth`` keys. libvcs's GitSync names the former ``git_shallow``, so
-    # translate it; apply both as attributes after construction and only for
-    # git. ``obtain()`` then resolves precedence (an explicit depth wins over
-    # ``git_shallow``).
-    git_shallow = bool(repo_dict.pop("shallow", False))
-    git_depth = repo_dict.pop("depth", None)
-
-    if repo_dict.get("vcs") is None:
-        vcs = guess_vcs(url=repo_dict["url"])
-        if vcs is None:
-            raise CouldNotGuessVCSFromURL(repo_url=repo_dict["url"])
-
-        repo_dict["vcs"] = vcs
-
-    r: GitSync | HgSync | SvnSync = create_project(**repo_dict)
-    if isinstance(r, GitSync):
-        if git_shallow:
-            r.git_shallow = True
-        if git_depth is not None:
-            r.depth = git_depth
-    if repo_dict.get("vcs") == "git":
-        result = r.update_repo(set_remotes=True)
-    else:
-        result = r.update_repo()
+    constructor_args: dict[str, t.Any] = {
+        "url": url,
+        "path": repo_dict["path"],
+        "progress_callback": progress_callback or progress_cb,
+        "rev": _configured_revision(repo_dict),
+    }
+    options_type = {"git": GitOptions, "hg": HgOptions, "svn": SvnOptions}[vcs]
+    constructor_args["options"] = options_type(**repo_dict.get(vcs, {}))
+    if "remotes" in repo_dict:
+        constructor_args["remotes"] = repo_dict["remotes"]
+    r: GitSync | HgSync | SvnSync = create_project(vcs=vcs, **constructor_args)
+    result = r.update_repo(set_remotes=True) if vcs == "git" else r.update_repo()
 
     if result is not None and not result.ok:
         error_messages = "; ".join(e.message for e in result.errors)

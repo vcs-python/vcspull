@@ -38,6 +38,34 @@ if t.TYPE_CHECKING:
     from libvcs.sync.git import GitSyncRemoteDict
 
 
+class GitOptionsDict(TypedDict, total=False):
+    """Git clone and transport options, matching ``libvcs.GitOptions``."""
+
+    depth: int | None
+    filter: str | dict[str, t.Any] | list[str | dict[str, t.Any]] | None
+    tls_verify: bool
+
+
+class HgOptionsDict(TypedDict, total=False):
+    """Mercurial clone and transport options, matching ``libvcs.HgOptions``."""
+
+    ssh: str | None
+    remote_cmd: str | None
+    pull: bool
+    stream: bool
+    tls_verify: bool
+
+
+class SvnOptionsDict(TypedDict, total=False):
+    """Subversion checkout and transport options, matching ``libvcs.SvnOptions``."""
+
+    username: str | None
+    password: str | None
+    depth: t.Literal["empty", "files", "immediates", "infinity"] | None
+    trust_server_cert: bool
+    ignore_externals: bool
+
+
 class SyncPolicyDict(TypedDict, total=False):
     """Policy for configured-target drift and uncommitted changes."""
 
@@ -260,6 +288,13 @@ class _RepoEntryDictOptional(TypedDict, total=False):
     """Optional raw per-repository entry fields."""
 
     working_copy: WorkingCopyConfigDict
+    git: GitOptionsDict
+    hg: HgOptionsDict
+    svn: SvnOptionsDict
+    pin: bool | RepoPinDict
+    pin_reason: str | None
+    allow_overwrite: bool
+    metadata: dict[str, t.Any]
 
     rev: str
     """Deprecated top-level form of ``options.rev``; still read, with a warning.
@@ -336,6 +371,13 @@ class _ConfigDictOptional(TypedDict, total=False):
     worktrees: list[WorktreeConfigDict] | None
     options: RepoOptionsDict
     working_copy: WorkingCopyConfigDict
+    git: GitOptionsDict
+    hg: HgOptionsDict
+    svn: SvnOptionsDict
+    pin: bool | RepoPinDict
+    pin_reason: str | None
+    allow_overwrite: bool
+    metadata: dict[str, t.Any]
 
 
 class ConfigDict(_ConfigDictRequired, _ConfigDictOptional):

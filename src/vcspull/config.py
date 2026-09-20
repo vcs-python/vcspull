@@ -16,7 +16,11 @@ from collections.abc import Callable
 
 from libvcs.sync.git import GitRemote
 
-from vcspull.validator import is_valid_config, validate_working_copy
+from vcspull.validator import (
+    is_valid_config,
+    validate_repo_entry,
+    validate_working_copy,
+)
 
 from . import exc
 from ._internal.config_reader import (
@@ -273,15 +277,13 @@ def extract_repos(
                 else:
                     conf.pop("repo", None)
 
-            # Sync-tuning keys (rev/shallow/depth) are canonical under
-            # ``options:``; lift them onto the flat ConfigDict the sync path
-            # reads. A legacy top-level key was already copied above by
-            # update_dict, but an ``options:`` value wins when both are set.
-            entry_options = conf.get("options")
-            if isinstance(entry_options, dict):
-                for option_key in LEGACY_REPO_OPTION_KEYS:
-                    if option_key in entry_options:
-                        conf[option_key] = entry_options[option_key]
+            location = f"{directory!r} -> {repo!r}"
+            try:
+                _, conf = migrate_repo_entry(conf)
+            except (TypeError, ValueError) as error:
+                msg = f"{location}.{error}"
+                raise exc.VCSPullException(msg) from error
+            validate_repo_entry(conf, location=location)
 
             if "name" not in conf:
                 conf["name"] = repo
@@ -462,7 +464,7 @@ def load_configs(
     cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
     *,
     merge_duplicates: bool = True,
-    warn_legacy_options: bool = False,
+    warn_legacy_options: bool = True,
 ) -> list[ConfigDict]:
     """Return repos from a list of files.
 
@@ -533,10 +535,13 @@ def load_configs(
         if warn_legacy_options:
             legacy_entries = detect_legacy_repo_options(config_content)
             if legacy_entries:
-                affected = ", ".join(f"{label}{name}" for label, name in legacy_entries)
+                affected = ", ".join(
+                    f"{label!r} -> {name!r}" for label, name in legacy_entries
+                )
                 log.warning(
-                    "%s: top-level rev/shallow/depth are deprecated; move them "
-                    "under 'options:' (run 'vcspull migrate'). Affected: %s",
+                    "%s: legacy option locations are deprecated; move targets to "
+                    "working_copy and backend options to git/hg/svn "
+                    "(run 'vcspull migrate'). Affected: %s",
                     file,
                     affected,
                     extra={
@@ -545,7 +550,11 @@ def load_configs(
                     },
                 )
 
-        assert is_valid_config(config_content)
+        if not is_valid_config(config_content):
+            invalid_message = (
+                f"{file}: expected workspace mappings with repository URLs or entries"
+            )
+            raise exc.VCSPullException(invalid_message)
         try:
             newrepos = extract_repos(config_content, cwd=cwd)
         except exc.VCSPullException as error:
@@ -1177,10 +1186,8 @@ def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
 def detect_legacy_repo_options(raw_config: t.Any) -> list[tuple[str, str]]:
     """Return ``(workspace_label, repo_name)`` pairs using legacy top-level keys.
 
-    Scans a raw (unexpanded) config mapping for repository entries that still
-    carry top-level ``rev``/``shallow``/``depth`` instead of nesting them under
-    ``options:``. Callers use the result to warn users to run ``vcspull
-    migrate``.
+    Detects top-level tuning, ``options``, and the old ``<vcs>_options``
+    blocks so callers can recommend ``vcspull migrate``.
 
     Parameters
     ----------
@@ -1199,10 +1206,10 @@ def detect_legacy_repo_options(raw_config: t.Any) -> list[tuple[str, str]]:
     ... )
     [('~/code/', 'flask')]
 
-    The canonical ``options:`` form is not flagged:
+    Canonical backend options are not flagged:
 
     >>> detect_legacy_repo_options(
-    ...     {"~/code/": {"flask": {"repo": "git+x", "options": {"shallow": True}}}}
+    ...     {"~/code/": {"flask": {"repo": "git+x", "git": {"depth": 1}}}}
     ... )
     []
     """
@@ -1215,7 +1222,14 @@ def detect_legacy_repo_options(raw_config: t.Any) -> list[tuple[str, str]]:
             continue
         for repo_name, entry in repos.items():
             if isinstance(entry, dict) and any(
-                key in entry for key in LEGACY_REPO_OPTION_KEYS
+                key in entry
+                for key in (
+                    *LEGACY_REPO_OPTION_KEYS,
+                    "options",
+                    "git_options",
+                    "hg_options",
+                    "svn_options",
+                )
             ):
                 legacy.append((str(workspace_label), str(repo_name)))
 
@@ -1378,13 +1392,16 @@ def is_pinned_for_op(entry: t.Any, op: str) -> bool:
         return False
     opts = entry.get("options")
     if not isinstance(opts, dict):
-        return False
-    pin = opts.get("pin")
+        opts = {}
+    pin = entry.get("pin", opts.get("pin"))
     if pin is True:
         return True
     if isinstance(pin, dict) and pin.get(op, False) is True:
         return True
-    return op == "import" and opts.get("allow_overwrite", True) is False
+    return (
+        op == "import"
+        and entry.get("allow_overwrite", opts.get("allow_overwrite", True)) is False
+    )
 
 
 def get_pin_reason(entry: t.Any) -> str | None:
@@ -1412,8 +1429,8 @@ def get_pin_reason(entry: t.Any) -> str | None:
         return None
     opts = entry.get("options")
     if not isinstance(opts, dict):
-        return None
-    reason = opts.get("pin_reason")
+        opts = {}
+    reason = entry.get("pin_reason", opts.get("pin_reason"))
     if reason is None:
         return None
     return str(reason)

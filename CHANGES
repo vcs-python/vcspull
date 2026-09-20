@@ -40,6 +40,25 @@ _Notes on upcoming releases will be added here_
 
 ### What's new
 
+#### Configure partial clones and typed backend options
+
+`git`, `hg`, and `svn` blocks match their libvcs options classes. Loading
+rejects unknown fields, invalid values, and blocks for a different VCS before
+sync starts. Errors identify the file, workspace, repository, and field.
+
+```yaml
+~/code/:
+  git:
+    repo: git+https://github.com/git/git.git
+    git:
+      filter: blob:none
+```
+
+Partial clones retain commit history and fetch file contents on demand.
+Existing checkouts keep their depth and filter. Legacy option locations load
+with a migration warning. `pin`, `pin_reason`, and `allow_overwrite` also work
+at the repository entry level.
+
 #### Migrate checkout targets and backend options
 
 {ref}`cli-migrate` separates legacy settings into `working_copy`, the

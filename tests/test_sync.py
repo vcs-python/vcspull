@@ -9,7 +9,6 @@ import textwrap
 import typing as t
 
 import pytest
-from libvcs._internal.shortcuts import create_project
 from libvcs.pytest_plugin import (
     git_remote_repo_single_commit_post_init,
     hg_remote_repo_single_commit_post_init,
@@ -66,8 +65,7 @@ def test_makes_recursive(
 
         for r in filtered_repos:
             assert isinstance(r, dict)
-            repo = create_project(**r)  # type: ignore
-            repo.obtain()
+            repo = update_repo(r)
 
             assert repo.path.exists()
 
@@ -444,6 +442,61 @@ def test_update_repo_hg(
     assert isinstance(result, HgSync)
 
 
+def test_sync_partial_clone_from_canonical_config(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The config-to-native path keeps history while omitting historical blobs."""
+    monkeypatch.delenv("GIT_CONFIG", raising=False)
+    remote = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+    for name in ("uploadpack.allowFilter", "uploadpack.allowAnySHA1InWant"):
+        subprocess.run(
+            ["git", "-C", str(remote), "config", "--local", name, "true"], check=True
+        )
+    for index in range(3):
+        (remote / "data.txt").write_text(f"version {index}\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(remote), "add", "data.txt"], check=True)
+        subprocess.run(
+            ["git", "-C", str(remote), "commit", "-qm", f"version {index}"], check=True
+        )
+    config_path = tmp_path / "config.yaml"
+    save_config_yaml(
+        config_path,
+        {
+            str(tmp_path / "workspace"): {
+                "project": {
+                    "repo": f"git+{remote.as_uri()}",
+                    "git": {"filter": "blob:none"},
+                    "metadata": {"imported_from": "test"},
+                    "pin": True,
+                }
+            }
+        },
+    )
+
+    entry = load_configs([config_path])[0]
+    repo = update_repo(entry)
+    assert isinstance(repo, GitSync)
+    assert (
+        repo.cmd.run(["config", "--get", "remote.origin.partialclonefilter"], trim=True)
+        == "blob:none"
+    )
+    assert repo.cmd.run(["rev-list", "--count", "HEAD"], trim=True) == "4"
+    assert "?" in repo.cmd.run(["rev-list", "--objects", "--missing=print", "--all"])
+    assert (repo.path / "data.txt").read_text(encoding="utf-8") == "version 2\n"
+
+    entry["git"] = {"depth": 1, "filter": "tree:0"}
+    update_repo(entry)
+    assert (
+        repo.cmd.run(["config", "--get", "remote.origin.partialclonefilter"], trim=True)
+        == "blob:none"
+    )
+    assert repo.cmd.run(["rev-list", "--count", "HEAD"], trim=True) == "4"
+
+
 def test_update_repo_git_shallow(
     tmp_path: pathlib.Path,
     create_git_remote_repo: CreateRepoFn,
@@ -609,11 +662,11 @@ LEGACY_WARNING_FIXTURES: list[LegacyWarningFixture] = [
             },
         },
         expect_warning=True,
-        affected_count=1,
+        affected_count=2,
     ),
     LegacyWarningFixture(
         test_id="canonical-options",
-        config={"~/code/": {"flask": {"repo": _REPO, "options": {"shallow": True}}}},
+        config={"~/code/": {"flask": {"repo": _REPO, "git": {"depth": 1}}}},
         expect_warning=False,
         affected_count=0,
     ),
@@ -640,7 +693,7 @@ def test_load_configs_warns_on_legacy_options(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """load_configs(warn_legacy_options=True) warns only on top-level sync keys."""
+    """Legacy option locations produce one warning per file with an entry count."""
     monkeypatch.setenv("HOME", str(tmp_path))
     config_file = tmp_path / ".vcspull.yaml"
     save_config_yaml(config_file, config)

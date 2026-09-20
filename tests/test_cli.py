@@ -814,7 +814,7 @@ SYNC_REV_BRANCH_MISMATCH_FIXTURES: list[SyncRevBranchMismatchFixture] = [
         expected_in_out=[
             "Failed syncing",
             "could not be checked out",
-            "options.rev",
+            "working_copy.branch",
             "Available remote branches: origin/main",
         ],
         expected_not_in_out="Synced my_repo",
