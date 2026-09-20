@@ -573,7 +573,7 @@ def test_detect_git_depth(
 
 
 class MigrateEntryFixture(t.NamedTuple):
-    """Fixture for migrate_repo_entry top-level -> options relocation."""
+    """Legacy entries and their canonical checkout/backend settings."""
 
     test_id: str
     entry: t.Any
@@ -589,28 +589,32 @@ MIGRATE_ENTRY_FIXTURES: list[MigrateEntryFixture] = [
         expected_entry="git+ssh://x",
     ),
     MigrateEntryFixture(
-        test_id="no-legacy-keys",
+        test_id="legacy-pin-options",
         entry={"repo": "git+ssh://x", "options": {"pin": True}},
-        expected_changed=False,
-        expected_entry={"repo": "git+ssh://x", "options": {"pin": True}},
+        expected_changed=True,
+        expected_entry={"repo": "git+ssh://x", "pin": True},
     ),
     MigrateEntryFixture(
         test_id="single-legacy-shallow",
         entry={"repo": "git+ssh://x", "shallow": True},
         expected_changed=True,
-        expected_entry={"repo": "git+ssh://x", "options": {"shallow": True}},
+        expected_entry={"repo": "git+ssh://x", "git": {"depth": 1}},
     ),
     MigrateEntryFixture(
         test_id="depth-wins-over-shallow",
         entry={"repo": "git+ssh://x", "rev": "v1", "shallow": True, "depth": 5},
         expected_changed=True,
-        expected_entry={"repo": "git+ssh://x", "options": {"rev": "v1", "depth": 5}},
+        expected_entry={
+            "repo": "git+ssh://x",
+            "working_copy": {"rev": "v1"},
+            "git": {"depth": 5},
+        },
     ),
     MigrateEntryFixture(
         test_id="options-value-wins",
         entry={"repo": "git+ssh://x", "rev": "legacy", "options": {"rev": "canonical"}},
         expected_changed=True,
-        expected_entry={"repo": "git+ssh://x", "options": {"rev": "canonical"}},
+        expected_entry={"repo": "git+ssh://x", "working_copy": {"rev": "canonical"}},
     ),
     MigrateEntryFixture(
         test_id="preserves-pin-options",
@@ -618,7 +622,70 @@ MIGRATE_ENTRY_FIXTURES: list[MigrateEntryFixture] = [
         expected_changed=True,
         expected_entry={
             "repo": "git+ssh://x",
-            "options": {"pin": True, "shallow": True},
+            "pin": True,
+            "git": {"depth": 1},
+        },
+    ),
+    MigrateEntryFixture(
+        test_id="null-depth-retains-shallow",
+        entry={"repo": "git+x", "options": {"shallow": True, "depth": None}},
+        expected_changed=True,
+        expected_entry={"repo": "git+x", "git": {"depth": 1}},
+    ),
+    MigrateEntryFixture(
+        test_id="all-legacy-locations-one-pass",
+        entry={
+            "repo": "git+ssh://x",
+            "depth": 2,
+            "options": {
+                "rev": "v1",
+                "depth": 5,
+                "pin": {"import": True},
+                "allow_overwrite": False,
+                "pin_reason": "local fork",
+            },
+            "git_options": {"filter": "blob:none", "depth": 8},
+        },
+        expected_changed=True,
+        expected_entry={
+            "repo": "git+ssh://x",
+            "working_copy": {"rev": "v1"},
+            "git": {"depth": 8, "filter": "blob:none"},
+            "pin": {"import": True},
+            "allow_overwrite": False,
+            "pin_reason": "local fork",
+        },
+    ),
+    MigrateEntryFixture(
+        test_id="canonical-target-and-options-win",
+        entry={
+            "repo": "git+ssh://x",
+            "options": {"rev": "old", "depth": 5},
+            "working_copy": {"branch": "main", "sync": {"dirty": "abort"}},
+            "git_options": {"filter": "blob:none", "depth": 8},
+            "git": {"depth": 12},
+        },
+        expected_changed=True,
+        expected_entry={
+            "repo": "git+ssh://x",
+            "working_copy": {"branch": "main", "sync": {"dirty": "abort"}},
+            "git": {"depth": 12, "filter": "blob:none"},
+        },
+    ),
+    MigrateEntryFixture(
+        test_id="svn-target-and-metadata",
+        entry={
+            "repo": "svn+https://example.test/trunk",
+            "options": {"rev": 42},
+            "svn_options": {"depth": "files"},
+            "note": "build input",
+        },
+        expected_changed=True,
+        expected_entry={
+            "repo": "svn+https://example.test/trunk",
+            "working_copy": {"rev": 42},
+            "svn": {"depth": "files"},
+            "note": "build input",
         },
     ),
 ]
@@ -635,10 +702,24 @@ def test_migrate_repo_entry(
     expected_changed: bool,
     expected_entry: t.Any,
 ) -> None:
-    """migrate_repo_entry relocates legacy keys under options:, depth wins."""
+    """Migration preserves values and reaches a fixed point in one pass."""
     changed, result = migrate_repo_entry(entry)
     assert changed is expected_changed
     assert result == expected_entry
+    assert migrate_repo_entry(result) == (False, result)
+
+
+def test_migrate_rejects_unknown_legacy_options() -> None:
+    """An unrecognized legacy option cannot disappear during migration."""
+    with pytest.raises(ValueError, match=r"options\.deph"):
+        migrate_repo_entry({"repo": "git+ssh://x", "options": {"deph": 5}})
+
+
+@pytest.mark.parametrize("shallow", ["false", {"value": False}, [], 1])
+def test_migrate_rejects_malformed_shallow(shallow: t.Any) -> None:
+    """Migration cannot turn an invalid shallow value into a valid clone policy."""
+    with pytest.raises(TypeError, match="shallow"):
+        migrate_repo_entry({"repo": "git+x", "options": {"shallow": shallow}})
 
 
 class LegacyOptionsFixture(t.NamedTuple):

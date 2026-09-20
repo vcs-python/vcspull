@@ -1126,13 +1126,11 @@ LEGACY_REPO_OPTION_KEYS = ("rev", "shallow", "depth")
 
 
 def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
-    """Relocate legacy top-level sync keys under ``options:``.
+    """Separate checkout targets, backend settings, and entry policy.
 
-    Moves any top-level ``rev``/``shallow``/``depth`` into the entry's
-    ``options:`` block. A value already present under ``options:`` wins, so the
-    redundant top-level copy is simply dropped. When both ``shallow`` and a
-    truthy ``depth`` end up under ``options:``, ``depth`` wins and ``shallow``
-    is removed (matching how sync resolves precedence).
+    Canonical values win over legacy values. Within the legacy layout,
+    backend blocks win over ``options``, which wins over top-level tuning.
+    Unknown ``options`` keys raise instead of disappearing.
 
     Parameters
     ----------
@@ -1143,7 +1141,7 @@ def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
     -------
     tuple[bool, Any]
         ``(changed, entry)``. ``changed`` is ``False`` (and the entry returned
-        unchanged) for string shorthands and mappings with no legacy keys.
+        unchanged) for string shorthands and canonical mappings.
 
     Examples
     --------
@@ -1154,37 +1152,82 @@ def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
     >>> migrate_repo_entry({"repo": "git+ssh://x"})
     (False, {'repo': 'git+ssh://x'})
 
-    A legacy top-level key is relocated:
+    Shallow clones use Git's history depth:
 
     >>> migrate_repo_entry({"repo": "git+ssh://x", "shallow": True})
-    (True, {'repo': 'git+ssh://x', 'options': {'shallow': True}})
+    (True, {'repo': 'git+ssh://x', 'git': {'depth': 1}})
 
     ``depth`` wins over ``shallow`` in the migrated entry:
 
     >>> migrate_repo_entry(
     ...     {"repo": "git+ssh://x", "rev": "v1", "shallow": True, "depth": 5}
     ... )
-    (True, {'repo': 'git+ssh://x', 'options': {'rev': 'v1', 'depth': 5}})
+    (True, {'repo': 'git+ssh://x', 'working_copy': {'rev': 'v1'}, 'git': {'depth': 5}})
     """
     if not isinstance(entry, dict):
         return False, entry
 
-    if not any(key in entry for key in LEGACY_REPO_OPTION_KEYS):
+    legacy_keys = (
+        *LEGACY_REPO_OPTION_KEYS,
+        "options",
+        "git_options",
+        "hg_options",
+        "svn_options",
+    )
+    if not any(key in entry for key in legacy_keys):
         return False, entry
 
     new_entry = copy.deepcopy(entry)
-    options: dict[str, t.Any] = dict(new_entry.get("options") or {})
-    for key in LEGACY_REPO_OPTION_KEYS:
-        if key not in new_entry:
-            continue
-        value = new_entry.pop(key)
-        options.setdefault(key, value)
+    options = new_entry.pop("options", {})
+    if not isinstance(options, dict):
+        msg = "options: expected a mapping"
+        raise TypeError(msg)
+    policy_keys = ("pin", "pin_reason", "allow_overwrite")
+    unknown = options.keys() - {*LEGACY_REPO_OPTION_KEYS, *policy_keys}
+    if unknown:
+        msg = f"options.{min(map(str, unknown))}: unknown legacy option"
+        raise ValueError(msg)
+    tuning = {
+        key: new_entry.pop(key) for key in LEGACY_REPO_OPTION_KEYS if key in new_entry
+    }
+    tuning.update(options)
+    for key in policy_keys:
+        if key in tuning:
+            new_entry.setdefault(key, tuning.pop(key))
 
-    if options.get("depth"):
-        options.pop("shallow", None)
+    if tuning.get("rev") is not None:
+        target = new_entry.setdefault("working_copy", {})
+        if not isinstance(target, dict):
+            msg = "working_copy: expected a mapping"
+            raise TypeError(msg)
+        if not any(key in target for key in ("branch", "tag", "commit", "rev")):
+            target["rev"] = tuning["rev"]
 
-    new_entry["options"] = options
-    return True, new_entry
+    git_tuning: dict[str, t.Any] = {}
+    shallow = tuning.get("shallow")
+    if shallow is not None and not isinstance(shallow, bool):
+        msg = "shallow: expected a boolean"
+        raise TypeError(msg)
+    if tuning.get("depth") is not None:
+        git_tuning["depth"] = tuning["depth"]
+    elif shallow:
+        git_tuning["depth"] = 1
+
+    for backend in ("git", "hg", "svn"):
+        legacy = new_entry.pop(f"{backend}_options", {})
+        if not isinstance(legacy, dict):
+            msg = f"{backend}_options: expected a mapping"
+            raise TypeError(msg)
+        merged = git_tuning.copy() if backend == "git" else {}
+        merged.update(legacy)
+        if merged:
+            canonical = new_entry.get(backend, {})
+            if not isinstance(canonical, dict):
+                msg = f"{backend}: expected a mapping"
+                raise TypeError(msg)
+            merged.update(canonical)
+            new_entry[backend] = merged
+    return new_entry != entry, new_entry
 
 
 def detect_legacy_repo_options(raw_config: t.Any) -> list[tuple[str, str]]:

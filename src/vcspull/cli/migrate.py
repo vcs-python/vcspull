@@ -1,4 +1,4 @@
-"""Migrate vcspull configuration files to the ``options:`` form."""
+"""Migrate configuration to checkout targets and backend option blocks."""
 
 from __future__ import annotations
 
@@ -11,15 +11,18 @@ import typing as t
 
 from colorama import Fore, Style
 
-from vcspull._internal.config_reader import DuplicateAwareConfigReader
+from vcspull._internal.config_reader import (
+    DuplicateAwareConfigReader,
+    config_format_from_path,
+)
 from vcspull._internal.private_path import PrivatePath
 from vcspull.config import (
-    LEGACY_REPO_OPTION_KEYS,
     find_config_files,
     find_home_config_files,
     migrate_repo_entry,
     normalize_config_file_path,
     save_config,
+    save_config_yaml_with_items,
 )
 
 log = logging.getLogger(__name__)
@@ -48,7 +51,7 @@ def create_migrate_subparser(parser: argparse.ArgumentParser) -> None:
 
 
 def migrate_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]:
-    """Relocate legacy top-level sync keys under ``options:`` for every entry.
+    """Separate legacy checkout, backend, and policy settings in every entry.
 
     Parameters
     ----------
@@ -65,23 +68,27 @@ def migrate_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int
     >>> migrate_config(
     ...     {"~/code/": {"flask": {"repo": "git+x", "shallow": True}}}
     ... )
-    ({'~/code/': {'flask': {'repo': 'git+x', 'options': {'shallow': True}}}}, 1)
+    ({'~/code/': {'flask': {'repo': 'git+x', 'git': {'depth': 1}}}}, 1)
 
     An already-migrated config is returned unchanged:
 
     >>> migrate_config(
-    ...     {"~/code/": {"flask": {"repo": "git+x", "options": {"shallow": True}}}}
+    ...     {"~/code/": {"flask": {"repo": "git+x", "git": {"depth": 1}}}}
     ... )
-    ({'~/code/': {'flask': {'repo': 'git+x', 'options': {'shallow': True}}}}, 0)
+    ({'~/code/': {'flask': {'repo': 'git+x', 'git': {'depth': 1}}}}, 0)
     """
     migrated: dict[str, t.Any] = copy.deepcopy(config_data)
     change_count = 0
 
-    for repos in migrated.values():
+    for workspace, repos in migrated.items():
         if not isinstance(repos, dict):
             continue
         for repo_name, entry in repos.items():
-            changed, new_entry = migrate_repo_entry(entry)
+            try:
+                changed, new_entry = migrate_repo_entry(entry)
+            except (TypeError, ValueError) as error:
+                msg = f"workspace {workspace!r}, repository {repo_name!r}: {error}"
+                raise ValueError(msg) from error
             if changed:
                 repos[repo_name] = new_entry
                 change_count += 1
@@ -118,7 +125,7 @@ def migrate_single_config(config_file_path: pathlib.Path, write: bool) -> bool:
         return False
 
     try:
-        raw_config, _duplicate_root_occurrences, _top_level_items = (
+        raw_config, _duplicate_root_occurrences, top_level_items = (
             DuplicateAwareConfigReader.load_with_duplicates(config_file_path)
         )
     except TypeError:
@@ -136,11 +143,34 @@ def migrate_single_config(config_file_path: pathlib.Path, write: bool) -> bool:
             traceback.print_exc()
         return False
 
-    migrated_config, change_count = migrate_config(raw_config)
+    items = top_level_items or list(raw_config.items())
+    migrated_items: list[tuple[str, t.Any]] = []
+    changed_entries: list[str] = []
+    change_count = 0
+    try:
+        for workspace, repos in items:
+            migrated, changes = migrate_config({workspace: repos})
+            migrated_repos = migrated[workspace]
+            migrated_items.append((workspace, migrated_repos))
+            change_count += changes
+            if isinstance(repos, dict):
+                changed_entries.extend(
+                    str(name)
+                    for name, entry in migrated_repos.items()
+                    if entry != repos[name]
+                )
+    except ValueError as error:
+        # Invalid user input needs its location and message, not a traceback.
+        log.error(  # noqa: TRY400
+            "migration failed for %s: %s",
+            display_config_path,
+            error,
+        )
+        return False
 
     if change_count == 0:
         log.info(
-            "%s✓%s %s%s%s already nests rev/shallow/depth under options:.",
+            "%s%s %s%s%s already uses checkout targets and backend options",
             Fore.GREEN,
             Style.RESET_ALL,
             Fore.BLUE,
@@ -162,27 +192,22 @@ def migrate_single_config(config_file_path: pathlib.Path, write: bool) -> bool:
         Style.RESET_ALL,
     )
 
-    moved = "/".join(LEGACY_REPO_OPTION_KEYS)
-    for workspace_label, repos in migrated_config.items():
-        if not isinstance(repos, dict):
-            continue
-        original = raw_config.get(workspace_label)
-        for repo_name, entry in repos.items():
-            previous = original.get(repo_name) if isinstance(original, dict) else None
-            if entry != previous:
-                log.info(
-                    "  %s•%s %s%s%s: moved %s under options:",
-                    Fore.BLUE,
-                    Style.RESET_ALL,
-                    Fore.CYAN,
-                    repo_name,
-                    Style.RESET_ALL,
-                    moved,
-                )
+    for repo_name in changed_entries:
+        log.info(
+            "  %s%s %s%s%s: separated checkout, backend, and policy settings",
+            Fore.BLUE,
+            Style.RESET_ALL,
+            Fore.CYAN,
+            repo_name,
+            Style.RESET_ALL,
+        )
 
     if write:
         try:
-            save_config(config_file_path, migrated_config)
+            if config_format_from_path(config_file_path) == "json":
+                save_config(config_file_path, dict(migrated_items))
+            else:
+                save_config_yaml_with_items(config_file_path, migrated_items)
             log.info(
                 "%s✓%s Successfully migrated %s%s%s",
                 Fore.GREEN,
@@ -215,8 +240,8 @@ def migrate_config_file(
     config_file_path_str: str | None,
     write: bool,
     migrate_all: bool = False,
-) -> None:
-    """Migrate vcspull configuration file(s) to the ``options:`` form.
+) -> int:
+    """Migrate configuration files and return zero when every file succeeds.
 
     Parameters
     ----------
@@ -226,6 +251,11 @@ def migrate_config_file(
         Whether to write changes back to file.
     migrate_all : bool
         If True, migrate all discovered config files.
+
+    Returns
+    -------
+    int
+        Zero on success, one when discovery or any migration fails.
     """
     if migrate_all:
         config_files = find_config_files(include_home=True)
@@ -244,7 +274,7 @@ def migrate_config_file(
                 Fore.RED,
                 Style.RESET_ALL,
             )
-            return
+            return 1
 
         log.info(
             "%si%s Found %s%d%s configuration %s to check:",
@@ -286,7 +316,7 @@ def migrate_config_file(
                 success_count,
                 len(config_files),
             )
-        return
+        return int(success_count != len(config_files))
 
     if config_file_path_str:
         config_file_path = normalize_config_file_path(
@@ -304,13 +334,13 @@ def migrate_config_file(
                     Fore.RED,
                     Style.RESET_ALL,
                 )
-                return
+                return 1
         elif len(home_configs) > 1:
             log.error(
                 "Multiple home config files found, please specify one with -f/--file",
             )
-            return
+            return 1
         else:
             config_file_path = home_configs[0]
 
-    migrate_single_config(config_file_path, write)
+    return int(not migrate_single_config(config_file_path, write))

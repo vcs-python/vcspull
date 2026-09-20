@@ -23,6 +23,48 @@ well.
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Separate checkout targets and backend options
+
+Run {ref}`cli-migrate` once to move both top-level tuning and the `options`
+block into the canonical layout:
+
+```console
+$ vcspull migrate --write
+```
+
+Before:
+
+```yaml
+~/code/:
+  libvcs:
+    repo: git+https://github.com/vcs-python/libvcs.git
+    options:
+      rev: v0.46.0
+      depth: 50
+      pin:
+        import: true
+```
+
+After:
+
+```yaml
+~/code/:
+  libvcs:
+    repo: git+https://github.com/vcs-python/libvcs.git
+    working_copy:
+      rev: v0.46.0
+    git:
+      depth: 50
+    pin:
+      import: true
+```
+
+`shallow: true` becomes `git.depth: 1`. `git_options`, `hg_options`, and
+`svn_options` become `git`, `hg`, and `svn`. `pin_reason` and
+`allow_overwrite` move from `options` to the entry level alongside `pin`.
+Existing canonical values take precedence. Unknown legacy `options` keys
+produce an error before the file is written.
+
 ## vcspull 1.62.0 (2026-05-31)
 
 ### Per-repository sync keys moved under `options:`
