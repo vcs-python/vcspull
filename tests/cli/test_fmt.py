@@ -145,6 +145,23 @@ def test_normalize_repo_config_preserves_extras() -> None:
     }
 
 
+def test_normalize_repo_config_migrates_options() -> None:
+    """Formatting emits canonical fields without mutating the input."""
+    entry = {
+        "repo": "git+https://example.com/repo.git",
+        "options": {"rev": "main", "shallow": True, "pin": {"import": True}},
+    }
+    normalized = normalize_repo_config(entry)
+    assert normalized == {
+        "repo": entry["repo"],
+        "working_copy": {"rev": "main"},
+        "git": {"depth": 1},
+        "pin": {"import": True},
+    }
+    assert "options" in entry
+    assert normalize_repo_config(normalized) == normalized
+
+
 def test_normalize_repo_config_both_url_and_repo() -> None:
     """When url and repo keys coexist, keep config unchanged."""
     config = {
@@ -607,9 +624,9 @@ FMT_ACTION_FIXTURES: list[FmtActionFixture] = [
         FmtAction.NORMALIZE,
     ),
     FmtActionFixture(
-        "no-change-with-unrelated-options",
+        "normalize-unrelated-options",
         {"repo": _FMT_SSH, "options": {"pin": {"import": True}}},
-        FmtAction.NO_CHANGE,
+        FmtAction.NORMALIZE,
     ),
 ]
 
@@ -627,3 +644,19 @@ def test_classify_fmt_action(
     """Test _classify_fmt_action covers all permutations."""
     action, _result = _classify_fmt_action(repo_data)
     assert action == expected_action
+
+
+def test_fmt_rejects_invalid_options_before_writing(
+    tmp_path: pathlib.Path, caplog: LogCaptureFixture
+) -> None:
+    """A failed migration leaves the entire config unchanged."""
+    from vcspull.config import save_config_yaml
+
+    config = tmp_path / "workspace.yaml"
+    save_config_yaml(
+        config, {"./": {"repo": {"repo": _FMT_SSH, "options": {"deph": 4}}}}
+    )
+    before = config.read_bytes()
+    format_config_file(str(config), write=True)
+    assert config.read_bytes() == before
+    assert any("options.deph" in record.getMessage() for record in caplog.records)

@@ -366,7 +366,10 @@ def find_home_config_files(
 
     Examples
     --------
-    >>> find_home_config_files()
+    >>> with tempfile.TemporaryDirectory() as home:
+    ...     with getfixture("monkeypatch").context() as patch:
+    ...         patch.setenv("HOME", home)
+    ...         find_home_config_files()
     []
     """
     if filetype is None:
@@ -1021,7 +1024,7 @@ def build_repo_entry(
     """Build a raw per-repository config entry for ``add``/``discover``.
 
     Centralizes the entry shape written by both subcommands so the recorded
-    keys stay consistent. Sync-tuning keys are nested under ``options:``;
+    keys stay consistent. Targets use ``working_copy`` and clone settings use ``git``;
     ``depth`` wins over ``shallow`` when both are supplied.
 
     Parameters
@@ -1029,11 +1032,11 @@ def build_repo_entry(
     url : str
         VCS URL in vcspull format, e.g. ``git+https://github.com/u/r.git``.
     rev : str | None
-        Commit, tag, or branch to pin via ``options.rev``. Omitted when falsy.
+        Commit, tag, or branch to pin via ``working_copy.rev``. Omitted when falsy.
     shallow : bool
-        If ``True``, record ``options.shallow: true`` (clone ``--depth 1``).
+        If ``True``, record ``git.depth: 1`` (clone ``--depth 1``).
     depth : int | None
-        If set, record ``options.depth: N`` (clone ``--depth N``).
+        If set, record ``git.depth: N`` (clone ``--depth N``).
 
     Returns
     -------
@@ -1046,35 +1049,33 @@ def build_repo_entry(
     {'repo': 'git+https://github.com/u/r.git'}
 
     >>> build_repo_entry("git+https://github.com/u/r.git", rev="v1.0.0")
-    {'repo': 'git+https://github.com/u/r.git', 'options': {'rev': 'v1.0.0'}}
+    {'repo': 'git+https://github.com/u/r.git', 'working_copy': {'rev': 'v1.0.0'}}
 
     >>> build_repo_entry("git+https://github.com/u/r.git", shallow=True)
-    {'repo': 'git+https://github.com/u/r.git', 'options': {'shallow': True}}
+    {'repo': 'git+https://github.com/u/r.git', 'git': {'depth': 1}}
 
     >>> build_repo_entry("git+https://github.com/u/r.git", depth=50)
-    {'repo': 'git+https://github.com/u/r.git', 'options': {'depth': 50}}
+    {'repo': 'git+https://github.com/u/r.git', 'git': {'depth': 50}}
 
     ``depth`` wins over ``shallow``:
 
     >>> build_repo_entry("git+https://github.com/u/r.git", shallow=True, depth=50)
-    {'repo': 'git+https://github.com/u/r.git', 'options': {'depth': 50}}
+    {'repo': 'git+https://github.com/u/r.git', 'git': {'depth': 50}}
     """
     entry: dict[str, t.Any] = {"repo": url}
-    options: dict[str, t.Any] = {}
     if rev:
-        options["rev"] = rev
-    if depth:
-        options["depth"] = depth
+        entry["working_copy"] = {"rev": rev}
+    if depth is not None:
+        entry["git"] = {"depth": depth}
     elif shallow:
-        options["shallow"] = True
-    if options:
-        entry["options"] = options
+        entry["git"] = {"depth": 1}
+    validate_repo_entry(entry, location="repository")
+    if "working_copy" in entry:
+        validate_working_copy(entry["working_copy"])
     return entry
 
 
-#: Per-repository sync-tuning keys whose canonical home is the ``options:``
-#: block. They were accepted at the entry root in v1.61.0; that form is now
-#: deprecated and migrated by :func:`migrate_repo_entry`.
+#: Legacy flat tuning fields migrated into ``working_copy`` or ``git``.
 LEGACY_REPO_OPTION_KEYS = ("rev", "shallow", "depth")
 
 

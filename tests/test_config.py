@@ -900,3 +900,22 @@ def test_detect_legacy_repo_options(
 ) -> None:
     """Legacy locations warn while backend blocks and shorthand stay quiet."""
     assert detect_legacy_repo_options(raw_config) == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "kwargs", "field"),
+    [
+        ("svn+https://example.com/repo", {"shallow": True}, "git"),
+        ("git+https://example.com/repo.git", {"depth": -1}, "depth"),
+        ("git+https://example.com/repo.git", {"rev": "-invalid"}, "rev"),
+    ],
+)
+def test_build_repo_entry_rejects_invalid_settings(
+    url: str, kwargs: dict[str, t.Any], field: str
+) -> None:
+    """Writers reject settings that the canonical loader would reject."""
+    from vcspull.config import build_repo_entry
+    from vcspull.exc import VCSPullException
+
+    with pytest.raises(VCSPullException, match=field):
+        build_repo_entry(url, **kwargs)

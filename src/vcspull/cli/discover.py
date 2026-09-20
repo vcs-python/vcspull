@@ -29,6 +29,7 @@ from vcspull.config import (
     save_config,
     workspace_root_label,
 )
+from vcspull.exc import VCSPullException
 
 log = logging.getLogger(__name__)
 
@@ -53,9 +54,9 @@ class _FoundRepo(t.NamedTuple):
     workspace_path : pathlib.Path
         Workspace root the entry is recorded under.
     shallow : bool
-        Whether to record ``options.shallow: true``.
+        Whether to record ``git.depth: 1``.
     depth : int | None
-        Clone depth to record as ``options.depth``, or ``None`` for none.
+        Clone depth to record as ``git.depth``, or ``None`` for none.
     """
 
     name: str
@@ -220,10 +221,12 @@ def get_git_origin_url(repo_path: pathlib.Path) -> str | None:
             text=True,
             check=True,
         )
-        return result.stdout.strip()
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         log.debug("Could not get origin URL for %s: %s", repo_path, e)
         return None
+    else:
+        url = result.stdout.strip()
+        return f"git+{url}" if url.startswith("file://") else url
 
 
 def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
@@ -274,7 +277,7 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
         dest="shallow",
         action="store_true",
         help=(
-            "Record 'options.shallow: true' for discovered repositories. "
+            "Record 'git.depth: 1' for discovered repositories. "
             "Shallow checkouts are detected automatically; this forces it on "
             "for all."
         ),
@@ -285,7 +288,7 @@ def create_discover_subparser(parser: argparse.ArgumentParser) -> None:
         type=int,
         metavar="N",
         help=(
-            "Record 'options.depth: N' for every discovered repository "
+            "Record 'git.depth: N' for every discovered repository "
             "(clone --depth N on sync). Overrides --shallow."
         ),
     )
@@ -382,13 +385,13 @@ def discover_repos(
     dry_run : bool
         If True, preview changes without writing
     rev : str | None
-        Commit, tag, or branch to record as ``options.rev`` for every
+        Commit, tag, or branch to record as ``working_copy.rev`` for every
         discovered repository.
     shallow : bool
-        If ``True``, force ``options.shallow: true`` for every discovered
+        If ``True``, force ``git.depth: 1`` for every discovered
         repository; otherwise clone depth is auto-detected per repository.
     depth : int | None
-        If set, record ``options.depth: N`` for every discovered repository;
+        If set, record ``git.depth: N`` for every discovered repository;
         overrides ``shallow``.
     """
     if depth is not None and depth < 1:
@@ -869,12 +872,16 @@ def discover_repos(
             continue
 
         if repo_name not in raw_config[workspace_label]:
-            raw_config[workspace_label][repo_name] = build_repo_entry(
-                repo_url,
-                rev=rev,
-                shallow=repo_shallow,
-                depth=repo_depth,
-            )
+            try:
+                raw_config[workspace_label][repo_name] = build_repo_entry(
+                    repo_url,
+                    rev=rev,
+                    shallow=repo_shallow,
+                    depth=repo_depth,
+                )
+            except VCSPullException as error:
+                log.error("%s: %s", repo_name, error)  # noqa: TRY400
+                return
             log.info(
                 "%s+%s Importing %s'%s'%s (%s%s%s) under '%s%s%s'.",
                 Fore.GREEN,

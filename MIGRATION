@@ -65,6 +65,10 @@ After:
 Existing canonical values take precedence. Unknown legacy `options` keys
 produce an error before the file is written.
 
+`add` and `discover` write the canonical layout. `import` and `fmt` migrate
+entries they rewrite; entries pinned for that command stay unchanged. Use
+`migrate --write` to upgrade every entry, including pinned entries.
+
 Loading normalizes the same legacy locations in memory and warns once per
 file. Unknown entry or backend fields now fail during loading; metadata
 belongs in `metadata`, not in a libvcs constructor argument. Sync constructs

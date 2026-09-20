@@ -34,6 +34,7 @@ from vcspull.config import (
     save_config_yaml_with_items,
     workspace_root_label,
 )
+from vcspull.exc import VCSPullException
 
 log = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         dest="shallow",
         action="store_true",
         help=(
-            "Record 'options.shallow: true' (clone --depth 1 on sync). A "
+            "Record 'git.depth: 1' (clone --depth 1 on sync). A "
             "shallow checkout is detected automatically; this forces it on."
         ),
     )
@@ -143,7 +144,7 @@ def create_add_subparser(parser: argparse.ArgumentParser) -> None:
         type=int,
         metavar="N",
         help=(
-            "Record 'options.depth: N' (clone --depth N on sync). Overrides "
+            "Record 'git.depth: N' (clone --depth N on sync). Overrides "
             "--shallow. An existing shallow checkout's depth is detected "
             "automatically."
         ),
@@ -270,7 +271,7 @@ class ParsedRepoUrl(t.NamedTuple):
     url : str
         The URL without any pip-style ``@rev``, suitable to record as ``repo``.
     rev : str | None
-        Revision from a pip-style ``@rev``, to record as ``options.rev``.
+        Revision from a pip-style ``@rev``, to record as ``working_copy.rev``.
     unparsed_rev : str | None
         Revision trailing a URL libvcs does not parse revisions for, which
         would otherwise stay in the recorded URL and fail to clone.
@@ -1049,11 +1050,11 @@ def add_repo(
     dry_run : bool
         If True, preview changes without writing
     rev : str | None
-        Commit, tag, or branch to record as ``options.rev``.
+        Commit, tag, or branch to record as ``working_copy.rev``.
     shallow : bool
-        If ``True``, record ``options.shallow: true`` for the repository.
+        If ``True``, record ``git.depth: 1`` for the repository.
     depth : int | None
-        If set, record ``options.depth: N`` for the repository.
+        If set, record ``git.depth: N`` for the repository.
     """
     # Determine config file
     resolution = _resolve_config_file(config_file_path_str)
@@ -1123,7 +1124,11 @@ def add_repo(
         preserve_cwd_label=explicit_dot,
     )
 
-    new_repo_entry = build_repo_entry(url, rev=rev, shallow=shallow, depth=depth)
+    try:
+        new_repo_entry = build_repo_entry(url, rev=rev, shallow=shallow, depth=depth)
+    except VCSPullException as error:
+        log.error("%s: %s", name, error)  # noqa: TRY400
+        return
 
     def _ensure_workspace_label_for_merge(
         config_data: dict[str, t.Any],

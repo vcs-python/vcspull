@@ -64,6 +64,8 @@ at the repository entry level.
 {ref}`cli-migrate` separates legacy settings into `working_copy`, the
 matching backend block, and entry-level pin policy in one pass. Unknown
 legacy options stop migration before it writes the configuration file.
+`add` and `discover` write the same layout. `import` and `fmt` migrate entries
+they rewrite and preserve entries pinned for that command.
 See {ref}`migration` for an upgrade example.
 
 #### Validate shared checkout targets
