@@ -19,6 +19,7 @@ from vcspull.config import (
     find_home_config_files,
     is_pinned_for_op,
     merge_duplicate_workspace_roots,
+    migrate_repo_entry,
     normalize_config_file_path,
     normalize_workspace_roots,
     save_config,
@@ -105,13 +106,11 @@ def normalize_repo_config(repo_data: t.Any) -> dict[str, t.Any]:
         # Convert compact format to verbose format
         return {"repo": repo_data}
     if isinstance(repo_data, dict):
-        # If it has 'url' key but not 'repo', convert to use 'repo'
-        if "url" in repo_data and "repo" not in repo_data:
-            normalized = repo_data.copy()
+        _, normalized = migrate_repo_entry(repo_data)
+        if "url" in normalized and "repo" not in normalized:
+            normalized = normalized.copy()
             normalized["repo"] = normalized.pop("url")
-            return normalized
-        # Already in correct format or has other fields
-        return repo_data
+        return t.cast("dict[str, t.Any]", normalized)
     # Return as-is for other types
     return t.cast("dict[str, t.Any]", repo_data)
 
@@ -208,7 +207,11 @@ def format_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int]
 
         for repo_name in sorted(repos.keys()):
             repo_data = repos[repo_name]
-            action, result = _classify_fmt_action(repo_data)
+            try:
+                action, result = _classify_fmt_action(repo_data)
+            except (TypeError, ValueError) as error:
+                msg = f"{directory!r} -> {repo_name!r} -> {error}"
+                raise ValueError(msg) from error
             if action == FmtAction.SKIP_PINNED:
                 formatted_dir[repo_name] = copy.deepcopy(result)
             else:
@@ -342,7 +345,11 @@ def format_single_config(
     for message in duplicate_merge_conflicts:
         log.warning(message)
 
-    formatted_config, change_count = format_config(normalized_config)
+    try:
+        formatted_config, change_count = format_config(normalized_config)
+    except ValueError as error:
+        log.error("%s: %s", display_config_path, error)  # noqa: TRY400
+        return False
     change_count += normalization_changes + duplicate_merge_changes
 
     if change_count == 0:

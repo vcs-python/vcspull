@@ -55,10 +55,24 @@ You can place the file in one of three places:
 
 ## Schema
 
-```{warning}
+Editors can complete configuration fields and catch invalid options using
+[the published JSON Schema](https://vcspull.git-pull.com/_static/schemas/vcspull.schema.json).
+Add its directive at the top of your YAML file:
 
-This structure is subject to break in upcoming releases.
+```yaml
+# yaml-language-server: $schema=https://vcspull.git-pull.com/_static/schemas/vcspull.schema.json
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+    git:
+      filter: blob:none
 ```
+
+The loader validates settings independently before sync starts.
+
+Integer configuration fields use the exact JSON integer range through
+`9007199254740991`. Native Git filter strings retain the full uint64 range;
+for example, `filter: "tree:18446744073709551615"`.
 
 ```yaml
 ~/workdir/:
@@ -133,84 +147,94 @@ Optional fields:
 
 See {ref}`cli-worktree` for full command documentation.
 
-## Sync options
+## Backend options
 
-Per-repository sync behavior lives under an `options:` block alongside the
-`repo` URL. The keys below tune how {ref}`cli-sync` clones and updates a
-checkout. Mutation policy such as `pin` lives in the same block (see
-{ref}`config-pin`).
+Repository entries use one backend block matching their URL: `git`, `hg`,
+or `svn`. Unknown keys, wrong-backend blocks, and malformed values fail when
+loading, with the file, workspace, repository, and field in the error.
+Supplied legacy values must be valid even when a canonical field overrides
+them. Numeric integer fields accept `2.0` as `2`; booleans and fractional
+values fail. Metadata contains JSON-compatible values with string keys.
 
-### Revision pinning
+| Block | Options |
+| --- | --- |
+| `git` | `depth`, `filter`, `tls_verify` |
+| `hg` | `ssh`, `remote_cmd`, `pull`, `stream`, `tls_verify` |
+| `svn` | `username`, `password`, `depth`, `trust_server_cert`, `ignore_externals` |
 
-`options.rev` pins a repository to a commit, tag, or branch, which
-{ref}`cli-sync` checks out. This lets a config capture a reproducible snapshot
-instead of tracking the branch tip. It is distinct from `options.pin` (see
-{ref}`config-pin`), which guards the config entry from being overwritten rather
-than pinning a [git](https://git-scm.com/) ref.
+Git `depth` is a positive history length. Subversion `depth` is one of
+`empty`, `files`, `immediates`, or `infinity`. TLS verification defaults to
+`true` for Git and Mercurial. Subversion uses its client's certificate checks
+unless `trust_server_cert` is enabled.
+
+### Partial clones
+
+`git.filter: blob:none` retains commit history while leaving historical file
+contents on the remote until Git needs them. Checkout downloads the contents
+needed by the current working tree.
+
+```yaml
+~/code/:
+  git:
+    repo: git+https://github.com/git/git.git
+    git:
+      filter: blob:none
+  monorepo:
+    repo: git+https://example.com/monorepo.git
+    git:
+      filter:
+        - blob:limit=1m
+        - kind: tree
+          depth: 3
+```
+
+Filters accept atomic native strings, kind-tagged mappings, or nonempty lists.
+Use a mapping or nested list for a combined filter, without percent encoding:
+
+```yaml
+git:
+  filter:
+    kind: combine
+    filters:
+      - blob:none
+      - tree:3
+```
+
+Native `combine:` strings are rejected in configuration; `vcspull migrate`
+converts them to this structured form. Combinations may nest up to 32 levels.
+`auto` requires a Git version that supports it and cannot be combined with
+other filters or forwarded to submodule initialization. libvcs validates
+filter syntax before running Git. The remote must enable partial-clone
+filtering; Git may otherwise warn and transfer all objects.
+
+### History depth and revisions
+
+Use `git.depth: 1` for a shallow clone, or a larger positive integer for a
+history window. `working_copy.rev` selects a native revision expression.
 
 ```yaml
 ~/code/:
   flask:
     repo: git+https://github.com/pallets/flask.git
-    options:
+    working_copy:
       rev: v3.0.0
-```
-
-{ref}`vcspull add <cli-add>` with `<path> --pin <ref>` and
-{ref}`vcspull discover <cli-discover>` with `<dir> --pin <ref>` record this
-key when importing an existing checkout.
-
-### Shallow clones
-
-`options.shallow: true` makes {ref}`cli-sync` clone the repository with
-`--depth 1`, trading git history for disk and time—useful for workspaces with
-many repositories.
-
-```yaml
-~/code/:
-  flask:
-    repo: git+https://github.com/pallets/flask.git
-    options:
-      shallow: true
-```
-
-{ref}`vcspull add <cli-add>` and {ref}`vcspull discover <cli-discover>` detect
-an existing depth-1 checkout automatically and record `options.shallow: true`;
-the `--shallow` flag forces it on even for a full checkout.
-
-### Clone depth
-
-`options.depth: N` keeps a small window of history by cloning with `--depth N`.
-Reach for it when `shallow: true` (depth 1) is too little—for example, a handful
-of recent commits for `git log` or `git bisect`.
-
-```yaml
-~/code/:
-  django:
-    repo: git+https://github.com/django/django.git
-    options:
+    git:
       depth: 50
 ```
 
-{ref}`vcspull add <cli-add>` with `<path> --depth N` and
-{ref}`vcspull discover <cli-discover>` with `<dir> --depth N` record this key.
-When importing an existing shallow checkout, both detect its depth: a depth-1
-checkout records `options.shallow: true` and a deeper window records
-`options.depth: N`. `depth` takes precedence over `shallow` when both are set.
+Depth and filter options apply to the initial clone and its submodules.
+Changing either setting leaves an existing checkout's history and filter
+unchanged. Revision selection is independent of the entry's mutation policy
+under `pin`.
 
-### Migrating from the top-level form
-
-vcspull v1.61.0 accepted `rev:` and `shallow:` at the repository entry root.
-Those keys still work but are deprecated in favor of the `options:` block, and
-{ref}`cli-sync` warns when it reads them. Run {ref}`cli-migrate` to rewrite
-existing configs in place:
+Legacy `options`, top-level `rev`/`shallow`/`depth`, and `<vcs>_options` blocks
+still load with a warning. Run {ref}`cli-migrate` to rewrite them in one pass:
 
 ```console
 $ vcspull migrate --write
 ```
 
-See {ref}`migration` for the deprecation note and {ref}`cli-migrate` for the
-command reference.
+See {ref}`migration` for precedence and the upgrade example.
 
 (config-pin)=
 
@@ -227,38 +251,34 @@ Here is a configuration showing all three pin forms side by side:
   # Global pin — blocks ALL operations (import, add, discover, fmt, merge)
   internal-fork:
     repo: "git+git@github.com:myorg/internal-fork.git"
-    options:
-      pin: true
-      pin_reason: "pinned to company fork — update manually"
+    pin: true
+    pin_reason: "pinned to company fork — update manually"
 
   # Per-operation pin — only import and fmt are blocked
   my-framework:
     repo: "git+git@github.com:myorg/my-framework.git"
-    options:
-      pin:
-        import: true
-        fmt: true
-      pin_reason: "URL managed manually; formatting intentional"
+    pin:
+      import: true
+      fmt: true
+    pin_reason: "URL managed manually; formatting intentional"
 
   # Shorthand — equivalent to pin: {import: true}
   stable-dep:
     repo: "git+https://github.com/upstream/stable-dep.git"
-    options:
-      allow_overwrite: false
+    allow_overwrite: false
 ```
 
 ### Pin all operations
 
-Set `pin: true` inside `options` to block every mutation command. This is
+Set `pin: true` at the repository entry level to block every mutation command. This is
 the simplest form — no automated vcspull command can modify this entry:
 
 ```yaml
 ~/code/:
   internal-fork:
     repo: "git+git@github.com:myorg/internal-fork.git"
-    options:
-      pin: true
-      pin_reason: "pinned to company fork — update manually"
+    pin: true
+    pin_reason: "pinned to company fork — update manually"
 ```
 
 ### Pin specific operations
@@ -270,11 +290,10 @@ Unlisted keys default to `false` (unpinned):
 ~/code/:
   my-framework:
     repo: "git+git@github.com:myorg/my-framework.git"
-    options:
-      pin:
-        import: true
-        fmt: true
-      pin_reason: "URL managed manually; formatting intentional"
+    pin:
+      import: true
+      fmt: true
+    pin_reason: "URL managed manually; formatting intentional"
 ```
 
 Available pin keys:
@@ -297,8 +316,7 @@ Available pin keys:
 ~/code/:
   stable-dep:
     repo: "git+https://github.com/upstream/stable-dep.git"
-    options:
-      allow_overwrite: false
+    allow_overwrite: false
 ```
 
 ### Pin behavior
@@ -326,7 +344,7 @@ Each command handles pins differently:
 | Workspace merge | Pinned entry wins conflict | info |
 
 ```{note}
-The `pin` and `pin_reason` fields described here live under `options` and
+The `pin` and `pin_reason` fields live at the repository entry level and
 guard the *configuration entry* against mutation by vcspull commands.
 
 This is different from the worktree-level `lock` / `lock_reason` that lives

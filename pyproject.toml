@@ -95,7 +95,10 @@ dev = [
   "types-Pygments",
   "types-requests",
   "types-PyYAML",
-  "types-colorama"
+  "types-colorama",
+  "pydantic>=2.13.5",
+  "jsonschema>=4.26.0",
+  "types-jsonschema>=4.26.0.20260518",
 ]
 
 docs = [
@@ -134,6 +137,9 @@ typings = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+libvcs = { git = "https://github.com/vcs-python/libvcs.git", branch = "options-streamline-and-git-filtering" }
 
 [tool.uv.exclude-newer-package]
 # vcspull's release cadence is tightly coupled to libvcs -- a libvcs
@@ -272,9 +278,7 @@ required-imports = [
 # cursor-restore handler logs and swallows to leave a breadcrumb
 # without masking other shutdown tasks.
 "src/vcspull/cli/_progress.py" = ["BLE001"]
-# The sync worker thread catches everything, including BaseException,
-# to hand the failure back to the main thread; narrowing would lose
-# the exception instead of reporting it.
+# Sync interruption cleans up the indicator before propagating the exception.
 "src/vcspull/cli/sync.py" = ["BLE001"]
 # A log formatter that raises takes the application down with it, so
 # %-format failures in a caller's record become a "Bad message" line

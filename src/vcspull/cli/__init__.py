@@ -270,11 +270,10 @@ FMT_DESCRIPTION = build_description(
 
 MIGRATE_DESCRIPTION = build_description(
     """
-    Migrate configuration files to the options: form.
+    Separate checkout targets, backend options, and entry policy.
 
-    Relocates per-repository rev/shallow/depth keys from the entry root into
-    the options: block. Without --write it previews changes; with --write it
-    rewrites the file(s).
+    Moves legacy tuning into working_copy and git/hg/svn blocks, with pin
+    policy at the entry level. Preview changes by default; --write saves them.
     """,
     (
         (
@@ -438,7 +437,7 @@ def create_parser(
     # Migrate command
     migrate_parser = subparsers.add_parser(
         "migrate",
-        help="migrate configuration files to the options: form",
+        help="migrate checkout targets, backend options, and entry policy",
         formatter_class=VcspullHelpFormatter,
         description=MIGRATE_DESCRIPTION,
     )
@@ -533,6 +532,7 @@ def cli(_args: list[str] | None = None) -> None:
             log_file=getattr(args, "log_file", None),
             no_log_file=getattr(args, "no_log_file", False),
             panel_lines=getattr(args, "panel_lines", None),
+            yes=getattr(args, "yes", False),
         )
     elif args.subparser_name == "list":
         list_repos(
@@ -606,11 +606,13 @@ def cli(_args: list[str] | None = None) -> None:
             merge_roots=args.merge_roots,
         )
     elif args.subparser_name == "migrate":
-        migrate_config_file(
+        result = migrate_config_file(
             args.config,
             args.write,
             args.all,
         )
+        if result:
+            raise SystemExit(result)
     elif args.subparser_name == "import":
         handler = getattr(args, "import_handler", None)
         if handler is None:

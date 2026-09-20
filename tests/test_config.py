@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import subprocess
 import textwrap
@@ -19,6 +20,7 @@ from vcspull.config import (
     migrate_repo_entry,
     resolve_clone_depth,
 )
+from vcspull.exc import VCSPullException
 
 if t.TYPE_CHECKING:
     import pathlib
@@ -61,6 +63,136 @@ def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
         return dir_, configs, repos
 
     return fn
+
+
+@pytest.mark.parametrize(
+    ("entry", "field"),
+    [
+        ({"git": {"filtre": "blob:none"}}, "git.filtre"),
+        ({"git": {"filter": ["blob:none", {"kind": "nope"}]}}, "git.filter[1]"),
+        ({"git": {"filter": []}}, "git.filter"),
+        ({"git": {"filter": {"kind": "combine", "filters": ["auto"]}}}, "git.filter"),
+        ({"git": {"depth": True}}, "git.depth"),
+        ({"git": {"tls_verify": "false"}}, "git.tls_verify"),
+        ({"git": {"depth": 1.5}}, "git.depth"),
+        ({"git": {"depth": 2}, "options": {"depth": False}}, "options.depth"),
+        ({"working_copy": {"branch": "main"}, "rev": []}, "rev"),
+        ({"git": {"depth": 2}, "git_options": {"depth": False}}, "git_options.depth"),
+        ({"url": "git+https://example.com/repo.git", "repo": False}, "repo"),
+        ({"metadata": {"nested": {1: "non-string key"}}}, "metadata"),
+        ({"metadata": {"number": float("inf")}}, "metadata"),
+        ({"git": {"filter": "combine:blob:none+tree:1"}}, "git.filter"),
+        ({"hg": {}}, "hg"),
+        ({"svn": {"depth": "files"}}, "svn"),
+        ({"git_options": {"typo": True}}, "git_options.typo"),
+        ({"working_coppy": {"branch": "main"}}, "working_coppy"),
+        (
+            {"remotes": {"upstream": {"fetch_url": "git+https://example.com/up.git"}}},
+            "remotes.upstream.push_url",
+        ),
+        ({"pin": {"sync": True}}, "pin.sync"),
+        (
+            {"repo": "hg+https://example.com/repo", "hg": {"ssh": "bad\0value"}},
+            "hg.ssh",
+        ),
+        (
+            {"repo": "hg+https://example.com/repo", "hg": {"remote_cmd": "bad\0value"}},
+            "hg.remote_cmd",
+        ),
+        (
+            {"repo": "svn+https://example.com/repo", "svn": {"username": "bad\0value"}},
+            "svn.username",
+        ),
+        (
+            {"repo": "svn+https://example.com/repo", "svn": {"password": "bad\0value"}},
+            "svn.password",
+        ),
+    ],
+)
+def test_load_rejects_invalid_backend_entry_at_source(
+    tmp_path: pathlib.Path,
+    entry: dict[str, t.Any],
+    field: str,
+) -> None:
+    """Malformed options name their file, workspace, repository, and field."""
+    path = tmp_path / "config.yaml"
+    config.save_config_yaml(
+        path,
+        {"~/code/": {"project": {"repo": "git+https://example.com/repo.git", **entry}}},
+    )
+
+    with pytest.raises(VCSPullException) as error:
+        config.load_configs([path])
+
+    for part in (str(path), "~/code/", "project", field):
+        assert part in str(error.value)
+
+
+def test_load_retains_nullable_shell_hook(tmp_path: pathlib.Path) -> None:
+    """An explicitly disabled post-sync hook remains valid entry metadata."""
+    path = tmp_path / "config.yaml"
+    config.save_config_yaml(
+        path,
+        {
+            "~/code/": {
+                "project": {
+                    "repo": "git+https://example.com/repo.git",
+                    "shell_command_after": None,
+                }
+            }
+        },
+    )
+
+    assert config.load_configs([path])[0]["shell_command_after"] is None
+
+
+def test_load_normalizes_legacy_options_and_warns(
+    tmp_path: pathlib.Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The in-memory entry has one canonical options layout with clear warnings."""
+    path = tmp_path / "config.yaml"
+    config.save_config_yaml(
+        path,
+        {
+            "~/code/": {
+                "project": {
+                    "repo": "git+https://example.com/repo.git",
+                    "options": {"rev": "v1", "shallow": True, "pin": True},
+                    "git_options": {"filter": "blob:none"},
+                }
+            }
+        },
+    )
+
+    with caplog.at_level(logging.WARNING, logger="vcspull.config"):
+        entry = config.load_configs([path])[0]
+
+    assert entry["working_copy"] == {"rev": "v1"}
+    assert entry["git"] == {"depth": 1, "filter": "blob:none"}
+    assert entry["pin"] is True
+    assert "options" not in entry
+    assert "rev" not in entry
+    assert "shallow" not in entry
+    assert any(
+        "'~/code/' -> 'project'" in record.getMessage() for record in caplog.records
+    )
+
+
+def test_backend_config_fields_match_libvcs_options() -> None:
+    """Every public backend knob has exactly one field in the config type."""
+    from libvcs import GitOptions, HgOptions, SvnOptions
+
+    from vcspull.types import GitOptionsDict, HgOptionsDict, SvnOptionsDict
+
+    for option_type, config_type in (
+        (GitOptions, GitOptionsDict),
+        (HgOptions, HgOptionsDict),
+        (SvnOptions, SvnOptionsDict),
+    ):
+        assert {field.name for field in dataclasses.fields(option_type)} == set(
+            t.get_type_hints(config_type)
+        )
 
 
 def test_simple_format(load_yaml: LoadYAMLFn) -> None:
@@ -399,7 +531,7 @@ def _seed_commits(repo_path: pathlib.Path, count: int) -> None:
 
 
 class ExtractOptionsFixture(t.NamedTuple):
-    """Fixture for extract_repos lifting sync keys onto the flat ConfigDict."""
+    """Legacy tuning normalizes into backend options and a checkout target."""
 
     test_id: str
     raw_config: dict[str, t.Any]
@@ -417,7 +549,7 @@ EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
                 },
             },
         },
-        expected={"rev": "v3.0.0", "depth": 50},
+        expected={"working_copy": {"rev": "v3.0.0"}, "git": {"depth": 50}},
     ),
     ExtractOptionsFixture(
         test_id="legacy-top-level",
@@ -430,7 +562,7 @@ EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
                 },
             },
         },
-        expected={"rev": "v1.0.0", "shallow": True},
+        expected={"working_copy": {"rev": "v1.0.0"}, "git": {"depth": 1}},
     ),
     ExtractOptionsFixture(
         test_id="options-wins-over-legacy",
@@ -444,7 +576,7 @@ EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
                 },
             },
         },
-        expected={"rev": "canonical", "depth": 99},
+        expected={"working_copy": {"rev": "canonical"}, "git": {"depth": 99}},
     ),
 ]
 
@@ -454,14 +586,14 @@ EXTRACT_OPTIONS_FIXTURES: list[ExtractOptionsFixture] = [
     EXTRACT_OPTIONS_FIXTURES,
     ids=[f.test_id for f in EXTRACT_OPTIONS_FIXTURES],
 )
-def test_extract_repos_lifts_options_sync_keys(
+def test_extract_repos_normalizes_options_sync_keys(
     test_id: str,
     raw_config: dict[str, t.Any],
     expected: dict[str, t.Any],
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """extract_repos surfaces options/legacy sync keys on the flat ConfigDict."""
+    """Legacy options resolve with the documented canonical precedence."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
 
@@ -573,7 +705,7 @@ def test_detect_git_depth(
 
 
 class MigrateEntryFixture(t.NamedTuple):
-    """Fixture for migrate_repo_entry top-level -> options relocation."""
+    """Legacy entries and their canonical checkout/backend settings."""
 
     test_id: str
     entry: t.Any
@@ -589,28 +721,32 @@ MIGRATE_ENTRY_FIXTURES: list[MigrateEntryFixture] = [
         expected_entry="git+ssh://x",
     ),
     MigrateEntryFixture(
-        test_id="no-legacy-keys",
+        test_id="legacy-pin-options",
         entry={"repo": "git+ssh://x", "options": {"pin": True}},
-        expected_changed=False,
-        expected_entry={"repo": "git+ssh://x", "options": {"pin": True}},
+        expected_changed=True,
+        expected_entry={"repo": "git+ssh://x", "pin": True},
     ),
     MigrateEntryFixture(
         test_id="single-legacy-shallow",
         entry={"repo": "git+ssh://x", "shallow": True},
         expected_changed=True,
-        expected_entry={"repo": "git+ssh://x", "options": {"shallow": True}},
+        expected_entry={"repo": "git+ssh://x", "git": {"depth": 1}},
     ),
     MigrateEntryFixture(
         test_id="depth-wins-over-shallow",
         entry={"repo": "git+ssh://x", "rev": "v1", "shallow": True, "depth": 5},
         expected_changed=True,
-        expected_entry={"repo": "git+ssh://x", "options": {"rev": "v1", "depth": 5}},
+        expected_entry={
+            "repo": "git+ssh://x",
+            "working_copy": {"rev": "v1"},
+            "git": {"depth": 5},
+        },
     ),
     MigrateEntryFixture(
         test_id="options-value-wins",
         entry={"repo": "git+ssh://x", "rev": "legacy", "options": {"rev": "canonical"}},
         expected_changed=True,
-        expected_entry={"repo": "git+ssh://x", "options": {"rev": "canonical"}},
+        expected_entry={"repo": "git+ssh://x", "working_copy": {"rev": "canonical"}},
     ),
     MigrateEntryFixture(
         test_id="preserves-pin-options",
@@ -618,7 +754,73 @@ MIGRATE_ENTRY_FIXTURES: list[MigrateEntryFixture] = [
         expected_changed=True,
         expected_entry={
             "repo": "git+ssh://x",
-            "options": {"pin": True, "shallow": True},
+            "pin": True,
+            "git": {"depth": 1},
+        },
+    ),
+    MigrateEntryFixture(
+        test_id="null-depth-retains-shallow",
+        entry={
+            "repo": "git+https://example.com/r.git",
+            "options": {"shallow": True, "depth": None},
+        },
+        expected_changed=True,
+        expected_entry={"repo": "git+https://example.com/r.git", "git": {"depth": 1}},
+    ),
+    MigrateEntryFixture(
+        test_id="all-legacy-locations-one-pass",
+        entry={
+            "repo": "git+ssh://x",
+            "depth": 2,
+            "options": {
+                "rev": "v1",
+                "depth": 5,
+                "pin": {"import": True},
+                "allow_overwrite": False,
+                "pin_reason": "local fork",
+            },
+            "git_options": {"filter": "blob:none", "depth": 8},
+        },
+        expected_changed=True,
+        expected_entry={
+            "repo": "git+ssh://x",
+            "working_copy": {"rev": "v1"},
+            "git": {"depth": 8, "filter": "blob:none"},
+            "pin": {"import": True},
+            "allow_overwrite": False,
+            "pin_reason": "local fork",
+        },
+    ),
+    MigrateEntryFixture(
+        test_id="canonical-target-and-options-win",
+        entry={
+            "repo": "git+ssh://x",
+            "options": {"rev": "old", "depth": 5},
+            "working_copy": {"branch": "main", "sync": {"dirty": "abort"}},
+            "git_options": {"filter": "blob:none", "depth": 8},
+            "git": {"depth": 12},
+        },
+        expected_changed=True,
+        expected_entry={
+            "repo": "git+ssh://x",
+            "working_copy": {"branch": "main", "sync": {"dirty": "abort"}},
+            "git": {"depth": 12, "filter": "blob:none"},
+        },
+    ),
+    MigrateEntryFixture(
+        test_id="svn-target-and-metadata",
+        entry={
+            "repo": "svn+https://example.test/trunk",
+            "options": {"rev": 42},
+            "svn_options": {"depth": "files"},
+            "note": "build input",
+        },
+        expected_changed=True,
+        expected_entry={
+            "repo": "svn+https://example.test/trunk",
+            "working_copy": {"rev": 42},
+            "svn": {"depth": "files"},
+            "note": "build input",
         },
     ),
 ]
@@ -635,10 +837,24 @@ def test_migrate_repo_entry(
     expected_changed: bool,
     expected_entry: t.Any,
 ) -> None:
-    """migrate_repo_entry relocates legacy keys under options:, depth wins."""
+    """Migration preserves values and reaches a fixed point in one pass."""
     changed, result = migrate_repo_entry(entry)
     assert changed is expected_changed
     assert result == expected_entry
+    assert migrate_repo_entry(result) == (False, result)
+
+
+def test_migrate_rejects_unknown_legacy_options() -> None:
+    """An unrecognized legacy option cannot disappear during migration."""
+    with pytest.raises(ValueError, match=r"options\.deph"):
+        migrate_repo_entry({"repo": "git+ssh://x", "options": {"deph": 5}})
+
+
+@pytest.mark.parametrize("shallow", ["false", {"value": False}, [], 1])
+def test_migrate_rejects_malformed_shallow(shallow: t.Any) -> None:
+    """Migration cannot turn an invalid shallow value into a valid clone policy."""
+    with pytest.raises(ValueError, match="shallow"):
+        migrate_repo_entry({"repo": "git+x", "options": {"shallow": shallow}})
 
 
 class LegacyOptionsFixture(t.NamedTuple):
@@ -657,7 +873,7 @@ LEGACY_OPTIONS_FIXTURES: list[LegacyOptionsFixture] = [
     ),
     LegacyOptionsFixture(
         test_id="canonical-not-flagged",
-        raw_config={"~/code/": {"flask": {"repo": "git+x", "options": {"depth": 5}}}},
+        raw_config={"~/code/": {"flask": {"repo": "git+x", "git": {"depth": 5}}}},
         expected=[],
     ),
     LegacyOptionsFixture(
@@ -670,7 +886,7 @@ LEGACY_OPTIONS_FIXTURES: list[LegacyOptionsFixture] = [
         raw_config={
             "~/code/": {
                 "flask": {"repo": "git+x", "rev": "v1"},
-                "django": {"repo": "git+y", "options": {"depth": 5}},
+                "django": {"repo": "git+y", "git": {"depth": 5}},
             },
         },
         expected=[("~/code/", "flask")],
@@ -693,5 +909,123 @@ def test_detect_legacy_repo_options(
     raw_config: t.Any,
     expected: list[tuple[str, str]],
 ) -> None:
-    """detect_legacy_repo_options reports only entries with top-level keys."""
+    """Legacy locations warn while backend blocks and shorthand stay quiet."""
     assert detect_legacy_repo_options(raw_config) == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "kwargs", "field"),
+    [
+        ("svn+https://example.com/repo", {"shallow": True}, "git"),
+        ("git+https://example.com/repo.git", {"depth": -1}, "depth"),
+        ("git+https://example.com/repo.git", {"rev": "-invalid"}, "rev"),
+    ],
+)
+def test_build_repo_entry_rejects_invalid_settings(
+    url: str, kwargs: dict[str, t.Any], field: str
+) -> None:
+    """Writers reject settings that the canonical loader would reject."""
+    from vcspull.config import build_repo_entry
+    from vcspull.exc import VCSPullException
+
+    with pytest.raises(VCSPullException, match=field):
+        build_repo_entry(url, **kwargs)
+
+
+def test_load_normalizes_integral_config_numbers(tmp_path: pathlib.Path) -> None:
+    """JSON integer values normalize before strict libvcs construction."""
+    path = tmp_path / "config.yaml"
+    config.save_config_yaml(
+        path,
+        {
+            "./": {
+                "project": {
+                    "repo": "git+https://example.com/repo.git",
+                    "options": {"depth": 2.0, "rev": 4.0},
+                    "git": {
+                        "filter": [
+                            {"kind": "tree", "depth": 3.0},
+                            {"kind": "blob:limit", "limit": 1024.0},
+                        ]
+                    },
+                }
+            }
+        },
+    )
+    entry = config.load_configs([path])[0]
+    assert type(entry["git"]["depth"]) is int
+    assert entry["working_copy"]["rev"] == 4
+    assert type(entry["working_copy"]["rev"]) is int
+    filters = entry["git"]["filter"]
+    assert filters == [
+        {"kind": "tree", "depth": 3},
+        {"kind": "blob:limit", "limit": 1024},
+    ]
+    assert isinstance(filters, list)
+    assert isinstance(filters[0], dict)
+    assert type(filters[0]["depth"]) is int
+
+
+def test_migrate_native_combines_to_structured_config() -> None:
+    """Migration removes percent encoding without changing filter semantics."""
+    from libvcs.cmd.git_filter import coerce_filter
+
+    original = "combine:combine:sparse:oid=a%25%32%42b+blob:none"
+    entry: dict[str, t.Any] = {
+        "repo": "git+https://example.com/r.git",
+        "git": {"filter": original},
+    }
+    changed, migrated = migrate_repo_entry(entry)
+    assert changed
+    assert migrated["git"]["filter"] == {
+        "kind": "combine",
+        "filters": [{"kind": "combine", "filters": ["sparse:oid=a+b"]}, "blob:none"],
+    }
+    assert coerce_filter(migrated["git"]["filter"]) == coerce_filter(original)
+    assert migrate_repo_entry(migrated) == (False, migrated)
+    assert entry["git"]["filter"] == original
+
+
+@pytest.mark.parametrize("container", ["list", "mapping"])
+def test_load_rejects_recursive_metadata(
+    tmp_path: pathlib.Path, container: str
+) -> None:
+    """Recursive YAML metadata raises a source-specific config error."""
+    metadata: dict[str, t.Any] = {}
+    metadata["loop"] = [metadata] if container == "list" else metadata
+    path = tmp_path / "recursive.yaml"
+    config.save_config_yaml(
+        path,
+        {
+            "./": {
+                "project": {
+                    "repo": "git+https://example.com/r.git",
+                    "metadata": metadata,
+                }
+            }
+        },
+    )
+    with pytest.raises(VCSPullException, match="metadata") as error:
+        if container == "list":
+            config.load_configs([path])
+        else:
+            config.extract_repos(
+                t.cast(
+                    "RawConfigDict",
+                    {
+                        "./": {
+                            "project": {
+                                "repo": "git+https://example.com/r.git",
+                                "metadata": metadata,
+                            }
+                        }
+                    },
+                )
+            )
+    if container == "list":
+        assert str(path) in str(error.value)
+    assert "project" in str(error.value)
+    with pytest.raises(ValueError, match="metadata"):
+        migrate_repo_entry(
+            {"repo": "git+https://example.com/r.git", "metadata": metadata}
+        )

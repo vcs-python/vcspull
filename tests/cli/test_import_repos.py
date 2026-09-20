@@ -2985,8 +2985,8 @@ def test_import_sync_preserves_metadata(
     assert final_config is not None
     entry = final_config["~/repos/"]["repo1"]
     assert entry["repo"] == _SSH
-    # Options must be preserved
-    assert entry.get("options", {}).get("pin", {}).get("fmt") is True
+    assert entry["pin"]["fmt"] is True
+    assert "options" not in entry
 
 
 def test_import_sync_saves_config_when_only_url_updates(
@@ -3424,7 +3424,11 @@ def test_import_sync_updates_provenance_tag(
     assert entry["metadata"]["imported_from"] == "github:testuser"
 
 
+@pytest.mark.parametrize(
+    "pin_fields", [{}, {"options": {"pin": True}}, {"pin": {"import": True}}]
+)
 def test_import_skip_unchanged_tags_provenance(
+    pin_fields: dict[str, t.Any],
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -3437,8 +3441,18 @@ def test_import_skip_unchanged_tags_provenance(
     # Existing entry with matching URL but no metadata
     save_config_yaml(
         config_file,
-        {"~/repos/": {"repo1": {"repo": _SSH}}},
+        {
+            "~/repos/": {
+                "repo1": {
+                    "repo": _SSH,
+                    "options": {"rev": "main", "depth": 4},
+                    **pin_fields,
+                }
+            }
+        },
     )
+
+    before = config_file.read_bytes()
 
     # Same URL → SKIP_UNCHANGED, but should still stamp provenance
     importer = MockImporter(repos=[_make_repo("repo1")])
@@ -3464,6 +3478,10 @@ def test_import_skip_unchanged_tags_provenance(
         import_source="github:testuser",
     )
 
+    if pin_fields:
+        assert config_file.read_bytes() == before
+        return
+
     from vcspull._internal.config_reader import ConfigReader
 
     final_config = ConfigReader._from_file(config_file)
@@ -3471,6 +3489,9 @@ def test_import_skip_unchanged_tags_provenance(
     entry = final_config["~/repos/"]["repo1"]
     assert isinstance(entry, dict)
     assert entry["metadata"]["imported_from"] == "github:testuser"
+    assert entry["working_copy"] == {"rev": "main"}
+    assert entry["git"] == {"depth": 4}
+    assert "options" not in entry
 
 
 def test_import_skip_unchanged_tags_provenance_string_entry(

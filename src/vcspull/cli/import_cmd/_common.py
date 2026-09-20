@@ -36,6 +36,7 @@ from vcspull.config import (
     get_pin_reason,
     is_pinned_for_op,
     merge_duplicate_workspace_roots,
+    migrate_repo_entry,
     normalize_config_file_path,
     save_config,
     workspace_root_label,
@@ -101,8 +102,8 @@ def _classify_import_action(
 
     Same URL is always classified as unchanged — even when pinned or sync is set.
 
-    Note: ``_run_import`` may still stamp provenance metadata on unchanged entries
-    when ``import_source`` is provided.
+    Unpinned unchanged entries may receive provenance metadata when
+    ``import_source`` is provided.
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
@@ -456,7 +457,7 @@ def _create_shared_parent() -> argparse.ArgumentParser:
             "Sync config with remote: update URLs for existing entries whose "
             "URL has changed, and remove entries no longer on the remote. "
             "Preserves all metadata (options, remotes, shell_command_after). "
-            "Respects pinned entries (options.pin.import)."
+            "Respects pinned entries (pin.import)."
         ),
     )
     output_group.add_argument(
@@ -666,8 +667,8 @@ def _run_import(
         Exclude repos whose owner path contains any of these group name segments
     sync : bool
         Sync existing config entries whose URL has changed
-        (default: False).  Entries with ``options.pin.import`` or
-        ``options.allow_overwrite: false`` are exempt.
+        (default: False).  Entries with ``pin.import`` or
+        ``allow_overwrite: false`` are exempt.
     prune : bool
         Remove config entries tagged by a previous import that are
         no longer on the remote (default: False).  Does not update
@@ -1069,13 +1070,24 @@ def _run_import(
                         updated["metadata"] = {}
                     metadata = updated.setdefault("metadata", {})
                     metadata["imported_from"] = import_source
+                try:
+                    _, updated = migrate_repo_entry(updated)
+                except (TypeError, ValueError) as error:
+                    log.error(  # noqa: TRY400
+                        "%s: %r -> %r -> %s",
+                        display_config_path,
+                        repo_workspace_label,
+                        repo.name,
+                        error,
+                    )
+                    return 1
                 raw_config[repo_workspace_label][repo.name] = updated
             else:
                 log.info("[DRY-RUN] Would update URL: %s", repo.name)
             updated_url_count += 1
         elif action == ImportAction.SKIP_UNCHANGED:
             skip_unchanged_count += 1
-            if import_source:
+            if import_source and not is_pinned_for_op(existing_raw, "import"):
                 live = raw_config[repo_workspace_label].get(repo.name)
                 if isinstance(live, dict):
                     existing_meta = live.get("metadata")
@@ -1085,13 +1097,24 @@ def _run_import(
                     )
                     if needs_tag:
                         if not dry_run:
-                            # None is not safe: setdefault returns existing
-                            # None instead of replacing it, causing TypeError.
+                            live = copy.deepcopy(live)
                             if not isinstance(existing_meta, dict):
                                 live["metadata"] = {}
                             live.setdefault("metadata", {})["imported_from"] = (
                                 import_source
                             )
+                            try:
+                                _, live = migrate_repo_entry(live)
+                            except (TypeError, ValueError) as error:
+                                log.error(  # noqa: TRY400
+                                    "%s: %r -> %r -> %s",
+                                    display_config_path,
+                                    repo_workspace_label,
+                                    repo.name,
+                                    error,
+                                )
+                                return 1
+                            raw_config[repo_workspace_label][repo.name] = live
                         provenance_tagged_count += 1
                 elif isinstance(live, str):
                     if not dry_run:

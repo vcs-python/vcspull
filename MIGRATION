@@ -23,6 +23,118 @@ well.
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Bounded CLI synchronization
+
+CLI sync requires POSIX process-group ownership. Timeouts and Ctrl-C stop
+the worker and its native descendants before the command continues or exits.
+Interrupted JSON/NDJSON events report unknown state and `retained_recoveries`
+discovered by a separately bounded inspection. Discovery can include tokens
+from earlier operations; it does not restore or release them automatically.
+The same ownership applies to `sync --include-worktrees` and `worktree sync`.
+Each linked checkout has a separate deadline; standalone `worktree sync`
+accepts `--timeout`. A timed-out worktree prevents further worktrees for that
+repository from starting. Interrupted worktree metadata remains unknown when
+the worker did not return it.
+
+### Guarded worktree creation
+
+Worktree creation fetches configured remotes before selecting its initial
+target. A failed requested worktree lock returns an error with completed
+creation state; inspect that result before retrying an occupied destination.
+
+### Explicit checkout policy and sync results
+
+The main checkout passes its selector kind, remote, and `sync` policy to
+libvcs. Git defaults to aborting on local changes; choose `dirty: preserve`
+to retain and restore them. Configuring `dirty: discard` also requires
+`vcspull sync --yes` on each invocation.
+
+Python callers of `vcspull.cli.sync.update_repo` receive `SyncExecution`:
+use `.project` for the backend instance and `.result` for its complete
+`SyncResult`. Failures still raise `SyncFailedError`, whose `.result` now
+retains recovery tokens, conflicts, and operation outcomes. Programmatic
+discard requires `yes=True`.
+
+### Exact numeric values
+
+Integer configuration fields accept values up to `9007199254740991`
+(`2**53 - 1`), so Python and JavaScript editors validate the same values.
+For a larger Git filter limit, use a native string such as
+`filter: "tree:18446744073709551615"` or a quoted `blob:limit` mapping's
+`limit`. These strings retain Git's full uint64 range. Quote large revision
+identifiers as strings. Metadata remains ordinary JSON-compatible data.
+
+### Stable URL inference
+
+Backend inference uses ASCII word and digit classes on every supported Python
+version. Unprefixed SCP URLs whose path starts with a non-ASCII character,
+such as `host:éx`, need `vcs: git` or an explicit `git+ssh://host/éx` URL.
+Unicode hostnames and other path characters remain supported. Explicit backend
+settings continue to resolve unknown or ambiguous URLs.
+
+### Separate checkout targets and backend options
+
+Run {ref}`cli-migrate` once to move both top-level tuning and the `options`
+block into the canonical layout:
+
+```console
+$ vcspull migrate --write
+```
+
+Before:
+
+```yaml
+~/code/:
+  libvcs:
+    repo: git+https://github.com/vcs-python/libvcs.git
+    options:
+      rev: v0.46.0
+      depth: 50
+      pin:
+        import: true
+```
+
+After:
+
+```yaml
+~/code/:
+  libvcs:
+    repo: git+https://github.com/vcs-python/libvcs.git
+    working_copy:
+      rev: v0.46.0
+    git:
+      depth: 50
+    pin:
+      import: true
+```
+
+`shallow: true` becomes `git.depth: 1`. `git_options`, `hg_options`, and
+`svn_options` become `git`, `hg`, and `svn`. `pin_reason` and
+`allow_overwrite` move from `options` to the entry level alongside `pin`.
+Existing canonical values take precedence. Every supplied setting is
+validated before precedence applies, including overridden values. Unknown
+legacy `options` keys produce an error before the file is written. Remove
+invalid values instead of relying on another field to hide them. Both `url`
+and `repo` must be valid strings when present; `url` still takes precedence.
+Metadata must contain JSON-compatible values with string keys.
+
+`add` and `discover` write the canonical layout. `import` and `fmt` migrate
+entries they rewrite; entries pinned for that command stay unchanged. Use
+`migrate --write` to upgrade every entry, including pinned entries.
+
+Loading normalizes the same legacy locations in memory and warns once per
+file. Unknown entry or backend fields now fail during loading; metadata
+belongs in `metadata`, not in a libvcs constructor argument. Sync constructs
+the matching immutable libvcs options object from `git`, `hg`, or `svn`.
+
+To omit historical file contents without truncating commit history, add
+`git.filter: blob:none`. The value can also be an atomic native filter
+string, a kind-tagged mapping, or a nonempty list of filters. Express combined
+filters as `{kind: combine, filters: [blob:none, "tree:3"]}` or nested lists;
+`vcspull migrate --write` converts native `combine:` strings to that form.
+Filter and depth changes only affect a new clone; they do not reconfigure an
+existing checkout.
+
 ## vcspull 1.62.0 (2026-05-31)
 
 ### Per-repository sync keys moved under `options:`

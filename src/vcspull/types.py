@@ -38,13 +38,73 @@ if t.TYPE_CHECKING:
     from libvcs.sync.git import GitSyncRemoteDict
 
 
+class GitOptionsDict(TypedDict, total=False):
+    """Git clone and transport options, matching ``libvcs.GitOptions``."""
+
+    depth: int | None
+    filter: str | dict[str, t.Any] | list[t.Any] | None
+    tls_verify: bool
+
+
+class HgOptionsDict(TypedDict, total=False):
+    """Mercurial clone and transport options, matching ``libvcs.HgOptions``."""
+
+    ssh: str | None
+    remote_cmd: str | None
+    pull: bool
+    stream: bool
+    tls_verify: bool
+
+
+class SvnOptionsDict(TypedDict, total=False):
+    """Subversion checkout and transport options, matching ``libvcs.SvnOptions``."""
+
+    username: str | None
+    password: str | None
+    depth: t.Literal["empty", "files", "immediates", "infinity"] | None
+    trust_server_cert: bool
+    ignore_externals: bool
+
+
+class SyncPolicyDict(TypedDict, total=False):
+    """Policy for configured-target drift and uncommitted changes."""
+
+    drift: t.Literal["keep", "follow", "warn"]
+    """Keep the current ref, follow the configured target, or report drift."""
+
+    dirty: t.Literal["abort", "preserve", "discard"]
+    """Abort on local changes, preserve them, or discard with confirmation."""
+
+
+class WorkingCopyConfigDict(TypedDict, total=False):
+    """Exactly one native target, with an optional fetch remote and sync policy."""
+
+    branch: str
+    """Named branch to follow."""
+
+    tag: str
+    """Named tag to check out without following a branch."""
+
+    commit: str
+    """Commit or changeset to check out without following a branch."""
+
+    rev: str | int
+    """Native revision expression, including a numeric Subversion revision."""
+
+    remote: str
+    """Fetch source alias, independent of the configured push URL."""
+
+    sync: SyncPolicyDict
+    """Drift and dirty-state policy for this checkout."""
+
+
 class _WorktreeConfigDictRequired(TypedDict):
     """Configuration for a single git worktree.
 
     Worktrees allow checking out multiple branches/tags/commits of a repository
     simultaneously in separate directories.
 
-    Exactly one of ``tag``, ``branch``, or ``commit`` must be specified.
+    Exactly one of ``tag``, ``branch``, ``commit``, or ``rev`` must be specified.
 
     Examples
     --------
@@ -65,25 +125,16 @@ class _WorktreeConfigDictRequired(TypedDict):
     """Path for the worktree (relative to workspace root or absolute)."""
 
 
-class _WorktreeConfigDictOptional(TypedDict, total=False):
+class _WorktreeConfigDictOptional(WorkingCopyConfigDict, total=False):
     """Optional configuration for a single git worktree."""
 
-    tag: str | None
-    """Tag to checkout (creates detached HEAD)."""
-
-    branch: str | None
-    """Branch to checkout (can be updated/pulled)."""
-
-    commit: str | None
-    """Commit SHA to checkout (creates detached HEAD)."""
-
-    detach: bool | None
+    detach: bool
     """Force detached HEAD. Default: True for tag/commit, False for branch."""
 
-    lock: bool | None
+    lock: bool
     """Lock the worktree to prevent accidental removal."""
 
-    lock_reason: str | None
+    lock_reason: str
     """Reason for locking. If provided, implies lock=True."""
 
 
@@ -131,59 +182,27 @@ Pin import and fmt::
 
 
 class RepoOptionsDict(TypedDict, total=False):
-    """Per-repository options stored under the ``options:`` key in a repo entry.
+    """Legacy tuning and entry policy accepted by the migration reader.
 
-    Two groups of keys live here:
-
-    - **Sync tuning** (``rev``, ``shallow``, ``depth``) — forwarded to libvcs to
-      shape how the checkout is cloned/updated.
-    - **Mutation policy** (``pin``, ``allow_overwrite``, ``pin_reason``) — guards
-      whether vcspull's commands may rewrite this config entry.
-
-    Note: ``pin`` here controls vcspull config mutation. It is distinct from
-    ``WorktreeConfigDict.lock`` which prevents git worktree removal.
-
-    Examples
-    --------
-    Pin to a ref and clone with a small history window::
-
-        options:
-          rev: v1.2.3
-          depth: 50
-
-    Pin all operations::
-
-        options:
-          pin: true
-          pin_reason: "pinned to upstream"
-
-    Pin only import (prevent ``--sync`` from replacing URL)::
-
-        options:
-          pin:
-            import: true
-
-    Shorthand form — equivalent to ``pin: {import: true}``::
-
-        options:
-          allow_overwrite: false
+    Use ``working_copy``, the backend block, and entry-level pin fields in
+    new configurations. ``vcspull migrate`` rewrites these legacy keys.
     """
 
-    rev: str
+    rev: str | int | None
     """Commit, tag, or branch to check out on sync (libvcs ``rev``).
 
     Distinct from ``pin``, which guards config mutation rather than pinning a
     git ref.
     """
 
-    shallow: bool
-    """If ``True``, clone with ``--depth 1`` on sync (libvcs ``git_shallow``).
+    shallow: bool | None
+    """If ``True``, clone with ``--depth 1`` on sync (``git.depth: 1``).
 
     Sugar for ``depth: 1``; ``depth`` wins when both are set.
     """
 
-    depth: int
-    """Clone with history truncated to ``depth`` commits (libvcs ``depth``).
+    depth: int | None
+    """Clone with history truncated to ``depth`` commits (``git.depth``).
 
     Takes precedence over ``shallow``.
     """
@@ -204,56 +223,70 @@ class RepoOptionsDict(TypedDict, total=False):
     """Human-readable reason shown in log output when an op is skipped due to pin."""
 
 
-class _RepoEntryDictRequired(TypedDict):
-    """Raw per-repository entry as written to .vcspull.yaml.
+class RemoteURLsDict(TypedDict):
+    """Separate fetch and push addresses for a configured remote."""
 
-    Examples
-    --------
-    Minimal entry::
+    fetch_url: str
+    """Address used to fetch repository history."""
+    push_url: str
+    """Address used for pushes, independent of the fetch address."""
 
-        repo: git+git@github.com:user/myrepo.git
 
-    Pinned to a ref and shallow-cloned::
+class RepoEntryDict(TypedDict, total=False):
+    """Serialized repository entry; either ``repo`` or ``url`` is required.
 
-        repo: git+git@github.com:user/myrepo.git
-        options:
-          rev: v1.2.3
-          depth: 50
-
-    With pin options::
-
-        repo: git+git@github.com:user/myrepo.git
-        options:
-          pin:
-            import: true
-          pin_reason: "pinned to company fork"
+    ``url`` takes precedence when both are present. Backend blocks match the
+    inferred or declared VCS. Legacy keys remain available for migration.
     """
 
     repo: str
-    """VCS URL in vcspull format, e.g. ``git+git@github.com:user/repo.git``."""
-
-
-class _RepoEntryDictOptional(TypedDict, total=False):
-    """Optional raw per-repository entry fields."""
-
-    rev: str
-    """Deprecated top-level form of ``options.rev``; still read, with a warning.
-
-    Run ``vcspull migrate`` to relocate it under ``options:``.
-    """
-
-    shallow: bool
-    """Deprecated top-level form of ``options.shallow``; still read, with a warning.
-
-    Run ``vcspull migrate`` to relocate it under ``options:``.
-    """
-
+    """Repository URL; `url` wins when both aliases are supplied."""
+    url: str
+    """Alternate repository URL, taking precedence over `repo`."""
+    name: str
+    """Override the repository name taken from its workspace entry key."""
+    path: str
+    """Override the default checkout path computed from the workspace and name."""
+    workspace_root: str
+    """Override the workspace label attached to the resolved entry."""
+    vcs: t.Literal["git", "hg", "svn"] | None
+    """Declare a backend when the repository URL is ambiguous."""
+    working_copy: WorkingCopyConfigDict
+    """Target and drift/dirty policy for the main checkout."""
+    worktrees: list[WorktreeConfigDict] | None
+    """Additional Git checkouts with their own target and sync policy."""
+    remotes: dict[str, str | RemoteURLsDict]
+    """Named fetch and push URLs, separate from checkout targets."""
+    shell_command_after: str | list[str] | None
+    """Commands to run after synchronization; null disables the hook."""
+    git: GitOptionsDict
+    """Git clone and transport options."""
+    hg: HgOptionsDict
+    """Mercurial clone and transport options."""
+    svn: SvnOptionsDict
+    """Subversion checkout and transport options."""
+    pin: bool | RepoPinDict
+    """Prevent every config rewrite, or only the named operations."""
+    pin_reason: str | None
+    """Explanation displayed when a pinned entry is skipped."""
+    allow_overwrite: bool
+    """Set false to protect the entry from import URL replacement."""
+    metadata: dict[str, t.Any]
+    """JSON-compatible annotations, including import provenance."""
+    rev: str | int | None
+    """Legacy target; migrate to working_copy.rev."""
+    shallow: bool | None
+    """Legacy shallow clone request; migrate true to git.depth: 1."""
+    depth: int | None
+    """Legacy Git history depth; migrate to git.depth."""
     options: RepoOptionsDict
-    """Sync tuning (``rev``/``shallow``/``depth``) plus mutation policy."""
-
-
-class RepoEntryDict(_RepoEntryDictRequired, _RepoEntryDictOptional):
-    """Raw per-repository entry as written to .vcspull.yaml."""
+    """Legacy mixed tuning and entry policy; run vcspull migrate."""
+    git_options: GitOptionsDict
+    """Legacy alias for git; canonical git values take precedence."""
+    hg_options: HgOptionsDict
+    """Legacy alias for hg; canonical hg values take precedence."""
+    svn_options: SvnOptionsDict
+    """Legacy alias for svn; canonical svn values take precedence."""
 
 
 class RawConfigDict(t.TypedDict):
@@ -310,6 +343,14 @@ class _ConfigDictOptional(TypedDict, total=False):
     shell_command_after: list[str] | None
     worktrees: list[WorktreeConfigDict] | None
     options: RepoOptionsDict
+    working_copy: WorkingCopyConfigDict
+    git: GitOptionsDict
+    hg: HgOptionsDict
+    svn: SvnOptionsDict
+    pin: bool | RepoPinDict
+    pin_reason: str | None
+    allow_overwrite: bool
+    metadata: dict[str, t.Any]
 
 
 class ConfigDict(_ConfigDictRequired, _ConfigDictOptional):

@@ -14,9 +14,16 @@ import tempfile
 import typing as t
 from collections.abc import Callable
 
+from libvcs.cmd.git_filter import Combine, parse_filter
 from libvcs.sync.git import GitRemote
 
-from vcspull.validator import is_valid_config
+from vcspull.validator import (
+    is_valid_config,
+    validate_legacy_options,
+    validate_metadata,
+    validate_repo_entry,
+    validate_working_copy,
+)
 
 from . import exc
 from ._internal.config_reader import (
@@ -25,7 +32,7 @@ from ._internal.config_reader import (
     config_format_from_path,
 )
 from .types import ConfigDict, RawConfigDict, WorktreeConfigDict
-from .util import get_config_dir, update_dict
+from .util import get_config_dir
 
 log = logging.getLogger(__name__)
 
@@ -178,7 +185,7 @@ def _validate_worktrees_config(
     >>> _validate_worktrees_config([{"dir": "../wt"}], "myrepo")
     Traceback (most recent call last):
         ...
-    vcspull.exc.VCSPullException: ...must specify one of: tag, branch, or commit
+    vcspull.exc.VCSPullException: ...must specify one of: branch, tag, commit, or rev
 
     Error: empty ref value:
 
@@ -213,78 +220,12 @@ def _validate_worktrees_config(
             )
             raise exc.VCSPullException(msg)
 
-        # Validate required 'dir' field
-        if "dir" not in wt or not wt["dir"]:
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                "missing required 'dir' field"
-            )
-            raise exc.VCSPullException(msg)
-
-        if not isinstance(wt["dir"], str):
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                f"'dir' must be a string, got {type(wt['dir']).__name__}"
-            )
-            raise exc.VCSPullException(msg)
-
-        # Validate exactly one ref type
-        tag = wt.get("tag")
-        branch = wt.get("branch")
-        commit = wt.get("commit")
-
-        refs_specified = sum(
-            1 for ref in [tag, branch, commit] if ref is not None and ref != ""
+        validate_working_copy(
+            wt,
+            location=f"Repository {repo_name}: worktrees[{idx}]",
+            worktree=True,
         )
-        empty_refs = sum(1 for ref in [tag, branch, commit] if ref == "")
-
-        if refs_specified == 0 and empty_refs == 0:
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                "must specify one of: tag, branch, or commit"
-            )
-            raise exc.VCSPullException(msg)
-        if refs_specified == 0 and empty_refs > 0:
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                "has empty ref value (tag, branch, or commit)"
-            )
-            raise exc.VCSPullException(msg)
-        if refs_specified > 1:
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                "cannot specify multiple refs (tag, branch, commit)"
-            )
-            raise exc.VCSPullException(msg)
-
-        # Validate ref types are strings
-        for ref_name, ref_val in [("tag", tag), ("branch", branch), ("commit", commit)]:
-            if ref_val is not None and not isinstance(ref_val, str):
-                msg = (
-                    f"Repository '{repo_name}': worktree entry {idx} "
-                    f"'{ref_name}' must be a string, got {type(ref_val).__name__}"
-                )
-                raise exc.VCSPullException(msg)
-
-        # Build validated worktree config
-        wt_config: WorktreeConfigDict = {"dir": wt["dir"]}
-
-        if tag:
-            wt_config["tag"] = tag
-        if branch:
-            wt_config["branch"] = branch
-        if commit:
-            wt_config["commit"] = commit
-
-        # Optional fields
-        if "detach" in wt:
-            wt_config["detach"] = wt["detach"]
-        if "lock" in wt:
-            wt_config["lock"] = wt["lock"]
-        if "lock_reason" in wt:
-            wt_config["lock_reason"] = wt["lock_reason"]
-
-        validated.append(wt_config)
+        validated.append(t.cast("WorktreeConfigDict", copy.deepcopy(wt)))
 
     return validated
 
@@ -331,23 +272,21 @@ def extract_repos(
             if isinstance(repo_data, str):
                 conf["url"] = repo_data
             else:
-                conf = update_dict(conf, repo_data)
+                conf = copy.deepcopy(repo_data)
+
+            location = f"{directory!r} -> {repo!r}"
+            try:
+                _, conf = migrate_repo_entry(conf, normalize_filters=False)
+            except (TypeError, ValueError) as error:
+                msg = f"{location}.{error}"
+                raise exc.VCSPullException(msg) from error
+            validate_repo_entry(conf, location=location)
 
             if "repo" in conf:
                 if "url" not in conf:
                     conf["url"] = conf.pop("repo")
                 else:
                     conf.pop("repo", None)
-
-            # Sync-tuning keys (rev/shallow/depth) are canonical under
-            # ``options:``; lift them onto the flat ConfigDict the sync path
-            # reads. A legacy top-level key was already copied above by
-            # update_dict, but an ``options:`` value wins when both are set.
-            entry_options = conf.get("options")
-            if isinstance(entry_options, dict):
-                for option_key in LEGACY_REPO_OPTION_KEYS:
-                    if option_key in entry_options:
-                        conf[option_key] = entry_options[option_key]
 
             if "name" not in conf:
                 conf["name"] = repo
@@ -388,9 +327,15 @@ def extract_repos(
                     repo_name_for_error = conf.get("name") or repo
                     validated_worktrees = _validate_worktrees_config(
                         worktrees_raw,
-                        repo_name=repo_name_for_error,
+                        repo_name=f"{directory!r} -> {repo_name_for_error!r}",
                     )
                     conf["worktrees"] = validated_worktrees
+
+            if "working_copy" in conf:
+                validate_working_copy(
+                    conf["working_copy"],
+                    location=f"{directory!r} -> {repo!r} -> working_copy",
+                )
 
             def is_valid_config_dict(val: t.Any) -> t.TypeGuard[ConfigDict]:
                 assert isinstance(val, dict)
@@ -424,7 +369,10 @@ def find_home_config_files(
 
     Examples
     --------
-    >>> find_home_config_files()
+    >>> with tempfile.TemporaryDirectory() as home:
+    ...     with getfixture("monkeypatch").context() as patch:
+    ...         patch.setenv("HOME", home)
+    ...         find_home_config_files()
     []
     """
     if filetype is None:
@@ -522,7 +470,7 @@ def load_configs(
     cwd: pathlib.Path | Callable[[], pathlib.Path] = pathlib.Path.cwd,
     *,
     merge_duplicates: bool = True,
-    warn_legacy_options: bool = False,
+    warn_legacy_options: bool = True,
 ) -> list[ConfigDict]:
     """Return repos from a list of files.
 
@@ -593,10 +541,13 @@ def load_configs(
         if warn_legacy_options:
             legacy_entries = detect_legacy_repo_options(config_content)
             if legacy_entries:
-                affected = ", ".join(f"{label}{name}" for label, name in legacy_entries)
+                affected = ", ".join(
+                    f"{label!r} -> {name!r}" for label, name in legacy_entries
+                )
                 log.warning(
-                    "%s: top-level rev/shallow/depth are deprecated; move them "
-                    "under 'options:' (run 'vcspull migrate'). Affected: %s",
+                    "%s: legacy option locations are deprecated; move targets to "
+                    "working_copy and backend options to git/hg/svn "
+                    "(run 'vcspull migrate'). Affected: %s",
                     file,
                     affected,
                     extra={
@@ -605,8 +556,16 @@ def load_configs(
                     },
                 )
 
-        assert is_valid_config(config_content)
-        newrepos = extract_repos(config_content, cwd=cwd)
+        if not is_valid_config(config_content):
+            invalid_message = (
+                f"{file}: expected workspace mappings with repository URLs or entries"
+            )
+            raise exc.VCSPullException(invalid_message)
+        try:
+            newrepos = extract_repos(config_content, cwd=cwd)
+        except exc.VCSPullException as error:
+            location_message = f"{file}: {error}"
+            raise exc.VCSPullException(location_message) from error
 
         if not repos:
             repos.extend(newrepos)
@@ -1013,9 +972,8 @@ def resolve_clone_depth(
 
     1. ``explicit_depth`` (from ``--depth N``) → ``(False, explicit_depth)``.
     2. ``explicit_shallow`` (from ``--shallow``) → ``(True, None)``.
-    3. Auto-detected depth (hybrid): a depth-1 checkout records ``shallow:
-       true`` (the common case), depth > 1 records ``depth: N``, and a full
-       checkout records neither.
+    3. Auto-detected depth: shallow checkouts record ``git.depth: N``;
+       full checkouts omit the depth setting.
 
     Parameters
     ----------
@@ -1068,7 +1026,7 @@ def build_repo_entry(
     """Build a raw per-repository config entry for ``add``/``discover``.
 
     Centralizes the entry shape written by both subcommands so the recorded
-    keys stay consistent. Sync-tuning keys are nested under ``options:``;
+    keys stay consistent. Targets use ``working_copy`` and clone settings use ``git``;
     ``depth`` wins over ``shallow`` when both are supplied.
 
     Parameters
@@ -1076,11 +1034,11 @@ def build_repo_entry(
     url : str
         VCS URL in vcspull format, e.g. ``git+https://github.com/u/r.git``.
     rev : str | None
-        Commit, tag, or branch to pin via ``options.rev``. Omitted when falsy.
+        Commit, tag, or branch to pin via ``working_copy.rev``. Omitted when falsy.
     shallow : bool
-        If ``True``, record ``options.shallow: true`` (clone ``--depth 1``).
+        If ``True``, record ``git.depth: 1`` (clone ``--depth 1``).
     depth : int | None
-        If set, record ``options.depth: N`` (clone ``--depth N``).
+        If set, record ``git.depth: N`` (clone ``--depth N``).
 
     Returns
     -------
@@ -1093,57 +1051,96 @@ def build_repo_entry(
     {'repo': 'git+https://github.com/u/r.git'}
 
     >>> build_repo_entry("git+https://github.com/u/r.git", rev="v1.0.0")
-    {'repo': 'git+https://github.com/u/r.git', 'options': {'rev': 'v1.0.0'}}
+    {'repo': 'git+https://github.com/u/r.git', 'working_copy': {'rev': 'v1.0.0'}}
 
     >>> build_repo_entry("git+https://github.com/u/r.git", shallow=True)
-    {'repo': 'git+https://github.com/u/r.git', 'options': {'shallow': True}}
+    {'repo': 'git+https://github.com/u/r.git', 'git': {'depth': 1}}
 
     >>> build_repo_entry("git+https://github.com/u/r.git", depth=50)
-    {'repo': 'git+https://github.com/u/r.git', 'options': {'depth': 50}}
+    {'repo': 'git+https://github.com/u/r.git', 'git': {'depth': 50}}
 
     ``depth`` wins over ``shallow``:
 
     >>> build_repo_entry("git+https://github.com/u/r.git", shallow=True, depth=50)
-    {'repo': 'git+https://github.com/u/r.git', 'options': {'depth': 50}}
+    {'repo': 'git+https://github.com/u/r.git', 'git': {'depth': 50}}
     """
     entry: dict[str, t.Any] = {"repo": url}
-    options: dict[str, t.Any] = {}
     if rev:
-        options["rev"] = rev
-    if depth:
-        options["depth"] = depth
+        entry["working_copy"] = {"rev": rev}
+    if depth is not None:
+        entry["git"] = {"depth": depth}
     elif shallow:
-        options["shallow"] = True
-    if options:
-        entry["options"] = options
+        entry["git"] = {"depth": 1}
+    validate_repo_entry(entry, location="repository")
+    if "working_copy" in entry:
+        validate_working_copy(entry["working_copy"])
     return entry
 
 
-#: Per-repository sync-tuning keys whose canonical home is the ``options:``
-#: block. They were accepted at the entry root in v1.61.0; that form is now
-#: deprecated and migrated by :func:`migrate_repo_entry`.
+#: Legacy flat tuning fields migrated into ``working_copy`` or ``git``.
 LEGACY_REPO_OPTION_KEYS = ("rev", "shallow", "depth")
 
 
-def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
-    """Relocate legacy top-level sync keys under ``options:``.
+def _migrate_filter_config(value: t.Any, *, depth: int = 0) -> t.Any:
+    """Express native combinations without nested percent encoding.
 
-    Moves any top-level ``rev``/``shallow``/``depth`` into the entry's
-    ``options:`` block. A value already present under ``options:`` wins, so the
-    redundant top-level copy is simply dropped. When both ``shallow`` and a
-    truthy ``depth`` end up under ``options:``, ``depth`` wins and ``shallow``
-    is removed (matching how sync resolves precedence).
+    >>> _migrate_filter_config("combine:blob:none+tree:1")
+    {'kind': 'combine', 'filters': ['blob:none', 'tree:1']}
+    """
+    if depth > 33:
+        msg = "filter nesting exceeds 32 levels"
+        raise ValueError(msg)
+    if isinstance(value, str) and value.startswith("combine:"):
+        value = parse_filter(value)
+    if isinstance(value, Combine):
+        return {
+            "kind": "combine",
+            "filters": [
+                _migrate_filter_config(child, depth=depth + 1)
+                if isinstance(child, Combine)
+                else child.to_spec()
+                for child in value.filters
+            ],
+        }
+    if isinstance(value, list):
+        return [_migrate_filter_config(child, depth=depth + 1) for child in value]
+    if (
+        isinstance(value, dict)
+        and value.get("kind") == "combine"
+        and isinstance(value.get("filters"), list)
+    ):
+        return {
+            **value,
+            "filters": [
+                _migrate_filter_config(child, depth=depth + 1)
+                for child in value["filters"]
+            ],
+        }
+    return value
+
+
+def migrate_repo_entry(
+    entry: t.Any, *, normalize_filters: bool = True
+) -> tuple[bool, t.Any]:
+    """Separate checkout targets, backend settings, and entry policy.
+
+    Canonical values win over legacy values. Within the legacy layout,
+    backend blocks win over ``options``, which wins over top-level tuning.
+    Unknown ``options`` keys raise instead of disappearing.
 
     Parameters
     ----------
     entry : Any
         A raw repository entry (string shorthand or mapping).
+    normalize_filters : bool
+        Rewrite native combined filters for serialization. Loading disables
+        this conversion so unsupported syntax fails at its source.
 
     Returns
     -------
     tuple[bool, Any]
         ``(changed, entry)``. ``changed`` is ``False`` (and the entry returned
-        unchanged) for string shorthands and mappings with no legacy keys.
+        unchanged) for string shorthands and canonical mappings.
 
     Examples
     --------
@@ -1154,46 +1151,103 @@ def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
     >>> migrate_repo_entry({"repo": "git+ssh://x"})
     (False, {'repo': 'git+ssh://x'})
 
-    A legacy top-level key is relocated:
+    Shallow clones use Git's history depth:
 
     >>> migrate_repo_entry({"repo": "git+ssh://x", "shallow": True})
-    (True, {'repo': 'git+ssh://x', 'options': {'shallow': True}})
+    (True, {'repo': 'git+ssh://x', 'git': {'depth': 1}})
 
     ``depth`` wins over ``shallow`` in the migrated entry:
 
     >>> migrate_repo_entry(
     ...     {"repo": "git+ssh://x", "rev": "v1", "shallow": True, "depth": 5}
     ... )
-    (True, {'repo': 'git+ssh://x', 'options': {'rev': 'v1', 'depth': 5}})
+    (True, {'repo': 'git+ssh://x', 'working_copy': {'rev': 'v1'}, 'git': {'depth': 5}})
     """
     if not isinstance(entry, dict):
         return False, entry
 
-    if not any(key in entry for key in LEGACY_REPO_OPTION_KEYS):
-        return False, entry
+    if "metadata" in entry:
+        try:
+            validate_metadata(entry["metadata"])
+        except exc.VCSPullException as error:
+            raise ValueError(str(error)) from error
 
+    legacy_keys = (
+        *LEGACY_REPO_OPTION_KEYS,
+        "options",
+        "git_options",
+        "hg_options",
+        "svn_options",
+    )
     new_entry = copy.deepcopy(entry)
-    options: dict[str, t.Any] = dict(new_entry.get("options") or {})
-    for key in LEGACY_REPO_OPTION_KEYS:
-        if key not in new_entry:
-            continue
-        value = new_entry.pop(key)
-        options.setdefault(key, value)
+    if normalize_filters:
+        for key in ("git", "git_options"):
+            options = new_entry.get(key)
+            if isinstance(options, dict) and "filter" in options:
+                options["filter"] = _migrate_filter_config(options["filter"])
+    if not any(key in new_entry for key in legacy_keys):
+        return new_entry != entry, new_entry
+    try:
+        validate_legacy_options(new_entry)
+    except exc.VCSPullException as error:
+        raise ValueError(str(error)) from error
+    options = new_entry.pop("options", {})
+    if not isinstance(options, dict):
+        msg = "options: expected a mapping"
+        raise TypeError(msg)
+    policy_keys = ("pin", "pin_reason", "allow_overwrite")
+    unknown = options.keys() - {*LEGACY_REPO_OPTION_KEYS, *policy_keys}
+    if unknown:
+        msg = f"options.{min(map(str, unknown))}: unknown legacy option"
+        raise ValueError(msg)
+    tuning = {
+        key: new_entry.pop(key) for key in LEGACY_REPO_OPTION_KEYS if key in new_entry
+    }
+    tuning.update(options)
+    for key in policy_keys:
+        if key in tuning:
+            new_entry.setdefault(key, tuning.pop(key))
 
-    if options.get("depth"):
-        options.pop("shallow", None)
+    if tuning.get("rev") is not None:
+        target = new_entry.setdefault("working_copy", {})
+        if not isinstance(target, dict):
+            msg = "working_copy: expected a mapping"
+            raise TypeError(msg)
+        if not any(key in target for key in ("branch", "tag", "commit", "rev")):
+            target["rev"] = tuning["rev"]
 
-    new_entry["options"] = options
-    return True, new_entry
+    git_tuning: dict[str, t.Any] = {}
+    shallow = tuning.get("shallow")
+    if shallow is not None and not isinstance(shallow, bool):
+        msg = "shallow: expected a boolean"
+        raise TypeError(msg)
+    if tuning.get("depth") is not None:
+        git_tuning["depth"] = tuning["depth"]
+    elif shallow:
+        git_tuning["depth"] = 1
+
+    for backend in ("git", "hg", "svn"):
+        legacy = new_entry.pop(f"{backend}_options", {})
+        if not isinstance(legacy, dict):
+            msg = f"{backend}_options: expected a mapping"
+            raise TypeError(msg)
+        merged = git_tuning.copy() if backend == "git" else {}
+        merged.update(legacy)
+        if merged:
+            canonical = new_entry.get(backend, {})
+            if not isinstance(canonical, dict):
+                msg = f"{backend}: expected a mapping"
+                raise TypeError(msg)
+            merged.update(canonical)
+            new_entry[backend] = merged
+    return new_entry != entry, new_entry
 
 
 def detect_legacy_repo_options(raw_config: t.Any) -> list[tuple[str, str]]:
     """Return ``(workspace_label, repo_name)`` pairs using legacy top-level keys.
 
-    Scans a raw (unexpanded) config mapping for repository entries that still
-    carry top-level ``rev``/``shallow``/``depth`` instead of nesting them under
-    ``options:``. Callers use the result to warn users to run ``vcspull
-    migrate``.
+    Detects top-level tuning, ``options``, and the old ``<vcs>_options``
+    blocks so callers can recommend ``vcspull migrate``.
 
     Parameters
     ----------
@@ -1212,10 +1266,10 @@ def detect_legacy_repo_options(raw_config: t.Any) -> list[tuple[str, str]]:
     ... )
     [('~/code/', 'flask')]
 
-    The canonical ``options:`` form is not flagged:
+    Canonical backend options are not flagged:
 
     >>> detect_legacy_repo_options(
-    ...     {"~/code/": {"flask": {"repo": "git+x", "options": {"shallow": True}}}}
+    ...     {"~/code/": {"flask": {"repo": "git+x", "git": {"depth": 1}}}}
     ... )
     []
     """
@@ -1228,7 +1282,14 @@ def detect_legacy_repo_options(raw_config: t.Any) -> list[tuple[str, str]]:
             continue
         for repo_name, entry in repos.items():
             if isinstance(entry, dict) and any(
-                key in entry for key in LEGACY_REPO_OPTION_KEYS
+                key in entry
+                for key in (
+                    *LEGACY_REPO_OPTION_KEYS,
+                    "options",
+                    "git_options",
+                    "hg_options",
+                    "svn_options",
+                )
             ):
                 legacy.append((str(workspace_label), str(repo_name)))
 
@@ -1391,13 +1452,16 @@ def is_pinned_for_op(entry: t.Any, op: str) -> bool:
         return False
     opts = entry.get("options")
     if not isinstance(opts, dict):
-        return False
-    pin = opts.get("pin")
+        opts = {}
+    pin = entry.get("pin", opts.get("pin"))
     if pin is True:
         return True
     if isinstance(pin, dict) and pin.get(op, False) is True:
         return True
-    return op == "import" and opts.get("allow_overwrite", True) is False
+    return (
+        op == "import"
+        and entry.get("allow_overwrite", opts.get("allow_overwrite", True)) is False
+    )
 
 
 def get_pin_reason(entry: t.Any) -> str | None:
@@ -1425,8 +1489,8 @@ def get_pin_reason(entry: t.Any) -> str | None:
         return None
     opts = entry.get("options")
     if not isinstance(opts, dict):
-        return None
-    reason = opts.get("pin_reason")
+        opts = {}
+    reason = entry.get("pin_reason", opts.get("pin_reason"))
     if reason is None:
         return None
     return str(reason)

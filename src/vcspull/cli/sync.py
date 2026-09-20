@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import contextlib
 import logging
 import os
 import pathlib
@@ -13,32 +12,46 @@ import shlex
 import signal
 import subprocess
 import sys
-import threading
 import typing as t
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
-from io import StringIO
-from time import monotonic, perf_counter
+from time import perf_counter
 
-from libvcs._internal.shortcuts import create_project
+from libvcs import RecoveryToken, SyncResult
 from libvcs._internal.types import VCSLiteral
-from libvcs.sync.git import GitSync
-from libvcs.sync.hg import HgSync
-from libvcs.sync.svn import SvnSync
-from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
+from vcspull._internal.sync import (
+    SyncExecution,
+    checkout_settings,
+    create_sync_project,
+    require_discard_authorization,
+    sync_result_data,
+)
+from vcspull._internal.sync_process import (
+    SyncInterrupted,
+    SyncOutcome as _SyncOutcome,
+    run_sync_process,
+)
 from vcspull._internal.worktree_sync import (
-    WorktreeAction,
+    WorktreeInterrupted,
     plan_worktree_sync,
+    require_worktree_authorization,
     sync_all_worktrees,
 )
-from vcspull.config import expand_dir, filter_repos, find_config_files, load_configs
+from vcspull.config import (
+    expand_dir,
+    filter_repos,
+    find_config_files,
+    load_configs,
+    migrate_repo_entry,
+)
 from vcspull.log import default_debug_log_path, setup_file_logger, teardown_file_logger
 from vcspull.types import ConfigDict
+from vcspull.validator import match_vcs_url
 
 from ._colors import Colors, get_color_mode
 from ._output import (
@@ -54,6 +67,7 @@ from ._output import (
 from ._progress import SyncStatusIndicator, build_indicator
 from ._workspaces import filter_by_workspace
 from .status import check_repo_status
+from .worktree import _emit_worktree_entry
 
 log = logging.getLogger(__name__)
 
@@ -243,15 +257,57 @@ def _determine_plan_action(
     if not status.get("exists"):
         return PlanAction.CLONE, "missing"
 
-    if not status.get("is_git"):
-        return PlanAction.UPDATE, "non-git VCS (detailed plan not available)"
+    if errors := status.get("errors"):
+        return PlanAction.ERROR, str(errors[0]["message"])
+
+    policy = status.get("policy") or {"drift": "follow", "dirty": "abort"}
+    if policy["drift"] in {"keep", "warn"}:
+        detail = "target drifted; " if status.get("drifted") else ""
+        return PlanAction.UNCHANGED, detail + "policy leaves checkout unchanged"
 
     clean_state = status.get("clean")
     if clean_state is False:
-        return PlanAction.BLOCKED, "working tree has local changes"
+        if policy["dirty"] == "abort":
+            return PlanAction.BLOCKED, "working tree has local changes"
+        detail = (
+            "preserve local changes during update"
+            if policy["dirty"] == "preserve"
+            else "discard local changes during update (requires --yes)"
+        )
+        return PlanAction.UPDATE, detail
 
+    position = status.get("position")
+    target = status.get("target_position")
     ahead = status.get("ahead")
     behind = status.get("behind")
+    if (
+        not status.get("configured_target")
+        and isinstance(ahead, int)
+        and isinstance(behind, int)
+        and ahead > 0
+    ):
+        detail = (
+            f"diverged (ahead {ahead}, behind {behind})"
+            if behind
+            else f"ahead by {ahead}"
+        )
+        return PlanAction.BLOCKED, detail
+    if position and target:
+        if status["drifted"] is None:
+            return PlanAction.ERROR, "configured target state is unknown"
+        attachment_changes = (
+            target["follows"]
+            and (
+                position["ref_name"] != target["ref_name"]
+                or position["ref_kind"] != target["ref_kind"]
+            )
+        ) or (status.get("is_git") and not target["follows"] and position["follows"])
+        if status["drifted"] or attachment_changes:
+            return PlanAction.UPDATE, "follow configured target"
+        return PlanAction.UNCHANGED, "configured target matches"
+
+    if not status.get("is_git"):
+        return PlanAction.UPDATE, "non-git VCS (detailed plan not available)"
 
     if isinstance(ahead, int) and isinstance(behind, int):
         if ahead > 0 and behind > 0:
@@ -315,8 +371,8 @@ def _build_plan_entry(
         url=_extract_repo_url(repo),
         branch=status.get("branch"),
         remote_branch=None,
-        current_rev=None,
-        target_rev=None,
+        current_rev=(status.get("position") or {}).get("revision"),
+        target_rev=(status.get("target_position") or {}).get("revision"),
         ahead=status.get("ahead"),
         behind=status.get("behind"),
         dirty=status.get("clean") is False if status.get("clean") is not None else None,
@@ -574,6 +630,11 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         help="preview what would be synced without making changes",
     )
     parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="authorize configured dirty: discard policies",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         dest="output_json",
@@ -718,16 +779,6 @@ class _TimedOutRepo:
     path: str
     workspace_root: str
     duration: float
-
-
-@dataclass
-class _SyncOutcome:
-    """Result of attempting to sync a single repository."""
-
-    status: t.Literal["synced", "failed", "timed_out"]
-    captured_output: str | None = None
-    error: BaseException | None = None
-    duration: float = 0.0
 
 
 def _positive_int_arg(value: str) -> int:
@@ -990,21 +1041,17 @@ def _install_indicator_log_diverter(
     raises ``ValueError``. Skipping the flush is safe -- we are not
     *closing* the stream, only redirecting future writes.
 
-    On top of the stream swap we also raise the *libvcs* StreamHandler
-    level above ``CRITICAL`` for the duration of the sync, but only when
-    the user kept the default verbosity (handler at WARNING). vcspull's
-    own ``✗ Failed syncing rye: Command failed with code 128: git
-    symbolic-ref HEAD --short`` line carries the same content as
-    libvcs's ``|git| (rye) Failed to determine current branch`` warning
-    that fires immediately before; printing both breaks the
-    ``✓ Synced X / ✗ Failed X / - Timed out X`` rhythm. The
-    debug-log :class:`~logging.FileHandler` keeps DEBUG, so a
-    post-mortem still has the libvcs line for context. ``-v`` / ``-vv``
-    users opted into INFO / DEBUG and keep their explicit level.
+    At default verbosity, retain libvcs target-drift warnings and suppress
+    failure diagnostics already shown by the sync result. Explicit verbosity
+    and file handlers retain all diagnostics.
     """
     proxy = _IndicatorStreamProxy(indicator)
     patched: list[tuple[logging.StreamHandler[t.Any], t.Any]] = []
-    raised_levels: list[tuple[logging.StreamHandler[t.Any], int]] = []
+    filtered: list[logging.StreamHandler[t.Any]] = []
+
+    def policy_warning(record: logging.LogRecord) -> bool:
+        return getattr(record, "vcs_event", None) == "target_drift"
+
     for logger_name in ("libvcs", "vcspull"):
         logger = logging.getLogger(logger_name)
         for handler in logger.handlers:
@@ -1020,13 +1067,8 @@ def _install_indicator_log_diverter(
                 handler.release()
             patched.append((handler, previous))
             if logger_name == "libvcs" and handler.level == logging.WARNING:
-                raised_levels.append((handler, handler.level))
-                # 51 sits one above ``logging.CRITICAL`` -- standard log
-                # records can't reach the handler at this level, so libvcs
-                # noise (WARNING + ERROR + CRITICAL) is dropped from the
-                # terminal stream. The file handler is untouched and still
-                # captures everything at DEBUG.
-                handler.setLevel(logging.CRITICAL + 1)
+                filtered.append(handler)
+                handler.addFilter(policy_warning)
 
     def _restore() -> None:
         for handler, original in patched:
@@ -1035,8 +1077,8 @@ def _install_indicator_log_diverter(
                 handler.stream = original
             finally:
                 handler.release()
-        for handler, level in raised_levels:
-            handler.setLevel(level)
+        for handler in filtered:
+            handler.removeFilter(policy_warning)
 
     return _restore
 
@@ -1045,79 +1087,17 @@ def _sync_repo_with_watchdog(
     repo: ConfigDict,
     *,
     progress_callback: ProgressCallback,
-    timeout: int,
+    timeout: float,
     is_human: bool,
+    yes: bool = False,
 ) -> _SyncOutcome:
-    """Run :func:`update_repo` under a wall-clock watchdog.
-
-    The libvcs call runs on a daemon :class:`threading.Thread`; the main
-    thread uses a completion :class:`threading.Event` as its deadline. Raw
-    threads are deliberate -- :class:`concurrent.futures.ThreadPoolExecutor`
-    registers its workers in ``concurrent.futures.thread._threads_queues``,
-    whose ``atexit`` hook ``_python_exit`` joins every worker on interpreter
-    shutdown. If the user hits Ctrl-C while a libvcs subprocess is wedged,
-    that join hangs the process forever. Daemon threads skip the join
-    entirely: they're forcibly terminated at shutdown.
-    """
-    buffer: StringIO | None = None if is_human else StringIO()
-    done = threading.Event()
-    worker_error: list[BaseException] = []
-
-    def _run() -> None:
-        try:
-            if buffer is None:
-                update_repo(repo, progress_callback=progress_callback)
-                return
-            # Non-human output modes capture everything so the NDJSON/JSON
-            # payload contains the per-repo details without polluting stdout.
-            with (
-                contextlib.redirect_stdout(buffer),
-                contextlib.redirect_stderr(buffer),
-            ):
-                update_repo(repo, progress_callback=progress_callback)
-        except BaseException as exc_obj:
-            # Keep ``BaseException`` here so a worker-side KeyboardInterrupt
-            # (rare but possible via ``PyThreadState_SetAsyncExc``) is still
-            # reported back up. The main thread decides how to handle it.
-            worker_error.append(exc_obj)
-        finally:
-            done.set()
-
-    started = monotonic()
-    worker = threading.Thread(
-        target=_run,
-        name=f"vcspull-sync-{repo.get('name', 'repo')}",
-        daemon=True,
-    )
-    worker.start()
-
-    finished = done.wait(timeout=timeout)
-    if not finished:
-        # The worker is still busy; abandon it. Because it's a daemon it'll
-        # die with the interpreter or when libvcs's subprocess finally exits.
-        return _SyncOutcome(
-            status="timed_out",
-            captured_output=buffer.getvalue() if buffer else None,
-            duration=monotonic() - started,
-        )
-
-    if worker_error:
-        err = worker_error[0]
-        if isinstance(err, Exception):
-            return _SyncOutcome(
-                status="failed",
-                captured_output=buffer.getvalue() if buffer else None,
-                error=err,
-                duration=monotonic() - started,
-            )
-        # ``BaseException`` that is not ``Exception`` (KeyboardInterrupt,
-        # SystemExit): propagate -- main thread will tear the batch down.
-        raise err
-
-    return _SyncOutcome(
-        status="synced",
-        captured_output=buffer.getvalue() if buffer else None,
-        duration=monotonic() - started,
+    """Run sync in an owned process and stop its descendants before returning."""
+    return run_sync_process(
+        repo,
+        progress_callback=progress_callback,
+        timeout=timeout,
+        is_human=is_human,
+        yes=yes,
     )
 
 
@@ -1205,6 +1185,25 @@ _BRANCH_ERROR_SIGNATURES = (
 )
 
 
+def _configured_revision(repo: ConfigDict) -> str | None:
+    """Read a canonical checkout selector, retaining the legacy direct-call form."""
+    target = repo.get("working_copy", {})
+    selected = next(
+        (
+            value
+            for value in (
+                target.get("branch"),
+                target.get("tag"),
+                target.get("commit"),
+                target.get("rev"),
+            )
+            if value is not None
+        ),
+        repo.get("rev"),
+    )
+    return str(selected) if selected is not None else None
+
+
 def _looks_like_branch_error(err_msg: str, *, has_rev: bool) -> bool:
     """Return True when a sync failure looks branch/revision-related.
 
@@ -1217,7 +1216,7 @@ def _looks_like_branch_error(err_msg: str, *, has_rev: bool) -> bool:
     err_msg : str
         The failure message surfaced by the sync.
     has_rev : bool
-        Whether the repository configures an ``options.rev``.
+        Whether the repository configures a ``working_copy`` selector.
 
     Returns
     -------
@@ -1225,7 +1224,10 @@ def _looks_like_branch_error(err_msg: str, *, has_rev: bool) -> bool:
         True if the failure resembles a missing branch or revision.
     """
     lowered = err_msg.lower()
-    if has_rev and "git checkout" in lowered:
+    if has_rev and (
+        "git checkout" in lowered
+        or ("git rev-parse" in lowered and "needed a single revision" in lowered)
+    ):
         return True
     return any(signature in lowered for signature in _BRANCH_ERROR_SIGNATURES)
 
@@ -1296,7 +1298,7 @@ def _emit_branch_error_guidance(
     err_msg : str
         The failure message surfaced by the sync.
     """
-    rev = repo.get("rev")
+    rev = _configured_revision(repo)
     if not _looks_like_branch_error(err_msg, has_rev=bool(rev)):
         return
 
@@ -1314,7 +1316,7 @@ def _emit_branch_error_guidance(
             f"{colors.info('→')} This branch has no matching remote branch.",
         )
     formatter.emit_text(
-        f"    Pin an existing branch with {colors.muted('options.rev')}, or run "
+        f"    Select a branch with {colors.muted('working_copy.branch')}, or run "
         f"{colors.muted(f'git -C {shlex.quote(display_path)} checkout <branch>')}",
     )
 
@@ -1350,6 +1352,7 @@ def sync(
     log_file: str | pathlib.Path | None = None,
     no_log_file: bool = False,
     panel_lines: int | None = None,
+    yes: bool = False,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Prevent git from blocking on credential prompts during batch sync
@@ -1403,6 +1406,7 @@ def sync(
             log_file_path=log_file_path,
             dry_run=dry_run,
             panel_lines=resolved_panel_lines,
+            yes=yes,
         )
     except KeyboardInterrupt as err:
         # Catch Ctrl-C from ANY phase of the sync -- the repo loop (where
@@ -1457,6 +1461,7 @@ def _sync_impl(
     repo_timeout: int,
     log_file_path: pathlib.Path | None,
     panel_lines: int,
+    yes: bool = False,
 ) -> None:
     """Run the core body of :func:`sync`.
 
@@ -1573,35 +1578,16 @@ def _sync_impl(
                 if not worktrees_config:
                     continue
 
-                repo_name = str(repo.get("name", "unknown"))
                 repo_path = _get_repo_path(repo)
                 workspace_label = str(repo.get("workspace_root", ""))
                 workspace_path = expand_dir(pathlib.Path(workspace_label))
 
                 wt_entries = plan_worktree_sync(
-                    repo_path, worktrees_config, workspace_path
+                    repo_path, worktrees_config, workspace_path, repo_config=repo
                 )
 
                 for entry in wt_entries:
-                    ref_display = f"{entry.ref_type}:{entry.ref_value}"
-                    wt_path_display = str(PrivatePath(entry.worktree_path))
-
-                    action_symbols = {
-                        WorktreeAction.CREATE: colors.success("+"),
-                        WorktreeAction.UPDATE: colors.warning("~"),
-                        WorktreeAction.UNCHANGED: colors.muted("✓"),
-                        WorktreeAction.BLOCKED: colors.warning("⚠"),
-                        WorktreeAction.ERROR: colors.error("✗"),
-                    }
-                    sym = action_symbols.get(entry.action, "?")
-                    ref = colors.info(ref_display)
-                    detail = entry.detail or entry.error or ""
-
-                    formatter.emit_text(
-                        f"  {sym} worktree {colors.info(repo_name)} "
-                        f"{ref} {colors.muted('→')} {wt_path_display}"
-                        f"  {colors.muted(detail)}".rstrip(),
-                    )
+                    _emit_worktree_entry(entry, formatter, colors)
 
         formatter.finalize()
         return
@@ -1690,6 +1676,7 @@ def _sync_impl(
             parser=parser,
             log_file_path=log_file_path,
             indicator=indicator,
+            yes=yes,
         )
     except KeyboardInterrupt:
         # Ctrl-C during the loop: stop the indicator cleanly, print a
@@ -1767,6 +1754,7 @@ def _run_sync_loop(
     parser: argparse.ArgumentParser | None,
     log_file_path: pathlib.Path | None,
     indicator: SyncStatusIndicator,
+    yes: bool = False,
 ) -> None:
     """Iterate the repositories and drive the watchdog + indicator."""
     for repo in found_repos:
@@ -1796,12 +1784,31 @@ def _run_sync_loop(
         # flicker reporters have called out.
         indicator.start_repo(repo_name)
         try:
+            if include_worktrees:
+                require_worktree_authorization(
+                    repo.get("worktrees") or [], allow_discard=yes
+                )
             outcome = _sync_repo_with_watchdog(
                 repo,
                 progress_callback=progress_callback,
                 timeout=repo_timeout,
                 is_human=is_human,
+                yes=yes,
             )
+        except SyncInterrupted as error:
+            indicator.stop_repo()
+            summary["interrupted"] = summary.get("interrupted", 0) + 1
+            event["status"] = "interrupted"
+            if error.outcome.result is not None:
+                event.update(sync_result_data(error.outcome.result))
+            event["retained_recoveries"] = [
+                sync_result_data(result) for result in error.outcome.retained_recoveries
+            ]
+            formatter.emit(event)
+            _emit_recoveries(formatter, error.outcome)
+            raise
+        except exc.VCSPullException as error:
+            outcome = _SyncOutcome(status="failed", error=error)
         except BaseException:
             # Any exception (KeyboardInterrupt, runtime crash) tears the
             # indicator down with no replacement line; the surrounding
@@ -1809,6 +1816,14 @@ def _run_sync_loop(
             # the partial-summary print.
             indicator.stop_repo()
             raise
+
+        if outcome.result is not None:
+            event.update(sync_result_data(outcome.result))
+
+        if outcome.retained_recoveries:
+            event["retained_recoveries"] = [
+                sync_result_data(result) for result in outcome.retained_recoveries
+            ]
 
         if outcome.status == "timed_out":
             summary["timed_out"] += 1
@@ -1836,6 +1851,7 @@ def _run_sync_loop(
             formatter.emit(event)
             if not wrote_final:
                 formatter.emit_text(permanent)
+            _emit_recoveries(formatter, outcome)
             if exit_on_error:
                 _emit_rerun_recipe(
                     formatter,
@@ -1879,6 +1895,7 @@ def _run_sync_loop(
                 traceback.print_exception(type(err), err, err.__traceback__)
             if not wrote_final:
                 formatter.emit_text(permanent)
+            _emit_recoveries(formatter, outcome)
             if is_human:
                 _emit_branch_error_guidance(
                     formatter,
@@ -1907,48 +1924,30 @@ def _run_sync_loop(
         if not wrote_final:
             formatter.emit_text(permanent)
 
+        _emit_recoveries(formatter, outcome)
+
         # Sync worktrees if enabled and configured
         worktrees_config = repo.get("worktrees")
         if include_worktrees and worktrees_config:
             workspace_path = expand_dir(pathlib.Path(str(workspace_label)))
             repo_path_obj = pathlib.Path(str(repo_path))
 
-            wt_result = sync_all_worktrees(
-                repo_path_obj,
-                worktrees_config,
-                workspace_path,
-                dry_run=dry_run,
-            )
-
+            interrupted = False
+            try:
+                wt_result = sync_all_worktrees(
+                    repo_path_obj,
+                    worktrees_config,
+                    workspace_path,
+                    dry_run=dry_run,
+                    allow_discard=yes,
+                    repo_config=repo,
+                    timeout=repo_timeout,
+                )
+            except WorktreeInterrupted as error:
+                wt_result = error.result
+                interrupted = True
             for entry in wt_result.entries:
-                ref_display = f"{entry.ref_type}:{entry.ref_value}"
-                wt_path_display = str(PrivatePath(entry.worktree_path))
-
-                if entry.action == WorktreeAction.CREATE:
-                    sym = colors.success("+")
-                    ref = colors.info(ref_display)
-                    arrow = colors.muted("→")
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
-                    )
-                elif entry.action == WorktreeAction.UPDATE:
-                    sym = colors.warning("~")
-                    ref = colors.info(ref_display)
-                    arrow = colors.muted("→")
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
-                    )
-                elif entry.action == WorktreeAction.BLOCKED:
-                    sym = colors.warning("⚠")
-                    ref = colors.info(ref_display)
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} blocked: {entry.detail}",
-                    )
-                elif entry.action == WorktreeAction.ERROR:
-                    formatter.emit_text(
-                        f"    {colors.error('✗')} worktree {colors.info(ref_display)} "
-                        f"error: {entry.error}",
-                    )
+                _emit_worktree_entry(entry, formatter, colors)
 
             # Tally worktree results into summary
             summary["worktree_created"] = (
@@ -1958,17 +1957,51 @@ def _run_sync_loop(
                 summary.get("worktree_updated", 0) + wt_result.updated
             )
             summary["worktree_failed"] = (
-                summary.get("worktree_failed", 0) + wt_result.errors
+                summary.get("worktree_failed", 0) + wt_result.errors + wt_result.blocked
             )
             # Count worktree errors as failures for exit code
-            summary["failed"] += wt_result.errors
+            summary["failed"] += wt_result.errors + wt_result.blocked
 
-            if exit_on_error and wt_result.errors > 0:
+            if interrupted:
+                summary["interrupted"] = summary.get("interrupted", 0) + 1
+                raise KeyboardInterrupt
+
+            if exit_on_error and (wt_result.errors or wt_result.blocked):
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
                 raise SystemExit(EXIT_ON_ERROR_MSG)
+
+
+def _emit_recoveries(formatter: OutputFormatter, outcome: _SyncOutcome) -> None:
+    """Report each known token once, even when interruption inspection fails."""
+    results = list(outcome.retained_recoveries)
+    if outcome.result is not None:
+        results.insert(0, outcome.result)
+        for error in outcome.result.errors:
+            if error.step == "recovery-inspection":
+                formatter.emit_text(f"Recovery inspection: {error.message}")
+    seen: set[RecoveryToken] = set()
+    for result in results:
+        if result.recovery is not None and result.recovery not in seen:
+            seen.add(result.recovery)
+            _emit_recovery_note(formatter, result)
+
+
+def _emit_recovery_note(formatter: OutputFormatter, result: SyncResult | None) -> None:
+    """Show retained material after a sync succeeds or fails."""
+    if result is not None and result.recovery is not None:
+        token = result.recovery
+        formatter.emit_text(
+            f"Update: {result.update_state}; local changes: {result.preservation_state}"
+        )
+        for conflict in result.conflicts:
+            formatter.emit_text(f"Conflict: {conflict.path} ({conflict.reason})")
+        formatter.emit_text(
+            f"Recovery retained ({token.backend}): {token.id} "
+            f"at {PrivatePath(token.location)}"
+        )
 
 
 def _emit_summary(
@@ -2027,7 +2060,7 @@ def progress_cb(output: str, timestamp: datetime) -> None:
 
 def guess_vcs(url: str) -> VCSLiteral | None:
     """Guess the VCS from a URL."""
-    vcs_matches = url_tools.registry.match(url=url, is_explicit=True)
+    vcs_matches = match_vcs_url(url)
 
     if len(vcs_matches) == 0:
         log.warning("No vcs found for %s", url)
@@ -2036,7 +2069,7 @@ def guess_vcs(url: str) -> VCSLiteral | None:
         log.warning("No exact matches for %s", url)
         return None
 
-    return t.cast("VCSLiteral", vcs_matches[0].vcs)
+    return vcs_matches[0]
 
 
 class CouldNotGuessVCSFromURL(exc.VCSPullException):
@@ -2047,66 +2080,44 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
 
 
 class SyncFailedError(exc.VCSPullException):
-    """Raised when a sync operation completes but with errors."""
+    """Retain native outcomes and recovery identity when synchronization fails."""
 
-    def __init__(
-        self,
-        repo_name: str,
-        errors: str,
-        *args: object,
-        **kwargs: object,
-    ) -> None:
+    def __init__(self, repo_name: str, result: SyncResult) -> None:
         self.repo_name = repo_name
-        self.errors = errors
+        self.result = result
+        self.errors = "; ".join(
+            f"{error.step}: {error.message}" for error in result.errors
+        )
         message = f"Sync failed for {repo_name}"
-        if errors:
-            message = f"{message}: {errors}"
+        if self.errors:
+            message = f"{message}: {self.errors}"
         super().__init__(message)
 
 
 def update_repo(
     repo_dict: t.Any,
     progress_callback: ProgressCallback | None = None,
-    # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
-) -> GitSync | HgSync | SvnSync:
+    *,
+    yes: bool = False,
+) -> SyncExecution:
     """Synchronize a single repository."""
-    repo_dict = deepcopy(repo_dict)
-    if "pip_url" not in repo_dict:
-        repo_dict["pip_url"] = repo_dict.pop("url")
-    if "url" not in repo_dict:
-        repo_dict["url"] = repo_dict.pop("pip_url")
+    _, repo_dict = migrate_repo_entry(deepcopy(repo_dict))
+    target, policy = checkout_settings(repo_dict.get("working_copy"))
+    require_discard_authorization(policy, allow_discard=yes)
+    url = repo_dict.get("url", repo_dict.get("pip_url"))
+    vcs = repo_dict.get("vcs") or guess_vcs(url=url)
+    if vcs is None:
+        raise CouldNotGuessVCSFromURL(repo_url=url)
 
-    repo_dict["progress_callback"] = progress_callback or progress_cb
-
-    # The ConfigDict carries options.shallow/options.depth as flat ``shallow``/
-    # ``depth`` keys. libvcs's GitSync names the former ``git_shallow``, so
-    # translate it; apply both as attributes after construction and only for
-    # git. ``obtain()`` then resolves precedence (an explicit depth wins over
-    # ``git_shallow``).
-    git_shallow = bool(repo_dict.pop("shallow", False))
-    git_depth = repo_dict.pop("depth", None)
-
-    if repo_dict.get("vcs") is None:
-        vcs = guess_vcs(url=repo_dict["url"])
-        if vcs is None:
-            raise CouldNotGuessVCSFromURL(repo_url=repo_dict["url"])
-
-        repo_dict["vcs"] = vcs
-
-    r: GitSync | HgSync | SvnSync = create_project(**repo_dict)
-    if isinstance(r, GitSync):
-        if git_shallow:
-            r.git_shallow = True
-        if git_depth is not None:
-            r.depth = git_depth
-    if repo_dict.get("vcs") == "git":
-        result = r.update_repo(set_remotes=True)
-    else:
-        result = r.update_repo()
-
-    if result is not None and not result.ok:
-        error_messages = "; ".join(e.message for e in result.errors)
+    r = create_sync_project(
+        repo_dict, vcs=vcs, progress_callback=progress_callback or progress_cb
+    )
+    result = (
+        r.update_repo(set_remotes=True, target=target, policy=policy)
+        if vcs == "git"
+        else r.update_repo(target=target, policy=policy)
+    )
+    if not result.ok:
         repo_name = str(repo_dict.get("name", repo_dict.get("url", "unknown")))
-        raise SyncFailedError(repo_name=repo_name, errors=error_messages)
-
-    return r
+        raise SyncFailedError(repo_name=repo_name, result=result)
+    return SyncExecution(project=r, result=result)

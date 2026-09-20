@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import pathlib
 import textwrap
+import typing as t
 
 import pytest
 
@@ -15,6 +16,88 @@ from vcspull.validator import is_valid_config
 
 from .fixtures import example as fixtures
 from .helpers import EnvironmentVarGuard, load_raw, write_config
+
+
+class WorkingCopyErrorFixture(t.NamedTuple):
+    """Invalid checkout targets rejected identically for main and extra copies."""
+
+    test_id: str
+    target: dict[str, t.Any]
+    error_key: str
+
+
+@pytest.mark.parametrize("worktree", [False, True], ids=["main", "worktree"])
+@pytest.mark.parametrize(
+    list(WorkingCopyErrorFixture._fields),
+    [
+        WorkingCopyErrorFixture("missing-ref", {}, "must specify one"),
+        WorkingCopyErrorFixture(
+            "multiple-refs", {"branch": "main", "tag": "v1"}, "multiple refs"
+        ),
+        WorkingCopyErrorFixture("boolean-revision", {"rev": True}, "rev"),
+        WorkingCopyErrorFixture(
+            "unknown-key", {"branch": "main", "brnach": "x"}, "brnach"
+        ),
+        WorkingCopyErrorFixture(
+            "unknown-policy", {"branch": "main", "sync": {"drfit": "keep"}}, "drfit"
+        ),
+        WorkingCopyErrorFixture(
+            "bad-drift", {"branch": "main", "sync": {"drift": "reset"}}, "sync.drift"
+        ),
+        WorkingCopyErrorFixture(
+            "bad-dirty", {"branch": "main", "sync": {"dirty": True}}, "sync.dirty"
+        ),
+        WorkingCopyErrorFixture(
+            "bad-remote", {"branch": "main", "remote": False}, "remote"
+        ),
+    ],
+)
+def test_load_rejects_invalid_working_copy(
+    test_id: str,
+    target: dict[str, t.Any],
+    error_key: str,
+    worktree: bool,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Load errors identify the file, workspace, repository, and target field."""
+    config_file = tmp_path / "repos.yaml"
+    entry: dict[str, t.Any] = {"repo": "git+https://example.test/project.git"}
+    key = "worktrees" if worktree else "working_copy"
+    entry[key] = [{"dir": "../extra", **target}] if worktree else target
+    config.save_config_yaml(config_file, {"~/code/": {"project": entry}})
+
+    with pytest.raises(exc.VCSPullException) as error:
+        config.load_configs([config_file])
+
+    for expected in ("repos.yaml", "~/code/", "project", key, error_key):
+        assert expected in str(error.value)
+
+
+def test_load_keeps_working_copy_policies(tmp_path: pathlib.Path) -> None:
+    """Main and extra checkout targets retain their explicit update policies."""
+    config_file = tmp_path / "repos.yaml"
+    target = {
+        "rev": 42,
+        "remote": "upstream",
+        "sync": {"drift": "follow", "dirty": "preserve"},
+    }
+    config.save_config_yaml(
+        config_file,
+        {
+            "~/code/": {
+                "project": {
+                    "repo": "git+https://example.test/project.git",
+                    "working_copy": target,
+                    "worktrees": [{"dir": "../extra", **target}],
+                }
+            }
+        },
+    )
+
+    [loaded] = config.load_configs([config_file])
+
+    assert loaded["working_copy"] == target
+    assert loaded["worktrees"] == [{"dir": "../extra", **target}]
 
 
 @pytest.fixture

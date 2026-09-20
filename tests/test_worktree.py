@@ -66,6 +66,12 @@ WORKTREE_CONFIG_FIXTURES = [
         expected_ref_types=["commit"],
     ),
     WorktreeConfigFixture(
+        test_id="generic_revision_worktree",
+        config={"worktrees": [{"dir": "../older", "rev": "HEAD~1"}]},
+        expected_worktrees=1,
+        expected_ref_types=["rev"],
+    ),
+    WorktreeConfigFixture(
         test_id="multiple_mixed_worktrees",
         config={
             "worktrees": [
@@ -152,6 +158,11 @@ class WorktreeConfigErrorFixture(t.NamedTuple):
 
 
 WORKTREE_CONFIG_ERROR_FIXTURES = [
+    WorktreeConfigErrorFixture(
+        test_id="invalid_shared_sync_policy",
+        wt_config={"dir": "../proj", "branch": "main", "sync": {"drift": "reset"}},
+        expected_error_pattern=r"sync\.drift",
+    ),
     WorktreeConfigErrorFixture(
         test_id="missing_dir_error",
         wt_config={"tag": "v1.0.0"},
@@ -607,7 +618,7 @@ WORKTREE_CHECK_TRAIL_FIXTURES = [
         setup="create_existing_branch_worktree",
         ref_key="branch",
         ref_value="trail-update-branch",
-        expected_action=WorktreeAction.UPDATE,
+        expected_action=WorktreeAction.UNCHANGED,
         expected_check_count=4,
         expected_check_names=[
             "validate_config",
@@ -1439,7 +1450,7 @@ def test_sync_worktree_branch_update(
     entries = plan_worktree_sync(git_repo.path, [wt_config], workspace_root)
 
     assert len(entries) == 1
-    assert entries[0].action == WorktreeAction.UPDATE
+    assert entries[0].action == WorktreeAction.UNCHANGED
     assert entries[0].exists is True
 
 
@@ -1482,9 +1493,9 @@ def test_sync_worktree_executes_update_no_upstream(
     entry = sync_worktree(git_repo.path, wt_config, workspace_root, dry_run=False)
 
     # UPDATE succeeds because pull is skipped when there's no upstream
-    assert entry.action == WorktreeAction.UPDATE
+    assert entry.action == WorktreeAction.UNCHANGED
     assert entry.exists is True
-    assert "updated" in (entry.detail or "").lower()
+    assert entry.result is not None and entry.result.ok
 
 
 def test_sync_all_worktrees_counts_mixed(
@@ -1576,8 +1587,8 @@ def test_sync_all_worktrees_counts_mixed(
 
     # Verify counts (all branches through lines 713-722)
     assert sync_result.created == 1
-    assert sync_result.updated == 1
-    assert sync_result.unchanged == 1
+    assert sync_result.updated == 0
+    assert sync_result.unchanged == 2
     assert sync_result.blocked == 1
     assert sync_result.errors == 1
     assert len(sync_result.entries) == 5
@@ -2511,7 +2522,9 @@ def test_cli_sync_skips_empty_worktrees(
 
     monkeypatch.chdir(tmp_path)
 
-    cli(["worktree", "sync", "--dry-run", "-f", str(config_path)])
+    with pytest.raises(SystemExit) as failed:
+        cli(["worktree", "sync", "--dry-run", "-f", str(config_path)])
+    assert failed.value.code == 1
 
     captured = capsys.readouterr()
     # Should only show realproject, not emptyproject
@@ -2874,7 +2887,7 @@ def test_sync_worktree_unchanged_execution(
     # Verify the UNCHANGED path was executed (lines 549-552)
     assert entry.action == WorktreeAction.UNCHANGED
     assert entry.exists is True
-    assert "already exists" in (entry.detail or "")
+    assert entry.result is not None and entry.result.update_state == "not-started"
 
 
 # ---------------------------------------------------------------------------
@@ -2904,9 +2917,9 @@ def test_sync_worktree_oserror_exception(
 
     wt_config: WorktreeConfigDict = {"dir": str(worktree_path), "tag": "v-oserror-test"}
 
-    # Mock _create_worktree to raise OSError
+    # Fail the native creation boundary to verify CLI error conversion.
     mocker.patch(
-        "vcspull._internal.worktree_sync._create_worktree",
+        "libvcs.sync.git.GitSync.create_worktree",
         side_effect=OSError("Mocked OSError: permission denied"),
     )
 
@@ -3346,50 +3359,76 @@ def test_sync_exit_on_error_worktree_failures(
         )
 
 
-def test_sync_worktree_lock_failure_still_creates(
+def test_sync_worktree_lock_failure_reports_partial_creation(
     git_repo: GitSync,
     tmp_path: pathlib.Path,
-    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test worktree creation succeeds even if lock fails.
+    """A failed requested lock retains the completed creation and reports failure."""
+    from libvcs.cmd.git import Git
 
-    Regression test: lock failure after successful creation marked the entire
-    operation as ERROR. Lock is non-critical — the worktree is still usable.
-    """
-    workspace_root = git_repo.path.parent
-    worktree_path = workspace_root / "lock-fail-test-wt"
+    path = tmp_path / "lock-failed"
+    original_run = Git.run
 
-    # Create a tag
-    subprocess.run(
-        ["git", "tag", "v-lock-fail-test"],
-        cwd=git_repo.path,
-        check=True,
-        capture_output=True,
+    def fail_lock(command: Git, args: list[str], **kwargs: t.Any) -> str:
+        if args[:2] == ["worktree", "lock"]:
+            message = "worktree lock failed"
+            raise OSError(message)
+        return original_run(command, args, **kwargs)
+
+    # Fail only lock metadata after native worktree creation has completed.
+    monkeypatch.setattr(Git, "run", fail_lock)
+    entry = sync_worktree(
+        git_repo.path,
+        {"dir": str(path), "commit": "HEAD", "lock": True},
+        tmp_path,
+    )
+    assert entry.action == WorktreeAction.ERROR
+    assert path.is_dir()
+    assert entry.result is not None and entry.result.update_state == "completed"
+    assert entry.result.errors[0].step == "worktree-lock"
+
+
+def test_worktree_creation_fetches_configured_remote(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+) -> None:
+    """Creation establishes a branch that exists only in a configured remote."""
+    from libvcs.sync.git import GitSync
+
+    repo, existing, _, target = policy_worktree
+    upstream = GitSync(url=str(repo.path), path=existing.parent / "new-upstream")
+    upstream.obtain()
+    upstream.cmd.run(["branch", "new-remote-branch", target], check_returncode=True)
+    path = existing.parent / "new-remote-worktree"
+    entry = sync_worktree(
+        repo.path,
+        {"dir": str(path), "branch": "new-remote-branch", "remote": "upstream"},
+        path.parent,
+        repo_config={"url": repo.url, "remotes": {"upstream": str(upstream.path)}},
+    )
+    assert entry.action == WorktreeAction.CREATE, entry.error
+    assert entry.result is not None and entry.result.ok
+    assert entry.target_position is not None
+    assert entry.target_position.revision == target
+    assert repo.cmd.run(["-C", str(path), "symbolic-ref", "HEAD"]).strip() == (
+        "refs/heads/new-remote-branch"
     )
 
-    wt_config: WorktreeConfigDict = {
-        "dir": str(worktree_path),
-        "tag": "v-lock-fail-test",
-        "lock": True,
-        "lock_reason": "This lock will fail",
-    }
 
-    # Mock only the lock command to fail (let creation succeed)
-    original_run = subprocess.run
-
-    def mock_run(*args: t.Any, **kwargs: t.Any) -> t.Any:
-        cmd = args[0] if args else kwargs.get("args", [])
-        if isinstance(cmd, list) and "lock" in cmd:
-            raise subprocess.CalledProcessError(1, cmd, stderr="lock failed")
-        return original_run(*args, **kwargs)
-
-    mocker.patch("vcspull._internal.worktree_sync.subprocess.run", side_effect=mock_run)
-
-    entry = sync_worktree(git_repo.path, wt_config, workspace_root)
-
-    # Creation should succeed despite lock failure
-    assert entry.action == WorktreeAction.CREATE
-    assert worktree_path.exists()
+def test_worktree_creation_reports_resolved_relative_revision(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+) -> None:
+    """Reporting cannot resolve HEAD~1 again against the new detached checkout."""
+    repo, existing, base, _ = policy_worktree
+    path = existing.parent / "relative-worktree"
+    entry = sync_worktree(
+        repo.path, {"dir": str(path), "commit": "HEAD~1"}, path.parent
+    )
+    assert entry.action == WorktreeAction.CREATE, entry.error
+    assert entry.result is not None and entry.result.ok
+    assert entry.target_position is not None
+    assert entry.target_position.revision == base
+    assert repo.cmd.run(["-C", str(path), "rev-parse", "HEAD"]).strip() == base
 
 
 def test_sync_worktree_empty_plan_returns_error(
@@ -3418,3 +3457,391 @@ def test_sync_worktree_empty_plan_returns_error(
     assert entry.action == WorktreeAction.ERROR
     assert entry.error is not None
     assert "no entries" in entry.error
+
+
+@pytest.fixture
+def policy_worktree(
+    git_repo: GitSync, tmp_path: pathlib.Path
+) -> tuple[GitSync, pathlib.Path, str, str]:
+    """Keep a detached linked checkout behind locally available typed targets."""
+    for name in ("local.txt", "advance.txt"):
+        (git_repo.path / name).write_text("base\n")
+    git_repo.cmd.run(["add", "local.txt", "advance.txt"], check_returncode=True)
+    git_repo.cmd.run(["commit", "-m", "worktree base"], check_returncode=True)
+    base = git_repo.get_position().revision
+    path = tmp_path / "policy-worktree"
+    git_repo.cmd.run(
+        ["worktree", "add", "--detach", str(path), base], check_returncode=True
+    )
+    (git_repo.path / "advance.txt").write_text("advanced\n")
+    git_repo.cmd.run(["add", "advance.txt"], check_returncode=True)
+    git_repo.cmd.run(["commit", "-m", "advance target"], check_returncode=True)
+    target = git_repo.get_position().revision
+    git_repo.cmd.run(["tag", "policy-target"], check_returncode=True)
+    return git_repo, path, base, target
+
+
+@pytest.mark.parametrize("selector", ["tag", "commit"])
+@pytest.mark.parametrize("drift", ["follow", "keep", "warn"])
+def test_worktree_policy_updates_wrong_oid(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+    selector: str,
+    drift: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An existing pinned checkout must move when its configured target differs."""
+    repo, path, _, target = policy_worktree
+    config = t.cast(
+        WorktreeConfigDict,
+        {
+            "dir": str(path),
+            selector: "policy-target" if selector == "tag" else target,
+            "sync": {"drift": drift},
+        },
+    )
+    entry = sync_worktree(repo.path, config, path.parent)
+    assert entry.action == (
+        WorktreeAction.UPDATE if drift == "follow" else WorktreeAction.UNCHANGED
+    ), entry.error
+    assert entry.result is not None and entry.result.ok
+    assert (path / "advance.txt").read_text() == (
+        "advanced\n" if drift == "follow" else "base\n"
+    )
+    assert bool(
+        [
+            record
+            for record in caplog.records
+            if getattr(record, "vcs_event", None) == "target_drift"
+        ]
+    ) == (drift == "warn")
+    assert entry.target_position is not None
+    assert entry.target_position.revision == target
+
+
+@pytest.mark.parametrize("drift", ["follow", "keep", "warn"])
+def test_worktree_policy_same_oid_attachment(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+    drift: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """OID aliases are not drift, but follow still attaches the requested branch."""
+    repo, path, base, _ = policy_worktree
+    repo.cmd.run(["branch", "same-position", base], check_returncode=True)
+    config = t.cast(
+        WorktreeConfigDict,
+        {"dir": str(path), "branch": "same-position", "sync": {"drift": drift}},
+    )
+    entry = sync_worktree(repo.path, config, path.parent)
+    assert entry.result is not None and entry.result.ok, entry.error
+    assert entry.drifted is False
+    observed = repo.cmd.run(
+        ["-C", str(path), "symbolic-ref", "-q", "HEAD"], check_returncode=False
+    )
+    assert (observed.strip() == "refs/heads/same-position") == (drift == "follow")
+    assert not any(
+        getattr(record, "vcs_event", None) == "target_drift"
+        for record in caplog.records
+    )
+
+
+@pytest.mark.parametrize("dirty", ["abort", "preserve", "discard"])
+def test_worktree_policy_dirty_native_state(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str], dirty: str
+) -> None:
+    """Preserve retains staged bytes and unknown files; discard needs authorization."""
+    repo, path, base, _ = policy_worktree
+    (path / "local.txt").write_text("staged\n")
+    repo.cmd.run(["-C", str(path), "add", "local.txt"], check_returncode=True)
+    (path / "local.txt").write_text("working\n")
+    (path / "unknown.txt").write_text("unknown\n")
+    config = t.cast(
+        WorktreeConfigDict,
+        {"dir": str(path), "tag": "policy-target", "sync": {"dirty": dirty}},
+    )
+    entry = sync_worktree(repo.path, config, path.parent, allow_discard=True)
+    assert entry.result is not None
+    if dirty == "abort":
+        assert not entry.result.ok
+        assert entry.action == WorktreeAction.BLOCKED
+        assert repo.cmd.run(["-C", str(path), "rev-parse", "HEAD"]).strip() == base
+    else:
+        assert entry.result.ok, entry.result.errors
+        assert (path / "advance.txt").read_text() == "advanced\n"
+    if dirty != "discard":
+        assert (path / "local.txt").read_text() == "working\n"
+        assert (path / "unknown.txt").read_text() == "unknown\n"
+        assert repo.cmd.run(["-C", str(path), "show", ":local.txt"]) == "staged\n"
+    else:
+        assert (path / "local.txt").read_text() == "base\n"
+        assert not (path / "unknown.txt").exists()
+    if dirty == "preserve":
+        assert entry.result.recovery is not None
+        assert entry.result.preservation_state == "restored"
+
+
+@pytest.mark.parametrize("included", [False, True])
+@pytest.mark.parametrize("mode", ["json", "ndjson", "human"])
+@pytest.mark.parametrize("conflicted", [False, True])
+def test_worktree_policy_cli_retains_recovery(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    included: bool,
+    mode: str,
+    conflicted: bool,
+) -> None:
+    """Both CLI entrypoints retain usable tokens after successful restoration."""
+    import json
+
+    from vcspull.cli import cli
+
+    from .helpers import write_config
+
+    repo, path, _, target = policy_worktree
+    (path / "local.txt").write_text("local changes\n")
+    if conflicted:
+        (path / "advance.txt").write_text("conflicting caller change\n")
+    config = write_config(
+        tmp_path / "policy.yaml",
+        f"""{repo.path.parent}/:
+  {repo.path.name}:
+    repo: git+{repo.url}
+    working_copy:
+      commit: {target}
+    worktrees:
+      - dir: {path}
+        tag: policy-target
+        sync:
+          dirty: preserve
+""",
+    )
+    args = (
+        ["sync", "--all", "--include-worktrees", "--no-log-file"]
+        if included
+        else ["worktree", "sync"]
+    )
+    args += ["--file", str(config), "--color", "never"]
+    if mode != "human":
+        args += ["--" + mode]
+    if conflicted:
+        if included:
+            args.append("--exit-on-error")
+        with pytest.raises(SystemExit):
+            cli(args)
+    else:
+        cli(args)
+    output = capsys.readouterr().out
+    if mode == "human":
+        assert "Recovery retained (git):" in output
+        assert f"local changes: {'conflicted' if conflicted else 'restored'}" in output
+        if conflicted:
+            assert "Conflict: advance.txt" in output
+    else:
+        events = (
+            json.loads(output)
+            if mode == "json"
+            else [json.loads(line) for line in output.splitlines()]
+        )
+        worktree = next(event for event in events if event.get("worktree_path"))
+        assert worktree["preservation_state"] == (
+            "conflicted" if conflicted else "restored"
+        )
+        if conflicted:
+            assert worktree["conflicts"][0]["path"] == "advance.txt"
+            assert worktree["errors"][0]["step"] == "restore"
+        token = worktree["recovery"]
+        assert token["backend"] == "git"
+        assert pathlib.Path(token["location"]).is_absolute()
+        assert (pathlib.Path(token["location"]) / "operation.json").exists()
+    assert (path / "local.txt").read_text() == "local changes\n"
+
+
+@pytest.mark.parametrize("included", [False, True])
+def test_worktree_policy_cli_discard_preflight(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    included: bool,
+) -> None:
+    """A worktree requiring consent prevents its main checkout from changing."""
+    from vcspull.cli import cli
+
+    from .helpers import write_config
+
+    repo, path, base, target = policy_worktree
+    (path / "local.txt").write_text("caller bytes\n")
+    config = write_config(
+        tmp_path / "discard.yaml",
+        f"""{repo.path.parent}/:
+  {repo.path.name}:
+    repo: git+{repo.url}
+    working_copy:
+      commit: {base}
+    worktrees:
+      - dir: {path}
+        tag: policy-target
+        sync:
+          dirty: discard
+""",
+    )
+    args = (
+        ["sync", "--all", "--include-worktrees", "--no-log-file", "--exit-on-error"]
+        if included
+        else ["worktree", "sync"]
+    )
+    args += ["--file", str(config), "--color", "never"]
+    with pytest.raises(SystemExit) as stopped:
+        cli(args)
+    assert stopped.value.code == 1
+    assert "requires --yes" in capsys.readouterr().out
+    assert repo.get_position().revision == target
+    assert (path / "local.txt").read_text() == "caller bytes\n"
+    cli([*args, "--yes"])
+    assert (path / "local.txt").read_text() == "base\n"
+
+
+@pytest.mark.parametrize("drift", ["follow", "keep", "warn"])
+def test_worktree_policy_creation_keeps_target_kind(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+    drift: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A same-named tag cannot redirect branch creation or force detachment."""
+    from libvcs.sync.git import GitSync
+
+    repo, existing, base, target = policy_worktree
+    repo.cmd.run(["branch", "policy-target", base], check_returncode=True)
+
+    def no_clone(*args: t.Any, **kwargs: t.Any) -> None:
+        message = "linked worktrees must not clone"
+        raise AssertionError(message)
+
+    # Clone is forbidden after the native parent fixture has been created.
+    monkeypatch.setattr(GitSync, "obtain", no_clone)
+    for selector, expected in (("branch", base), ("tag", target)):
+        path = existing.parent / f"created-{selector}"
+        config = t.cast(
+            WorktreeConfigDict,
+            {
+                "dir": str(path),
+                selector: "policy-target",
+                "sync": {"drift": drift},
+                "lock_reason": "managed checkout",
+            },
+        )
+        entry = sync_worktree(repo.path, config, path.parent)
+        assert entry.action == WorktreeAction.CREATE, entry.error
+        assert entry.result is not None and entry.result.ok
+        assert (path / ".git").is_file()
+        assert repo.cmd.run(["-C", str(path), "rev-parse", "HEAD"]).strip() == expected
+        attached = repo.cmd.run(
+            ["-C", str(path), "symbolic-ref", "-q", "HEAD"], check_returncode=False
+        ).strip()
+        assert bool(attached) == (selector == "branch")
+        assert "locked managed checkout" in repo.cmd.run(
+            ["worktree", "list", "--porcelain"]
+        )
+
+
+def test_worktree_policy_remote_detach_fetches_before_resolving(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Detached branch execution resolves newly fetched selected-remote metadata."""
+    import shutil
+
+    from libvcs.cmd.git import Git
+    from libvcs.sync.git import GitSync
+
+    repo, path, base, _ = policy_worktree
+    remote = path.parent / "upstream"
+    shutil.copytree(repo.path, remote)
+    upstream = GitSync(url=repo.url, path=remote)
+    upstream.cmd.run(["checkout", "-b", "chosen", base], check_returncode=True)
+    repo.cmd.run(["remote", "add", "upstream", str(remote)], check_returncode=True)
+    repo.cmd.run(["fetch", "upstream"], check_returncode=True)
+    (remote / "advance.txt").write_text("upstream advancement\n")
+    upstream.cmd.run(["add", "advance.txt"], check_returncode=True)
+    upstream.cmd.run(["commit", "-m", "upstream advances"], check_returncode=True)
+    target = upstream.get_position().revision
+    config: WorktreeConfigDict = {
+        "dir": str(path),
+        "branch": "chosen",
+        "remote": "upstream",
+        "detach": True,
+    }
+    parent = {
+        "path": repo.path,
+        "url": repo.url,
+        "git": {"tls_verify": False},
+        "remotes": {"upstream": str(remote)},
+    }
+    original_fetch = Git.fetch
+    fetched = []
+
+    def fetch(command: Git, *args: t.Any, **kwargs: t.Any) -> str:
+        fetched.append(kwargs)
+        return original_fetch(command, *args, **kwargs)
+
+    # Observe actual transport arguments while retaining the native fetch.
+    monkeypatch.setattr(Git, "fetch", fetch)
+    plan = plan_worktree_sync(repo.path, [config], path.parent, repo_config=parent)[0]
+    assert not fetched
+    assert plan.target_position is not None and plan.target_position.revision == base
+    entry = sync_worktree(repo.path, config, path.parent, repo_config=parent)
+    assert entry.result is not None and entry.result.ok, entry.error
+    assert fetched and all(
+        call["config"] == {"http.sslVerify": False} for call in fetched
+    )
+    assert repo.cmd.run(["-C", str(path), "rev-parse", "HEAD"]).strip() == target
+    assert not repo.cmd.run(
+        ["-C", str(path), "symbolic-ref", "-q", "HEAD"], check_returncode=False
+    )
+    assert repo.cmd.run(["remote", "get-url", "upstream"]).strip() == str(remote)
+
+
+@pytest.mark.parametrize("drift", ["keep", "warn"])
+def test_worktree_policy_creation_positions_before_keep(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str], drift: str
+) -> None:
+    """Initial creation fast-forwards a local branch to its configured remote ref."""
+    repo, existing, base, target = policy_worktree
+    repo.cmd.run(["branch", "initial", base], check_returncode=True)
+    repo.cmd.run(
+        ["update-ref", "refs/remotes/selected/initial", target], check_returncode=True
+    )
+    path = existing.parent / "initial"
+    config = t.cast(
+        WorktreeConfigDict,
+        {
+            "dir": str(path),
+            "branch": "initial",
+            "remote": "selected",
+            "sync": {"drift": drift},
+        },
+    )
+    entry = sync_worktree(repo.path, config, path.parent)
+    assert entry.result is not None and entry.result.ok, entry.error
+    assert repo.cmd.run(["-C", str(path), "rev-parse", "HEAD"]).strip() == target
+
+
+@pytest.mark.parametrize("missing", [False, True])
+def test_worktree_policy_retained_owner_prevents_preparation(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str], missing: bool
+) -> None:
+    """Unfinished native ownership prevents shared-remote edits and worktree-add."""
+    from libvcs.sync.git import GitSync
+
+    repo, existing, base, _ = policy_worktree
+    path = existing.parent / "not-created" if missing else existing
+    owner = repo if missing else GitSync(url=repo.url, path=existing)
+    store = owner._store()
+    token, _ = store.create(original={}, target={})
+    config: WorktreeConfigDict = {"dir": str(path), "commit": base, "detach": True}
+    parent = {"path": repo.path, "url": repo.url, "remotes": {"unexpected": repo.url}}
+    entry = sync_worktree(repo.path, config, path.parent, repo_config=parent)
+    assert "unexpected" not in repo.cmd.run(["remote"]).splitlines()
+    assert entry.result is not None and not entry.result.ok
+    assert entry.result.recovery == token
+    if missing:
+        assert not path.exists()

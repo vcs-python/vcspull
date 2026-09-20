@@ -40,7 +40,7 @@ prune
 
 Worktrees are configured as a list under a repository entry. Each worktree
 requires a `dir` (relative to workspace root or absolute) and exactly one
-ref type: `tag`, `branch`, or `commit`.
+ref type: `tag`, `branch`, `commit`, or native `rev`.
 
 ```yaml
 ~/code/:
@@ -68,12 +68,17 @@ ref type: `tag`, `branch`, or `commit`.
 |-------|----------|-------------|
 | `dir` | yes | Worktree path (relative to workspace root or absolute) |
 | `tag` | one of | Tag to checkout (creates detached HEAD) |
-| `branch` | one of | Branch to checkout (can be updated/pulled) |
+| `branch` | one of | Branch to follow with fast-forward updates |
 | `commit` | one of | Commit SHA to checkout (creates detached HEAD) |
+| `rev` | one of | Native revision expression; attachment follows its resolved kind |
+| `remote` | no | Fetch source for a branch target |
+| `sync` | no | Drift and dirty policies described in {ref}`cli-worktree-sync` |
+| `detach` | no | Keep the resolved target detached, including a branch |
 | `lock` | no | Lock the worktree to prevent accidental removal |
 | `lock_reason` | no | Reason for locking (implies `lock: true`) |
 
-Exactly one of `tag`, `branch`, or `commit` must be specified per entry.
+Exactly one of `tag`, `branch`, `commit`, or `rev` must be specified per entry.
+Worktrees inherit the parent repository's Git transport options and remotes.
 
 ## Integration with vcspull sync
 
@@ -111,7 +116,7 @@ Each worktree entry emits:
   "action": "unchanged",
   "exists": true,
   "is_dirty": false,
-  "detail": "tag worktree already exists",
+  "detail": "already at configured target",
   "error": null
 }
 ```
@@ -133,13 +138,17 @@ log aggregation.
 
 vcspull refuses to touch work it could destroy:
 
-**Uncommitted changes stop updates.** If a worktree has uncommitted changes,
-vcspull will not update or remove it — commit or stash first. These entries
-show as blocked (`⚠`) in {ref}`vcspull worktree list <cli-worktree-list>`.
+**Dirty policy governs updates.** Updates abort on local changes by default.
+Configure `sync.dirty: preserve` to retain and restore them, or configure
+`discard` and pass `--yes` to authorize their removal. See
+{ref}`cli-worktree-sync` for recovery output and drift policy. Worktree
+pruning still refuses dirty checkouts.
 
 **Unknown refs stop creation.** If a configured tag, branch, or commit
-doesn't exist in the repository, the entry is reported as an error (`✗`)
-rather than guessed at. Fetch from the remote to make the ref available.
+cannot be resolved, the entry is reported as an error (`✗`). Preview and
+list operations only inspect local metadata. Creating a missing worktree
+requires a locally available target; existing worktrees can fetch during
+follow synchronization.
 
 **Locks guard against removal.** Worktrees created with `lock: true` or
 `lock_reason` are locked via `git worktree lock`, preventing accidental
