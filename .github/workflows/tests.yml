@@ -7,6 +7,8 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
 
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     strategy:
       matrix:
         python-version: ['3.14']
@@ -21,13 +23,23 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
+      - name: Install native VCS tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends git mercurial subversion
+          git --version
+          hg --version
+          svn --version --quiet
+          svnadmin --version --quiet
+
       - name: Install dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --frozen --all-extras --dev
 
       - name: Print python versions
         run: |
           python -V
           uv run python -V
+          uv run python -c 'import os, sys; assert ".".join(map(str, sys.version_info[:2])) == os.environ["UV_PYTHON"]'
 
       - name: Lint with ruff check
         run: uv run ruff check .
@@ -39,7 +51,7 @@ jobs:
         run: uv run mypy .
 
       - name: Test with pytest
-        run: uv run py.test --cov=./ --cov-append --cov-report=xml
+        run: uv run py.test -ra --cov=./ --cov-append --cov-report=xml
         env:
           COV_CORE_SOURCE: .
           COV_CORE_CONFIG: pyproject.toml
