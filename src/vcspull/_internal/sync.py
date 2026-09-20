@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import typing as t
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 from libvcs import BaseSync, SyncPolicy, SyncResult, SyncTarget
+from libvcs._internal.shortcuts import create_project
+from libvcs._internal.types import VCSLiteral
+from libvcs.sync.git import GitOptions
+from libvcs.sync.hg import HgOptions
+from libvcs.sync.svn import SvnOptions
 
 from vcspull.validator import validate_working_copy
 
@@ -17,6 +23,25 @@ class SyncExecution:
 
     project: BaseSync
     result: SyncResult
+
+
+def create_sync_project(
+    repo: Mapping[str, t.Any],
+    *,
+    vcs: VCSLiteral,
+    progress_callback: Callable[[str, datetime.datetime], None] | None = None,
+) -> BaseSync:
+    """Construct a typed backend without accessing or changing its checkout."""
+    options_type = {"git": GitOptions, "hg": HgOptions, "svn": SvnOptions}[vcs]
+    arguments: dict[str, t.Any] = {
+        "url": repo.get("url", repo.get("pip_url", str(repo["path"]))),
+        "path": repo["path"],
+        "options": options_type(**repo.get(vcs, {})),
+        "progress_callback": progress_callback,
+    }
+    if "remotes" in repo:
+        arguments["remotes"] = repo["remotes"]
+    return create_project(vcs=vcs, **arguments)
 
 
 def checkout_settings(

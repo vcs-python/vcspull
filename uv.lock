@@ -805,7 +805,7 @@ wheels = [
 [[package]]
 name = "libvcs"
 version = "0.46.0"
-source = { git = "https://github.com/vcs-python/libvcs.git?branch=options-streamline-and-git-filtering#cbc476f9cfbb34176959bbaf1f00c83c2979276b" }
+source = { git = "https://github.com/vcs-python/libvcs.git?branch=options-streamline-and-git-filtering#349affb61d367f61fb8c1814fd5a7280e142c9b4" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]

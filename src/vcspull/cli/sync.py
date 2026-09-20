@@ -23,15 +23,16 @@ from io import StringIO
 from time import monotonic, perf_counter
 
 from libvcs import SyncResult
-from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
-from libvcs.sync.git import GitOptions, GitSync
-from libvcs.sync.hg import HgOptions, HgSync
-from libvcs.sync.svn import SvnOptions, SvnSync
 
 from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
-from vcspull._internal.sync import SyncExecution, checkout_settings, sync_result_data
+from vcspull._internal.sync import (
+    SyncExecution,
+    checkout_settings,
+    create_sync_project,
+    sync_result_data,
+)
 from vcspull._internal.worktree_sync import (
     WorktreeAction,
     plan_worktree_sync,
@@ -251,15 +252,57 @@ def _determine_plan_action(
     if not status.get("exists"):
         return PlanAction.CLONE, "missing"
 
-    if not status.get("is_git"):
-        return PlanAction.UPDATE, "non-git VCS (detailed plan not available)"
+    if errors := status.get("errors"):
+        return PlanAction.ERROR, str(errors[0]["message"])
+
+    policy = status.get("policy") or {"drift": "follow", "dirty": "abort"}
+    if policy["drift"] in {"keep", "warn"}:
+        detail = "target drifted; " if status.get("drifted") else ""
+        return PlanAction.UNCHANGED, detail + "policy leaves checkout unchanged"
 
     clean_state = status.get("clean")
     if clean_state is False:
-        return PlanAction.BLOCKED, "working tree has local changes"
+        if policy["dirty"] == "abort":
+            return PlanAction.BLOCKED, "working tree has local changes"
+        detail = (
+            "preserve local changes during update"
+            if policy["dirty"] == "preserve"
+            else "discard local changes during update (requires --yes)"
+        )
+        return PlanAction.UPDATE, detail
 
+    position = status.get("position")
+    target = status.get("target_position")
     ahead = status.get("ahead")
     behind = status.get("behind")
+    if (
+        not status.get("configured_target")
+        and isinstance(ahead, int)
+        and isinstance(behind, int)
+        and ahead > 0
+    ):
+        detail = (
+            f"diverged (ahead {ahead}, behind {behind})"
+            if behind
+            else f"ahead by {ahead}"
+        )
+        return PlanAction.BLOCKED, detail
+    if position and target:
+        if status["drifted"] is None:
+            return PlanAction.ERROR, "configured target state is unknown"
+        attachment_changes = (
+            target["follows"]
+            and (
+                position["ref_name"] != target["ref_name"]
+                or position["ref_kind"] != target["ref_kind"]
+            )
+        ) or (status.get("is_git") and not target["follows"] and position["follows"])
+        if status["drifted"] or attachment_changes:
+            return PlanAction.UPDATE, "follow configured target"
+        return PlanAction.UNCHANGED, "configured target matches"
+
+    if not status.get("is_git"):
+        return PlanAction.UPDATE, "non-git VCS (detailed plan not available)"
 
     if isinstance(ahead, int) and isinstance(behind, int):
         if ahead > 0 and behind > 0:
@@ -323,8 +366,8 @@ def _build_plan_entry(
         url=_extract_repo_url(repo),
         branch=status.get("branch"),
         remote_branch=None,
-        current_rev=None,
-        target_rev=None,
+        current_rev=(status.get("position") or {}).get("revision"),
+        target_rev=(status.get("target_position") or {}).get("revision"),
         ahead=status.get("ahead"),
         behind=status.get("behind"),
         dirty=status.get("clean") is False if status.get("clean") is not None else None,
@@ -2144,16 +2187,9 @@ def update_repo(
     if vcs is None:
         raise CouldNotGuessVCSFromURL(repo_url=url)
 
-    constructor_args: dict[str, t.Any] = {
-        "url": url,
-        "path": repo_dict["path"],
-        "progress_callback": progress_callback or progress_cb,
-    }
-    options_type = {"git": GitOptions, "hg": HgOptions, "svn": SvnOptions}[vcs]
-    constructor_args["options"] = options_type(**repo_dict.get(vcs, {}))
-    if "remotes" in repo_dict:
-        constructor_args["remotes"] = repo_dict["remotes"]
-    r: GitSync | HgSync | SvnSync = create_project(vcs=vcs, **constructor_args)
+    r = create_sync_project(
+        repo_dict, vcs=vcs, progress_callback=progress_callback or progress_cb
+    )
     result = (
         r.update_repo(set_remotes=True, target=target, policy=policy)
         if vcs == "git"

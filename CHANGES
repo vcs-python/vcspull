@@ -88,6 +88,14 @@ conflict. Human output shows retained material; JSON and NDJSON preserve its
 exact identity and operation outcomes. Configured discard requires `--yes`
 before repository access. See {ref}`cli-sync` and {ref}`migration`.
 
+#### Report resolved checkout targets in status
+
+Status reports the native position, resolved target, configured policy, and
+whether their revisions differ. Aliases at one revision match; unavailable
+metadata remains unknown with an error. Status never fetches, including Git's
+implicit acquisition of missing partial-clone objects. Backend mismatches fail
+inspection instead of reporting a different VCS as healthy. See {ref}`cli-status`.
+
 #### Validate shared checkout targets
 
 `working_copy` and `worktrees` accept the same `branch`, `tag`, `commit`, or

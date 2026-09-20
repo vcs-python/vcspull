@@ -859,7 +859,7 @@ def test_sync_rejects_unconfirmed_discard_before_vcs_creation(
     def unexpected_create(**kwargs: t.Any) -> t.NoReturn:
         pytest.fail("discard reached repository construction without confirmation")
 
-    monkeypatch.setattr(sync_module, "create_project", unexpected_create)
+    monkeypatch.setattr(sync_module, "create_sync_project", unexpected_create)
     with pytest.raises(VCSPullException, match="--yes"):
         update_repo(
             {
