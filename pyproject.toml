@@ -135,6 +135,9 @@ typings = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv.sources]
+libvcs = { git = "https://github.com/vcs-python/libvcs.git", branch = "options-streamline-and-git-filtering" }
+
 [tool.uv.exclude-newer-package]
 # vcspull's release cadence is tightly coupled to libvcs -- a libvcs
 # release blocking on a 3-day cooldown blocks every contributor's
