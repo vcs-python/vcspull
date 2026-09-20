@@ -24,6 +24,26 @@ def test_filter_dir() -> None:
         assert r["name"] == "kaptan"
 
 
+def test_filter_dir_exact_repo_path() -> None:
+    """`filter_repos` filter by exact full repo path (e.g. after zsh glob expansion)."""
+    repo_list = filter_repos(
+        fixtures.config_dict_expanded,
+        path="/home/me/myproject/github_projects/kaptan",
+    )
+    assert len(repo_list) == 1
+    assert repo_list[0]["name"] == "kaptan"
+
+
+def test_filter_dir_workspace_root_trailing_slash() -> None:
+    """`filter_repos` filter by workspace root path with trailing slash."""
+    repo_list = filter_repos(
+        fixtures.config_dict_expanded,
+        path="/home/me/myproject/github_projects/",
+    )
+    assert len(repo_list) == 1
+    assert repo_list[0]["name"] == "kaptan"
+
+
 def test_filter_name() -> None:
     """`filter_repos` filter by name."""
     repo_list = filter_repos(fixtures.config_dict_expanded, name=".vim")
