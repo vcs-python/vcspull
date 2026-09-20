@@ -81,7 +81,7 @@ def write_config_remote(
     return write_config(
         config_path=config_path,
         content=config_tpl.format(
-            tmp_path=str(tmp_path.parent),
+            tmp_path=str(tmp_path),
             path=path,
             CLONE_NAME=clone_name,
         ),
@@ -135,7 +135,7 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
             {CLONE_NAME}:
                 repo: git+file://{path}
                 remotes:
-                  git_scheme_repo: git@codeberg.org:tmux-python/tmuxp.git
+                  git_scheme_repo: file://{path}
         """,
         remote_list=["git_scheme_repo"],
     ),
@@ -146,7 +146,7 @@ CONFIG_VARIATION_FIXTURES: list[ConfigVariationTest] = [
             {CLONE_NAME}:
                 repo: git+file://{path}
                 remotes:
-                  git_scheme_repo: git@github.com:tony/vcspull.git
+                  git_scheme_repo: "{path}"
         """,
         remote_list=["git_scheme_repo"],
     ),
