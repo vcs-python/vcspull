@@ -7,11 +7,14 @@ import dataclasses
 import pathlib
 import typing as t
 
+from libvcs import RecoveryToken
+
 from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
 from vcspull._internal.sync import sync_result_data
 from vcspull._internal.worktree_sync import (
     WorktreeAction,
+    WorktreeInterrupted,
     WorktreePlanEntry,
     list_existing_worktrees,
     plan_worktree_sync,
@@ -45,6 +48,8 @@ def create_worktree_subparser(parser: argparse.ArgumentParser) -> None:
     parser : argparse.ArgumentParser
         The parser to configure
     """
+    from .sync import _DEFAULT_REPO_TIMEOUT_SECONDS, _positive_int_arg
+
     subparsers = parser.add_subparsers(dest="worktree_action")
 
     # List subcommand
@@ -60,6 +65,16 @@ def create_worktree_subparser(parser: argparse.ArgumentParser) -> None:
         help="create or update worktrees",
     )
     _add_common_args(sync_parser)
+    sync_parser.add_argument(
+        "--timeout",
+        type=_positive_int_arg,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "per-worktree deadline (default: VCSPULL_SYNC_TIMEOUT_SECONDS or "
+            f"{_DEFAULT_REPO_TIMEOUT_SECONDS})"
+        ),
+    )
     sync_parser.add_argument(
         "--dry-run",
         "-n",
@@ -188,13 +203,20 @@ def handle_worktree_command(args: argparse.Namespace) -> None:
     if args.worktree_action == "list":
         _handle_list(repos_with_worktrees, formatter, colors)
     elif args.worktree_action == "sync":
-        succeeded = _handle_sync(
-            repos_with_worktrees,
-            formatter,
-            colors,
-            dry_run=args.dry_run,
-            allow_discard=args.yes,
-        )
+        from .sync import _exit_on_sigint, _resolve_repo_timeout
+
+        try:
+            succeeded = _handle_sync(
+                repos_with_worktrees,
+                formatter,
+                colors,
+                dry_run=args.dry_run,
+                allow_discard=args.yes,
+                timeout=_resolve_repo_timeout(getattr(args, "timeout", None)),
+            )
+        except KeyboardInterrupt:
+            formatter.finalize()
+            _exit_on_sigint()
     elif args.worktree_action == "prune":
         # Use found_repos (not repos_with_worktrees) so repos whose worktree
         # config was removed can still have orphaned worktrees pruned.
@@ -288,7 +310,9 @@ def _emit_worktree_entry(
         color_fn = colors.error
 
     ref_display = f"{entry.ref_type}:{entry.ref_value}"
-    status = "exists" if entry.exists else "missing"
+    status = (
+        "unknown" if entry.exists is None else "exists" if entry.exists else "missing"
+    )
 
     # JSON output
     formatter.emit(
@@ -307,6 +331,16 @@ def _emit_worktree_entry(
             if entry.target_position
             else None,
             "drifted": entry.drifted,
+            **({"status": entry.status} if entry.status is not None else {}),
+            **(
+                {
+                    "retained_recoveries": [
+                        sync_result_data(result) for result in entry.retained_recoveries
+                    ]
+                }
+                if entry.retained_recoveries
+                else {}
+            ),
             **(sync_result_data(entry.result) if entry.result is not None else {}),
         }
     )
@@ -319,10 +353,17 @@ def _emit_worktree_entry(
         f"({color_fn(detail_text)})"
     )
 
-    if entry.result is not None and entry.result.recovery is not None:
-        result = entry.result
+    seen: set[RecoveryToken] = set()
+    for result in (entry.result, *entry.retained_recoveries):
+        if result is None:
+            continue
+        for error in result.errors:
+            if error.step == "recovery-inspection":
+                formatter.emit_text(f"Recovery inspection: {error.message}")
+        if result.recovery is None or result.recovery in seen:
+            continue
         token = result.recovery
-        assert token is not None
+        seen.add(token)
         formatter.emit_text(
             f"Update: {result.update_state}; local changes: {result.preservation_state}"
         )
@@ -341,6 +382,7 @@ def _handle_sync(
     *,
     dry_run: bool = False,
     allow_discard: bool = False,
+    timeout: float | None = None,
 ) -> bool:
     """Handle the worktree sync subcommand.
 
@@ -386,6 +428,7 @@ def _handle_sync(
             f"\n{colors.highlight(repo_name)} ({PrivatePath(repo_path)})"
         )
 
+        interrupted = False
         try:
             result = sync_all_worktrees(
                 repo_path,
@@ -394,7 +437,11 @@ def _handle_sync(
                 dry_run=dry_run,
                 allow_discard=allow_discard,
                 repo_config=repo,
+                timeout=timeout,
             )
+        except WorktreeInterrupted as error:
+            result = error.result
+            interrupted = True
         except exc.VCSPullException as error:
             total_errors += 1
             formatter.emit(
@@ -416,6 +463,8 @@ def _handle_sync(
         total_unchanged += result.unchanged
         total_blocked += result.blocked
         total_errors += result.errors
+        if interrupted:
+            raise KeyboardInterrupt
 
     # Summary
     action_word = "Would sync" if dry_run else "Synced"

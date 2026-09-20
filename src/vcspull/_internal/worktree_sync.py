@@ -89,10 +89,10 @@ class WorktreePlanEntry:
     error: str | None = None
     """Error message if action is ERROR."""
 
-    exists: bool = False
+    exists: bool | None = False
     """Whether the worktree currently exists."""
 
-    is_dirty: bool = False
+    is_dirty: bool | None = False
     """Whether the worktree has uncommitted changes."""
 
     current_ref: str | None = None
@@ -109,6 +109,12 @@ class WorktreePlanEntry:
 
     result: SyncResult | None = None
     """Complete native outcome, including retained recovery identity."""
+
+    status: t.Literal["timed_out", "interrupted"] | None = None
+    """Forced termination leaves the native operation outcome uncertain."""
+
+    retained_recoveries: tuple[SyncResult, ...] = ()
+    """Records discovered after the mutation worker stopped."""
 
     checks: list[WorktreeCheck] = dataclasses.field(default_factory=list)
     """Ordered audit trail of checks performed during planning."""
@@ -135,6 +141,170 @@ class WorktreeSyncResult:
 
     errors: int = 0
     """Number of worktrees that encountered errors."""
+
+
+class WorktreeInterrupted(KeyboardInterrupt):
+    """Carry completed and interrupted entries to the CLI before exiting."""
+
+    def __init__(self, result: WorktreeSyncResult) -> None:
+        self.result = result
+        super().__init__()
+
+
+def worktree_entry_data(entry: WorktreePlanEntry) -> dict[str, t.Any]:
+    """Serialize operation metadata without native exception objects."""
+    return {
+        "worktree_path": str(entry.worktree_path),
+        "ref_type": entry.ref_type,
+        "ref_value": entry.ref_value,
+        "action": entry.action.value,
+        "detail": entry.detail,
+        "error": entry.error,
+        "exists": entry.exists,
+        "is_dirty": entry.is_dirty,
+        "current_ref": entry.current_ref,
+        "position": dataclasses.asdict(entry.position) if entry.position else None,
+        "target_position": dataclasses.asdict(entry.target_position)
+        if entry.target_position
+        else None,
+        "drifted": entry.drifted,
+        "checks": [
+            {"name": check.name, "passed": check.passed, "detail": check.detail}
+            for check in entry.checks
+        ],
+    }
+
+
+def _worktree_entry_from_data(
+    data: Mapping[str, t.Any], path: pathlib.Path, ref_type: str, ref_value: str
+) -> WorktreePlanEntry:
+    """Validate the worker's metadata before it can count as a completed action."""
+    fields = dict(data)
+    expected = {
+        "worktree_path",
+        "ref_type",
+        "ref_value",
+        "action",
+        "detail",
+        "error",
+        "exists",
+        "is_dirty",
+        "current_ref",
+        "position",
+        "target_position",
+        "drifted",
+        "checks",
+    }
+    if fields.keys() != expected:
+        message = "unexpected worktree metadata fields"
+        raise ValueError(message)
+    for key in ("worktree_path", "ref_type", "ref_value"):
+        if not isinstance(fields[key], str):
+            raise TypeError(key)
+    if pathlib.Path(fields["worktree_path"]) != path:
+        message = "worker returned a different worktree path"
+        raise ValueError(message)
+    if (fields["ref_type"], fields["ref_value"]) != (ref_type, ref_value):
+        message = "worker returned a different worktree selector"
+        raise ValueError(message)
+    for key in ("detail", "error", "current_ref"):
+        if fields[key] is not None and not isinstance(fields[key], str):
+            raise TypeError(key)
+    for key in ("exists", "is_dirty", "drifted"):
+        if fields[key] is not None and type(fields[key]) is not bool:
+            raise TypeError(key)
+    fields["worktree_path"] = path
+    fields["action"] = WorktreeAction(fields["action"])
+    for name in ("position", "target_position"):
+        position = fields[name]
+        if position is not None:
+            for key in ("revision", "ref_name", "ref_kind"):
+                if not isinstance(position[key], str):
+                    message = f"{name}.{key}"
+                    raise TypeError(message)
+            for key in ("follows", "mixed", "switched"):
+                if type(position[key]) is not bool:
+                    message = f"{name}.{key}"
+                    raise TypeError(message)
+            if position["ref_kind"] not in {"branch", "tag", "commit"}:
+                message = "invalid Git position kind"
+                raise ValueError(message)
+            fields[name] = WorkingCopyPosition(**position)
+    if not isinstance(fields["checks"], list):
+        message = "checks must be a list"
+        raise TypeError(message)
+    for check in fields["checks"]:
+        if (
+            not isinstance(check, dict)
+            or check.keys() != {"name", "passed", "detail"}
+            or not isinstance(check["name"], str)
+            or type(check["passed"]) is not bool
+            or not isinstance(check["detail"], str)
+        ):
+            message = "invalid worktree check"
+            raise TypeError(message)
+    fields["checks"] = [WorktreeCheck(**check) for check in fields["checks"]]
+    return WorktreePlanEntry(**fields)
+
+
+def _sync_worktree_process(
+    repo_path: pathlib.Path,
+    wt_config: WorktreeConfigDict,
+    workspace_root: pathlib.Path,
+    *,
+    allow_discard: bool,
+    repo_config: Mapping[str, t.Any] | None,
+    timeout: float,
+) -> WorktreePlanEntry:
+    """Stop one owned worktree process before reporting results or recovery."""
+    from vcspull._internal.sync_process import SyncInterrupted, run_sync_process
+
+    path = _resolve_worktree_path(wt_config, workspace_root)
+    repo = {**(repo_config or {}), "path": path, "vcs": "git"}
+    repo.setdefault("url", str(repo_path))
+    interrupted = False
+    try:
+        outcome = run_sync_process(
+            repo,
+            progress_callback=lambda *args: None,
+            timeout=timeout,
+            is_human=False,
+            yes=allow_discard,
+            worktree={
+                "repo_path": repo_path,
+                "workspace_root": workspace_root,
+                "config": wt_config,
+                "repo_config": dict(repo_config) if repo_config is not None else None,
+            },
+        )
+    except SyncInterrupted as error:
+        interrupted = True
+        outcome = error.outcome
+    ref_type, ref_value = _get_ref_type_and_value(wt_config) or ("unknown", "unknown")
+    entry = WorktreePlanEntry(
+        path, ref_type, ref_value, WorktreeAction.ERROR, exists=None, is_dirty=None
+    )
+    if outcome.worktree is not None:
+        try:
+            entry = _worktree_entry_from_data(
+                outcome.worktree, path, ref_type, ref_value
+            )
+        except (TypeError, ValueError, KeyError) as error:
+            entry.error = f"invalid worktree result: {error}"
+    elif outcome.status == "synced":
+        entry.error = "worker did not report a complete worktree result"
+    entry.result = outcome.result
+    entry.retained_recoveries = outcome.retained_recoveries
+    if entry.error is not None and entry.result is not None and entry.result.ok:
+        entry.result.add_error("worker", entry.error)
+    if interrupted or outcome.status == "timed_out":
+        entry.status = "interrupted" if interrupted else "timed_out"
+        entry.action = WorktreeAction.ERROR
+        entry.error = "worktree interrupted" if interrupted else "worktree timed out"
+    elif outcome.status == "failed" and entry.action != WorktreeAction.BLOCKED:
+        entry.action = WorktreeAction.ERROR
+        entry.error = entry.error or str(outcome.error)
+    return entry
 
 
 def _get_ref_type_and_value(
@@ -899,6 +1069,7 @@ def sync_all_worktrees(
     dry_run: bool = False,
     allow_discard: bool = False,
     repo_config: Mapping[str, t.Any] | None = None,
+    timeout: float | None = None,
 ) -> WorktreeSyncResult:
     """Synchronize all worktrees for a repository.
 
@@ -937,14 +1108,24 @@ def sync_all_worktrees(
     result = WorktreeSyncResult()
 
     for wt_config in worktrees_config:
-        entry = sync_worktree(
-            repo_path,
-            wt_config,
-            workspace_root,
-            dry_run=dry_run,
-            allow_discard=allow_discard,
-            repo_config=repo_config,
-        )
+        if timeout is not None and not dry_run:
+            entry = _sync_worktree_process(
+                repo_path,
+                wt_config,
+                workspace_root,
+                allow_discard=allow_discard,
+                repo_config=repo_config,
+                timeout=timeout,
+            )
+        else:
+            entry = sync_worktree(
+                repo_path,
+                wt_config,
+                workspace_root,
+                dry_run=dry_run,
+                allow_discard=allow_discard,
+                repo_config=repo_config,
+            )
         result.entries.append(entry)
 
         if entry.action == WorktreeAction.CREATE:
@@ -957,6 +1138,10 @@ def sync_all_worktrees(
             result.blocked += 1
         elif entry.action == WorktreeAction.ERROR:
             result.errors += 1
+        if entry.status == "interrupted":
+            raise WorktreeInterrupted(result)
+        if entry.status == "timed_out":
+            break
 
     return result
 

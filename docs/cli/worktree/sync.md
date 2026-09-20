@@ -54,6 +54,23 @@ conflicts, and the exact token location required by libvcs recovery. Tokens
 remain retained until explicitly released through libvcs; synchronization
 does not automatically restore interrupted operations into their source.
 
+## Timeouts and interruption
+
+Each worktree has its own deadline, including native creation and update.
+Set it with `--timeout` or `VCSPULL_SYNC_TIMEOUT_SECONDS`; the default is
+10 seconds:
+
+```console
+$ vcspull worktree sync --timeout 60 '*'
+```
+
+Timeout or Ctrl-C stops the owned worker and its native process group before
+the command continues or exits. A timeout skips the remaining worktrees for
+that repository. Ctrl-C reports completed entries and retained recovery
+material before exiting. An interrupted worker that did not report metadata
+leaves `exists` and `is_dirty` unknown (`null` in JSON), not clean or missing.
+See {ref}`cli-sync` for recovery inspection and process-group limits.
+
 ## Dry run
 
 Preview local target metadata without fetching or changing checkouts. An

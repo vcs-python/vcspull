@@ -20,10 +20,12 @@ synchronized with remote repositories.
 
 ## Timeouts and interruption
 
-`--timeout` bounds each repository sync. On timeout or Ctrl-C, vcspull stops
+`--timeout` bounds each main checkout and each included worktree separately.
+On timeout or Ctrl-C, vcspull stops
 its worker and native process group before continuing or exiting. Progress
 and output are streamed to the parent process, which owns the terminal and
 JSON output. CLI synchronization requires POSIX process groups.
+An included worktree timeout skips the remaining worktrees for that repository.
 
 A stopped update can leave partially changed files. Its result remains
 unknown unless the worker returned a complete native result. Retained

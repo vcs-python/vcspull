@@ -37,6 +37,7 @@ from vcspull._internal.sync_process import (
     run_sync_process,
 )
 from vcspull._internal.worktree_sync import (
+    WorktreeInterrupted,
     plan_worktree_sync,
     require_worktree_authorization,
     sync_all_worktrees,
@@ -1931,14 +1932,20 @@ def _run_sync_loop(
             workspace_path = expand_dir(pathlib.Path(str(workspace_label)))
             repo_path_obj = pathlib.Path(str(repo_path))
 
-            wt_result = sync_all_worktrees(
-                repo_path_obj,
-                worktrees_config,
-                workspace_path,
-                dry_run=dry_run,
-                allow_discard=yes,
-                repo_config=repo,
-            )
+            interrupted = False
+            try:
+                wt_result = sync_all_worktrees(
+                    repo_path_obj,
+                    worktrees_config,
+                    workspace_path,
+                    dry_run=dry_run,
+                    allow_discard=yes,
+                    repo_config=repo,
+                    timeout=repo_timeout,
+                )
+            except WorktreeInterrupted as error:
+                wt_result = error.result
+                interrupted = True
             for entry in wt_result.entries:
                 _emit_worktree_entry(entry, formatter, colors)
 
@@ -1954,6 +1961,10 @@ def _run_sync_loop(
             )
             # Count worktree errors as failures for exit code
             summary["failed"] += wt_result.errors + wt_result.blocked
+
+            if interrupted:
+                summary["interrupted"] = summary.get("interrupted", 0) + 1
+                raise KeyboardInterrupt
 
             if exit_on_error and (wt_result.errors or wt_result.blocked):
                 _emit_summary(formatter, colors, summary)

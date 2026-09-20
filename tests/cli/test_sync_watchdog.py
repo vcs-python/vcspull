@@ -354,6 +354,133 @@ def test_watchdog_propagates_interrupt_during_inspection(
     )
 
 
+def test_worktree_timeout_retains_token_and_stops_same_repository(
+    worker_command: t.Any, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """A stopped worktree retains inspection results and prevents sibling writes."""
+    from libvcs import RecoveryToken, SyncResult
+
+    from vcspull._internal.worktree_sync import sync_all_worktrees
+
+    retained = SyncResult(
+        recovery=RecoveryToken("worktree-token", "git", str(tmp_path / "retained"))
+    )
+    worker_command("""
+send({'event': 'progress', 'text': 'ready',
+      'time': datetime.datetime.now().isoformat()})
+signal.pause()
+""")
+    clock = time.monotonic
+    offset = 0.0
+    monkeypatch.setattr(
+        sync_process, "time", types.SimpleNamespace(monotonic=lambda: clock() + offset)
+    )
+
+    def ready(*args: t.Any) -> None:
+        nonlocal offset
+        offset += 100
+
+    exchange = sync_process._exchange
+
+    def with_ready(request: dict[str, t.Any], **kwargs: t.Any) -> t.Any:
+        if request["operation"] == "worktree":
+            kwargs["progress_callback"] = ready
+        return exchange(request, **kwargs)
+
+    # Advance the deadline only after the fresh worker reports its readiness.
+    monkeypatch.setattr(sync_process, "_exchange", with_ready)
+    result = sync_all_worktrees(
+        tmp_path,
+        [{"dir": "one", "commit": "HEAD"}, {"dir": "two", "commit": "HEAD"}],
+        tmp_path,
+        repo_config={"retained": [sync_process._result_data(retained)]},
+        timeout=5,
+    )
+    assert result.errors == 1
+    assert len(result.entries) == 1
+    entry = result.entries[0]
+    assert entry.status == "timed_out"
+    assert entry.result is not None and entry.result.update_state == "unknown"
+    assert entry.retained_recoveries == (retained,)
+
+
+@pytest.mark.parametrize(
+    "invalid", ["exists", "ref_value", "path", "position", "check", "selector"]
+)
+def test_worktree_rejects_malformed_metadata_with_known_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, invalid: str
+) -> None:
+    """Malformed worker metadata cannot count a checkout as successfully created."""
+    from libvcs import RecoveryToken, SyncResult
+
+    from vcspull._internal.worktree_sync import (
+        WorktreeAction,
+        WorktreePlanEntry,
+        sync_all_worktrees,
+        worktree_entry_data,
+    )
+
+    token = RecoveryToken("known-token", "git", str(tmp_path / "retained"))
+    native = SyncResult(recovery=token, update_state="completed")
+    data = worktree_entry_data(
+        WorktreePlanEntry(tmp_path / "linked", "commit", "HEAD", WorktreeAction.CREATE)
+    )
+    if invalid == "exists":
+        data["exists"] = "not-a-bool"
+    elif invalid == "ref_value":
+        data["ref_value"] = {"not": "scalar"}
+    elif invalid == "path":
+        data["worktree_path"] = str(tmp_path / "different")
+    elif invalid == "selector":
+        data["ref_type"] = "tag"
+        data["ref_value"] = "wrong-target"
+    elif invalid == "position":
+        data["position"] = {
+            "revision": "abc",
+            "ref_name": "main",
+            "ref_kind": "branch",
+            "follows": "false",
+            "mixed": False,
+            "switched": False,
+        }
+    else:
+        data["checks"] = [{"name": "native", "passed": "yes", "detail": "done"}]
+    # Framing is tested separately; inject the decoded worker's scalar payload.
+    monkeypatch.setattr(
+        sync_process,
+        "run_sync_process",
+        lambda *args, **kwargs: sync_process.SyncOutcome(
+            "synced", result=native, worktree=data
+        ),
+    )
+    result = sync_all_worktrees(
+        tmp_path, [{"dir": "linked", "commit": "HEAD"}], tmp_path, timeout=1
+    )
+    assert result.created == 0 and result.errors == 1
+    entry = result.entries[0]
+    assert entry.error is not None and "invalid worktree result" in entry.error
+    assert entry.result is not None and entry.result.recovery == token
+
+
+def test_worktree_timeout_option_preserves_unconfigured_remotes(
+    git_repo: GitSync, tmp_path: pathlib.Path
+) -> None:
+    """Adding process supervision cannot manufacture authoritative remote settings."""
+    from vcspull._internal.worktree_sync import sync_all_worktrees
+
+    path = tmp_path / "linked"
+    git_repo.run(["worktree", "add", "--detach", str(path), "HEAD"])
+    original_url = git_repo.run(["remote", "get-url", "origin"])
+    result = sync_all_worktrees(
+        git_repo.path,
+        [{"dir": str(path), "commit": git_repo.get_revision()}],
+        tmp_path,
+        timeout=5,
+    )
+    assert result.errors == 0, result.entries
+    assert git_repo.run(["remote", "get-url", "origin"]) == original_url
+
+
 def test_recovery_inspection_finds_svn_after_source_loss(svn_repo: SvnSync) -> None:
     """The subprocess inspector retains SVN's source-independent recovery scope."""
     import shutil

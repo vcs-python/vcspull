@@ -21,11 +21,40 @@ if t.TYPE_CHECKING:
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group supervision")
-def test_sync_interrupt_stops_worker(git_repo: GitSync, tmp_path: pathlib.Path) -> None:
+@pytest.mark.parametrize("mode", ["main", "included", "worktree"])
+def test_sync_interrupt_stops_worker(
+    git_repo: GitSync, tmp_path: pathlib.Path, mode: str
+) -> None:
     """SIGINT stops an active native checkout and reports retained changes."""
     git_repo.run(["tag", "before-update"])
     git_repo.run(["commit", "--allow-empty", "-m", "advance"])
-    (git_repo.path / "local.txt").write_text("retain this\n")
+    from libvcs import GitSync
+
+    checkout = git_repo
+    entry: dict[str, t.Any] = {
+        "repo": f"git+{git_repo.url}",
+        "working_copy": {
+            "tag": "before-update",
+            "sync": {"dirty": "preserve"},
+        },
+    }
+    arguments = ["sync", "--all", "--no-log-file", "--timeout", "30"]
+    if mode != "main":
+        path = tmp_path / "linked"
+        git_repo.run(["worktree", "add", "--detach", str(path), "HEAD"])
+        checkout = GitSync(url=git_repo.url, path=path)
+        entry["working_copy"] = {
+            "commit": git_repo.get_revision(),
+            "sync": {"drift": "keep"},
+        }
+        entry["worktrees"] = [
+            {"dir": str(path), "tag": "before-update", "sync": {"dirty": "preserve"}}
+        ]
+        if mode == "included":
+            arguments.append("--include-worktrees")
+        else:
+            arguments = ["worktree", "sync"]
+    (checkout.path / "local.txt").write_text("retain this\n")
     address = str(tmp_path / "s")
     helper = tmp_path / "hook.py"
     helper.write_text(
@@ -42,19 +71,7 @@ def test_sync_interrupt_stops_worker(git_repo: GitSync, tmp_path: pathlib.Path) 
     hook.chmod(0o700)
     config = tmp_path / "repos.json"
     config.write_text(
-        json.dumps(
-            {
-                str(git_repo.path.parent): {
-                    git_repo.path.name: {
-                        "repo": f"git+{git_repo.url}",
-                        "working_copy": {
-                            "tag": "before-update",
-                            "sync": {"dirty": "preserve"},
-                        },
-                    }
-                }
-            }
-        )
+        json.dumps({str(git_repo.path.parent): {git_repo.path.name: entry}})
     )
     spec = importlib.util.find_spec("vcspull")
     assert spec is not None and spec.origin is not None
@@ -68,14 +85,10 @@ def test_sync_interrupt_stops_worker(git_repo: GitSync, tmp_path: pathlib.Path) 
                 sys.executable,
                 "-c",
                 "from vcspull.cli import cli; cli()",
-                "sync",
+                *arguments,
                 "--file",
                 str(config),
-                "--all",
                 "--ndjson",
-                "--no-log-file",
-                "--timeout",
-                "30",
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -97,9 +110,12 @@ def test_sync_interrupt_stops_worker(git_repo: GitSync, tmp_path: pathlib.Path) 
             events = [json.loads(line) for line in output.splitlines()]
             event = next(item for item in events if item.get("status") == "interrupted")
             assert event["update_state"] == "unknown"
+            if mode != "main":
+                assert event["exists"] is None
+                assert event["is_dirty"] is None
             retained = event["retained_recoveries"]
             assert len(retained) == 1
-            discovered = git_repo.list_recoveries()
+            discovered = checkout.list_recoveries()
             assert discovered[0].recovery is not None
             assert retained[0]["recovery"]["id"] == discovered[0].recovery.id
         finally:
@@ -116,31 +132,9 @@ def test_sync_interrupt_stops_worker(git_repo: GitSync, tmp_path: pathlib.Path) 
     reason="POSIX signal semantics only; Windows uses exit-code 130",
 )
 def test_exit_on_sigint_produces_wifsignaled_sigint() -> None:
-    """``_exit_on_sigint`` makes the process terminate via ``WIFSIGNALED(SIGINT)``.
+    """The exit helper preserves POSIX signal termination for shell command lists.
 
-    Bash's ``cmd1; cmd2`` sequential-list abort only kicks in when the
-    child was killed by a signal -- a clean ``SystemExit(130)`` leaves
-    the shell no reason to stop and the chain keeps running. This
-    assertion locks in the actual kernel signal bit, not just the exit
-    code.
-
-    Why a subprocess: the production helper ends with
-    ``signal.raise_signal(SIGINT)`` under ``SIG_DFL``, which would take
-    the pytest runner down with us if we called it in-process. The only
-    reliable observation point is ``subprocess.Popen.returncode``,
-    which CPython stores as the *negative* of the terminating signal
-    number when ``os.waitstatus_to_exitcode`` reports ``WIFSIGNALED``.
-
-    Scope: we target ``_exit_on_sigint`` directly in a fresh interpreter
-    rather than driving ``vcspull sync`` end-to-end, because getting the
-    sync loop into a deterministic mid-flight state where SIGINT lands
-    on the watchdog's ``done.wait(...)`` requires either a blocking fake
-    remote or a monkey-patched ``update_repo`` -- both reintroduce
-    flake and add nothing over the existing in-process control-flow
-    tests in ``test_sync_watchdog.py`` (which use the
-    ``_fake_sigint_escalation`` fixture). The one thing those tests
-    can't show is that the kernel actually marks the exit as
-    WIFSIGNALED(SIGINT); that's what this subprocess proves.
+    Run it in a child interpreter so the real signal cannot kill pytest.
     """
     # Simulate Ctrl-C in a fresh interpreter, then route it through the
     # real helper. We install ``default_int_handler`` explicitly because

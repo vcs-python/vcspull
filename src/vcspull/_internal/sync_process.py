@@ -35,6 +35,7 @@ class SyncOutcome:
     duration: float = 0.0
     result: SyncResult | None = None
     retained_recoveries: tuple[SyncResult, ...] = ()
+    worktree: dict[str, t.Any] | None = None
 
 
 class SyncInterrupted(KeyboardInterrupt):
@@ -307,6 +308,7 @@ def run_sync_process(
     timeout: float,
     is_human: bool,
     yes: bool = False,
+    worktree: Mapping[str, t.Any] | None = None,
 ) -> SyncOutcome:
     """Run one owned mutation process; inspect retained records after a timeout."""
     if os.name != "posix":
@@ -314,7 +316,12 @@ def run_sync_process(
         raise RuntimeError(message)
     started = time.monotonic()
     exchange = _exchange(
-        {"repo": dict(repo), "yes": yes, "operation": "sync"},
+        {
+            "repo": dict(repo),
+            "yes": yes,
+            "operation": "worktree" if worktree is not None else "sync",
+            "worktree": dict(worktree) if worktree is not None else None,
+        },
         timeout=timeout,
         progress_callback=progress_callback,
         is_human=is_human,
@@ -406,6 +413,7 @@ def run_sync_process(
         duration=time.monotonic() - started,
         result=result,
         retained_recoveries=retained,
+        worktree=terminal.get("worktree"),
     )
     if interrupted:
         raise SyncInterrupted(outcome)
@@ -440,6 +448,41 @@ def _main() -> None:
         try:
             from vcspull.cli.sync import SyncFailedError, guess_vcs, update_repo
 
+            if request["operation"] == "worktree":
+                from vcspull._internal.worktree_sync import (
+                    WorktreeAction,
+                    sync_worktree,
+                    worktree_entry_data,
+                )
+
+                settings = request["worktree"]
+                entry = sync_worktree(
+                    pathlib.Path(settings["repo_path"]),
+                    settings["config"],
+                    pathlib.Path(settings["workspace_root"]),
+                    allow_discard=request["yes"],
+                    repo_config=settings["repo_config"],
+                )
+                worktree_result = (
+                    entry.result if entry.result is not None else SyncResult()
+                )
+                if (
+                    entry.action in (WorktreeAction.ERROR, WorktreeAction.BLOCKED)
+                    and worktree_result.ok
+                ):
+                    worktree_result.add_error(
+                        "worktree", entry.error or entry.detail or "worktree failed"
+                    )
+                send(
+                    {
+                        "event": "result",
+                        "ok": worktree_result.ok,
+                        "error": entry.error,
+                        "result": _result_data(worktree_result),
+                        "worktree": worktree_entry_data(entry),
+                    }
+                )
+                return
             if request["operation"] == "inspect":
                 from vcspull._internal.sync import create_sync_project
 

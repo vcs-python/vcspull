@@ -30,6 +30,11 @@ the worker and its native descendants before the command continues or exits.
 Interrupted JSON/NDJSON events report unknown state and `retained_recoveries`
 discovered by a separately bounded inspection. Discovery can include tokens
 from earlier operations; it does not restore or release them automatically.
+The same ownership applies to `sync --include-worktrees` and `worktree sync`.
+Each linked checkout has a separate deadline; standalone `worktree sync`
+accepts `--timeout`. A timed-out worktree prevents further worktrees for that
+repository from starting. Interrupted worktree metadata remains unknown when
+the worker did not return it.
 
 ### Explicit checkout policy and sync results
 
