@@ -45,6 +45,8 @@ _Notes on upcoming releases will be added here_
 `git`, `hg`, and `svn` blocks match their libvcs options classes. Loading
 rejects unknown fields, invalid values, and blocks for a different VCS before
 sync starts. Errors identify the file, workspace, repository, and field.
+Overridden legacy values are validated too. Integer fields accept integral
+numbers such as `2.0`; metadata accepts JSON-compatible values.
 
 ```yaml
 ~/code/:

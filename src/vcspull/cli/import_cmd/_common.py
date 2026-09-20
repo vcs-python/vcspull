@@ -1061,6 +1061,15 @@ def _run_import(
                     if isinstance(existing_raw, dict)
                     else {}
                 )
+                updated["repo"] = incoming_url
+                updated.pop("url", None)
+                if import_source:
+                    # None is not safe: setdefault returns existing None
+                    # instead of replacing it, causing TypeError.
+                    if not isinstance(updated.get("metadata"), dict):
+                        updated["metadata"] = {}
+                    metadata = updated.setdefault("metadata", {})
+                    metadata["imported_from"] = import_source
                 try:
                     _, updated = migrate_repo_entry(updated)
                 except (TypeError, ValueError) as error:
@@ -1072,15 +1081,6 @@ def _run_import(
                         error,
                     )
                     return 1
-                updated["repo"] = incoming_url
-                updated.pop("url", None)
-                if import_source:
-                    # None is not safe: setdefault returns existing None
-                    # instead of replacing it, causing TypeError.
-                    if not isinstance(updated.get("metadata"), dict):
-                        updated["metadata"] = {}
-                    metadata = updated.setdefault("metadata", {})
-                    metadata["imported_from"] = import_source
                 raw_config[repo_workspace_label][repo.name] = updated
             else:
                 log.info("[DRY-RUN] Would update URL: %s", repo.name)
@@ -1097,6 +1097,12 @@ def _run_import(
                     )
                     if needs_tag:
                         if not dry_run:
+                            live = copy.deepcopy(live)
+                            if not isinstance(existing_meta, dict):
+                                live["metadata"] = {}
+                            live.setdefault("metadata", {})["imported_from"] = (
+                                import_source
+                            )
                             try:
                                 _, live = migrate_repo_entry(live)
                             except (TypeError, ValueError) as error:
@@ -1109,11 +1115,6 @@ def _run_import(
                                 )
                                 return 1
                             raw_config[repo_workspace_label][repo.name] = live
-                            if not isinstance(existing_meta, dict):
-                                live["metadata"] = {}
-                            live.setdefault("metadata", {})["imported_from"] = (
-                                import_source
-                            )
                         provenance_tagged_count += 1
                 elif isinstance(live, str):
                     if not dry_run:

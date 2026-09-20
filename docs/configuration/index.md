@@ -138,6 +138,9 @@ See {ref}`cli-worktree` for full command documentation.
 Repository entries use one backend block matching their URL: `git`, `hg`,
 or `svn`. Unknown keys, wrong-backend blocks, and malformed values fail when
 loading, with the file, workspace, repository, and field in the error.
+Supplied legacy values must be valid even when a canonical field overrides
+them. Numeric integer fields accept `2.0` as `2`; booleans and fractional
+values fail. Metadata contains JSON-compatible values with string keys.
 
 | Block | Options |
 | --- | --- |
@@ -171,7 +174,20 @@ needed by the current working tree.
           depth: 3
 ```
 
-Filters accept native strings, kind-tagged mappings, or nonempty lists.
+Filters accept atomic native strings, kind-tagged mappings, or nonempty lists.
+Use a mapping or nested list for a combined filter, without percent encoding:
+
+```yaml
+git:
+  filter:
+    kind: combine
+    filters:
+      - blob:none
+      - tree:3
+```
+
+Native `combine:` strings are rejected in configuration; `vcspull migrate`
+converts them to this structured form. Combinations may nest up to 32 levels.
 `auto` requires a Git version that supports it and cannot be combined with
 other filters or forwarded to submodule initialization. libvcs validates
 filter syntax before running Git. The remote must enable partial-clone

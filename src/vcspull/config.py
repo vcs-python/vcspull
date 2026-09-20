@@ -14,10 +14,13 @@ import tempfile
 import typing as t
 from collections.abc import Callable
 
+from libvcs.cmd.git_filter import Combine, parse_filter
 from libvcs.sync.git import GitRemote
 
 from vcspull.validator import (
     is_valid_config,
+    validate_legacy_options,
+    validate_metadata,
     validate_repo_entry,
     validate_working_copy,
 )
@@ -29,7 +32,7 @@ from ._internal.config_reader import (
     config_format_from_path,
 )
 from .types import ConfigDict, RawConfigDict, WorktreeConfigDict
-from .util import get_config_dir, update_dict
+from .util import get_config_dir
 
 log = logging.getLogger(__name__)
 
@@ -269,21 +272,21 @@ def extract_repos(
             if isinstance(repo_data, str):
                 conf["url"] = repo_data
             else:
-                conf = update_dict(conf, repo_data)
+                conf = copy.deepcopy(repo_data)
+
+            location = f"{directory!r} -> {repo!r}"
+            try:
+                _, conf = migrate_repo_entry(conf, normalize_filters=False)
+            except (TypeError, ValueError) as error:
+                msg = f"{location}.{error}"
+                raise exc.VCSPullException(msg) from error
+            validate_repo_entry(conf, location=location)
 
             if "repo" in conf:
                 if "url" not in conf:
                     conf["url"] = conf.pop("repo")
                 else:
                     conf.pop("repo", None)
-
-            location = f"{directory!r} -> {repo!r}"
-            try:
-                _, conf = migrate_repo_entry(conf)
-            except (TypeError, ValueError) as error:
-                msg = f"{location}.{error}"
-                raise exc.VCSPullException(msg) from error
-            validate_repo_entry(conf, location=location)
 
             if "name" not in conf:
                 conf["name"] = repo
@@ -969,9 +972,8 @@ def resolve_clone_depth(
 
     1. ``explicit_depth`` (from ``--depth N``) → ``(False, explicit_depth)``.
     2. ``explicit_shallow`` (from ``--shallow``) → ``(True, None)``.
-    3. Auto-detected depth (hybrid): a depth-1 checkout records ``shallow:
-       true`` (the common case), depth > 1 records ``depth: N``, and a full
-       checkout records neither.
+    3. Auto-detected depth: shallow checkouts record ``git.depth: N``;
+       full checkouts omit the depth setting.
 
     Parameters
     ----------
@@ -1079,7 +1081,47 @@ def build_repo_entry(
 LEGACY_REPO_OPTION_KEYS = ("rev", "shallow", "depth")
 
 
-def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
+def _migrate_filter_config(value: t.Any, *, depth: int = 0) -> t.Any:
+    """Express native combinations without nested percent encoding.
+
+    >>> _migrate_filter_config("combine:blob:none+tree:1")
+    {'kind': 'combine', 'filters': ['blob:none', 'tree:1']}
+    """
+    if depth > 33:
+        msg = "filter nesting exceeds 32 levels"
+        raise ValueError(msg)
+    if isinstance(value, str) and value.startswith("combine:"):
+        value = parse_filter(value)
+    if isinstance(value, Combine):
+        return {
+            "kind": "combine",
+            "filters": [
+                _migrate_filter_config(child, depth=depth + 1)
+                if isinstance(child, Combine)
+                else child.to_spec()
+                for child in value.filters
+            ],
+        }
+    if isinstance(value, list):
+        return [_migrate_filter_config(child, depth=depth + 1) for child in value]
+    if (
+        isinstance(value, dict)
+        and value.get("kind") == "combine"
+        and isinstance(value.get("filters"), list)
+    ):
+        return {
+            **value,
+            "filters": [
+                _migrate_filter_config(child, depth=depth + 1)
+                for child in value["filters"]
+            ],
+        }
+    return value
+
+
+def migrate_repo_entry(
+    entry: t.Any, *, normalize_filters: bool = True
+) -> tuple[bool, t.Any]:
     """Separate checkout targets, backend settings, and entry policy.
 
     Canonical values win over legacy values. Within the legacy layout,
@@ -1090,6 +1132,9 @@ def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
     ----------
     entry : Any
         A raw repository entry (string shorthand or mapping).
+    normalize_filters : bool
+        Rewrite native combined filters for serialization. Loading disables
+        this conversion so unsupported syntax fails at its source.
 
     Returns
     -------
@@ -1121,6 +1166,12 @@ def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
     if not isinstance(entry, dict):
         return False, entry
 
+    if "metadata" in entry:
+        try:
+            validate_metadata(entry["metadata"])
+        except exc.VCSPullException as error:
+            raise ValueError(str(error)) from error
+
     legacy_keys = (
         *LEGACY_REPO_OPTION_KEYS,
         "options",
@@ -1128,10 +1179,18 @@ def migrate_repo_entry(entry: t.Any) -> tuple[bool, t.Any]:
         "hg_options",
         "svn_options",
     )
-    if not any(key in entry for key in legacy_keys):
-        return False, entry
-
     new_entry = copy.deepcopy(entry)
+    if normalize_filters:
+        for key in ("git", "git_options"):
+            options = new_entry.get(key)
+            if isinstance(options, dict) and "filter" in options:
+                options["filter"] = _migrate_filter_config(options["filter"])
+    if not any(key in new_entry for key in legacy_keys):
+        return new_entry != entry, new_entry
+    try:
+        validate_legacy_options(new_entry)
+    except exc.VCSPullException as error:
+        raise ValueError(str(error)) from error
     options = new_entry.pop("options", {})
     if not isinstance(options, dict):
         msg = "options: expected a mapping"

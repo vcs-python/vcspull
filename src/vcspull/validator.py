@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 import pathlib
 import typing as t
 
@@ -12,6 +13,185 @@ from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull.types import RawConfigDict
+
+
+def _config_integer(value: t.Any) -> t.Any:
+    """Normalize mathematical integers from JSON or YAML numeric values.
+
+    >>> _config_integer(2.0)
+    2
+    >>> _config_integer(2.5)
+    2.5
+    """
+    return int(value) if isinstance(value, float) and value.is_integer() else value
+
+
+def _is_json_value(value: t.Any, ancestors: frozenset[int] = frozenset()) -> bool:
+    """Reject non-JSON YAML values and recursive aliases in metadata.
+
+    >>> _is_json_value({"labels": ["python", None, True]})
+    True
+    >>> _is_json_value({1: "invalid key"})
+    False
+    """
+    if value is None or isinstance(value, (str, bool, int)):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if id(value) in ancestors:
+        return False
+    parents = ancestors | {id(value)}
+    if isinstance(value, list):
+        return all(_is_json_value(item, parents) for item in value)
+    if isinstance(value, dict):
+        return all(
+            isinstance(key, str) and _is_json_value(item, parents)
+            for key, item in value.items()
+        )
+    return False
+
+
+def validate_metadata(value: t.Any, *, location: str = "metadata") -> None:
+    """Require a finite JSON mapping before copying or comparing entries.
+
+    >>> validate_metadata({"imported_from": "github:example"})
+    """
+    if not isinstance(value, dict) or not _is_json_value(value):
+        msg = f"{location}: expected a JSON-compatible mapping"
+        raise exc.VCSPullException(msg)
+
+
+def _normalize_filter(
+    value: t.Any, *, location: str, depth: int = 0, outer: bool = True
+) -> t.Any:
+    """Normalize numeric filter fields and require structured combinations.
+
+    >>> _normalize_filter({"kind": "tree", "depth": 2.0}, location="filter")
+    {'kind': 'tree', 'depth': 2}
+    """
+    if depth > 32:
+        msg = f"{location}: filter nesting exceeds 32 levels"
+        raise exc.VCSPullException(msg)
+    if isinstance(value, str) and value.startswith("combine:"):
+        msg = f"{location}: use a kind: combine mapping with filters, or a list"
+        raise exc.VCSPullException(msg)
+    if isinstance(value, list):
+        return [
+            _normalize_filter(
+                item,
+                location=f"{location}[{idx}]",
+                depth=depth if outer else depth + 1,
+                outer=False,
+            )
+            for idx, item in enumerate(value)
+        ]
+    if isinstance(value, dict):
+        result = value.copy()
+        for key in ("limit", "depth"):
+            if key in result:
+                result[key] = _config_integer(result[key])
+        children = result.get("filters")
+        if result.get("kind") == "combine" and isinstance(children, list):
+            result["filters"] = [
+                _normalize_filter(
+                    item,
+                    location=f"{location}.filters[{idx}]",
+                    depth=depth + 1,
+                    outer=False,
+                )
+                for idx, item in enumerate(children)
+            ]
+        return result
+    return value
+
+
+def _validate_backend_options(
+    value: t.Any,
+    options_type: type[GitOptions | HgOptions | SvnOptions],
+    *,
+    location: str,
+) -> dict[str, t.Any]:
+    """Validate backend fields at their original configuration location.
+
+    >>> _validate_backend_options({"depth": 2.0}, GitOptions, location="git")
+    {'depth': 2}
+    """
+    if not isinstance(value, dict):
+        msg = f"{location}: expected a mapping"
+        raise exc.VCSPullException(msg)
+    options = value.copy()
+    fields = {field.name for field in dataclasses.fields(options_type)}
+    unknown = options.keys() - fields
+    if unknown:
+        msg = f"{location}.{min(map(str, unknown))}: unknown option"
+        raise exc.VCSPullException(msg)
+    if options_type is GitOptions:
+        if "depth" in options:
+            options["depth"] = _config_integer(options["depth"])
+        if "filter" in options:
+            options["filter"] = _normalize_filter(
+                options["filter"], location=f"{location}.filter"
+            )
+    try:
+        options_type(**options)
+    except (TypeError, ValueError) as error:
+        detail = str(error)
+        key = next((key for key in options if detail.startswith(key)), "filter")
+        if key == "filter" and detail.startswith("filter["):
+            key = detail.split(":", 1)[0]
+        msg = f"{location}.{key}: {detail}"
+        raise exc.VCSPullException(msg) from error
+    return options
+
+
+def validate_legacy_options(value: dict[str, t.Any]) -> None:
+    """Validate supplied legacy settings before precedence can hide errors.
+
+    >>> validate_legacy_options({"repo": "git+https://example.com/r.git", "depth": 2})
+    """
+    options = value.get("options", {})
+    if not isinstance(options, dict):
+        msg = "options: expected a mapping"
+        raise exc.VCSPullException(msg)
+    allowed = {"rev", "shallow", "depth", "pin", "pin_reason", "allow_overwrite"}
+    unknown = options.keys() - allowed
+    if unknown:
+        msg = f"options.{min(map(str, unknown))}: unknown legacy option"
+        raise exc.VCSPullException(msg)
+    context: dict[str, t.Any] = {
+        key: value[key] for key in ("repo", "url", "vcs") if key in value
+    }
+    for prefix, fields in (("", value), ("options.", options)):
+        if fields.get("rev") is not None:
+            validate_working_copy(
+                {"rev": fields["rev"]}, location=prefix.rstrip(".") or "repository"
+            )
+        if fields.get("shallow") is not None and not isinstance(
+            fields["shallow"], bool
+        ):
+            msg = f"{prefix}shallow: expected a boolean"
+            raise exc.VCSPullException(msg)
+        if fields.get("depth") is not None:
+            _validate_backend_options(
+                {"depth": fields["depth"]},
+                GitOptions,
+                location=prefix.rstrip(".") or "repository",
+            )
+        if prefix:
+            for key in ("pin", "pin_reason", "allow_overwrite"):
+                if key in fields:
+                    validate_repo_entry(
+                        {**context, key: fields[key]}, location="options"
+                    )
+    for name, options_type in (
+        ("git", GitOptions),
+        ("hg", HgOptions),
+        ("svn", SvnOptions),
+    ):
+        alias = f"{name}_options"
+        if alias in value:
+            _validate_backend_options(value[alias], options_type, location=alias)
+            validate_repo_entry({**context, name: {}}, location=alias)
 
 
 def validate_working_copy(
@@ -47,6 +227,8 @@ def validate_working_copy(
     if len(refs) > 1:
         fail("", "cannot specify multiple refs (branch, tag, commit, rev)")
     ref = refs[0]
+    if ref == "rev":
+        value[ref] = _config_integer(value[ref])
     selected = value[ref]
     if ref == "rev" and type(selected) is int:
         if selected < 0:
@@ -113,6 +295,13 @@ def validate_repo_entry(value: dict[str, t.Any], *, location: str) -> None:
     unknown = value.keys() - allowed
     if unknown:
         fail(min(map(str, unknown)), "unknown key")
+    for alias in ("repo", "url"):
+        if alias in value and (
+            not isinstance(value[alias], str)
+            or not value[alias]
+            or "\0" in value[alias]
+        ):
+            fail(alias, "expected a nonempty URL string without NUL")
     url = value.get("url", value.get("repo"))
     if not isinstance(url, str) or not url or "\0" in url:
         fail("repo", "expected a nonempty URL string without NUL")
@@ -136,29 +325,16 @@ def validate_repo_entry(value: dict[str, t.Any], *, location: str) -> None:
                 name,
                 f"options do not match the repository VCS ({backend or 'unknown'})",
             )
-        options = value[name]
-        if not isinstance(options, dict):
-            fail(name, "expected a mapping")
-        fields = {field.name for field in dataclasses.fields(options_type)}
-        unknown_options = options.keys() - fields
-        if unknown_options:
-            fail(f"{name}.{min(map(str, unknown_options))}", "unknown option")
-        try:
-            options_type(**options)
-        except (TypeError, ValueError) as error:
-            detail = str(error)
-            key = next((key for key in options if detail.startswith(key)), "filter")
-            field = f"{name}.{key}"
-            if key == "filter" and detail.startswith("filter["):
-                field = f"{name}.{detail.split(':', 1)[0]}"
-            fail(field, detail)
+        value[name] = _validate_backend_options(
+            value[name], options_type, location=f"{location}.{name}"
+        )
     for key in ("name", "workspace_root"):
         if key in value and (not isinstance(value[key], str) or not value[key]):
             fail(key, "expected a nonempty string")
     if "path" in value and not isinstance(value["path"], (str, pathlib.Path)):
         fail("path", "expected a path string")
-    if "metadata" in value and not isinstance(value["metadata"], dict):
-        fail("metadata", "expected a mapping")
+    if "metadata" in value:
+        validate_metadata(value["metadata"], location=f"{location}.metadata")
     if "shell_command_after" in value:
         commands = value["shell_command_after"]
         if (

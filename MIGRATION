@@ -62,8 +62,12 @@ After:
 `shallow: true` becomes `git.depth: 1`. `git_options`, `hg_options`, and
 `svn_options` become `git`, `hg`, and `svn`. `pin_reason` and
 `allow_overwrite` move from `options` to the entry level alongside `pin`.
-Existing canonical values take precedence. Unknown legacy `options` keys
-produce an error before the file is written.
+Existing canonical values take precedence. Every supplied setting is
+validated before precedence applies, including overridden values. Unknown
+legacy `options` keys produce an error before the file is written. Remove
+invalid values instead of relying on another field to hide them. Both `url`
+and `repo` must be valid strings when present; `url` still takes precedence.
+Metadata must contain JSON-compatible values with string keys.
 
 `add` and `discover` write the canonical layout. `import` and `fmt` migrate
 entries they rewrite; entries pinned for that command stay unchanged. Use
@@ -75,9 +79,12 @@ belongs in `metadata`, not in a libvcs constructor argument. Sync constructs
 the matching immutable libvcs options object from `git`, `hg`, or `svn`.
 
 To omit historical file contents without truncating commit history, add
-`git.filter: blob:none`. The value can also be a native filter string, a
-kind-tagged mapping, or a nonempty list of filters. Filter and depth changes
-only affect a new clone; they do not reconfigure an existing checkout.
+`git.filter: blob:none`. The value can also be an atomic native filter
+string, a kind-tagged mapping, or a nonempty list of filters. Express combined
+filters as `{kind: combine, filters: [blob:none, "tree:3"]}` or nested lists;
+`vcspull migrate --write` converts native `combine:` strings to that form.
+Filter and depth changes only affect a new clone; they do not reconfigure an
+existing checkout.
 
 ## vcspull 1.62.0 (2026-05-31)
 

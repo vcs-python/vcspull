@@ -74,9 +74,17 @@ def load_yaml(tmp_path: pathlib.Path) -> LoadYAMLFn:
         ({"git": {"filter": {"kind": "combine", "filters": ["auto"]}}}, "git.filter"),
         ({"git": {"depth": True}}, "git.depth"),
         ({"git": {"tls_verify": "false"}}, "git.tls_verify"),
+        ({"git": {"depth": 1.5}}, "git.depth"),
+        ({"git": {"depth": 2}, "options": {"depth": False}}, "options.depth"),
+        ({"working_copy": {"branch": "main"}, "rev": []}, "rev"),
+        ({"git": {"depth": 2}, "git_options": {"depth": False}}, "git_options.depth"),
+        ({"url": "git+https://example.com/repo.git", "repo": False}, "repo"),
+        ({"metadata": {"nested": {1: "non-string key"}}}, "metadata"),
+        ({"metadata": {"number": float("inf")}}, "metadata"),
+        ({"git": {"filter": "combine:blob:none+tree:1"}}, "git.filter"),
         ({"hg": {}}, "hg"),
         ({"svn": {"depth": "files"}}, "svn"),
-        ({"git_options": {"typo": True}}, "git.typo"),
+        ({"git_options": {"typo": True}}, "git_options.typo"),
         ({"working_coppy": {"branch": "main"}}, "working_coppy"),
         (
             {"remotes": {"upstream": {"fetch_url": "git+https://example.com/up.git"}}},
@@ -842,7 +850,7 @@ def test_migrate_rejects_unknown_legacy_options() -> None:
 @pytest.mark.parametrize("shallow", ["false", {"value": False}, [], 1])
 def test_migrate_rejects_malformed_shallow(shallow: t.Any) -> None:
     """Migration cannot turn an invalid shallow value into a valid clone policy."""
-    with pytest.raises(TypeError, match="shallow"):
+    with pytest.raises(ValueError, match="shallow"):
         migrate_repo_entry({"repo": "git+x", "options": {"shallow": shallow}})
 
 
@@ -919,3 +927,102 @@ def test_build_repo_entry_rejects_invalid_settings(
 
     with pytest.raises(VCSPullException, match=field):
         build_repo_entry(url, **kwargs)
+
+
+def test_load_normalizes_integral_config_numbers(tmp_path: pathlib.Path) -> None:
+    """JSON integer values normalize before strict libvcs construction."""
+    path = tmp_path / "config.yaml"
+    config.save_config_yaml(
+        path,
+        {
+            "./": {
+                "project": {
+                    "repo": "git+https://example.com/repo.git",
+                    "options": {"depth": 2.0, "rev": 4.0},
+                    "git": {
+                        "filter": [
+                            {"kind": "tree", "depth": 3.0},
+                            {"kind": "blob:limit", "limit": 1024.0},
+                        ]
+                    },
+                }
+            }
+        },
+    )
+    entry = config.load_configs([path])[0]
+    assert type(entry["git"]["depth"]) is int
+    assert entry["working_copy"]["rev"] == 4
+    assert type(entry["working_copy"]["rev"]) is int
+    filters = entry["git"]["filter"]
+    assert filters == [
+        {"kind": "tree", "depth": 3},
+        {"kind": "blob:limit", "limit": 1024},
+    ]
+    assert isinstance(filters, list)
+    assert isinstance(filters[0], dict)
+    assert type(filters[0]["depth"]) is int
+
+
+def test_migrate_native_combines_to_structured_config() -> None:
+    """Migration removes percent encoding without changing filter semantics."""
+    from libvcs.cmd.git_filter import coerce_filter
+
+    original = "combine:combine:sparse:oid=a%25%32%42b+blob:none"
+    entry: dict[str, t.Any] = {
+        "repo": "git+https://example.com/r.git",
+        "git": {"filter": original},
+    }
+    changed, migrated = migrate_repo_entry(entry)
+    assert changed
+    assert migrated["git"]["filter"] == {
+        "kind": "combine",
+        "filters": [{"kind": "combine", "filters": ["sparse:oid=a+b"]}, "blob:none"],
+    }
+    assert coerce_filter(migrated["git"]["filter"]) == coerce_filter(original)
+    assert migrate_repo_entry(migrated) == (False, migrated)
+    assert entry["git"]["filter"] == original
+
+
+@pytest.mark.parametrize("container", ["list", "mapping"])
+def test_load_rejects_recursive_metadata(
+    tmp_path: pathlib.Path, container: str
+) -> None:
+    """Recursive YAML metadata raises a source-specific config error."""
+    metadata: dict[str, t.Any] = {}
+    metadata["loop"] = [metadata] if container == "list" else metadata
+    path = tmp_path / "recursive.yaml"
+    config.save_config_yaml(
+        path,
+        {
+            "./": {
+                "project": {
+                    "repo": "git+https://example.com/r.git",
+                    "metadata": metadata,
+                }
+            }
+        },
+    )
+    with pytest.raises(VCSPullException, match="metadata") as error:
+        if container == "list":
+            config.load_configs([path])
+        else:
+            config.extract_repos(
+                t.cast(
+                    "RawConfigDict",
+                    {
+                        "./": {
+                            "project": {
+                                "repo": "git+https://example.com/r.git",
+                                "metadata": metadata,
+                            }
+                        }
+                    },
+                )
+            )
+    if container == "list":
+        assert str(path) in str(error.value)
+    assert "project" in str(error.value)
+    with pytest.raises(ValueError, match="metadata"):
+        migrate_repo_entry(
+            {"repo": "git+https://example.com/r.git", "metadata": metadata}
+        )
