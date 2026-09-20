@@ -36,6 +36,12 @@ accepts `--timeout`. A timed-out worktree prevents further worktrees for that
 repository from starting. Interrupted worktree metadata remains unknown when
 the worker did not return it.
 
+### Guarded worktree creation
+
+Worktree creation fetches configured remotes before selecting its initial
+target. A failed requested worktree lock returns an error with completed
+creation state; inspect that result before retrying an occupied destination.
+
 ### Explicit checkout policy and sync results
 
 The main checkout passes its selector kind, remote, and `sync` policy to

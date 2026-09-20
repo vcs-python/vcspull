@@ -22,8 +22,9 @@ Sync all configured worktrees:
 $ vcspull worktree sync '*'
 ```
 
-Missing worktrees require locally available target metadata and use Git's
-linked-worktree operation. Existing
+Missing worktrees fetch configured remotes and establish their initial target
+with Git's linked-worktree operation. Creation holds the repository's ownership
+lock through fetch, target selection, worktree creation, and lock setup. Existing
 worktrees follow their configured `branch`, `tag`, `commit`, or native `rev`;
 changing a tag or commit target moves the checkout to that resolved commit.
 Branch updates are fast-forward only. A matching commit is not drift, even
@@ -55,6 +56,10 @@ remain retained until explicitly released through libvcs; synchronization
 does not automatically restore interrupted operations into their source.
 
 ## Timeouts and interruption
+
+A requested worktree lock that fails reports an error even when the checkout
+was created. Inspect `update_state` before retrying; failed creation can leave
+refs or a partial checkout.
 
 Each worktree has its own deadline, including native creation and update.
 Set it with `--timeout` or `VCSPULL_SYNC_TIMEOUT_SECONDS`; the default is

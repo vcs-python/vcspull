@@ -64,7 +64,8 @@ machine output. CLI synchronization requires POSIX process groups.
 resolve typed targets, honor drift and dirty policy, and retain native
 recovery results. Existing tag and commit checkouts move when their target
 changes. Parent Git options, selected remotes, and explicit detachment apply
-to worktree updates. Missing worktrees use native linked-worktree creation.
+to worktree updates. Missing worktrees fetch and create under the same native
+ownership lock; requested lock failures retain the completed creation result.
 
 Configured discard requires `--yes`; included worktree policies are checked
 before the main checkout changes. JSON and NDJSON retain exact recovery

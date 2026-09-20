@@ -2917,9 +2917,9 @@ def test_sync_worktree_oserror_exception(
 
     wt_config: WorktreeConfigDict = {"dir": str(worktree_path), "tag": "v-oserror-test"}
 
-    # Mock _create_worktree to raise OSError
+    # Fail the native creation boundary to verify CLI error conversion.
     mocker.patch(
-        "vcspull._internal.worktree_sync._create_worktree",
+        "libvcs.sync.git.GitSync.create_worktree",
         side_effect=OSError("Mocked OSError: permission denied"),
     )
 
@@ -3359,50 +3359,76 @@ def test_sync_exit_on_error_worktree_failures(
         )
 
 
-def test_sync_worktree_lock_failure_still_creates(
+def test_sync_worktree_lock_failure_reports_partial_creation(
     git_repo: GitSync,
     tmp_path: pathlib.Path,
-    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test worktree creation succeeds even if lock fails.
+    """A failed requested lock retains the completed creation and reports failure."""
+    from libvcs.cmd.git import Git
 
-    Regression test: lock failure after successful creation marked the entire
-    operation as ERROR. Lock is non-critical — the worktree is still usable.
-    """
-    workspace_root = git_repo.path.parent
-    worktree_path = workspace_root / "lock-fail-test-wt"
+    path = tmp_path / "lock-failed"
+    original_run = Git.run
 
-    # Create a tag
-    subprocess.run(
-        ["git", "tag", "v-lock-fail-test"],
-        cwd=git_repo.path,
-        check=True,
-        capture_output=True,
+    def fail_lock(command: Git, args: list[str], **kwargs: t.Any) -> str:
+        if args[:2] == ["worktree", "lock"]:
+            message = "worktree lock failed"
+            raise OSError(message)
+        return original_run(command, args, **kwargs)
+
+    # Fail only lock metadata after native worktree creation has completed.
+    monkeypatch.setattr(Git, "run", fail_lock)
+    entry = sync_worktree(
+        git_repo.path,
+        {"dir": str(path), "commit": "HEAD", "lock": True},
+        tmp_path,
+    )
+    assert entry.action == WorktreeAction.ERROR
+    assert path.is_dir()
+    assert entry.result is not None and entry.result.update_state == "completed"
+    assert entry.result.errors[0].step == "worktree-lock"
+
+
+def test_worktree_creation_fetches_configured_remote(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+) -> None:
+    """Creation establishes a branch that exists only in a configured remote."""
+    from libvcs.sync.git import GitSync
+
+    repo, existing, _, target = policy_worktree
+    upstream = GitSync(url=str(repo.path), path=existing.parent / "new-upstream")
+    upstream.obtain()
+    upstream.cmd.run(["branch", "new-remote-branch", target], check_returncode=True)
+    path = existing.parent / "new-remote-worktree"
+    entry = sync_worktree(
+        repo.path,
+        {"dir": str(path), "branch": "new-remote-branch", "remote": "upstream"},
+        path.parent,
+        repo_config={"url": repo.url, "remotes": {"upstream": str(upstream.path)}},
+    )
+    assert entry.action == WorktreeAction.CREATE, entry.error
+    assert entry.result is not None and entry.result.ok
+    assert entry.target_position is not None
+    assert entry.target_position.revision == target
+    assert repo.cmd.run(["-C", str(path), "symbolic-ref", "HEAD"]).strip() == (
+        "refs/heads/new-remote-branch"
     )
 
-    wt_config: WorktreeConfigDict = {
-        "dir": str(worktree_path),
-        "tag": "v-lock-fail-test",
-        "lock": True,
-        "lock_reason": "This lock will fail",
-    }
 
-    # Mock only the lock command to fail (let creation succeed)
-    original_run = subprocess.run
-
-    def mock_run(*args: t.Any, **kwargs: t.Any) -> t.Any:
-        cmd = args[0] if args else kwargs.get("args", [])
-        if isinstance(cmd, list) and "lock" in cmd:
-            raise subprocess.CalledProcessError(1, cmd, stderr="lock failed")
-        return original_run(*args, **kwargs)
-
-    mocker.patch("vcspull._internal.worktree_sync.subprocess.run", side_effect=mock_run)
-
-    entry = sync_worktree(git_repo.path, wt_config, workspace_root)
-
-    # Creation should succeed despite lock failure
-    assert entry.action == WorktreeAction.CREATE
-    assert worktree_path.exists()
+def test_worktree_creation_reports_resolved_relative_revision(
+    policy_worktree: tuple[GitSync, pathlib.Path, str, str],
+) -> None:
+    """Reporting cannot resolve HEAD~1 again against the new detached checkout."""
+    repo, existing, base, _ = policy_worktree
+    path = existing.parent / "relative-worktree"
+    entry = sync_worktree(
+        repo.path, {"dir": str(path), "commit": "HEAD~1"}, path.parent
+    )
+    assert entry.action == WorktreeAction.CREATE, entry.error
+    assert entry.result is not None and entry.result.ok
+    assert entry.target_position is not None
+    assert entry.target_position.revision == base
+    assert repo.cmd.run(["-C", str(path), "rev-parse", "HEAD"]).strip() == base
 
 
 def test_sync_worktree_empty_plan_returns_error(

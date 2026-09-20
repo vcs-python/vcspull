@@ -777,14 +777,6 @@ def plan_worktree_sync(
     return entries
 
 
-def _prepare_worktree(project: GitSync) -> SyncResult:
-    """Check existing native ownership before the separate worktree-add command."""
-    return project.update_repo(
-        target=SyncTarget(commit=project.get_position().revision),
-        policy=SyncPolicy(drift="keep"),
-    )
-
-
 def sync_worktree(
     repo_path: pathlib.Path,
     wt_config: WorktreeConfigDict,
@@ -826,6 +818,7 @@ def sync_worktree(
     try:
         validate_worktree_config(wt_config)
         target, policy = checkout_settings(wt_config, worktree=True)
+        assert target is not None
         path = _resolve_worktree_path(wt_config, workspace_root)
         exists = _worktree_exists(repo_path, path)
         if path.exists() and not exists:
@@ -835,28 +828,19 @@ def sync_worktree(
             repo_path, path if exists else repo_path, repo_config
         )
         if not exists:
-            guard = _prepare_worktree(project)
-            if not guard.ok:
-                entry.result = guard
-            else:
-                resolved = project.resolve_target(target)
-                entry.target_position = resolved
-                attach = resolved.follows and not wt_config.get("detach", False)
-                _create_worktree(
-                    repo_path,
-                    path,
-                    "branch" if attach else "commit",
-                    resolved.ref_name if attach else resolved.revision,
-                    {**wt_config, "detach": not attach},
-                    start_point=resolved.revision,
-                )
-                project = _worktree_project(repo_path, path, repo_config)
-        if entry.result is None:
-            execution_policy = policy if exists else SyncPolicy(dirty=policy.dirty)
+            entry.result = project.create_worktree(
+                path,
+                target=target,
+                detach=wt_config.get("detach", False),
+                lock=wt_config.get("lock", False),
+                lock_reason=wt_config.get("lock_reason"),
+                set_remotes=repo_config is not None,
+            )
+        else:
             entry.result = project.update_repo(
                 set_remotes=repo_config is not None,
                 target=target,
-                policy=execution_policy,
+                policy=policy,
                 detach=wt_config.get("detach", False),
             )
         result = entry.result
@@ -871,7 +855,11 @@ def sync_worktree(
             )
             entry.detail = entry.error
         else:
-            entry.target_position = project.resolve_target(target)
+            entry.target_position = (
+                project.resolve_target(target)
+                if exists
+                else _worktree_project(repo_path, path, repo_config).get_position()
+            )
             if entry.position is not None:
                 entry.drifted = (
                     entry.position.revision != entry.target_position.revision
@@ -902,127 +890,6 @@ def sync_worktree(
             entry.result = SyncResult()
         entry.result.add_error("worktree", str(error), error)
     return entry
-
-
-def _create_worktree(
-    repo_path: pathlib.Path,
-    worktree_path: pathlib.Path,
-    ref_type: str,
-    ref_value: str,
-    wt_config: WorktreeConfigDict,
-    *,
-    start_point: str | None = None,
-) -> None:
-    """Create a new worktree.
-
-    Parameters
-    ----------
-    repo_path : pathlib.Path
-        Path to the main repository.
-    worktree_path : pathlib.Path
-        Path for the new worktree.
-    ref_type : str
-        Type of reference: 'tag', 'branch', or 'commit'.
-    ref_value : str
-        The reference value.
-    wt_config : WorktreeConfigDict
-        Full worktree configuration.
-
-    Raises
-    ------
-    subprocess.CalledProcessError
-        If the git command fails (e.g., ref not found).
-    FileNotFoundError
-        If the repository path does not exist.
-
-    Examples
-    --------
-    This function requires a valid git repository. When called with an invalid
-    path, it raises FileNotFoundError:
-
-    >>> import pathlib
-    >>> _create_worktree(
-    ...     pathlib.Path("/nonexistent"),
-    ...     pathlib.Path("/tmp/wt"),
-    ...     "tag",
-    ...     "v1.0.0",
-    ...     {"dir": "../wt", "tag": "v1.0.0"},
-    ... )  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    FileNotFoundError: ...
-    """
-    cmd = ["git", "worktree", "add"]
-
-    # Determine if we should detach
-    detach = wt_config.get("detach")
-    if detach is None:
-        # Default: detach for tags and commits, not for branches
-        detach = ref_type in ("tag", "commit", "rev")
-
-    if detach:
-        cmd.append("--detach")
-
-    # Handle locking
-    # git worktree add --lock does NOT support --reason, so when lock_reason
-    # is specified, we skip --lock here and use "git worktree lock --reason" after
-    lock_reason = wt_config.get("lock_reason")
-    should_lock = wt_config.get("lock")
-    if should_lock and not lock_reason:
-        # Lock without reason - can use --lock flag directly
-        cmd.append("--lock")
-
-    if ref_type == "branch" and not detach and start_point is not None:
-        branch_exists = (
-            subprocess.run(
-                ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{ref_value}"],
-                cwd=repo_path,
-                capture_output=True,
-                check=False,
-            ).returncode
-            == 0
-        )
-        if not branch_exists:
-            cmd.extend(["-b", ref_value])
-            ref_value = start_point
-    cmd.append(str(worktree_path))
-    cmd.append(ref_value)
-
-    subprocess.run(
-        cmd,
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-
-    # Apply lock with reason via separate command
-    # This handles both cases:
-    # 1. lock=True with lock_reason - lock with reason
-    # 2. lock_reason without explicit lock=True - also locks with reason
-    if lock_reason:
-        lock_cmd = [
-            "git",
-            "worktree",
-            "lock",
-            "--reason",
-            lock_reason,
-            str(worktree_path),
-        ]
-        try:
-            subprocess.run(
-                lock_cmd,
-                cwd=repo_path,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-        except subprocess.CalledProcessError as e:
-            log.warning(
-                "Worktree created at %s but lock failed: %s",
-                worktree_path,
-                e.stderr.strip() if e.stderr else str(e),
-            )
 
 
 def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
