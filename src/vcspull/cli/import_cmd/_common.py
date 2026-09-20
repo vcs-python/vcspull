@@ -102,8 +102,8 @@ def _classify_import_action(
 
     Same URL is always classified as unchanged — even when pinned or sync is set.
 
-    Note: ``_run_import`` may still stamp provenance metadata on unchanged entries
-    when ``import_source`` is provided.
+    Unpinned unchanged entries may receive provenance metadata when
+    ``import_source`` is provided.
 
     >>> _classify_import_action(
     ...     incoming_url="git+ssh://x",
@@ -1087,7 +1087,7 @@ def _run_import(
             updated_url_count += 1
         elif action == ImportAction.SKIP_UNCHANGED:
             skip_unchanged_count += 1
-            if import_source:
+            if import_source and not is_pinned_for_op(existing_raw, "import"):
                 live = raw_config[repo_workspace_label].get(repo.name)
                 if isinstance(live, dict):
                     existing_meta = live.get("metadata")
