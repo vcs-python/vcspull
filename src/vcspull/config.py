@@ -16,7 +16,7 @@ from collections.abc import Callable
 
 from libvcs.sync.git import GitRemote
 
-from vcspull.validator import is_valid_config
+from vcspull.validator import is_valid_config, validate_working_copy
 
 from . import exc
 from ._internal.config_reader import (
@@ -178,7 +178,7 @@ def _validate_worktrees_config(
     >>> _validate_worktrees_config([{"dir": "../wt"}], "myrepo")
     Traceback (most recent call last):
         ...
-    vcspull.exc.VCSPullException: ...must specify one of: tag, branch, or commit
+    vcspull.exc.VCSPullException: ...must specify one of: branch, tag, commit, or rev
 
     Error: empty ref value:
 
@@ -213,78 +213,12 @@ def _validate_worktrees_config(
             )
             raise exc.VCSPullException(msg)
 
-        # Validate required 'dir' field
-        if "dir" not in wt or not wt["dir"]:
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                "missing required 'dir' field"
-            )
-            raise exc.VCSPullException(msg)
-
-        if not isinstance(wt["dir"], str):
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                f"'dir' must be a string, got {type(wt['dir']).__name__}"
-            )
-            raise exc.VCSPullException(msg)
-
-        # Validate exactly one ref type
-        tag = wt.get("tag")
-        branch = wt.get("branch")
-        commit = wt.get("commit")
-
-        refs_specified = sum(
-            1 for ref in [tag, branch, commit] if ref is not None and ref != ""
+        validate_working_copy(
+            wt,
+            location=f"Repository {repo_name}: worktrees[{idx}]",
+            worktree=True,
         )
-        empty_refs = sum(1 for ref in [tag, branch, commit] if ref == "")
-
-        if refs_specified == 0 and empty_refs == 0:
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                "must specify one of: tag, branch, or commit"
-            )
-            raise exc.VCSPullException(msg)
-        if refs_specified == 0 and empty_refs > 0:
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                "has empty ref value (tag, branch, or commit)"
-            )
-            raise exc.VCSPullException(msg)
-        if refs_specified > 1:
-            msg = (
-                f"Repository '{repo_name}': worktree entry {idx} "
-                "cannot specify multiple refs (tag, branch, commit)"
-            )
-            raise exc.VCSPullException(msg)
-
-        # Validate ref types are strings
-        for ref_name, ref_val in [("tag", tag), ("branch", branch), ("commit", commit)]:
-            if ref_val is not None and not isinstance(ref_val, str):
-                msg = (
-                    f"Repository '{repo_name}': worktree entry {idx} "
-                    f"'{ref_name}' must be a string, got {type(ref_val).__name__}"
-                )
-                raise exc.VCSPullException(msg)
-
-        # Build validated worktree config
-        wt_config: WorktreeConfigDict = {"dir": wt["dir"]}
-
-        if tag:
-            wt_config["tag"] = tag
-        if branch:
-            wt_config["branch"] = branch
-        if commit:
-            wt_config["commit"] = commit
-
-        # Optional fields
-        if "detach" in wt:
-            wt_config["detach"] = wt["detach"]
-        if "lock" in wt:
-            wt_config["lock"] = wt["lock"]
-        if "lock_reason" in wt:
-            wt_config["lock_reason"] = wt["lock_reason"]
-
-        validated.append(wt_config)
+        validated.append(t.cast("WorktreeConfigDict", copy.deepcopy(wt)))
 
     return validated
 
@@ -388,9 +322,15 @@ def extract_repos(
                     repo_name_for_error = conf.get("name") or repo
                     validated_worktrees = _validate_worktrees_config(
                         worktrees_raw,
-                        repo_name=repo_name_for_error,
+                        repo_name=f"{directory!r} -> {repo_name_for_error!r}",
                     )
                     conf["worktrees"] = validated_worktrees
+
+            if "working_copy" in conf:
+                validate_working_copy(
+                    conf["working_copy"],
+                    location=f"{directory!r} -> {repo!r} -> working_copy",
+                )
 
             def is_valid_config_dict(val: t.Any) -> t.TypeGuard[ConfigDict]:
                 assert isinstance(val, dict)
@@ -606,7 +546,11 @@ def load_configs(
                 )
 
         assert is_valid_config(config_content)
-        newrepos = extract_repos(config_content, cwd=cwd)
+        try:
+            newrepos = extract_repos(config_content, cwd=cwd)
+        except exc.VCSPullException as error:
+            location_message = f"{file}: {error}"
+            raise exc.VCSPullException(location_message) from error
 
         if not repos:
             repos.extend(newrepos)

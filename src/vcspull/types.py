@@ -38,13 +38,45 @@ if t.TYPE_CHECKING:
     from libvcs.sync.git import GitSyncRemoteDict
 
 
+class SyncPolicyDict(TypedDict, total=False):
+    """Policy for configured-target drift and uncommitted changes."""
+
+    drift: t.Literal["keep", "follow", "warn"]
+    """Keep the current ref, follow the configured target, or report drift."""
+
+    dirty: t.Literal["abort", "preserve", "discard"]
+    """Abort on local changes, preserve them, or discard with confirmation."""
+
+
+class WorkingCopyConfigDict(TypedDict, total=False):
+    """Exactly one native target, with an optional fetch remote and sync policy."""
+
+    branch: str
+    """Named branch to follow."""
+
+    tag: str
+    """Named tag to check out without following a branch."""
+
+    commit: str
+    """Commit or changeset to check out without following a branch."""
+
+    rev: str | int
+    """Native revision expression, including a numeric Subversion revision."""
+
+    remote: str
+    """Fetch source alias, independent of the configured push URL."""
+
+    sync: SyncPolicyDict
+    """Drift and dirty-state policy for this checkout."""
+
+
 class _WorktreeConfigDictRequired(TypedDict):
     """Configuration for a single git worktree.
 
     Worktrees allow checking out multiple branches/tags/commits of a repository
     simultaneously in separate directories.
 
-    Exactly one of ``tag``, ``branch``, or ``commit`` must be specified.
+    Exactly one of ``tag``, ``branch``, ``commit``, or ``rev`` must be specified.
 
     Examples
     --------
@@ -65,25 +97,16 @@ class _WorktreeConfigDictRequired(TypedDict):
     """Path for the worktree (relative to workspace root or absolute)."""
 
 
-class _WorktreeConfigDictOptional(TypedDict, total=False):
+class _WorktreeConfigDictOptional(WorkingCopyConfigDict, total=False):
     """Optional configuration for a single git worktree."""
 
-    tag: str | None
-    """Tag to checkout (creates detached HEAD)."""
-
-    branch: str | None
-    """Branch to checkout (can be updated/pulled)."""
-
-    commit: str | None
-    """Commit SHA to checkout (creates detached HEAD)."""
-
-    detach: bool | None
+    detach: bool
     """Force detached HEAD. Default: True for tag/commit, False for branch."""
 
-    lock: bool | None
+    lock: bool
     """Lock the worktree to prevent accidental removal."""
 
-    lock_reason: str | None
+    lock_reason: str
     """Reason for locking. If provided, implies lock=True."""
 
 
@@ -236,6 +259,8 @@ class _RepoEntryDictRequired(TypedDict):
 class _RepoEntryDictOptional(TypedDict, total=False):
     """Optional raw per-repository entry fields."""
 
+    working_copy: WorkingCopyConfigDict
+
     rev: str
     """Deprecated top-level form of ``options.rev``; still read, with a warning.
 
@@ -310,6 +335,7 @@ class _ConfigDictOptional(TypedDict, total=False):
     shell_command_after: list[str] | None
     worktrees: list[WorktreeConfigDict] | None
     options: RepoOptionsDict
+    working_copy: WorkingCopyConfigDict
 
 
 class ConfigDict(_ConfigDictRequired, _ConfigDictOptional):

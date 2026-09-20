@@ -47,6 +47,13 @@ matching backend block, and entry-level pin policy in one pass. Unknown
 legacy options stop migration before it writes the configuration file.
 See {ref}`migration` for an upgrade example.
 
+#### Validate shared checkout targets
+
+`working_copy` and `worktrees` accept the same `branch`, `tag`, `commit`, or
+`rev` selector, fetch remote, and `sync` policy. Loading rejects multiple
+selectors, unknown keys, and invalid drift or dirty policies, naming the
+configuration file, workspace root, repository entry, and field.
+
 ## vcspull v1.67.0 (2026-08-30)
 
 vcspull v1.67.0 raises the libvcs floor to 0.46.0, which rejects an argument a VCS binary would parse as an option in the positions an end-of-options `--` cannot guard. vcspull syncs through libvcs's high-level helpers, so the hardening applies with no configuration or CLI changes. The release also documents what every field holds in the API reference and moves the CI actions to their current majors.

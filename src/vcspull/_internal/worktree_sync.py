@@ -10,6 +10,7 @@ import subprocess
 
 from vcspull import exc
 from vcspull.types import WorktreeConfigDict
+from vcspull.validator import validate_working_copy
 
 log = logging.getLogger(__name__)
 
@@ -134,27 +135,20 @@ def _get_ref_type_and_value(
     >>> _get_ref_type_and_value({"dir": "../wt", "tag": ""}) is None
     True
     """
-    tag = wt_config.get("tag")
-    branch = wt_config.get("branch")
-    commit = wt_config.get("commit")
-
-    refs_specified = sum(
-        1 for ref in [tag, branch, commit] if ref is not None and ref != ""
-    )
-
-    if refs_specified == 0:
+    refs = [
+        (kind, value)
+        for kind, value in (
+            ("tag", wt_config.get("tag")),
+            ("branch", wt_config.get("branch")),
+            ("commit", wt_config.get("commit")),
+            ("rev", wt_config.get("rev")),
+        )
+        if value is not None and value != ""
+    ]
+    if len(refs) != 1:
         return None
-    if refs_specified > 1:
-        return None
-
-    if tag:
-        return ("tag", tag)
-    if branch:
-        return ("branch", branch)
-    if commit:
-        return ("commit", commit)
-
-    return None
+    kind, value = refs[0]
+    return kind, str(value)
 
 
 def validate_worktree_config(wt_config: WorktreeConfigDict) -> None:
@@ -177,44 +171,16 @@ def validate_worktree_config(wt_config: WorktreeConfigDict) -> None:
     >>> validate_worktree_config({"tag": "v1.0.0"})  # Missing dir
     Traceback (most recent call last):
         ...
-    vcspull.exc.WorktreeConfigError: Worktree config missing required 'dir' field
+    vcspull.exc.WorktreeConfigError: Worktree config: missing required 'dir' field
     >>> validate_worktree_config({"dir": "../proj"})  # No ref
     Traceback (most recent call last):
         ...
-    vcspull.exc.WorktreeConfigError: Worktree config must specify one of: ...
+    vcspull.exc.WorktreeConfigError: Worktree config: must specify one of: ...
     """
-    if "dir" not in wt_config or not wt_config["dir"]:
-        msg = "Worktree config missing required 'dir' field"
-        raise exc.WorktreeConfigError(msg)
-
-    if not isinstance(wt_config["dir"], str):
-        dir_type = type(wt_config["dir"]).__name__
-        msg = f"Worktree config 'dir' must be a string, got {dir_type}"
-        raise exc.WorktreeConfigError(msg)
-
-    for ref_name in ("tag", "branch", "commit"):
-        ref_val = wt_config.get(ref_name)
-        if ref_val is not None and not isinstance(ref_val, str):
-            ref_type = type(ref_val).__name__
-            msg = f"Worktree config '{ref_name}' must be a string, got {ref_type}"
-            raise exc.WorktreeConfigError(msg)
-
-    ref_info = _get_ref_type_and_value(wt_config)
-    if ref_info is None:
-        tag = wt_config.get("tag")
-        branch = wt_config.get("branch")
-        commit = wt_config.get("commit")
-        non_none_refs = sum(1 for ref in [tag, branch, commit] if ref is not None)
-        empty_refs = sum(1 for ref in [tag, branch, commit] if ref == "")
-
-        if non_none_refs == 0:
-            msg = "Worktree config must specify one of: tag, branch, or commit"
-            raise exc.WorktreeConfigError(msg)
-        if empty_refs > 0:
-            msg = "Worktree config has empty ref value (tag, branch, or commit)"
-            raise exc.WorktreeConfigError(msg)
-        msg = "Worktree config cannot specify multiple refs (tag, branch, commit)"
-        raise exc.WorktreeConfigError(msg)
+    try:
+        validate_working_copy(wt_config, location="Worktree config", worktree=True)
+    except exc.VCSPullException as error:
+        raise exc.WorktreeConfigError(str(error)) from error
 
 
 def _is_worktree_dirty(worktree_path: pathlib.Path) -> bool:
@@ -756,7 +722,7 @@ def _create_worktree(
     detach = wt_config.get("detach")
     if detach is None:
         # Default: detach for tags and commits, not for branches
-        detach = ref_type in ("tag", "commit")
+        detach = ref_type in ("tag", "commit", "rev")
 
     if detach:
         cmd.append("--detach")

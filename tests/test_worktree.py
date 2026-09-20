@@ -66,6 +66,12 @@ WORKTREE_CONFIG_FIXTURES = [
         expected_ref_types=["commit"],
     ),
     WorktreeConfigFixture(
+        test_id="generic_revision_worktree",
+        config={"worktrees": [{"dir": "../older", "rev": "HEAD~1"}]},
+        expected_worktrees=1,
+        expected_ref_types=["rev"],
+    ),
+    WorktreeConfigFixture(
         test_id="multiple_mixed_worktrees",
         config={
             "worktrees": [
@@ -152,6 +158,11 @@ class WorktreeConfigErrorFixture(t.NamedTuple):
 
 
 WORKTREE_CONFIG_ERROR_FIXTURES = [
+    WorktreeConfigErrorFixture(
+        test_id="invalid_shared_sync_policy",
+        wt_config={"dir": "../proj", "branch": "main", "sync": {"drift": "reset"}},
+        expected_error_pattern=r"sync\.drift",
+    ),
     WorktreeConfigErrorFixture(
         test_id="missing_dir_error",
         wt_config={"tag": "v1.0.0"},
