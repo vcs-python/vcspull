@@ -65,7 +65,7 @@ def test_makes_recursive(
 
         for r in filtered_repos:
             assert isinstance(r, dict)
-            repo = update_repo(r)
+            repo = update_repo(r).project
 
             assert repo.path.exists()
 
@@ -185,7 +185,7 @@ def test_config_variations(
     assert len(repos) == 1
 
     for repo_dict in repos:
-        repo = update_repo(repo_dict)
+        repo = update_repo(repo_dict).project
         assert isinstance(repo, GitSync)
         remotes = repo.remotes() or {}
         remote_names = set(remotes.keys())
@@ -305,7 +305,7 @@ def test_updating_remote(
     for repo_dict in filter_repos(
         [initial_config],
     ):
-        synced = update_repo(repo_dict)
+        synced = update_repo(repo_dict).project
         assert isinstance(synced, GitSync)
         local_git_remotes = synced.remotes()
         assert "origin" in local_git_remotes
@@ -322,7 +322,7 @@ def test_updating_remote(
 
     repo_dict = filter_repos([expected_config], name="myclone")[0]
     assert isinstance(repo_dict, dict)
-    repo = update_repo(repo_dict)
+    repo = update_repo(repo_dict).project
     assert isinstance(repo, GitSync)
     for remote_name in repo.remotes():
         remote = repo.remote(remote_name)
@@ -415,7 +415,7 @@ def test_update_repo_svn(
         "workspace_root": str(tmp_path / "checkout/"),
     }
 
-    result = update_repo(repo_dict)
+    result = update_repo(repo_dict).project
     assert isinstance(result, SvnSync)
 
 
@@ -438,7 +438,7 @@ def test_update_repo_hg(
         "workspace_root": str(tmp_path / "checkout/"),
     }
 
-    result = update_repo(repo_dict)
+    result = update_repo(repo_dict).project
     assert isinstance(result, HgSync)
 
 
@@ -478,7 +478,7 @@ def test_sync_partial_clone_from_canonical_config(
     )
 
     entry = load_configs([config_path])[0]
-    repo = update_repo(entry)
+    repo = update_repo(entry).project
     assert isinstance(repo, GitSync)
     assert (
         repo.cmd.run(["config", "--get", "remote.origin.partialclonefilter"], trim=True)
@@ -523,7 +523,7 @@ def test_update_repo_git_shallow(
 
     # update_repo must not raise (regression guard: ``git_shallow`` is applied
     # as an attribute post-construction, not forwarded as a GitSync kwarg).
-    result = update_repo(repo_dict)
+    result = update_repo(repo_dict).project
     assert isinstance(result, GitSync)
     assert detect_git_shallow(result.path) is True
 
@@ -558,7 +558,7 @@ def test_update_repo_git_rev(
         "rev": "v1.0.0",
     }
 
-    result = update_repo(repo_dict)
+    result = update_repo(repo_dict).project
     assert isinstance(result, GitSync)
     assert result.get_revision() == tag_sha
 
@@ -597,7 +597,7 @@ def test_update_repo_git_depth(
         "depth": 2,
     }
 
-    result = update_repo(repo_dict)
+    result = update_repo(repo_dict).project
     assert isinstance(result, GitSync)
     assert detect_git_depth(result.path) == 2
 
@@ -777,3 +777,250 @@ def test_looks_like_branch_error(
 ) -> None:
     """Test _looks_like_branch_error classifies sync failures correctly."""
     assert _looks_like_branch_error(err_msg, has_rev=has_rev) is expected
+
+
+@pytest.mark.parametrize("drift", ["keep", "warn"])
+def test_sync_honors_configured_drift_policy(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+    monkeypatch: pytest.MonkeyPatch,
+    drift: str,
+) -> None:
+    """Keep/warn compare resolved commits without moving the checkout."""
+    monkeypatch.delenv("GIT_CONFIG", raising=False)
+    remote = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+    repo = GitSync(url=remote.as_uri(), path=tmp_path / "checkout")
+    repo.obtain()
+    original = repo.get_position()
+    subprocess.run(
+        ["git", "-C", str(remote), "commit", "-q", "--allow-empty", "-m", "next"],
+        check=True,
+    )
+    repo.cmd.fetch(check_returncode=True)
+    target = repo.cmd.run(["rev-parse", "origin/HEAD"], trim=True)
+    entry = {
+        "url": remote.as_uri(),
+        "vcs": "git",
+        "path": repo.path,
+        "working_copy": {"commit": target, "sync": {"drift": drift}},
+    }
+
+    update_repo(entry)
+
+    assert repo.get_position() == original
+
+
+def test_sync_keeps_tag_selector_distinct_from_branch(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A same-named branch cannot redirect a configured tag checkout."""
+    monkeypatch.delenv("GIT_CONFIG", raising=False)
+    remote = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+    subprocess.run(["git", "-C", str(remote), "tag", "release"], check=True)
+    subprocess.run(
+        ["git", "-C", str(remote), "commit", "-q", "--allow-empty", "-m", "next"],
+        check=True,
+    )
+    subprocess.run(["git", "-C", str(remote), "branch", "release"], check=True)
+    repo = GitSync(url=remote.as_uri(), path=tmp_path / "checkout")
+    repo.obtain()
+    target = repo.cmd.run(["rev-parse", "refs/tags/release"], trim=True)
+
+    update_repo(
+        {
+            "url": remote.as_uri(),
+            "vcs": "git",
+            "path": repo.path,
+            "working_copy": {"tag": "release"},
+        }
+    )
+
+    assert repo.get_position().revision == target
+    assert not repo.get_position().follows
+
+
+def test_sync_rejects_unconfirmed_discard_before_vcs_creation(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Configuration alone never authorizes dropping local changes."""
+    import importlib
+
+    from vcspull.exc import VCSPullException
+
+    sync_module = importlib.import_module("vcspull.cli.sync")
+
+    def unexpected_create(**kwargs: t.Any) -> t.NoReturn:
+        pytest.fail("discard reached repository construction without confirmation")
+
+    monkeypatch.setattr(sync_module, "create_project", unexpected_create)
+    with pytest.raises(VCSPullException, match="--yes"):
+        update_repo(
+            {
+                "url": "git+https://example.com/r.git",
+                "path": tmp_path / "absent",
+                "working_copy": {"branch": "main", "sync": {"dirty": "discard"}},
+            }
+        )
+
+
+@pytest.mark.parametrize("yes", [False, True])
+def test_sync_cli_requires_yes_for_discard(
+    git_repo: GitSync,
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    yes: bool,
+) -> None:
+    """Only explicit CLI authorization reaches a configured destructive policy."""
+    from vcspull.cli import cli
+
+    base = git_repo.get_position().revision
+    git_repo.cmd.run(["commit", "--allow-empty", "-m", "next"], check_returncode=True)
+    local = git_repo.path / "unsaved.txt"
+    local.write_text("local changes\n")
+    config = tmp_path / "repos.yaml"
+    save_config_yaml(
+        config,
+        {
+            str(git_repo.path.parent): {
+                git_repo.path.name: {
+                    "repo": git_repo.url,
+                    "vcs": "git",
+                    "working_copy": {"commit": base, "sync": {"dirty": "discard"}},
+                }
+            }
+        },
+    )
+    capsys.readouterr()
+
+    cli(
+        [
+            "sync",
+            "--file",
+            str(config),
+            "--all",
+            "--ndjson",
+            "--no-log-file",
+            *(["--yes"] if yes else []),
+        ]
+    )
+
+    output = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    event = next(item for item in output if item.get("reason") == "sync")
+    assert event["status"] == ("synced" if yes else "error"), event
+    assert local.exists() is not yes
+    if not yes:
+        assert "--yes" in event["error"]
+
+
+@pytest.mark.parametrize("failed", [False, True])
+@pytest.mark.parametrize("human", [False, True])
+def test_sync_cli_retains_recovery_outcome(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    failed: bool,
+    human: bool,
+) -> None:
+    """Human and machine output retain successful and failed recovery outcomes."""
+    import dataclasses
+    import importlib
+
+    from libvcs import BaseSync, RecoveryToken, SyncConflict, SyncResult
+
+    from vcspull._internal.sync import SyncExecution
+    from vcspull.cli import cli
+    from vcspull.cli.sync import SyncFailedError
+
+    token = RecoveryToken("retained-operation", "git", str(tmp_path / "recovery"))
+    result = SyncResult(
+        recovery=token, update_state="completed", preservation_state="restored"
+    )
+    if failed:
+        result.preservation_state = "conflicted"
+        result.conflicts = (SyncConflict("file.txt", "text"),)
+        result.add_error("restore", "conflicted content")
+    project = BaseSync(url="https://example.com/r.git", path=tmp_path / "project")
+
+    def run_sync(*args: t.Any, **kwargs: t.Any) -> SyncExecution:
+        if failed:
+            repo_name = "project"
+            raise SyncFailedError(repo_name, result)
+        return SyncExecution(project=project, result=result)
+
+    monkeypatch.setattr(
+        importlib.import_module("vcspull.cli.sync"), "update_repo", run_sync
+    )
+    config = tmp_path / "repos.yaml"
+    save_config_yaml(
+        config, {str(tmp_path): {"project": "git+https://example.com/r.git"}}
+    )
+
+    cli(
+        [
+            "sync",
+            "--file",
+            str(config),
+            "--all",
+            "--no-log-file",
+            *([] if human else ["--ndjson"]),
+        ]
+    )
+
+    captured = capsys.readouterr().out
+    if human:
+        assert "Recovery retained (git): retained-operation" in captured
+        assert "Update: completed" in captured
+        assert f"local changes: {result.preservation_state}" in captured
+        if failed:
+            assert "Conflict: file.txt (text)" in captured
+        return
+    output = [json.loads(line) for line in captured.splitlines()]
+    event = next(item for item in output if item.get("reason") == "sync")
+    assert event["status"] == ("error" if failed else "synced")
+    assert event["recovery"] == dataclasses.asdict(token)
+    assert event["preservation_state"] == result.preservation_state
+    assert event["conflicts"] == [dataclasses.asdict(item) for item in result.conflicts]
+    assert event["update_state"] == "completed"
+
+
+def test_sync_preserve_returns_native_recovery(
+    tmp_path: pathlib.Path,
+    create_git_remote_repo: CreateRepoFn,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Configured preserve reaches native stash and returns its retained identity."""
+    monkeypatch.delenv("GIT_CONFIG", raising=False)
+    remote = create_git_remote_repo(
+        remote_repo_post_init=git_remote_repo_single_commit_post_init,
+    )
+    repo = GitSync(url=remote.as_uri(), path=tmp_path / "checkout")
+    repo.obtain()
+    branch = repo.get_position().ref_name
+    local = repo.path / "unsaved.txt"
+    local.write_text("local changes\n")
+    subprocess.run(
+        ["git", "-C", str(remote), "commit", "-q", "--allow-empty", "-m", "next"],
+        check=True,
+    )
+
+    execution = update_repo(
+        {
+            "url": remote.as_uri(),
+            "vcs": "git",
+            "path": repo.path,
+            "working_copy": {"branch": branch, "sync": {"dirty": "preserve"}},
+        }
+    )
+
+    assert execution.result.ok
+    assert execution.result.preservation_state == "restored"
+    assert execution.result.recovery is not None
+    assert local.read_text() == "local changes\n"
+    assert execution.project.list_recoveries()[0].recovery == execution.result.recovery

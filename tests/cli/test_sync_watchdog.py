@@ -5,11 +5,13 @@ from __future__ import annotations
 import importlib
 import signal
 import sys
-import time
+import threading
 import typing as t
 
 import pytest
+from libvcs import BaseSync, SyncResult
 
+from vcspull._internal.sync import SyncExecution
 from vcspull.cli._colors import ColorMode, Colors
 from vcspull.cli._output import OutputFormatter, OutputMode
 from vcspull.cli.sync import (
@@ -78,8 +80,13 @@ def test_watchdog_returns_synced_outcome_on_success(
     # touching libvcs. The stub is fast, so the timeout branch never fires.
     calls: list[dict[str, t.Any]] = []
 
-    def _stub_update_repo(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
+    def _stub_update_repo(
+        repo: dict[str, t.Any], *, progress_callback: t.Any, yes: bool = False
+    ) -> SyncExecution:
         calls.append(repo)
+        return SyncExecution(
+            BaseSync(url="https://example.com/r", path="unused"), SyncResult()
+        )
 
     monkeypatch.setattr(sync_module, "update_repo", _stub_update_repo)
 
@@ -98,28 +105,32 @@ def test_watchdog_returns_synced_outcome_on_success(
 def test_watchdog_returns_timed_out_on_slow_update(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A slow ``update_repo`` is abandoned with ``status='timed_out'``."""
+    """An unfinished worker reports timeout without leaving a sleeping test thread."""
+    release = threading.Event()
+    finished = threading.Event()
 
-    def _slow_update_repo(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
-        # Far longer than the 0.2 s timeout below -- the watchdog must fire.
-        time.sleep(10)
+    def _slow_update_repo(
+        repo: dict[str, t.Any], *, progress_callback: t.Any, yes: bool = False
+    ) -> SyncExecution:
+        release.wait()
+        finished.set()
+        return SyncExecution(
+            BaseSync(url="https://example.com/r", path="unused"), SyncResult()
+        )
 
     monkeypatch.setattr(sync_module, "update_repo", _slow_update_repo)
-
-    started = time.monotonic()
-    outcome = _sync_repo_with_watchdog(
-        t.cast("t.Any", {"name": "slow"}),
-        progress_callback=_noop_progress,
-        timeout=1,
-        is_human=True,
-    )
-    elapsed = time.monotonic() - started
-
-    assert outcome.status == "timed_out"
-    # The watchdog should fire near the timeout -- give generous slack so CI
-    # scheduling jitter doesn't flake the test.
-    assert elapsed < 5.0
-    assert outcome.duration >= 0.5
+    try:
+        outcome = _sync_repo_with_watchdog(
+            t.cast("t.Any", {"name": "slow"}),
+            progress_callback=_noop_progress,
+            timeout=0.01,
+            is_human=True,
+        )
+        assert outcome.status == "timed_out"
+        assert outcome.duration >= 0.01
+    finally:
+        release.set()
+        assert finished.wait(0.5)
 
 
 def test_watchdog_preserves_failed_outcome(
@@ -131,7 +142,7 @@ def test_watchdog_preserves_failed_outcome(
         """Sentinel used to trace exception propagation."""
 
     def _raising_update_repo(
-        repo: dict[str, t.Any], *, progress_callback: t.Any
+        repo: dict[str, t.Any], *, progress_callback: t.Any, yes: bool = False
     ) -> None:
         msg = "remote exploded"
         raise _Boom(msg)
@@ -272,7 +283,9 @@ def test_watchdog_propagates_keyboard_interrupt_from_worker(
     not ``BaseException``).
     """
 
-    def _raising(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
+    def _raising(
+        repo: dict[str, t.Any], *, progress_callback: t.Any, yes: bool = False
+    ) -> None:
         raise KeyboardInterrupt
 
     monkeypatch.setattr(sync_module, "update_repo", _raising)

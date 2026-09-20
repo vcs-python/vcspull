@@ -20,6 +20,8 @@ from libvcs.pytest_plugin import (
     skip_if_svn_missing,
     svn_remote_repo_single_commit_post_init,
 )
+from libvcs.sync.base import SyncResult
+from libvcs.sync.git import GitSync
 
 from vcspull.__about__ import __version__
 from vcspull._internal.private_path import PrivatePath
@@ -35,7 +37,6 @@ if t.TYPE_CHECKING:
     from typing import TypeAlias
 
     from libvcs.pytest_plugin import CreateRepoFn
-    from libvcs.sync.git import GitSync
 
     ExpectedOutput: TypeAlias = str | list[str] | None
 
@@ -60,7 +61,7 @@ SYNC_CLI_EXISTENT_REPO_FIXTURES: list[SyncCLINonExistentRepo] = [
         test_id="exists",
         sync_args=["my_git_project"],
         expected_exit_code=0,
-        expected_in_out="Already on 'master'",
+        expected_in_out="Synced my_git_project",
         expected_not_in_out=NO_REPOS_FOR_TERM_MSG.format(name="my_git_repo"),
     ),
     SyncCLINonExistentRepo(
@@ -483,19 +484,19 @@ SYNC_BROKEN_REPO_FIXTURES: list[SyncBrokenFixture] = [
         test_id="normal-checkout",
         sync_args=["my_git_repo"],
         expected_exit_code=0,
-        expected_in_out="Already on 'master'",
+        expected_in_out="Synced my_git_repo",
     ),
     SyncBrokenFixture(
         test_id="normal-checkout--exit-on-error",
         sync_args=["my_git_repo", "--exit-on-error"],
         expected_exit_code=0,
-        expected_in_out="Already on 'master'",
+        expected_in_out="Synced my_git_repo",
     ),
     SyncBrokenFixture(
         test_id="normal-checkout--x",
         sync_args=["my_git_repo", "-x"],
         expected_exit_code=0,
-        expected_in_out="Already on 'master'",
+        expected_in_out="Synced my_git_repo",
     ),
     SyncBrokenFixture(
         test_id="normal-first-broken",
@@ -529,14 +530,14 @@ SYNC_BROKEN_REPO_FIXTURES: list[SyncBrokenFixture] = [
         test_id="exit-on-error--exit-on-error-last-broken",
         sync_args=["my_git_repo", "my_git_repo_not_found", "-x"],
         expected_exit_code=1,
-        expected_in_out="Already on 'master'",
+        expected_in_out="Synced my_git_repo",
         expected_in_err=EXIT_ON_ERROR_MSG,
     ),
     SyncBrokenFixture(
         test_id="exit-on-error--x-last-item",
         sync_args=["my_git_repo", "my_git_repo_not_found", "--exit-on-error"],
         expected_exit_code=1,
-        expected_in_out="Already on 'master'",
+        expected_in_out="Synced my_git_repo",
         expected_in_err=EXIT_ON_ERROR_MSG,
     ),
 ]
@@ -2331,7 +2332,10 @@ def test_sync_human_output_redacts_repo_paths(
     monkeypatch.setattr(
         sync_module,
         "update_repo",
-        lambda _repo, progress_callback=None: None,
+        lambda _repo, progress_callback=None, yes=False: sync_module.SyncExecution(
+            project=GitSync(url=repo_config["url"], path=repo_path),
+            result=SyncResult(),
+        ),
     )
 
     sync_module.sync(

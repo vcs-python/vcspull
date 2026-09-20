@@ -22,6 +22,7 @@ from datetime import datetime
 from io import StringIO
 from time import monotonic, perf_counter
 
+from libvcs import SyncResult
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitOptions, GitSync
@@ -30,6 +31,7 @@ from libvcs.sync.svn import SvnOptions, SvnSync
 
 from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
+from vcspull._internal.sync import SyncExecution, checkout_settings, sync_result_data
 from vcspull._internal.worktree_sync import (
     WorktreeAction,
     plan_worktree_sync,
@@ -580,6 +582,11 @@ def create_sync_subparser(parser: argparse.ArgumentParser) -> argparse.ArgumentP
         help="preview what would be synced without making changes",
     )
     parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="authorize configured dirty: discard policies",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         dest="output_json",
@@ -734,6 +741,7 @@ class _SyncOutcome:
     captured_output: str | None = None
     error: BaseException | None = None
     duration: float = 0.0
+    result: SyncResult | None = None
 
 
 def _positive_int_arg(value: str) -> int:
@@ -996,21 +1004,17 @@ def _install_indicator_log_diverter(
     raises ``ValueError``. Skipping the flush is safe -- we are not
     *closing* the stream, only redirecting future writes.
 
-    On top of the stream swap we also raise the *libvcs* StreamHandler
-    level above ``CRITICAL`` for the duration of the sync, but only when
-    the user kept the default verbosity (handler at WARNING). vcspull's
-    own ``✗ Failed syncing rye: Command failed with code 128: git
-    symbolic-ref HEAD --short`` line carries the same content as
-    libvcs's ``|git| (rye) Failed to determine current branch`` warning
-    that fires immediately before; printing both breaks the
-    ``✓ Synced X / ✗ Failed X / - Timed out X`` rhythm. The
-    debug-log :class:`~logging.FileHandler` keeps DEBUG, so a
-    post-mortem still has the libvcs line for context. ``-v`` / ``-vv``
-    users opted into INFO / DEBUG and keep their explicit level.
+    At default verbosity, retain libvcs target-drift warnings and suppress
+    failure diagnostics already shown by the sync result. Explicit verbosity
+    and file handlers retain all diagnostics.
     """
     proxy = _IndicatorStreamProxy(indicator)
     patched: list[tuple[logging.StreamHandler[t.Any], t.Any]] = []
-    raised_levels: list[tuple[logging.StreamHandler[t.Any], int]] = []
+    filtered: list[logging.StreamHandler[t.Any]] = []
+
+    def policy_warning(record: logging.LogRecord) -> bool:
+        return getattr(record, "vcs_event", None) == "target_drift"
+
     for logger_name in ("libvcs", "vcspull"):
         logger = logging.getLogger(logger_name)
         for handler in logger.handlers:
@@ -1026,13 +1030,8 @@ def _install_indicator_log_diverter(
                 handler.release()
             patched.append((handler, previous))
             if logger_name == "libvcs" and handler.level == logging.WARNING:
-                raised_levels.append((handler, handler.level))
-                # 51 sits one above ``logging.CRITICAL`` -- standard log
-                # records can't reach the handler at this level, so libvcs
-                # noise (WARNING + ERROR + CRITICAL) is dropped from the
-                # terminal stream. The file handler is untouched and still
-                # captures everything at DEBUG.
-                handler.setLevel(logging.CRITICAL + 1)
+                filtered.append(handler)
+                handler.addFilter(policy_warning)
 
     def _restore() -> None:
         for handler, original in patched:
@@ -1041,8 +1040,8 @@ def _install_indicator_log_diverter(
                 handler.stream = original
             finally:
                 handler.release()
-        for handler, level in raised_levels:
-            handler.setLevel(level)
+        for handler in filtered:
+            handler.removeFilter(policy_warning)
 
     return _restore
 
@@ -1051,8 +1050,9 @@ def _sync_repo_with_watchdog(
     repo: ConfigDict,
     *,
     progress_callback: ProgressCallback,
-    timeout: int,
+    timeout: float,
     is_human: bool,
+    yes: bool = False,
 ) -> _SyncOutcome:
     """Run :func:`update_repo` under a wall-clock watchdog.
 
@@ -1068,11 +1068,15 @@ def _sync_repo_with_watchdog(
     buffer: StringIO | None = None if is_human else StringIO()
     done = threading.Event()
     worker_error: list[BaseException] = []
+    worker_result: list[SyncResult] = []
 
     def _run() -> None:
         try:
             if buffer is None:
-                update_repo(repo, progress_callback=progress_callback)
+                execution = update_repo(
+                    repo, progress_callback=progress_callback, yes=yes
+                )
+                worker_result.append(execution.result)
                 return
             # Non-human output modes capture everything so the NDJSON/JSON
             # payload contains the per-repo details without polluting stdout.
@@ -1080,12 +1084,17 @@ def _sync_repo_with_watchdog(
                 contextlib.redirect_stdout(buffer),
                 contextlib.redirect_stderr(buffer),
             ):
-                update_repo(repo, progress_callback=progress_callback)
+                execution = update_repo(
+                    repo, progress_callback=progress_callback, yes=yes
+                )
+                worker_result.append(execution.result)
         except BaseException as exc_obj:
             # Keep ``BaseException`` here so a worker-side KeyboardInterrupt
             # (rare but possible via ``PyThreadState_SetAsyncExc``) is still
             # reported back up. The main thread decides how to handle it.
             worker_error.append(exc_obj)
+            if isinstance(exc_obj, SyncFailedError):
+                worker_result.append(exc_obj.result)
         finally:
             done.set()
 
@@ -1115,6 +1124,7 @@ def _sync_repo_with_watchdog(
                 captured_output=buffer.getvalue() if buffer else None,
                 error=err,
                 duration=monotonic() - started,
+                result=worker_result[0] if worker_result else None,
             )
         # ``BaseException`` that is not ``Exception`` (KeyboardInterrupt,
         # SystemExit): propagate -- main thread will tear the batch down.
@@ -1124,6 +1134,7 @@ def _sync_repo_with_watchdog(
         status="synced",
         captured_output=buffer.getvalue() if buffer else None,
         duration=monotonic() - started,
+        result=worker_result[0] if worker_result else None,
     )
 
 
@@ -1250,7 +1261,10 @@ def _looks_like_branch_error(err_msg: str, *, has_rev: bool) -> bool:
         True if the failure resembles a missing branch or revision.
     """
     lowered = err_msg.lower()
-    if has_rev and "git checkout" in lowered:
+    if has_rev and (
+        "git checkout" in lowered
+        or ("git rev-parse" in lowered and "needed a single revision" in lowered)
+    ):
         return True
     return any(signature in lowered for signature in _BRANCH_ERROR_SIGNATURES)
 
@@ -1375,6 +1389,7 @@ def sync(
     log_file: str | pathlib.Path | None = None,
     no_log_file: bool = False,
     panel_lines: int | None = None,
+    yes: bool = False,
 ) -> None:
     """Entry point for ``vcspull sync``."""
     # Prevent git from blocking on credential prompts during batch sync
@@ -1428,6 +1443,7 @@ def sync(
             log_file_path=log_file_path,
             dry_run=dry_run,
             panel_lines=resolved_panel_lines,
+            yes=yes,
         )
     except KeyboardInterrupt as err:
         # Catch Ctrl-C from ANY phase of the sync -- the repo loop (where
@@ -1482,6 +1498,7 @@ def _sync_impl(
     repo_timeout: int,
     log_file_path: pathlib.Path | None,
     panel_lines: int,
+    yes: bool = False,
 ) -> None:
     """Run the core body of :func:`sync`.
 
@@ -1715,6 +1732,7 @@ def _sync_impl(
             parser=parser,
             log_file_path=log_file_path,
             indicator=indicator,
+            yes=yes,
         )
     except KeyboardInterrupt:
         # Ctrl-C during the loop: stop the indicator cleanly, print a
@@ -1792,6 +1810,7 @@ def _run_sync_loop(
     parser: argparse.ArgumentParser | None,
     log_file_path: pathlib.Path | None,
     indicator: SyncStatusIndicator,
+    yes: bool = False,
 ) -> None:
     """Iterate the repositories and drive the watchdog + indicator."""
     for repo in found_repos:
@@ -1826,6 +1845,7 @@ def _run_sync_loop(
                 progress_callback=progress_callback,
                 timeout=repo_timeout,
                 is_human=is_human,
+                yes=yes,
             )
         except BaseException:
             # Any exception (KeyboardInterrupt, runtime crash) tears the
@@ -1834,6 +1854,9 @@ def _run_sync_loop(
             # the partial-summary print.
             indicator.stop_repo()
             raise
+
+        if outcome.result is not None:
+            event.update(sync_result_data(outcome.result))
 
         if outcome.status == "timed_out":
             summary["timed_out"] += 1
@@ -1904,6 +1927,7 @@ def _run_sync_loop(
                 traceback.print_exception(type(err), err, err.__traceback__)
             if not wrote_final:
                 formatter.emit_text(permanent)
+            _emit_recovery_note(formatter, outcome.result)
             if is_human:
                 _emit_branch_error_guidance(
                     formatter,
@@ -1931,6 +1955,8 @@ def _run_sync_loop(
         formatter.emit(event)
         if not wrote_final:
             formatter.emit_text(permanent)
+
+        _emit_recovery_note(formatter, outcome.result)
 
         # Sync worktrees if enabled and configured
         worktrees_config = repo.get("worktrees")
@@ -1994,6 +2020,21 @@ def _run_sync_loop(
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
                 raise SystemExit(EXIT_ON_ERROR_MSG)
+
+
+def _emit_recovery_note(formatter: OutputFormatter, result: SyncResult | None) -> None:
+    """Show retained material after a sync succeeds or fails."""
+    if result is not None and result.recovery is not None:
+        token = result.recovery
+        formatter.emit_text(
+            f"Update: {result.update_state}; local changes: {result.preservation_state}"
+        )
+        for conflict in result.conflicts:
+            formatter.emit_text(f"Conflict: {conflict.path} ({conflict.reason})")
+        formatter.emit_text(
+            f"Recovery retained ({token.backend}): {token.id} "
+            f"at {PrivatePath(token.location)}"
+        )
 
 
 def _emit_summary(
@@ -2072,30 +2113,32 @@ class CouldNotGuessVCSFromURL(exc.VCSPullException):
 
 
 class SyncFailedError(exc.VCSPullException):
-    """Raised when a sync operation completes but with errors."""
+    """Retain native outcomes and recovery identity when synchronization fails."""
 
-    def __init__(
-        self,
-        repo_name: str,
-        errors: str,
-        *args: object,
-        **kwargs: object,
-    ) -> None:
+    def __init__(self, repo_name: str, result: SyncResult) -> None:
         self.repo_name = repo_name
-        self.errors = errors
+        self.result = result
+        self.errors = "; ".join(
+            f"{error.step}: {error.message}" for error in result.errors
+        )
         message = f"Sync failed for {repo_name}"
-        if errors:
-            message = f"{message}: {errors}"
+        if self.errors:
+            message = f"{message}: {self.errors}"
         super().__init__(message)
 
 
 def update_repo(
     repo_dict: t.Any,
     progress_callback: ProgressCallback | None = None,
-    # repo_dict: Dict[str, Union[str, Dict[str, GitRemote], pathlib.Path]]
-) -> GitSync | HgSync | SvnSync:
+    *,
+    yes: bool = False,
+) -> SyncExecution:
     """Synchronize a single repository."""
     _, repo_dict = migrate_repo_entry(deepcopy(repo_dict))
+    target, policy = checkout_settings(repo_dict.get("working_copy"))
+    if policy.dirty == "discard" and not yes:
+        msg = "dirty: discard requires --yes before synchronization"
+        raise exc.VCSPullException(msg)
     url = repo_dict.get("url", repo_dict.get("pip_url"))
     vcs = repo_dict.get("vcs") or guess_vcs(url=url)
     if vcs is None:
@@ -2105,18 +2148,18 @@ def update_repo(
         "url": url,
         "path": repo_dict["path"],
         "progress_callback": progress_callback or progress_cb,
-        "rev": _configured_revision(repo_dict),
     }
     options_type = {"git": GitOptions, "hg": HgOptions, "svn": SvnOptions}[vcs]
     constructor_args["options"] = options_type(**repo_dict.get(vcs, {}))
     if "remotes" in repo_dict:
         constructor_args["remotes"] = repo_dict["remotes"]
     r: GitSync | HgSync | SvnSync = create_project(vcs=vcs, **constructor_args)
-    result = r.update_repo(set_remotes=True) if vcs == "git" else r.update_repo()
-
-    if result is not None and not result.ok:
-        error_messages = "; ".join(e.message for e in result.errors)
+    result = (
+        r.update_repo(set_remotes=True, target=target, policy=policy)
+        if vcs == "git"
+        else r.update_repo(target=target, policy=policy)
+    )
+    if not result.ok:
         repo_name = str(repo_dict.get("name", repo_dict.get("url", "unknown")))
-        raise SyncFailedError(repo_name=repo_name, errors=error_messages)
-
-    return r
+        raise SyncFailedError(repo_name=repo_name, result=result)
+    return SyncExecution(project=r, result=result)

@@ -23,6 +23,19 @@ well.
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Explicit checkout policy and sync results
+
+The main checkout passes its selector kind, remote, and `sync` policy to
+libvcs. Git defaults to aborting on local changes; choose `dirty: preserve`
+to retain and restore them. Configuring `dirty: discard` also requires
+`vcspull sync --yes` on each invocation.
+
+Python callers of `vcspull.cli.sync.update_repo` receive `SyncExecution`:
+use `.project` for the backend instance and `.result` for its complete
+`SyncResult`. Failures still raise `SyncFailedError`, whose `.result` now
+retains recovery tokens, conflicts, and operation outcomes. Programmatic
+discard requires `yes=True`.
+
 ### Exact numeric values
 
 Integer configuration fields accept values up to `9007199254740991`

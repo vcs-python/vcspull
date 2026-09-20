@@ -80,6 +80,14 @@ legacy options stop migration before it writes the configuration file.
 they rewrite and preserve entries pinned for that command.
 See {ref}`migration` for an upgrade example.
 
+#### Apply main checkout policy and retain recovery details
+
+Sync forwards the configured selector kind, remote, and drift/dirty policy
+to libvcs. Git preservation retains a recovery token after restoration or
+conflict. Human output shows retained material; JSON and NDJSON preserve its
+exact identity and operation outcomes. Configured discard requires `--yes`
+before repository access. See {ref}`cli-sync` and {ref}`migration`.
+
 #### Validate shared checkout targets
 
 `working_copy` and `worktrees` accept the same `branch`, `tag`, `commit`, or

@@ -151,6 +151,39 @@ Use `--dry-run` or `-n` to:
 - Test pattern filters
 - Preview operations in CI/CD
 
+## Checkout policy
+
+Configure the main checkout independently of clone options:
+
+```yaml
+~/code/:
+  project:
+    repo: git+https://example.com/project.git
+    working_copy:
+      branch: main
+      sync:
+        drift: follow
+        dirty: preserve
+```
+
+`follow` resolves the configured target; `keep` and `warn` leave an existing
+checkout in place. The default dirty policy is `abort`. Git preservation
+retains staged, unstaged, and untracked changes in an owned stash and restores
+them after updating. Conflicts retain a recovery token instead of discarding
+local state. Keep other editors and VCS writers out of the checkout during sync.
+
+A configured `dirty: discard` requires explicit authorization on each call:
+
+```console
+$ vcspull sync project --yes
+```
+
+`--yes` authorizes an existing discard policy; it does not enable discard for
+other entries. Successful preservation and failures print the retained recovery
+location. JSON and NDJSON events include `update_state`, `preservation_state`,
+`recovery`, `conflicts`, and ordered `errors`. A recovery token stays available
+until explicitly released through libvcs; a failed operation never deletes it.
+
 ## JSON output
 
 Export sync operations as JSON for automation:
