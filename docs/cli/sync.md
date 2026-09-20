@@ -18,6 +18,25 @@ synchronized with remote repositories.
     :path: sync
 ```
 
+## Timeouts and interruption
+
+`--timeout` bounds each repository sync. On timeout or Ctrl-C, vcspull stops
+its worker and native process group before continuing or exiting. Progress
+and output are streamed to the parent process, which owns the terminal and
+JSON output. CLI synchronization requires POSIX process groups.
+
+A stopped update can leave partially changed files. Its result remains
+unknown unless the worker returned a complete native result. Retained
+preservation material is inspected separately with a one-second deadline;
+inspection errors remain visible. JSON and NDJSON include
+`retained_recoveries` with exact tokens and native outcomes. These records
+can include earlier runs. Recovery material remains until explicitly released
+through libvcs; retrying does not resume an interrupted preservation operation.
+
+Termination covers descendants that remain in the owned process group.
+Detached hook daemons and uninterruptible kernel I/O are outside that scope.
+If the worker cannot be stopped, the batch stops with an error.
+
 ## Filtering repos
 
 Running `vcspull sync` with no patterns syncs nothing and prints the generated

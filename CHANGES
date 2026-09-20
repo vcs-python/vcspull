@@ -40,6 +40,14 @@ _Notes on upcoming releases will be added here_
 
 ### What's new
 
+#### Sync stops owned processes on timeout and interruption
+
+CLI sync uses a separate process for each repository and streams progress
+without changing the parent's output streams. Timeout and Ctrl-C stop the
+worker and native process group before further work. Interrupted results
+retain unknown state and report discovered recovery tokens in human and
+machine output. CLI synchronization requires POSIX process groups.
+
 #### Configure partial clones and typed backend options
 
 `git`, `hg`, and `svn` blocks match their libvcs options classes. Loading

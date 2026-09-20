@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import contextlib
 import logging
 import os
 import pathlib
@@ -13,16 +12,14 @@ import shlex
 import signal
 import subprocess
 import sys
-import threading
 import typing as t
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
-from io import StringIO
-from time import monotonic, perf_counter
+from time import perf_counter
 
-from libvcs import SyncResult
+from libvcs import RecoveryToken, SyncResult
 from libvcs._internal.types import VCSLiteral
 
 from vcspull import exc
@@ -32,6 +29,11 @@ from vcspull._internal.sync import (
     checkout_settings,
     create_sync_project,
     sync_result_data,
+)
+from vcspull._internal.sync_process import (
+    SyncInterrupted,
+    SyncOutcome as _SyncOutcome,
+    run_sync_process,
 )
 from vcspull._internal.worktree_sync import (
     WorktreeAction,
@@ -776,17 +778,6 @@ class _TimedOutRepo:
     duration: float
 
 
-@dataclass
-class _SyncOutcome:
-    """Result of attempting to sync a single repository."""
-
-    status: t.Literal["synced", "failed", "timed_out"]
-    captured_output: str | None = None
-    error: BaseException | None = None
-    duration: float = 0.0
-    result: SyncResult | None = None
-
-
 def _positive_int_arg(value: str) -> int:
     """Validate ``--timeout`` accepts only positive integers.
 
@@ -1097,87 +1088,13 @@ def _sync_repo_with_watchdog(
     is_human: bool,
     yes: bool = False,
 ) -> _SyncOutcome:
-    """Run :func:`update_repo` under a wall-clock watchdog.
-
-    The libvcs call runs on a daemon :class:`threading.Thread`; the main
-    thread uses a completion :class:`threading.Event` as its deadline. Raw
-    threads are deliberate -- :class:`concurrent.futures.ThreadPoolExecutor`
-    registers its workers in ``concurrent.futures.thread._threads_queues``,
-    whose ``atexit`` hook ``_python_exit`` joins every worker on interpreter
-    shutdown. If the user hits Ctrl-C while a libvcs subprocess is wedged,
-    that join hangs the process forever. Daemon threads skip the join
-    entirely: they're forcibly terminated at shutdown.
-    """
-    buffer: StringIO | None = None if is_human else StringIO()
-    done = threading.Event()
-    worker_error: list[BaseException] = []
-    worker_result: list[SyncResult] = []
-
-    def _run() -> None:
-        try:
-            if buffer is None:
-                execution = update_repo(
-                    repo, progress_callback=progress_callback, yes=yes
-                )
-                worker_result.append(execution.result)
-                return
-            # Non-human output modes capture everything so the NDJSON/JSON
-            # payload contains the per-repo details without polluting stdout.
-            with (
-                contextlib.redirect_stdout(buffer),
-                contextlib.redirect_stderr(buffer),
-            ):
-                execution = update_repo(
-                    repo, progress_callback=progress_callback, yes=yes
-                )
-                worker_result.append(execution.result)
-        except BaseException as exc_obj:
-            # Keep ``BaseException`` here so a worker-side KeyboardInterrupt
-            # (rare but possible via ``PyThreadState_SetAsyncExc``) is still
-            # reported back up. The main thread decides how to handle it.
-            worker_error.append(exc_obj)
-            if isinstance(exc_obj, SyncFailedError):
-                worker_result.append(exc_obj.result)
-        finally:
-            done.set()
-
-    started = monotonic()
-    worker = threading.Thread(
-        target=_run,
-        name=f"vcspull-sync-{repo.get('name', 'repo')}",
-        daemon=True,
-    )
-    worker.start()
-
-    finished = done.wait(timeout=timeout)
-    if not finished:
-        # The worker is still busy; abandon it. Because it's a daemon it'll
-        # die with the interpreter or when libvcs's subprocess finally exits.
-        return _SyncOutcome(
-            status="timed_out",
-            captured_output=buffer.getvalue() if buffer else None,
-            duration=monotonic() - started,
-        )
-
-    if worker_error:
-        err = worker_error[0]
-        if isinstance(err, Exception):
-            return _SyncOutcome(
-                status="failed",
-                captured_output=buffer.getvalue() if buffer else None,
-                error=err,
-                duration=monotonic() - started,
-                result=worker_result[0] if worker_result else None,
-            )
-        # ``BaseException`` that is not ``Exception`` (KeyboardInterrupt,
-        # SystemExit): propagate -- main thread will tear the batch down.
-        raise err
-
-    return _SyncOutcome(
-        status="synced",
-        captured_output=buffer.getvalue() if buffer else None,
-        duration=monotonic() - started,
-        result=worker_result[0] if worker_result else None,
+    """Run sync in an owned process and stop its descendants before returning."""
+    return run_sync_process(
+        repo,
+        progress_callback=progress_callback,
+        timeout=timeout,
+        is_human=is_human,
+        yes=yes,
     )
 
 
@@ -1890,6 +1807,18 @@ def _run_sync_loop(
                 is_human=is_human,
                 yes=yes,
             )
+        except SyncInterrupted as error:
+            indicator.stop_repo()
+            summary["interrupted"] = summary.get("interrupted", 0) + 1
+            event["status"] = "interrupted"
+            if error.outcome.result is not None:
+                event.update(sync_result_data(error.outcome.result))
+            event["retained_recoveries"] = [
+                sync_result_data(result) for result in error.outcome.retained_recoveries
+            ]
+            formatter.emit(event)
+            _emit_recoveries(formatter, error.outcome)
+            raise
         except BaseException:
             # Any exception (KeyboardInterrupt, runtime crash) tears the
             # indicator down with no replacement line; the surrounding
@@ -1900,6 +1829,11 @@ def _run_sync_loop(
 
         if outcome.result is not None:
             event.update(sync_result_data(outcome.result))
+
+        if outcome.retained_recoveries:
+            event["retained_recoveries"] = [
+                sync_result_data(result) for result in outcome.retained_recoveries
+            ]
 
         if outcome.status == "timed_out":
             summary["timed_out"] += 1
@@ -1927,6 +1861,7 @@ def _run_sync_loop(
             formatter.emit(event)
             if not wrote_final:
                 formatter.emit_text(permanent)
+            _emit_recoveries(formatter, outcome)
             if exit_on_error:
                 _emit_rerun_recipe(
                     formatter,
@@ -1970,7 +1905,7 @@ def _run_sync_loop(
                 traceback.print_exception(type(err), err, err.__traceback__)
             if not wrote_final:
                 formatter.emit_text(permanent)
-            _emit_recovery_note(formatter, outcome.result)
+            _emit_recoveries(formatter, outcome)
             if is_human:
                 _emit_branch_error_guidance(
                     formatter,
@@ -1999,7 +1934,7 @@ def _run_sync_loop(
         if not wrote_final:
             formatter.emit_text(permanent)
 
-        _emit_recovery_note(formatter, outcome.result)
+        _emit_recoveries(formatter, outcome)
 
         # Sync worktrees if enabled and configured
         worktrees_config = repo.get("worktrees")
@@ -2063,6 +1998,21 @@ def _run_sync_loop(
                 if parser is not None:
                     parser.exit(status=1, message=EXIT_ON_ERROR_MSG)
                 raise SystemExit(EXIT_ON_ERROR_MSG)
+
+
+def _emit_recoveries(formatter: OutputFormatter, outcome: _SyncOutcome) -> None:
+    """Report each known token once, even when interruption inspection fails."""
+    results = list(outcome.retained_recoveries)
+    if outcome.result is not None:
+        results.insert(0, outcome.result)
+        for error in outcome.result.errors:
+            if error.step == "recovery-inspection":
+                formatter.emit_text(f"Recovery inspection: {error.message}")
+    seen: set[RecoveryToken] = set()
+    for result in results:
+        if result.recovery is not None and result.recovery not in seen:
+            seen.add(result.recovery)
+            _emit_recovery_note(formatter, result)
 
 
 def _emit_recovery_note(formatter: OutputFormatter, result: SyncResult | None) -> None:

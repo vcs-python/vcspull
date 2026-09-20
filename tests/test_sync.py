@@ -919,22 +919,22 @@ def test_sync_cli_requires_yes_for_discard(
         assert "--yes" in event["error"]
 
 
-@pytest.mark.parametrize("failed", [False, True])
+@pytest.mark.parametrize("status", ["synced", "failed", "timed_out"])
 @pytest.mark.parametrize("human", [False, True])
 def test_sync_cli_retains_recovery_outcome(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
-    failed: bool,
+    status: t.Literal["synced", "failed", "timed_out"],
     human: bool,
 ) -> None:
     """Human and machine output retain successful and failed recovery outcomes."""
     import dataclasses
     import importlib
 
-    from libvcs import BaseSync, RecoveryToken, SyncConflict, SyncResult
+    from libvcs import RecoveryToken, SyncConflict, SyncResult
 
-    from vcspull._internal.sync import SyncExecution
+    from vcspull._internal.sync_process import SyncOutcome
     from vcspull.cli import cli
     from vcspull.cli.sync import SyncFailedError
 
@@ -942,20 +942,25 @@ def test_sync_cli_retains_recovery_outcome(
     result = SyncResult(
         recovery=token, update_state="completed", preservation_state="restored"
     )
+    failed = status == "failed"
     if failed:
         result.preservation_state = "conflicted"
         result.conflicts = (SyncConflict("file.txt", "text"),)
         result.add_error("restore", "conflicted content")
-    project = BaseSync(url="https://example.com/r.git", path=tmp_path / "project")
+    elif status == "timed_out":
+        result.add_error("recovery-inspection", "inspection failed")
 
-    def run_sync(*args: t.Any, **kwargs: t.Any) -> SyncExecution:
-        if failed:
-            repo_name = "project"
-            raise SyncFailedError(repo_name, result)
-        return SyncExecution(project=project, result=result)
+    def run_sync(*args: t.Any, **kwargs: t.Any) -> SyncOutcome:
+        return SyncOutcome(
+            status=status,
+            result=result,
+            error=SyncFailedError("project", result) if failed else None,
+        )
 
     monkeypatch.setattr(
-        importlib.import_module("vcspull.cli.sync"), "update_repo", run_sync
+        importlib.import_module("vcspull.cli.sync"),
+        "_sync_repo_with_watchdog",
+        run_sync,
     )
     config = tmp_path / "repos.yaml"
     save_config_yaml(
@@ -980,10 +985,12 @@ def test_sync_cli_retains_recovery_outcome(
         assert f"local changes: {result.preservation_state}" in captured
         if failed:
             assert "Conflict: file.txt (text)" in captured
+        elif status == "timed_out":
+            assert "inspection failed" in captured
         return
     output = [json.loads(line) for line in captured.splitlines()]
     event = next(item for item in output if item.get("reason") == "sync")
-    assert event["status"] == ("error" if failed else "synced")
+    assert event["status"] == ("error" if failed else status)
     assert event["recovery"] == dataclasses.asdict(token)
     assert event["preservation_state"] == result.preservation_state
     assert event["conflicts"] == [dataclasses.asdict(item) for item in result.conflicts]

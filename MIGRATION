@@ -23,6 +23,14 @@ well.
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Bounded CLI synchronization
+
+CLI sync requires POSIX process-group ownership. Timeouts and Ctrl-C stop
+the worker and its native descendants before the command continues or exits.
+Interrupted JSON/NDJSON events report unknown state and `retained_recoveries`
+discovered by a separately bounded inspection. Discovery can include tokens
+from earlier operations; it does not restore or release them automatically.
+
 ### Explicit checkout policy and sync results
 
 The main checkout passes its selector kind, remote, and `sync` policy to

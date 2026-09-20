@@ -2,14 +2,113 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import json
 import os
 import pathlib
+import shlex
 import signal
+import socket
 import subprocess
 import sys
+import typing as t
 
 import pytest
+
+if t.TYPE_CHECKING:
+    from libvcs.sync.git import GitSync
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process-group supervision")
+def test_sync_interrupt_stops_worker(git_repo: GitSync, tmp_path: pathlib.Path) -> None:
+    """SIGINT stops an active native checkout and reports retained changes."""
+    git_repo.run(["tag", "before-update"])
+    git_repo.run(["commit", "--allow-empty", "-m", "advance"])
+    (git_repo.path / "local.txt").write_text("retain this\n")
+    address = str(tmp_path / "s")
+    helper = tmp_path / "hook.py"
+    helper.write_text(
+        "import json, os, socket\n"
+        "channel = socket.socket(socket.AF_UNIX)\n"
+        f"channel.connect({address!r})\n"
+        "channel.sendall(json.dumps({'group': os.getpgrp()}).encode() + b'\\n')\n"
+        "channel.recv(1)\n"
+    )
+    hook = git_repo.path / ".git" / "hooks" / "post-checkout"
+    hook.write_text(
+        f"#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(helper))}\n"
+    )
+    hook.chmod(0o700)
+    config = tmp_path / "repos.json"
+    config.write_text(
+        json.dumps(
+            {
+                str(git_repo.path.parent): {
+                    git_repo.path.name: {
+                        "repo": f"git+{git_repo.url}",
+                        "working_copy": {
+                            "tag": "before-update",
+                            "sync": {"dirty": "preserve"},
+                        },
+                    }
+                }
+            }
+        )
+    )
+    spec = importlib.util.find_spec("vcspull")
+    assert spec is not None and spec.origin is not None
+    group = None
+    with socket.socket(socket.AF_UNIX) as server:
+        server.bind(address)
+        server.listen()
+        server.settimeout(3)
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "from vcspull.cli import cli; cli()",
+                "sync",
+                "--file",
+                str(config),
+                "--all",
+                "--ndjson",
+                "--no-log-file",
+                "--timeout",
+                "30",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env={
+                **os.environ,
+                "PYTHONPATH": str(pathlib.Path(spec.origin).parent.parent),
+            },
+            start_new_session=True,
+        )
+        try:
+            connection, _ = server.accept()
+            with connection, connection.makefile("rb") as stream:
+                group = json.loads(stream.readline())["group"]
+                assert group != process.pid
+                process.send_signal(signal.SIGINT)
+                output, error = process.communicate(timeout=3)
+                assert process.returncode == -signal.SIGINT, (output, error)
+                assert connection.recv(1) == b""
+            events = [json.loads(line) for line in output.splitlines()]
+            event = next(item for item in events if item.get("status") == "interrupted")
+            assert event["update_state"] == "unknown"
+            retained = event["retained_recoveries"]
+            assert len(retained) == 1
+            discovered = git_repo.list_recoveries()
+            assert discovered[0].recovery is not None
+            assert retained[0]["recovery"]["id"] == discovered[0].recovery.id
+        finally:
+            if group is not None:
+                with contextlib.suppress(ProcessLookupError):
+                    os.killpg(group, signal.SIGKILL)
+            if process.poll() is None:
+                process.kill()
+            process.communicate(timeout=1)
 
 
 @pytest.mark.skipif(

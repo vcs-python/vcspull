@@ -2331,9 +2331,9 @@ def test_sync_human_output_redacts_repo_paths(
     monkeypatch.setattr(sync_module, "filter_repos", _fake_filter_repos)
     monkeypatch.setattr(
         sync_module,
-        "update_repo",
-        lambda _repo, progress_callback=None, yes=False: sync_module.SyncExecution(
-            project=GitSync(url=repo_config["url"], path=repo_path),
+        "_sync_repo_with_watchdog",
+        lambda _repo, **_kwargs: sync_module._SyncOutcome(
+            status="synced",
             result=SyncResult(),
         ),
     )
