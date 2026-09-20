@@ -55,10 +55,24 @@ You can place the file in one of three places:
 
 ## Schema
 
-```{warning}
+Editors can complete configuration fields and catch invalid options using
+[the published JSON Schema](https://vcspull.git-pull.com/_static/schemas/vcspull.schema.json).
+Add its directive at the top of your YAML file:
 
-This structure is subject to break in upcoming releases.
+```yaml
+# yaml-language-server: $schema=https://vcspull.git-pull.com/_static/schemas/vcspull.schema.json
+~/code/:
+  flask:
+    repo: git+https://github.com/pallets/flask.git
+    git:
+      filter: blob:none
 ```
+
+The loader validates settings independently before sync starts.
+
+Integer configuration fields use the exact JSON integer range through
+`9007199254740991`. Native Git filter strings retain the full uint64 range;
+for example, `filter: "tree:18446744073709551615"`.
 
 ```yaml
 ~/workdir/:

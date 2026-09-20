@@ -760,9 +760,12 @@ MIGRATE_ENTRY_FIXTURES: list[MigrateEntryFixture] = [
     ),
     MigrateEntryFixture(
         test_id="null-depth-retains-shallow",
-        entry={"repo": "git+x", "options": {"shallow": True, "depth": None}},
+        entry={
+            "repo": "git+https://example.com/r.git",
+            "options": {"shallow": True, "depth": None},
+        },
         expected_changed=True,
-        expected_entry={"repo": "git+x", "git": {"depth": 1}},
+        expected_entry={"repo": "git+https://example.com/r.git", "git": {"depth": 1}},
     ),
     MigrateEntryFixture(
         test_id="all-legacy-locations-one-pass",

@@ -66,16 +66,16 @@ def migrate_config(config_data: dict[str, t.Any]) -> tuple[dict[str, t.Any], int
     Examples
     --------
     >>> migrate_config(
-    ...     {"~/code/": {"flask": {"repo": "git+x", "shallow": True}}}
+    ...     {"~/code/": {"flask": {"repo": "git+ssh://x", "shallow": True}}}
     ... )
-    ({'~/code/': {'flask': {'repo': 'git+x', 'git': {'depth': 1}}}}, 1)
+    ({'~/code/': {'flask': {'repo': 'git+ssh://x', 'git': {'depth': 1}}}}, 1)
 
     An already-migrated config is returned unchanged:
 
     >>> migrate_config(
-    ...     {"~/code/": {"flask": {"repo": "git+x", "git": {"depth": 1}}}}
+    ...     {"~/code/": {"flask": {"repo": "git+ssh://x", "git": {"depth": 1}}}}
     ... )
-    ({'~/code/': {'flask': {'repo': 'git+x', 'git': {'depth': 1}}}}, 0)
+    ({'~/code/': {'flask': {'repo': 'git+ssh://x', 'git': {'depth': 1}}}}, 0)
     """
     migrated: dict[str, t.Any] = copy.deepcopy(config_data)
     change_count = 0

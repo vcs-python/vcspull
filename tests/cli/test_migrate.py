@@ -35,29 +35,29 @@ class MigrateConfigFixture(t.NamedTuple):
 MIGRATE_CONFIG_FIXTURES: list[MigrateConfigFixture] = [
     MigrateConfigFixture(
         test_id="legacy-shallow",
-        raw_config={"~/code/": {"flask": {"repo": "git+x", "shallow": True}}},
+        raw_config={"~/code/": {"flask": {"repo": "git+ssh://x", "shallow": True}}},
         expected_config={
-            "~/code/": {"flask": {"repo": "git+x", "git": {"depth": 1}}},
+            "~/code/": {"flask": {"repo": "git+ssh://x", "git": {"depth": 1}}},
         },
         expected_changes=1,
     ),
     MigrateConfigFixture(
         test_id="legacy-options",
         raw_config={
-            "~/code/": {"flask": {"repo": "git+x", "options": {"shallow": True}}},
+            "~/code/": {"flask": {"repo": "git+ssh://x", "options": {"shallow": True}}},
         },
         expected_config={
-            "~/code/": {"flask": {"repo": "git+x", "git": {"depth": 1}}},
+            "~/code/": {"flask": {"repo": "git+ssh://x", "git": {"depth": 1}}},
         },
         expected_changes=1,
     ),
     MigrateConfigFixture(
         test_id="depth-wins",
         raw_config={
-            "~/code/": {"flask": {"repo": "git+x", "shallow": True, "depth": 5}}
+            "~/code/": {"flask": {"repo": "git+ssh://x", "shallow": True, "depth": 5}}
         },
         expected_config={
-            "~/code/": {"flask": {"repo": "git+x", "git": {"depth": 5}}},
+            "~/code/": {"flask": {"repo": "git+ssh://x", "git": {"depth": 5}}},
         },
         expected_changes=1,
     ),
@@ -65,13 +65,13 @@ MIGRATE_CONFIG_FIXTURES: list[MigrateConfigFixture] = [
         test_id="preserves-pin",
         raw_config={
             "~/code/": {
-                "flask": {"repo": "git+x", "rev": "v1", "options": {"pin": True}},
+                "flask": {"repo": "git+ssh://x", "rev": "v1", "options": {"pin": True}},
             },
         },
         expected_config={
             "~/code/": {
                 "flask": {
-                    "repo": "git+x",
+                    "repo": "git+ssh://x",
                     "pin": True,
                     "working_copy": {"rev": "v1"},
                 },
@@ -81,8 +81,8 @@ MIGRATE_CONFIG_FIXTURES: list[MigrateConfigFixture] = [
     ),
     MigrateConfigFixture(
         test_id="string-entry-untouched",
-        raw_config={"~/code/": {"flask": "git+x"}},
-        expected_config={"~/code/": {"flask": "git+x"}},
+        raw_config={"~/code/": {"flask": "git+ssh://x"}},
+        expected_config={"~/code/": {"flask": "git+ssh://x"}},
         expected_changes=0,
     ),
 ]
@@ -148,7 +148,7 @@ def test_migrate_config_file_dry_run(
     config_file = tmp_path / ".vcspull.yaml"
     save_config_yaml(
         config_file,
-        {"~/code/": {"flask": {"repo": "git+x", "shallow": True}}},
+        {"~/code/": {"flask": {"repo": "git+ssh://x", "shallow": True}}},
     )
     before = config_file.read_text(encoding="utf-8")
 
@@ -167,7 +167,7 @@ def test_migrate_invalid_entry_keeps_file(
         config_file,
         {
             "~/code/": {
-                "valid": {"repo": "git+x", "depth": 2},
+                "valid": {"repo": "git+ssh://x", "depth": 2},
                 "invalid": {"repo": "hg+y", "options": {"deph": 5}},
             }
         },
@@ -188,7 +188,7 @@ def test_migrate_preserves_duplicate_workspace_sections(tmp_path: pathlib.Path) 
     save_config_yaml_with_items(
         config_file,
         [
-            ("~/code/", {"first": {"repo": "git+x", "options": {"rev": "one"}}}),
+            ("~/code/", {"first": {"repo": "git+ssh://x", "options": {"rev": "one"}}}),
             ("~/code/", {"second": {"repo": "hg+y", "options": {"rev": "two"}}}),
         ],
     )
@@ -197,7 +197,7 @@ def test_migrate_preserves_duplicate_workspace_sections(tmp_path: pathlib.Path) 
 
     _, _, items = DuplicateAwareConfigReader.load_with_duplicates(config_file)
     assert items == [
-        ("~/code/", {"first": {"repo": "git+x", "working_copy": {"rev": "one"}}}),
+        ("~/code/", {"first": {"repo": "git+ssh://x", "working_copy": {"rev": "one"}}}),
         ("~/code/", {"second": {"repo": "hg+y", "working_copy": {"rev": "two"}}}),
     ]
     before = config_file.read_bytes()
@@ -210,7 +210,7 @@ def test_migrate_cli_exits_nonzero_on_invalid_options(tmp_path: pathlib.Path) ->
     config_file = tmp_path / "repos.yaml"
     save_config_yaml(
         config_file,
-        {"~/code/": {"repo": {"repo": "git+x", "options": {"deph": 1}}}},
+        {"~/code/": {"repo": {"repo": "git+ssh://x", "options": {"deph": 1}}}},
     )
     with pytest.raises(SystemExit) as error:
         cli(["migrate", "--file", str(config_file), "--write"])
@@ -227,7 +227,7 @@ def test_migrate_idempotent(
     config_file = tmp_path / ".vcspull.yaml"
     save_config_yaml(
         config_file,
-        {"~/code/": {"flask": {"repo": "git+x", "shallow": True}}},
+        {"~/code/": {"flask": {"repo": "git+ssh://x", "shallow": True}}},
     )
 
     migrate_config_file(str(config_file), write=True)
@@ -249,10 +249,10 @@ def test_migrate_cli_end_to_end(
     config_file = tmp_path / ".vcspull.yaml"
     save_config_yaml(
         config_file,
-        {"~/code/": {"flask": {"repo": "git+x", "shallow": True}}},
+        {"~/code/": {"flask": {"repo": "git+ssh://x", "shallow": True}}},
     )
 
     cli(["migrate", "-f", str(config_file), "--write"])
 
     result = yaml.safe_load(config_file.read_text(encoding="utf-8"))
-    assert result["~/code/"]["flask"] == {"repo": "git+x", "git": {"depth": 1}}
+    assert result["~/code/"]["flask"] == {"repo": "git+ssh://x", "git": {"depth": 1}}

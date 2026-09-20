@@ -61,6 +61,16 @@ Existing checkouts keep their depth and filter. Legacy option locations load
 with a migration warning. `pin`, `pin_reason`, and `allow_overwrite` also work
 at the repository entry level.
 
+#### Complete and validate configuration in editors
+
+The published JSON Schema describes backend options, shared checkout targets,
+remote URLs, and entry policy. Add the `yaml-language-server` schema directive
+shown in {ref}`configuration` for editor completion and validation. The CLI
+keeps its runtime validation independent of schema-generation dependencies.
+Numeric settings use exact JSON integers through `2**53 - 1`; native filter
+strings retain Git's full uint64 range. URL inference is stable across Python
+versions. Unicode-leading SCP paths require an explicit VCS. See {ref}`migration`.
+
 #### Migrate checkout targets and backend options
 
 {ref}`cli-migrate` separates legacy settings into `working_copy`, the

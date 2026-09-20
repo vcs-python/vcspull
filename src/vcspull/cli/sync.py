@@ -27,7 +27,6 @@ from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitOptions, GitSync
 from libvcs.sync.hg import HgOptions, HgSync
 from libvcs.sync.svn import SvnOptions, SvnSync
-from libvcs.url import registry as url_tools
 
 from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
@@ -45,6 +44,7 @@ from vcspull.config import (
 )
 from vcspull.log import default_debug_log_path, setup_file_logger, teardown_file_logger
 from vcspull.types import ConfigDict
+from vcspull.validator import match_vcs_url
 
 from ._colors import Colors, get_color_mode
 from ._output import (
@@ -2052,7 +2052,7 @@ def progress_cb(output: str, timestamp: datetime) -> None:
 
 def guess_vcs(url: str) -> VCSLiteral | None:
     """Guess the VCS from a URL."""
-    vcs_matches = url_tools.registry.match(url=url, is_explicit=True)
+    vcs_matches = match_vcs_url(url)
 
     if len(vcs_matches) == 0:
         log.warning("No vcs found for %s", url)
@@ -2061,7 +2061,7 @@ def guess_vcs(url: str) -> VCSLiteral | None:
         log.warning("No exact matches for %s", url)
         return None
 
-    return t.cast("VCSLiteral", vcs_matches[0].vcs)
+    return vcs_matches[0]
 
 
 class CouldNotGuessVCSFromURL(exc.VCSPullException):

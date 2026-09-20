@@ -62,6 +62,25 @@ the one edit that silently deletes a doctest, are in
 Before claiming a test or a gate works, show it failing. A gate that has
 never been red is an assumption.
 
+### Configuration schema
+
+Regenerate the published editor schema after changing configuration types or
+validation, using the first Python version in `.tool-versions`:
+
+```console
+$ uv run python scripts/generate_schema.py
+```
+
+Check the committed artifact without writing:
+
+```console
+$ uv run python scripts/generate_schema.py --check
+```
+
+The agreement tests validate original documents with standard JSON Schema
+and the config loader. Schema dependencies belong in the development group;
+keep them out of runtime imports.
+
 ### Imports and typing
 
 - `from __future__ import annotations` at the top of every file — `ruff`'s

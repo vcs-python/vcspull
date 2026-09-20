@@ -23,6 +23,23 @@ well.
 
 <!-- Maintainers, insert changes / features for the next release here -->
 
+### Exact numeric values
+
+Integer configuration fields accept values up to `9007199254740991`
+(`2**53 - 1`), so Python and JavaScript editors validate the same values.
+For a larger Git filter limit, use a native string such as
+`filter: "tree:18446744073709551615"` or a quoted `blob:limit` mapping's
+`limit`. These strings retain Git's full uint64 range. Quote large revision
+identifiers as strings. Metadata remains ordinary JSON-compatible data.
+
+### Stable URL inference
+
+Backend inference uses ASCII word and digit classes on every supported Python
+version. Unprefixed SCP URLs whose path starts with a non-ASCII character,
+such as `host:éx`, need `vcs: git` or an explicit `git+ssh://host/éx` URL.
+Unicode hostnames and other path characters remain supported. Explicit backend
+settings continue to resolve unknown or ambiguous URLs.
+
 ### Separate checkout targets and backend options
 
 Run {ref}`cli-migrate` once to move both top-level tuning and the `options`

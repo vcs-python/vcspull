@@ -5,9 +5,11 @@ from __future__ import annotations
 import dataclasses
 import math
 import pathlib
+import re
 import typing as t
 
 from libvcs import GitOptions, HgOptions, SvnOptions
+from libvcs._internal.types import VCSLiteral
 from libvcs.sync.git import GitRemote
 from libvcs.url import registry as url_tools
 
@@ -15,7 +17,36 @@ from vcspull import exc
 from vcspull.types import RawConfigDict
 
 
-def _config_integer(value: t.Any) -> t.Any:
+def match_vcs_url(url: str) -> tuple[VCSLiteral, ...]:
+    """Match explicit backend rules using stable ASCII word/digit semantics.
+
+    Unicode hostnames and paths remain supported. For an unprefixed SCP URL
+    whose path starts with a non-ASCII character, declare the backend.
+
+    >>> match_vcs_url("git@host:project")
+    ('git',)
+    >>> match_vcs_url("host:éx")
+    ()
+    >>> match_vcs_url("git+ssh://host/éx")
+    ('git',)
+    """
+    matches = []
+    for backend, parser in url_tools.registry.parser_map.items():
+        rules = t.cast("t.Any", parser).rule_map
+        if any(
+            rule.is_explicit
+            and re.search(
+                rule.pattern.pattern,
+                url,
+                (rule.pattern.flags & ~re.UNICODE) | re.ASCII,
+            )
+            for rule in rules.values()
+        ):
+            matches.append(t.cast("VCSLiteral", backend))
+    return tuple(matches)
+
+
+def _config_integer(value: t.Any, *, location: str = "value") -> t.Any:
     """Normalize mathematical integers from JSON or YAML numeric values.
 
     >>> _config_integer(2.0)
@@ -23,7 +54,13 @@ def _config_integer(value: t.Any) -> t.Any:
     >>> _config_integer(2.5)
     2.5
     """
-    return int(value) if isinstance(value, float) and value.is_integer() else value
+    normalized = (
+        int(value) if isinstance(value, float) and value.is_integer() else value
+    )
+    if type(normalized) is int and abs(normalized) > 2**53 - 1:
+        msg = f"{location}: integer exceeds the exact JSON number range"
+        raise exc.VCSPullException(msg)
+    return normalized
 
 
 def _is_json_value(value: t.Any, ancestors: frozenset[int] = frozenset()) -> bool:
@@ -89,7 +126,7 @@ def _normalize_filter(
         result = value.copy()
         for key in ("limit", "depth"):
             if key in result:
-                result[key] = _config_integer(result[key])
+                result[key] = _config_integer(result[key], location=f"{location}.{key}")
         children = result.get("filters")
         if result.get("kind") == "combine" and isinstance(children, list):
             result["filters"] = [
@@ -127,7 +164,9 @@ def _validate_backend_options(
         raise exc.VCSPullException(msg)
     if options_type is GitOptions:
         if "depth" in options:
-            options["depth"] = _config_integer(options["depth"])
+            options["depth"] = _config_integer(
+                options["depth"], location=f"{location}.depth"
+            )
         if "filter" in options:
             options["filter"] = _normalize_filter(
                 options["filter"], location=f"{location}.filter"
@@ -176,6 +215,10 @@ def validate_legacy_options(value: dict[str, t.Any]) -> None:
                 {"depth": fields["depth"]},
                 GitOptions,
                 location=prefix.rstrip(".") or "repository",
+            )
+        if fields.get("depth") is not None or fields.get("shallow") is True:
+            validate_repo_entry(
+                {**context, "git": {}}, location=prefix.rstrip(".") or "repository"
             )
         if prefix:
             for key in ("pin", "pin_reason", "allow_overwrite"):
@@ -228,7 +271,7 @@ def validate_working_copy(
         fail("", "cannot specify multiple refs (branch, tag, commit, rev)")
     ref = refs[0]
     if ref == "rev":
-        value[ref] = _config_integer(value[ref])
+        value[ref] = _config_integer(value[ref], location=f"{location}.{ref}")
     selected = value[ref]
     if ref == "rev" and type(selected) is int:
         if selected < 0:
@@ -245,6 +288,10 @@ def validate_working_copy(
         not isinstance(value["remote"], str) or not value["remote"]
     ):
         fail("remote", "expected a nonempty remote name")
+    if "remote" in value and (
+        value["remote"].startswith("-") or "\0" in value["remote"]
+    ):
+        fail("remote", "remote must not begin with '-' or contain NUL")
     if "sync" in value:
         policy = value["sync"]
         if not isinstance(policy, dict):
@@ -305,8 +352,8 @@ def validate_repo_entry(value: dict[str, t.Any], *, location: str) -> None:
     url = value.get("url", value.get("repo"))
     if not isinstance(url, str) or not url or "\0" in url:
         fail("repo", "expected a nonempty URL string without NUL")
-    matches = url_tools.registry.match(url=url, is_explicit=True)
-    inferred = matches[0].vcs if len(matches) == 1 else None
+    matches = match_vcs_url(url)
+    inferred = matches[0] if len(matches) == 1 else None
     declared = value.get("vcs")
     if declared is not None and declared not in ("git", "hg", "svn"):
         fail("vcs", "expected git, hg, or svn")
