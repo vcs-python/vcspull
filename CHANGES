@@ -40,6 +40,10 @@ _Notes on upcoming releases will be added here_
 
 ### What's new
 
+Mercurial remotes reach native sync with separate fetch and push URLs, both
+through direct calls and the CLI worker. `working_copy.remote` selects the
+pull source without changing the configured push destination.
+
 #### Sync stops owned processes on timeout and interruption
 
 CLI sync uses a separate process for each repository and streams progress

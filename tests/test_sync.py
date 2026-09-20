@@ -812,6 +812,53 @@ def test_sync_honors_configured_drift_policy(
     assert repo.get_position() == original
 
 
+@pytest.mark.parametrize("worker", [False, True])
+def test_hg_configured_remote_reaches_native_sync(
+    tmp_path: pathlib.Path,
+    hg_repo: HgSync,
+    worker: bool,
+) -> None:
+    """Loaded Mercurial paths retain pull selection and separate push URLs."""
+    from vcspull._internal.sync_process import run_sync_process
+
+    upstream = HgSync(url=hg_repo.url, path=tmp_path / "upstream")
+    upstream.obtain()
+    (upstream.path / "next").write_text("new upstream revision\n")
+    upstream.run(["add", "next"])
+    upstream.run(["commit", "-m", "advance upstream"])
+    expected = upstream.get_revision()
+    push_url = (tmp_path / "push-only").as_uri()
+    config = tmp_path / "repos.yaml"
+    save_config_yaml(
+        config,
+        {
+            str(tmp_path): {
+                "project": {
+                    "repo": "hg+" + hg_repo.url,
+                    "path": str(hg_repo.path),
+                    "remotes": {
+                        "upstream": {
+                            "fetch_url": str(upstream.path),
+                            "push_url": push_url,
+                        }
+                    },
+                    "working_copy": {"branch": "default", "remote": "upstream"},
+                }
+            }
+        },
+    )
+    entry = load_configs([config])[0]
+    if worker:
+        outcome = run_sync_process(
+            entry, progress_callback=lambda *args: None, timeout=5, is_human=False
+        )
+        assert outcome.status == "synced", outcome.error
+    else:
+        assert update_repo(entry).result.ok
+    assert hg_repo.get_revision() == expected
+    assert hg_repo.remotes()["upstream"].push_url == push_url
+
+
 def test_sync_keeps_tag_selector_distinct_from_branch(
     tmp_path: pathlib.Path,
     create_git_remote_repo: CreateRepoFn,

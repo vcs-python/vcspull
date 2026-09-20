@@ -10,7 +10,7 @@ from collections.abc import Callable, Mapping
 from libvcs import BaseSync, SyncPolicy, SyncResult, SyncTarget
 from libvcs._internal.shortcuts import create_project
 from libvcs._internal.types import VCSLiteral
-from libvcs.sync.git import GitOptions
+from libvcs.sync.git import GitOptions, GitRemote
 from libvcs.sync.hg import HgOptions
 from libvcs.sync.svn import SvnOptions
 
@@ -41,6 +41,13 @@ def create_sync_project(
     }
     if "remotes" in repo:
         arguments["remotes"] = repo["remotes"]
+        if vcs == "hg":
+            arguments["remotes"] = {
+                name: {"fetch_url": remote.fetch_url, "push_url": remote.push_url}
+                if isinstance(remote, GitRemote)
+                else remote
+                for name, remote in repo["remotes"].items()
+            }
     return create_project(vcs=vcs, **arguments)
 
 

@@ -20,6 +20,7 @@ from collections.abc import Callable, Mapping
 
 from libvcs import RecoveryToken, SyncConflict, SyncResult
 from libvcs.sync.git import GitRemote
+from libvcs.sync.hg import HgRemote
 
 from vcspull._internal.sync import sync_result_data
 
@@ -92,8 +93,8 @@ def _worker_command(control_fd: int) -> list[str]:
 def _json_default(value: t.Any) -> str | dict[str, t.Any]:
     if isinstance(value, os.PathLike):
         return str(os.fspath(value))
-    if isinstance(value, GitRemote):
-        return dataclasses.asdict(value)
+    if isinstance(value, (GitRemote, HgRemote)):
+        return {"fetch_url": value.fetch_url, "push_url": value.push_url}
     message = f"sync request contains unsupported {type(value).__name__}"
     raise TypeError(message)
 
