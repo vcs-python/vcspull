@@ -46,7 +46,7 @@ jobs:
           COV_CORE_DATAFILE: .coverage.eager
 
       - name: Runtime dependency smoke test
-        run: uvx --isolated --no-cache --from . python scripts/runtime_dep_smoketest.py
+        run: uv run --isolated --no-cache --no-dev --no-editable --frozen python scripts/runtime_dep_smoketest.py
 
       - uses: codecov/codecov-action@v7
         with:

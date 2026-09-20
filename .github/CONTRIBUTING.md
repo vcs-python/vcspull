@@ -128,16 +128,18 @@ the dev/test extras by importing every `vcspull` module and exercising each
 CLI subcommand with `--help` in an isolated environment:
 
 ```console
-$ uvx \
+$ uv run \
     --isolated \
     --no-cache \
-    --from . \
+    --no-dev \
+    --no-editable \
+    --frozen \
     python scripts/runtime_dep_smoketest.py
 ```
 
 The same check has a pytest wrapper behind a dedicated marker, and both are
-network-dependent because `uvx` builds the package in an isolated
-environment:
+network-dependent because `uv` builds the wheel in an isolated environment
+with the runtime dependencies from `uv.lock`:
 
 ```console
 $ uv run pytest \
