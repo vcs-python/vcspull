@@ -14,6 +14,7 @@ from libvcs.sync.git import GitOptions, GitRemote
 from libvcs.sync.hg import HgOptions
 from libvcs.sync.svn import SvnOptions
 
+from vcspull import exc
 from vcspull.validator import validate_working_copy
 
 
@@ -91,3 +92,10 @@ def sync_result_data(result: SyncResult) -> dict[str, t.Any]:
             {"step": error.step, "message": error.message} for error in result.errors
         ],
     }
+
+
+def require_discard_authorization(policy: SyncPolicy, *, allow_discard: bool) -> None:
+    """Require explicit invocation consent before constructing a discard backend."""
+    if policy.dirty == "discard" and not allow_discard:
+        message = "dirty: discard requires --yes before synchronization"
+        raise exc.VCSPullException(message)

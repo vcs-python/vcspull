@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import pathlib
 import typing as t
 
+from vcspull import exc
 from vcspull._internal.private_path import PrivatePath
+from vcspull._internal.sync import sync_result_data
 from vcspull._internal.worktree_sync import (
     WorktreeAction,
     WorktreePlanEntry,
@@ -62,6 +65,12 @@ def create_worktree_subparser(parser: argparse.ArgumentParser) -> None:
         "-n",
         action="store_true",
         help="preview what would be synced without making changes",
+    )
+
+    sync_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="authorize configured dirty: discard policies",
     )
 
     # Prune subcommand
@@ -175,14 +184,16 @@ def handle_worktree_command(args: argparse.Namespace) -> None:
     formatter = OutputFormatter(output_mode)
     colors = Colors(get_color_mode(args.color))
 
+    succeeded = True
     if args.worktree_action == "list":
         _handle_list(repos_with_worktrees, formatter, colors)
     elif args.worktree_action == "sync":
-        _handle_sync(
+        succeeded = _handle_sync(
             repos_with_worktrees,
             formatter,
             colors,
             dry_run=args.dry_run,
+            allow_discard=args.yes,
         )
     elif args.worktree_action == "prune":
         # Use found_repos (not repos_with_worktrees) so repos whose worktree
@@ -195,6 +206,8 @@ def handle_worktree_command(args: argparse.Namespace) -> None:
         )
 
     formatter.finalize()
+    if not succeeded:
+        raise SystemExit(1)
 
 
 def _handle_list(
@@ -280,6 +293,7 @@ def _emit_worktree_entry(
     # JSON output
     formatter.emit(
         {
+            "reason": "worktree",
             "worktree_path": str(PrivatePath(entry.worktree_path)),
             "ref_type": entry.ref_type,
             "ref_value": entry.ref_value,
@@ -288,6 +302,12 @@ def _emit_worktree_entry(
             "is_dirty": entry.is_dirty,
             "detail": entry.detail,
             "error": entry.error,
+            "position": dataclasses.asdict(entry.position) if entry.position else None,
+            "target_position": dataclasses.asdict(entry.target_position)
+            if entry.target_position
+            else None,
+            "drifted": entry.drifted,
+            **(sync_result_data(entry.result) if entry.result is not None else {}),
         }
     )
 
@@ -299,6 +319,20 @@ def _emit_worktree_entry(
         f"({color_fn(detail_text)})"
     )
 
+    if entry.result is not None and entry.result.recovery is not None:
+        result = entry.result
+        token = result.recovery
+        assert token is not None
+        formatter.emit_text(
+            f"Update: {result.update_state}; local changes: {result.preservation_state}"
+        )
+        for conflict in result.conflicts:
+            formatter.emit_text(f"Conflict: {conflict.path} ({conflict.reason})")
+        formatter.emit_text(
+            f"Recovery retained ({token.backend}): {token.id} "
+            f"at {PrivatePath(token.location)}"
+        )
+
 
 def _handle_sync(
     repos: list[ConfigDict],
@@ -306,7 +340,8 @@ def _handle_sync(
     colors: Colors,
     *,
     dry_run: bool = False,
-) -> None:
+    allow_discard: bool = False,
+) -> bool:
     """Handle the worktree sync subcommand.
 
     Parameters
@@ -328,7 +363,7 @@ def _handle_sync(
         formatter.emit_text(
             colors.warning("No repositories with worktrees configured.")
         )
-        return
+        return True
 
     total_created = 0
     total_updated = 0
@@ -351,12 +386,27 @@ def _handle_sync(
             f"\n{colors.highlight(repo_name)} ({PrivatePath(repo_path)})"
         )
 
-        result = sync_all_worktrees(
-            repo_path,
-            worktrees_config,
-            workspace_path,
-            dry_run=dry_run,
-        )
+        try:
+            result = sync_all_worktrees(
+                repo_path,
+                worktrees_config,
+                workspace_path,
+                dry_run=dry_run,
+                allow_discard=allow_discard,
+                repo_config=repo,
+            )
+        except exc.VCSPullException as error:
+            total_errors += 1
+            formatter.emit(
+                {
+                    "reason": "worktree",
+                    "status": "error",
+                    "name": repo_name,
+                    "error": str(error),
+                }
+            )
+            formatter.emit_text(colors.error(str(error)))
+            continue
 
         for entry in result.entries:
             _emit_worktree_entry(entry, formatter, colors)
@@ -382,6 +432,8 @@ def _handle_sync(
         formatter.emit_text(
             colors.muted("Tip: run without --dry-run to apply changes.")
         )
+
+    return not (total_blocked or total_errors)
 
 
 def _handle_prune(

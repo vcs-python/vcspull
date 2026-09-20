@@ -22,15 +22,43 @@ Sync all configured worktrees:
 $ vcspull worktree sync '*'
 ```
 
-The sync subcommand:
-- Creates missing worktrees at the configured `dir`
-- Pulls latest changes for `branch` worktrees
-- Leaves `tag` and `commit` worktrees unchanged (they're immutable)
-- Skips worktrees with uncommitted changes (BLOCKED)
+Missing worktrees require locally available target metadata and use Git's
+linked-worktree operation. Existing
+worktrees follow their configured `branch`, `tag`, `commit`, or native `rev`;
+changing a tag or commit target moves the checkout to that resolved commit.
+Branch updates are fast-forward only. A matching commit is not drift, even
+when its branch or tag name differs. `detach: true` keeps a branch target
+detached, and `remote` chooses the branch's fetch source.
+
+Each worktree accepts the same `sync` policies as {ref}`cli-sync`:
+`drift: keep` leaves an existing checkout untouched; `drift: warn` also logs
+when its resolved target differs. The default `dirty: abort` blocks updates
+with local changes. `dirty: preserve` retains native recovery material and
+restores changes, including the Git index. Conflicts retain their recovery
+token and make the operation fail.
+
+`dirty: discard` requires explicit invocation consent, including clean or
+missing checkouts:
+
+```console
+$ vcspull worktree sync --yes '*'
+```
+
+For {ref}`cli-sync` with `--include-worktrees`, the same `--yes` authorizes
+configured discard. Worktree consent is checked before the main checkout
+changes. Main and linked checkouts are synchronized serially.
+
+Both commands print retained recovery identity after success or failure.
+JSON and NDJSON include update/preservation states, ordered errors,
+conflicts, and the exact token location required by libvcs recovery. Tokens
+remain retained until explicitly released through libvcs; synchronization
+does not automatically restore interrupted operations into their source.
 
 ## Dry run
 
-Preview what would happen without making changes:
+Preview local target metadata without fetching or changing checkouts. An
+unavailable target produces an error plan; execution may resolve it after
+fetching:
 
 ```console
 $ vcspull worktree sync --dry-run '*'

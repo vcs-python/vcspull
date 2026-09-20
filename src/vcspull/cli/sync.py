@@ -28,6 +28,7 @@ from vcspull._internal.sync import (
     SyncExecution,
     checkout_settings,
     create_sync_project,
+    require_discard_authorization,
     sync_result_data,
 )
 from vcspull._internal.sync_process import (
@@ -36,8 +37,8 @@ from vcspull._internal.sync_process import (
     run_sync_process,
 )
 from vcspull._internal.worktree_sync import (
-    WorktreeAction,
     plan_worktree_sync,
+    require_worktree_authorization,
     sync_all_worktrees,
 )
 from vcspull.config import (
@@ -65,6 +66,7 @@ from ._output import (
 from ._progress import SyncStatusIndicator, build_indicator
 from ._workspaces import filter_by_workspace
 from .status import check_repo_status
+from .worktree import _emit_worktree_entry
 
 log = logging.getLogger(__name__)
 
@@ -1575,35 +1577,16 @@ def _sync_impl(
                 if not worktrees_config:
                     continue
 
-                repo_name = str(repo.get("name", "unknown"))
                 repo_path = _get_repo_path(repo)
                 workspace_label = str(repo.get("workspace_root", ""))
                 workspace_path = expand_dir(pathlib.Path(workspace_label))
 
                 wt_entries = plan_worktree_sync(
-                    repo_path, worktrees_config, workspace_path
+                    repo_path, worktrees_config, workspace_path, repo_config=repo
                 )
 
                 for entry in wt_entries:
-                    ref_display = f"{entry.ref_type}:{entry.ref_value}"
-                    wt_path_display = str(PrivatePath(entry.worktree_path))
-
-                    action_symbols = {
-                        WorktreeAction.CREATE: colors.success("+"),
-                        WorktreeAction.UPDATE: colors.warning("~"),
-                        WorktreeAction.UNCHANGED: colors.muted("✓"),
-                        WorktreeAction.BLOCKED: colors.warning("⚠"),
-                        WorktreeAction.ERROR: colors.error("✗"),
-                    }
-                    sym = action_symbols.get(entry.action, "?")
-                    ref = colors.info(ref_display)
-                    detail = entry.detail or entry.error or ""
-
-                    formatter.emit_text(
-                        f"  {sym} worktree {colors.info(repo_name)} "
-                        f"{ref} {colors.muted('→')} {wt_path_display}"
-                        f"  {colors.muted(detail)}".rstrip(),
-                    )
+                    _emit_worktree_entry(entry, formatter, colors)
 
         formatter.finalize()
         return
@@ -1800,6 +1783,10 @@ def _run_sync_loop(
         # flicker reporters have called out.
         indicator.start_repo(repo_name)
         try:
+            if include_worktrees:
+                require_worktree_authorization(
+                    repo.get("worktrees") or [], allow_discard=yes
+                )
             outcome = _sync_repo_with_watchdog(
                 repo,
                 progress_callback=progress_callback,
@@ -1819,6 +1806,8 @@ def _run_sync_loop(
             formatter.emit(event)
             _emit_recoveries(formatter, error.outcome)
             raise
+        except exc.VCSPullException as error:
+            outcome = _SyncOutcome(status="failed", error=error)
         except BaseException:
             # Any exception (KeyboardInterrupt, runtime crash) tears the
             # indicator down with no replacement line; the surrounding
@@ -1947,37 +1936,11 @@ def _run_sync_loop(
                 worktrees_config,
                 workspace_path,
                 dry_run=dry_run,
+                allow_discard=yes,
+                repo_config=repo,
             )
-
             for entry in wt_result.entries:
-                ref_display = f"{entry.ref_type}:{entry.ref_value}"
-                wt_path_display = str(PrivatePath(entry.worktree_path))
-
-                if entry.action == WorktreeAction.CREATE:
-                    sym = colors.success("+")
-                    ref = colors.info(ref_display)
-                    arrow = colors.muted("→")
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
-                    )
-                elif entry.action == WorktreeAction.UPDATE:
-                    sym = colors.warning("~")
-                    ref = colors.info(ref_display)
-                    arrow = colors.muted("→")
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} {arrow} {wt_path_display}",
-                    )
-                elif entry.action == WorktreeAction.BLOCKED:
-                    sym = colors.warning("⚠")
-                    ref = colors.info(ref_display)
-                    formatter.emit_text(
-                        f"    {sym} worktree {ref} blocked: {entry.detail}",
-                    )
-                elif entry.action == WorktreeAction.ERROR:
-                    formatter.emit_text(
-                        f"    {colors.error('✗')} worktree {colors.info(ref_display)} "
-                        f"error: {entry.error}",
-                    )
+                _emit_worktree_entry(entry, formatter, colors)
 
             # Tally worktree results into summary
             summary["worktree_created"] = (
@@ -1987,12 +1950,12 @@ def _run_sync_loop(
                 summary.get("worktree_updated", 0) + wt_result.updated
             )
             summary["worktree_failed"] = (
-                summary.get("worktree_failed", 0) + wt_result.errors
+                summary.get("worktree_failed", 0) + wt_result.errors + wt_result.blocked
             )
             # Count worktree errors as failures for exit code
-            summary["failed"] += wt_result.errors
+            summary["failed"] += wt_result.errors + wt_result.blocked
 
-            if exit_on_error and wt_result.errors > 0:
+            if exit_on_error and (wt_result.errors or wt_result.blocked):
                 _emit_summary(formatter, colors, summary)
                 formatter.finalize()
                 if parser is not None:
@@ -2129,9 +2092,7 @@ def update_repo(
     """Synchronize a single repository."""
     _, repo_dict = migrate_repo_entry(deepcopy(repo_dict))
     target, policy = checkout_settings(repo_dict.get("working_copy"))
-    if policy.dirty == "discard" and not yes:
-        msg = "dirty: discard requires --yes before synchronization"
-        raise exc.VCSPullException(msg)
+    require_discard_authorization(policy, allow_discard=yes)
     url = repo_dict.get("url", repo_dict.get("pip_url"))
     vcs = repo_dict.get("vcs") or guess_vcs(url=url)
     if vcs is None:
