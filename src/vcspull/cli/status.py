@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import dataclasses
 import logging
 import os
 import pathlib
@@ -14,9 +15,14 @@ import typing as t
 from dataclasses import dataclass
 from time import perf_counter
 
+from libvcs import exc as vcs_exc
+from libvcs._internal.types import VCSLiteral
+
 from vcspull._internal.private_path import PrivatePath
+from vcspull._internal.sync import checkout_settings, create_sync_project
 from vcspull.config import filter_repos, find_config_files, load_configs
 from vcspull.types import ConfigDict
+from vcspull.validator import match_vcs_url
 
 from ._colors import Colors, get_color_mode
 from ._output import OutputFormatter, get_output_mode
@@ -243,8 +249,17 @@ def _run_git_command(
     """Execute a git command and return the completed process."""
     try:
         return subprocess.run(
-            ["git", *args],
+            ["git", "-c", "protocol.allow=never", *args],
             cwd=repo_path,
+            env={
+                **{
+                    key: value
+                    for key, value in os.environ.items()
+                    if key != "GIT_CONFIG"
+                },
+                "GIT_NO_LAZY_FETCH": "1",
+                "GIT_TERMINAL_PROMPT": "0",
+            },
             capture_output=True,
             text=True,
             check=True,
@@ -278,66 +293,80 @@ def check_repo_status(repo: ConfigDict, detailed: bool = False) -> dict[str, t.A
         "workspace_root": workspace_root,
         "exists": False,
         "is_git": False,
+        "vcs": None,
+        "position": None,
+        "target_position": None,
+        "configured_target": bool(repo.get("working_copy")),
+        "policy": None,
+        "drifted": None,
+        "errors": [],
         "clean": None,
         "branch": None,
         "ahead": None,
         "behind": None,
     }
 
-    # Check if repository exists
-    if repo_path.exists():
-        status["exists"] = True
+    if not repo_path.exists():
+        return status
+    status["exists"] = True
+    vcs: VCSLiteral | None = next(
+        (name for name in ("git", "hg", "svn") if (repo_path / ("." + name)).exists()),
+        None,
+    )
+    status["vcs"] = vcs
+    status["is_git"] = vcs == "git"
+    if vcs is None:
+        return status
 
-        # Check if it's a git repository
-        if (repo_path / ".git").exists():
-            status["is_git"] = True
-
-            porcelain_result = _run_git_command(repo_path, "status", "--porcelain")
-            if porcelain_result is not None:
-                status["clean"] = porcelain_result.stdout.strip() == ""
-            else:
-                status["clean"] = True
-
-            if detailed:
-                branch_result = _run_git_command(
-                    repo_path,
-                    "rev-parse",
-                    "--abbrev-ref",
-                    "HEAD",
+    step = "configuration"
+    try:
+        target, policy = checkout_settings(repo.get("working_copy"))
+        status["policy"] = dataclasses.asdict(policy)
+        expected = repo.get("vcs")
+        if expected is None and (url := repo.get("url", repo.get("pip_url"))):
+            matches = match_vcs_url(str(url))
+            expected = matches[0] if len(matches) == 1 else None
+        if expected is not None and vcs != expected:
+            msg = f"configured {expected} repository contains a {vcs} checkout"
+            raise ValueError(msg)  # noqa: TRY301 - report configuration with unknown state
+        project = create_sync_project(repo, vcs=vcs)
+        step = "dirty"
+        status["clean"] = not project.is_dirty()
+        step = "position"
+        position = project.get_position()
+        status["position"] = dataclasses.asdict(position)
+        if detailed:
+            status["branch"] = position.ref_name
+        step = "target"
+        resolved = project.resolve_target(target)
+        status["target_position"] = dataclasses.asdict(resolved)
+        status["drifted"] = position.revision != resolved.revision
+        if vcs == "svn":
+            status["drifted"] = status["drifted"] or (
+                position.ref_name != resolved.ref_name or position.switched
+            )
+            if position.mixed and not status["drifted"]:
+                status["drifted"] = None
+                status["errors"].append(
+                    {"step": "target", "message": "mixed working-copy revisions"}
                 )
-                if branch_result is not None:
-                    status["branch"] = branch_result.stdout.strip()
+    except (
+        OSError,
+        ValueError,
+        TypeError,
+        NotImplementedError,
+        vcs_exc.LibVCSException,
+    ) as error:
+        status["errors"].append({"step": step, "message": str(error)})
 
-                ahead: int | None = None
-                behind: int | None = None
-                upstream_available = _run_git_command(
-                    repo_path,
-                    "rev-parse",
-                    "--abbrev-ref",
-                    "@{upstream}",
-                )
-                if upstream_available is not None:
-                    counts = _run_git_command(
-                        repo_path,
-                        "rev-list",
-                        "--left-right",
-                        "--count",
-                        "@{upstream}...HEAD",
-                    )
-                    if counts is not None:
-                        parts = counts.stdout.strip().split()
-                        if len(parts) == 2:
-                            behind, ahead = (int(parts[0]), int(parts[1]))
-                status["ahead"] = ahead
-                status["behind"] = behind
-
-                # Maintain clean flag if porcelain failed
-                if status["clean"] is None:
-                    status["clean"] = True
-            else:
-                status["branch"] = None
-                status["ahead"] = None
-                status["behind"] = None
+    if detailed and vcs == "git":
+        counts = _run_git_command(
+            repo_path, "rev-list", "--left-right", "--count", "@{upstream}...HEAD"
+        )
+        if counts is not None:
+            parts = counts.stdout.strip().split()
+            if len(parts) == 2 and all(part.isdecimal() for part in parts):
+                status["behind"], status["ahead"] = map(int, parts)
 
     return status
 
@@ -517,12 +546,15 @@ def _format_status_line(
         symbol = colors.error("✗")
         message = "missing"
         status_color = colors.error(message)
-    elif status["is_git"]:
+    elif status.get("vcs") or status["is_git"]:
         symbol = colors.success("✓")
         clean_state = status["clean"]
         ahead = status.get("ahead")
         behind = status.get("behind")
-        if clean_state is False:
+        if clean_state is None:
+            message = "status unavailable"
+            status_color = colors.warning(message)
+        elif clean_state is False:
             message = "dirty"
             status_color = colors.warning(message)
         elif isinstance(ahead, int) and isinstance(behind, int):
@@ -547,15 +579,22 @@ def _format_status_line(
             )
     else:
         symbol = colors.warning("⚠")
-        message = "not a git repo"
+        message = "not a supported VCS checkout"
         status_color = colors.warning(message)
 
+    drifted = status.get("drifted")
+    if drifted is True:
+        status_color += colors.warning("; target drifted")
+    elif status.get("errors"):
+        status_color += colors.warning("; target unavailable")
     formatter.emit_text(f"{symbol} {colors.info(name)}: {status_color}")
 
     if detailed:
         formatter.emit_text(
             f"  {colors.muted('Path:')} {PrivatePath(status['path'])}",
         )
+        for error in status.get("errors", []):
+            formatter.emit_text(f"  {error['step']}: {error['message']}")
         branch = status.get("branch")
         if branch:
             formatter.emit_text(f"  {colors.muted('Branch:')} {branch}")

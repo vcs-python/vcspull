@@ -9,19 +9,282 @@ import typing as t
 import pytest
 import yaml
 
+from vcspull.cli._output import PlanAction
 from vcspull.cli.status import (
     StatusCheckConfig,
     _check_repos_status_async,
+    _run_git_command,
     check_repo_status,
     status_repos,
 )
+from vcspull.cli.sync import SyncPlanConfig, _build_plan_entry
 
 if t.TYPE_CHECKING:
     import pathlib
 
     from _pytest.monkeypatch import MonkeyPatch
+    from libvcs.sync.git import GitSync
+    from libvcs.sync.hg import HgSync
+    from libvcs.sync.svn import SvnSync
 
     from vcspull.types import ConfigDict
+
+
+def test_status_reports_native_mercurial_state(
+    hg_repo: HgSync, monkeypatch: MonkeyPatch
+) -> None:
+    """Mercurial status retains native identity, local dirt, and resolved drift."""
+    revision = hg_repo.get_position().revision
+    (hg_repo.path / "unknown").write_text("local\n")
+    repo: t.Any = {
+        "name": "project",
+        "path": str(hg_repo.path),
+        "url": hg_repo.url,
+        "vcs": "hg",
+        "working_copy": {"rev": revision},
+    }
+
+    def forbidden(*args: t.Any, **kwargs: t.Any) -> t.NoReturn:
+        msg = "status attempted Mercurial mutation"
+        raise AssertionError(msg)
+
+    # Reading position and dirt must not invoke either network or update entry point.
+    monkeypatch.setattr(type(hg_repo), "update_repo", forbidden)
+    monkeypatch.setattr(type(hg_repo.cmd), "pull", forbidden)
+    status = check_repo_status(repo)
+    assert status["vcs"] == "hg"
+    assert status["clean"] is False
+    assert status["position"]["ref_kind"] == "branch"
+    assert status["position"]["revision"] == revision
+    assert status["drifted"] is False
+    assert status["errors"] == []
+    (hg_repo.path / "unknown").unlink()
+    plan = _build_plan_entry(repo, config=SyncPlanConfig(fetch=False, offline=True))
+    assert plan.action is PlanAction.UNCHANGED
+    repo.pop("working_copy")
+    plan = _build_plan_entry(repo, config=SyncPlanConfig(fetch=False, offline=True))
+    assert plan.action is PlanAction.UNCHANGED
+
+
+@pytest.mark.parametrize("target", ["current", "HEAD"])
+def test_status_reports_native_subversion_state(
+    svn_repo: SvnSync, target: str, monkeypatch: MonkeyPatch
+) -> None:
+    """SVN reports local dirt and revision; remote HEAD remains unavailable."""
+    from libvcs._internal import svn_preservation
+
+    revision = svn_repo.get_position().revision
+    (svn_repo.path / "unknown").write_text("local\n")
+    repo: t.Any = {
+        "name": "project",
+        "path": str(svn_repo.path),
+        "url": svn_repo.url,
+        "vcs": "svn",
+        "working_copy": {"rev": revision if target == "current" else target},
+    }
+    native = svn_preservation.WorkingCopy.xml
+
+    def local_read(working_copy: t.Any, arguments: list[str], **kwargs: t.Any) -> t.Any:
+        assert arguments[0] in {"info", "status", "proplist"}
+        assert "--show-updates" not in arguments
+        assert arguments[-1] == "."
+        return native(working_copy, arguments, **kwargs)
+
+    monkeypatch.setattr(svn_preservation.WorkingCopy, "xml", local_read)
+    status = check_repo_status(repo)
+    assert status["vcs"] == "svn"
+    assert status["clean"] is False
+    assert status["position"]["ref_kind"] == "url"
+    assert status["position"]["revision"] == revision
+    assert status["drifted"] is (False if target == "current" else None)
+    if target == "HEAD":
+        assert status["errors"][0]["step"] == "target"
+    else:
+        assert status["errors"] == []
+    (svn_repo.path / "unknown").unlink()
+    plan = _build_plan_entry(repo, config=SyncPlanConfig(fetch=False, offline=True))
+    assert plan.action is (
+        PlanAction.UNCHANGED if target == "current" else PlanAction.ERROR
+    )
+
+
+@pytest.mark.parametrize(
+    "case,expected",
+    [
+        ("uniform", False),
+        ("mixed", None),
+        ("switched", True),
+        ("url", True),
+        ("revision", True),
+    ],
+)
+def test_status_compares_subversion_native_facts(
+    tmp_path: pathlib.Path, monkeypatch: MonkeyPatch, case: str, expected: bool | None
+) -> None:
+    """Matching root revisions alone cannot establish a mixed or switched match."""
+    import types
+
+    from libvcs.sync.base import WorkingCopyPosition
+
+    (tmp_path / ".svn").mkdir()
+    position = WorkingCopyPosition(
+        "2" if case == "revision" else "1",
+        "file:///different" if case == "url" else "file:///repository",
+        "url",
+        follows=False,
+        mixed=case == "mixed",
+        switched=case == "switched",
+    )
+    project = types.SimpleNamespace(
+        is_dirty=lambda: False,
+        get_position=lambda: position,
+        resolve_target=lambda target: WorkingCopyPosition(
+            "1", "file:///repository", "url", follows=False
+        ),
+    )
+    monkeypatch.setattr(
+        "vcspull.cli.status.create_sync_project", lambda *a, **kw: project
+    )
+    repo: t.Any = {
+        "name": "project",
+        "path": tmp_path,
+        "vcs": "svn",
+        "working_copy": {"rev": 1},
+    }
+    status = check_repo_status(repo)
+    assert status["drifted"] is expected
+    assert bool(status["errors"]) is (case == "mixed")
+
+
+def test_status_dirty_failure_remains_unknown(
+    tmp_path: pathlib.Path, monkeypatch: MonkeyPatch
+) -> None:
+    """A failed native dirty probe cannot report clean or matched state."""
+    import types
+
+    (tmp_path / ".git").mkdir()
+
+    def unavailable() -> t.NoReturn:
+        message = "native status unavailable"
+        raise OSError(message)
+
+    project = types.SimpleNamespace(is_dirty=unavailable)
+    monkeypatch.setattr(
+        "vcspull.cli.status.create_sync_project", lambda *a, **kw: project
+    )
+    repo: t.Any = {"name": "project", "path": tmp_path, "vcs": "git"}
+    status = check_repo_status(repo)
+    assert status["clean"] is None
+    assert status["drifted"] is None
+    assert status["errors"] == [
+        {"step": "dirty", "message": "native status unavailable"}
+    ]
+
+
+def test_detailed_status_disables_git_lazy_fetch(monkeypatch: MonkeyPatch) -> None:
+    """Supplemental history reads cannot fetch missing promisor objects."""
+    import pathlib
+
+    calls = []
+
+    def capture(args: list[str], **kwargs: t.Any) -> subprocess.CompletedProcess[str]:
+        calls.append((args, kwargs))
+        return subprocess.CompletedProcess(args, 0, "0 0\n", "")
+
+    # Check the subprocess boundary, including implicit Git object acquisition.
+    monkeypatch.setattr("vcspull.cli.status.subprocess.run", capture)
+    _run_git_command(pathlib.Path(), "rev-list", "--count", "HEAD")
+    args, kwargs = calls[0]
+    assert args[:3] == ["git", "-c", "protocol.allow=never"]
+    assert kwargs["env"]["GIT_NO_LAZY_FETCH"] == "1"
+    assert kwargs["env"]["GIT_TERMINAL_PROMPT"] == "0"
+
+
+@pytest.mark.parametrize("selector", ["tag", "commit", "implicit"])
+def test_plan_accounts_for_git_attachment(git_repo: GitSync, selector: str) -> None:
+    """Following a fixed target detaches; an implicit detached target stays put."""
+    revision = git_repo.get_revision()
+    git_repo.run(["tag", "alias"])
+    repo: t.Any = {
+        "name": "project",
+        "path": str(git_repo.path),
+        "url": git_repo.url,
+        "vcs": "git",
+    }
+    if selector == "implicit":
+        git_repo.run(["checkout", "--detach", revision])
+    else:
+        repo["working_copy"] = {selector: "alias" if selector == "tag" else revision}
+    status = check_repo_status(repo)
+    assert status["drifted"] is False
+    plan = _build_plan_entry(repo, config=SyncPlanConfig(fetch=False, offline=True))
+    assert plan.action is (
+        PlanAction.UNCHANGED if selector == "implicit" else PlanAction.UPDATE
+    )
+
+
+@pytest.mark.parametrize("explicit", [True, False])
+def test_status_reports_configured_backend_mismatch(
+    git_repo: GitSync, explicit: bool
+) -> None:
+    """A checkout for another VCS cannot establish the configured target's state."""
+    repo: t.Any = {
+        "name": "wrong-vcs",
+        "path": str(git_repo.path),
+        "url": "hg+https://example.com/project",
+        "working_copy": {"rev": "tip"},
+    }
+    if explicit:
+        repo["vcs"] = "hg"
+    status = check_repo_status(repo)
+    assert status["vcs"] == "git"
+    assert status["drifted"] is None
+    assert status["clean"] is None
+    assert status["errors"][0]["step"] == "configuration"
+
+
+@pytest.mark.parametrize("selector", ["branch", "tag", "commit", "unavailable"])
+def test_status_resolves_target_without_fetching(
+    git_repo: GitSync, selector: str, monkeypatch: MonkeyPatch
+) -> None:
+    """Aliases match by object ID; unavailable refs stay unknown without fetching."""
+    git_repo.run(["branch", "alias"])
+    git_repo.run(["tag", "alias"])
+    revision = git_repo.get_revision()
+    key = "branch" if selector == "unavailable" else selector
+    value = (
+        "absent"
+        if selector == "unavailable"
+        else (revision if selector == "commit" else "alias")
+    )
+    repo: t.Any = {
+        "name": "project",
+        "path": str(git_repo.path),
+        "url": git_repo.url,
+        "vcs": "git",
+        "working_copy": {key: value, "sync": {"drift": "warn"}},
+    }
+
+    # A status request must never contact a remote or execute an update.
+    def forbidden(*args: t.Any, **kwargs: t.Any) -> t.NoReturn:
+        msg = "status attempted mutation"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(type(git_repo), "update_repo", forbidden)
+    monkeypatch.setattr(type(git_repo.cmd), "fetch", forbidden)
+    status = check_repo_status(repo)
+    assert status["position"]["revision"] == revision
+    assert status["policy"]["drift"] == "warn"
+    assert status["drifted"] is (None if selector == "unavailable" else False)
+    if selector == "unavailable":
+        assert status["errors"][0]["step"] == "target"
+    else:
+        git_repo.run(["commit", "--allow-empty", "-m", "advance"])
+        assert check_repo_status(repo)["drifted"] is True
+    plan = _build_plan_entry(repo, config=SyncPlanConfig(fetch=False, offline=True))
+    assert plan.action is (
+        PlanAction.ERROR if selector == "unavailable" else PlanAction.UNCHANGED
+    )
 
 
 def create_test_config(config_path: pathlib.Path, repos: dict[str, t.Any]) -> None:

@@ -38,6 +38,103 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+`worktree sync` and `sync --include-worktrees` stop owned native processes on
+timeout or Ctrl-C and report retained recovery tokens. Each linked checkout
+has a separate deadline; standalone `worktree sync` accepts `--timeout`.
+Interrupted metadata remains unknown, and a timeout skips remaining worktrees
+for that repository.
+
+Mercurial remotes reach native sync with separate fetch and push URLs, both
+through direct calls and the CLI worker. `working_copy.remote` selects the
+pull source without changing the configured push destination.
+
+#### Sync stops owned processes on timeout and interruption
+
+CLI sync uses a separate process for each repository and streams progress
+without changing the parent's output streams. Timeout and Ctrl-C stop the
+worker and native process group before further work. Interrupted results
+retain unknown state and report discovered recovery tokens in human and
+machine output. CLI synchronization requires POSIX process groups.
+
+#### Apply checkout policy to linked worktrees
+
+{ref}`cli-worktree-sync` and {ref}`cli-sync` with `--include-worktrees`
+resolve typed targets, honor drift and dirty policy, and retain native
+recovery results. Existing tag and commit checkouts move when their target
+changes. Parent Git options, selected remotes, and explicit detachment apply
+to worktree updates. Missing worktrees fetch and create under the same native
+ownership lock; requested lock failures retain the completed creation result.
+
+Configured discard requires `--yes`; included worktree policies are checked
+before the main checkout changes. JSON and NDJSON retain exact recovery
+locations after restoration or conflict, and human output shows recovery
+identity. Read-only worktree planning never fetches.
+
+#### Configure partial clones and typed backend options
+
+`git`, `hg`, and `svn` blocks match their libvcs options classes. Loading
+rejects unknown fields, invalid values, and blocks for a different VCS before
+sync starts. Errors identify the file, workspace, repository, and field.
+Overridden legacy values are validated too. Integer fields accept integral
+numbers such as `2.0`; metadata accepts JSON-compatible values.
+
+```yaml
+~/code/:
+  git:
+    repo: git+https://github.com/git/git.git
+    git:
+      filter: blob:none
+```
+
+Partial clones retain commit history and fetch file contents on demand.
+Existing checkouts keep their depth and filter. Legacy option locations load
+with a migration warning. `pin`, `pin_reason`, and `allow_overwrite` also work
+at the repository entry level.
+
+#### Complete and validate configuration in editors
+
+The published JSON Schema describes backend options, shared checkout targets,
+remote URLs, and entry policy. Add the `yaml-language-server` schema directive
+shown in {ref}`configuration` for editor completion and validation. The CLI
+keeps its runtime validation independent of schema-generation dependencies.
+Numeric settings use exact JSON integers through `2**53 - 1`; native filter
+strings retain Git's full uint64 range. URL inference is stable across Python
+versions. Unicode-leading SCP paths require an explicit VCS. See {ref}`migration`.
+
+#### Migrate checkout targets and backend options
+
+{ref}`cli-migrate` separates legacy settings into `working_copy`, the
+matching backend block, and entry-level pin policy in one pass. Unknown
+legacy options stop migration before it writes the configuration file.
+`add` and `discover` write the same layout. `import` and `fmt` migrate entries
+they rewrite and preserve entries pinned for that command.
+See {ref}`migration` for an upgrade example.
+
+#### Apply main checkout policy and retain recovery details
+
+Sync forwards the configured selector kind, remote, and drift/dirty policy
+to libvcs. Git preservation retains a recovery token after restoration or
+conflict. Human output shows retained material; JSON and NDJSON preserve its
+exact identity and operation outcomes. Configured discard requires `--yes`
+before repository access. See {ref}`cli-sync` and {ref}`migration`.
+
+#### Report resolved checkout targets in status
+
+Status reports the native position, resolved target, configured policy, and
+whether their revisions differ. Aliases at one revision match; unavailable
+metadata remains unknown with an error. Status never fetches, including Git's
+implicit acquisition of missing partial-clone objects. Backend mismatches fail
+inspection instead of reporting a different VCS as healthy. See {ref}`cli-status`.
+
+#### Validate shared checkout targets
+
+`working_copy` and `worktrees` accept the same `branch`, `tag`, `commit`, or
+`rev` selector, fetch remote, and `sync` policy. Loading rejects multiple
+selectors, unknown keys, and invalid drift or dirty policies, naming the
+configuration file, workspace root, repository entry, and field.
+
 ## vcspull v1.67.0 (2026-08-30)
 
 vcspull v1.67.0 raises the libvcs floor to 0.46.0, which rejects an argument a VCS binary would parse as an option in the positions an end-of-options `--` cannot guard. vcspull syncs through libvcs's high-level helpers, so the hardening applies with no configuration or CLI changes. The release also documents what every field holds in the API reference and moves the CI actions to their current majors.

@@ -7,9 +7,26 @@ import enum
 import logging
 import pathlib
 import subprocess
+import typing as t
+from collections.abc import Mapping
+
+from libvcs import (
+    SyncPolicy,
+    SyncResult,
+    SyncTarget,
+    WorkingCopyPosition,
+    exc as vcs_exc,
+)
+from libvcs.sync.git import GitSync
 
 from vcspull import exc
+from vcspull._internal.sync import (
+    checkout_settings,
+    create_sync_project,
+    require_discard_authorization,
+)
 from vcspull.types import WorktreeConfigDict
+from vcspull.validator import validate_working_copy
 
 log = logging.getLogger(__name__)
 
@@ -21,13 +38,13 @@ class WorktreeAction(enum.Enum):
     """Worktree doesn't exist, will be created."""
 
     UPDATE = "update"
-    """Branch worktree exists, will pull latest."""
+    """Configured position or attachment requires an update."""
 
     UNCHANGED = "unchanged"
-    """Tag/commit worktree exists, already at target."""
+    """Checkout is kept by policy or already matches its target."""
 
     BLOCKED = "blocked"
-    """Worktree has uncommitted changes (safety)."""
+    """Dirty policy prevents updating this checkout."""
 
     ERROR = "error"
     """Operation failed (ref not found, permission, etc.)."""
@@ -72,14 +89,32 @@ class WorktreePlanEntry:
     error: str | None = None
     """Error message if action is ERROR."""
 
-    exists: bool = False
+    exists: bool | None = False
     """Whether the worktree currently exists."""
 
-    is_dirty: bool = False
+    is_dirty: bool | None = False
     """Whether the worktree has uncommitted changes."""
 
     current_ref: str | None = None
     """Current HEAD reference if worktree exists."""
+
+    position: WorkingCopyPosition | None = None
+    """Observed native position before synchronization."""
+
+    target_position: WorkingCopyPosition | None = None
+    """Configured target resolved from available native metadata."""
+
+    drifted: bool | None = None
+    """Whether the observed and configured OIDs differ; None if unresolved."""
+
+    result: SyncResult | None = None
+    """Complete native outcome, including retained recovery identity."""
+
+    status: t.Literal["timed_out", "interrupted"] | None = None
+    """Forced termination leaves the native operation outcome uncertain."""
+
+    retained_recoveries: tuple[SyncResult, ...] = ()
+    """Records discovered after the mutation worker stopped."""
 
     checks: list[WorktreeCheck] = dataclasses.field(default_factory=list)
     """Ordered audit trail of checks performed during planning."""
@@ -108,6 +143,170 @@ class WorktreeSyncResult:
     """Number of worktrees that encountered errors."""
 
 
+class WorktreeInterrupted(KeyboardInterrupt):
+    """Carry completed and interrupted entries to the CLI before exiting."""
+
+    def __init__(self, result: WorktreeSyncResult) -> None:
+        self.result = result
+        super().__init__()
+
+
+def worktree_entry_data(entry: WorktreePlanEntry) -> dict[str, t.Any]:
+    """Serialize operation metadata without native exception objects."""
+    return {
+        "worktree_path": str(entry.worktree_path),
+        "ref_type": entry.ref_type,
+        "ref_value": entry.ref_value,
+        "action": entry.action.value,
+        "detail": entry.detail,
+        "error": entry.error,
+        "exists": entry.exists,
+        "is_dirty": entry.is_dirty,
+        "current_ref": entry.current_ref,
+        "position": dataclasses.asdict(entry.position) if entry.position else None,
+        "target_position": dataclasses.asdict(entry.target_position)
+        if entry.target_position
+        else None,
+        "drifted": entry.drifted,
+        "checks": [
+            {"name": check.name, "passed": check.passed, "detail": check.detail}
+            for check in entry.checks
+        ],
+    }
+
+
+def _worktree_entry_from_data(
+    data: Mapping[str, t.Any], path: pathlib.Path, ref_type: str, ref_value: str
+) -> WorktreePlanEntry:
+    """Validate the worker's metadata before it can count as a completed action."""
+    fields = dict(data)
+    expected = {
+        "worktree_path",
+        "ref_type",
+        "ref_value",
+        "action",
+        "detail",
+        "error",
+        "exists",
+        "is_dirty",
+        "current_ref",
+        "position",
+        "target_position",
+        "drifted",
+        "checks",
+    }
+    if fields.keys() != expected:
+        message = "unexpected worktree metadata fields"
+        raise ValueError(message)
+    for key in ("worktree_path", "ref_type", "ref_value"):
+        if not isinstance(fields[key], str):
+            raise TypeError(key)
+    if pathlib.Path(fields["worktree_path"]) != path:
+        message = "worker returned a different worktree path"
+        raise ValueError(message)
+    if (fields["ref_type"], fields["ref_value"]) != (ref_type, ref_value):
+        message = "worker returned a different worktree selector"
+        raise ValueError(message)
+    for key in ("detail", "error", "current_ref"):
+        if fields[key] is not None and not isinstance(fields[key], str):
+            raise TypeError(key)
+    for key in ("exists", "is_dirty", "drifted"):
+        if fields[key] is not None and type(fields[key]) is not bool:
+            raise TypeError(key)
+    fields["worktree_path"] = path
+    fields["action"] = WorktreeAction(fields["action"])
+    for name in ("position", "target_position"):
+        position = fields[name]
+        if position is not None:
+            for key in ("revision", "ref_name", "ref_kind"):
+                if not isinstance(position[key], str):
+                    message = f"{name}.{key}"
+                    raise TypeError(message)
+            for key in ("follows", "mixed", "switched"):
+                if type(position[key]) is not bool:
+                    message = f"{name}.{key}"
+                    raise TypeError(message)
+            if position["ref_kind"] not in {"branch", "tag", "commit"}:
+                message = "invalid Git position kind"
+                raise ValueError(message)
+            fields[name] = WorkingCopyPosition(**position)
+    if not isinstance(fields["checks"], list):
+        message = "checks must be a list"
+        raise TypeError(message)
+    for check in fields["checks"]:
+        if (
+            not isinstance(check, dict)
+            or check.keys() != {"name", "passed", "detail"}
+            or not isinstance(check["name"], str)
+            or type(check["passed"]) is not bool
+            or not isinstance(check["detail"], str)
+        ):
+            message = "invalid worktree check"
+            raise TypeError(message)
+    fields["checks"] = [WorktreeCheck(**check) for check in fields["checks"]]
+    return WorktreePlanEntry(**fields)
+
+
+def _sync_worktree_process(
+    repo_path: pathlib.Path,
+    wt_config: WorktreeConfigDict,
+    workspace_root: pathlib.Path,
+    *,
+    allow_discard: bool,
+    repo_config: Mapping[str, t.Any] | None,
+    timeout: float,
+) -> WorktreePlanEntry:
+    """Stop one owned worktree process before reporting results or recovery."""
+    from vcspull._internal.sync_process import SyncInterrupted, run_sync_process
+
+    path = _resolve_worktree_path(wt_config, workspace_root)
+    repo = {**(repo_config or {}), "path": path, "vcs": "git"}
+    repo.setdefault("url", str(repo_path))
+    interrupted = False
+    try:
+        outcome = run_sync_process(
+            repo,
+            progress_callback=lambda *args: None,
+            timeout=timeout,
+            is_human=False,
+            yes=allow_discard,
+            worktree={
+                "repo_path": repo_path,
+                "workspace_root": workspace_root,
+                "config": wt_config,
+                "repo_config": dict(repo_config) if repo_config is not None else None,
+            },
+        )
+    except SyncInterrupted as error:
+        interrupted = True
+        outcome = error.outcome
+    ref_type, ref_value = _get_ref_type_and_value(wt_config) or ("unknown", "unknown")
+    entry = WorktreePlanEntry(
+        path, ref_type, ref_value, WorktreeAction.ERROR, exists=None, is_dirty=None
+    )
+    if outcome.worktree is not None:
+        try:
+            entry = _worktree_entry_from_data(
+                outcome.worktree, path, ref_type, ref_value
+            )
+        except (TypeError, ValueError, KeyError) as error:
+            entry.error = f"invalid worktree result: {error}"
+    elif outcome.status == "synced":
+        entry.error = "worker did not report a complete worktree result"
+    entry.result = outcome.result
+    entry.retained_recoveries = outcome.retained_recoveries
+    if entry.error is not None and entry.result is not None and entry.result.ok:
+        entry.result.add_error("worker", entry.error)
+    if interrupted or outcome.status == "timed_out":
+        entry.status = "interrupted" if interrupted else "timed_out"
+        entry.action = WorktreeAction.ERROR
+        entry.error = "worktree interrupted" if interrupted else "worktree timed out"
+    elif outcome.status == "failed" and entry.action != WorktreeAction.BLOCKED:
+        entry.action = WorktreeAction.ERROR
+        entry.error = entry.error or str(outcome.error)
+    return entry
+
+
 def _get_ref_type_and_value(
     wt_config: WorktreeConfigDict,
 ) -> tuple[str, str] | None:
@@ -134,27 +333,20 @@ def _get_ref_type_and_value(
     >>> _get_ref_type_and_value({"dir": "../wt", "tag": ""}) is None
     True
     """
-    tag = wt_config.get("tag")
-    branch = wt_config.get("branch")
-    commit = wt_config.get("commit")
-
-    refs_specified = sum(
-        1 for ref in [tag, branch, commit] if ref is not None and ref != ""
-    )
-
-    if refs_specified == 0:
+    refs = [
+        (kind, value)
+        for kind, value in (
+            ("tag", wt_config.get("tag")),
+            ("branch", wt_config.get("branch")),
+            ("commit", wt_config.get("commit")),
+            ("rev", wt_config.get("rev")),
+        )
+        if value is not None and value != ""
+    ]
+    if len(refs) != 1:
         return None
-    if refs_specified > 1:
-        return None
-
-    if tag:
-        return ("tag", tag)
-    if branch:
-        return ("branch", branch)
-    if commit:
-        return ("commit", commit)
-
-    return None
+    kind, value = refs[0]
+    return kind, str(value)
 
 
 def validate_worktree_config(wt_config: WorktreeConfigDict) -> None:
@@ -177,44 +369,16 @@ def validate_worktree_config(wt_config: WorktreeConfigDict) -> None:
     >>> validate_worktree_config({"tag": "v1.0.0"})  # Missing dir
     Traceback (most recent call last):
         ...
-    vcspull.exc.WorktreeConfigError: Worktree config missing required 'dir' field
+    vcspull.exc.WorktreeConfigError: Worktree config: missing required 'dir' field
     >>> validate_worktree_config({"dir": "../proj"})  # No ref
     Traceback (most recent call last):
         ...
-    vcspull.exc.WorktreeConfigError: Worktree config must specify one of: ...
+    vcspull.exc.WorktreeConfigError: Worktree config: must specify one of: ...
     """
-    if "dir" not in wt_config or not wt_config["dir"]:
-        msg = "Worktree config missing required 'dir' field"
-        raise exc.WorktreeConfigError(msg)
-
-    if not isinstance(wt_config["dir"], str):
-        dir_type = type(wt_config["dir"]).__name__
-        msg = f"Worktree config 'dir' must be a string, got {dir_type}"
-        raise exc.WorktreeConfigError(msg)
-
-    for ref_name in ("tag", "branch", "commit"):
-        ref_val = wt_config.get(ref_name)
-        if ref_val is not None and not isinstance(ref_val, str):
-            ref_type = type(ref_val).__name__
-            msg = f"Worktree config '{ref_name}' must be a string, got {ref_type}"
-            raise exc.WorktreeConfigError(msg)
-
-    ref_info = _get_ref_type_and_value(wt_config)
-    if ref_info is None:
-        tag = wt_config.get("tag")
-        branch = wt_config.get("branch")
-        commit = wt_config.get("commit")
-        non_none_refs = sum(1 for ref in [tag, branch, commit] if ref is not None)
-        empty_refs = sum(1 for ref in [tag, branch, commit] if ref == "")
-
-        if non_none_refs == 0:
-            msg = "Worktree config must specify one of: tag, branch, or commit"
-            raise exc.WorktreeConfigError(msg)
-        if empty_refs > 0:
-            msg = "Worktree config has empty ref value (tag, branch, or commit)"
-            raise exc.WorktreeConfigError(msg)
-        msg = "Worktree config cannot specify multiple refs (tag, branch, commit)"
-        raise exc.WorktreeConfigError(msg)
+    try:
+        validate_working_copy(wt_config, location="Worktree config", worktree=True)
+    except exc.VCSPullException as error:
+        raise exc.WorktreeConfigError(str(error)) from error
 
 
 def _is_worktree_dirty(worktree_path: pathlib.Path) -> bool:
@@ -456,163 +620,160 @@ def _resolve_worktree_path(
     return (workspace_root / dir_path).resolve()
 
 
+def _worktree_project(
+    repo_path: pathlib.Path,
+    worktree_path: pathlib.Path,
+    repo_config: Mapping[str, t.Any] | None,
+) -> GitSync:
+    values = dict(repo_config or {"url": str(repo_path)})
+    values["path"] = worktree_path
+    project = create_sync_project(values, vcs="git")
+    assert isinstance(project, GitSync)
+    return project
+
+
+def require_worktree_authorization(
+    configs: list[WorktreeConfigDict], *, allow_discard: bool
+) -> None:
+    """Reject unauthorized discard before any checkout in an operation mutates."""
+    for config in configs:
+        _, policy = checkout_settings(config, worktree=True)
+        require_discard_authorization(policy, allow_discard=allow_discard)
+
+
 def plan_worktree_sync(
     repo_path: pathlib.Path,
     worktrees_config: list[WorktreeConfigDict],
     workspace_root: pathlib.Path,
+    *,
+    repo_config: Mapping[str, t.Any] | None = None,
 ) -> list[WorktreePlanEntry]:
-    """Plan worktree sync operations without executing them.
+    """Inspect local worktree targets and policy without fetching or changing refs.
 
-    Parameters
-    ----------
-    repo_path : pathlib.Path
-        Path to the main repository.
-    worktrees_config : list[WorktreeConfigDict]
-        List of worktree configurations.
-    workspace_root : pathlib.Path
-        The workspace root directory for resolving relative paths.
+    Unavailable target metadata produces an error plan. Execution can resolve it
+    after an authorized fetch; planning never performs that fetch implicitly.
 
-    Returns
-    -------
-    list[WorktreePlanEntry]
-        List of planned operations.
-
-    Examples
-    --------
-    >>> import pathlib
     >>> entries = plan_worktree_sync(
     ...     pathlib.Path("/nonexistent/repo"),
     ...     [{"dir": "../wt", "tag": "v1.0.0"}],
     ...     pathlib.Path("/nonexistent"),
     ... )
-    >>> len(entries)
-    1
     >>> entries[0].action == WorktreeAction.ERROR
     True
     """
-    entries: list[WorktreePlanEntry] = []
-
-    for wt_config in worktrees_config:
-        try:
-            validate_worktree_config(wt_config)
-        except exc.WorktreeConfigError as e:
-            entries.append(
-                WorktreePlanEntry(
-                    worktree_path=pathlib.Path(wt_config.get("dir", "unknown")),
-                    ref_type="unknown",
-                    ref_value="unknown",
-                    action=WorktreeAction.ERROR,
-                    error=str(e),
-                    checks=[
-                        WorktreeCheck(
-                            name="validate_config",
-                            passed=False,
-                            detail=str(e),
-                            exception=e,
-                        ),
-                    ],
-                )
-            )
-            continue
-
-        entry_checks: list[WorktreeCheck] = [
-            WorktreeCheck(name="validate_config", passed=True, detail="config valid"),
-        ]
-
-        ref_info = _get_ref_type_and_value(wt_config)
-        if ref_info is None:
-            log.warning(
-                "Worktree config passed validation but has no ref: %s",
-                wt_config,
-            )
-            continue
-        ref_type, ref_value = ref_info
-
-        worktree_path = _resolve_worktree_path(wt_config, workspace_root)
-        exists = _worktree_exists(repo_path, worktree_path)
-
+    entries = []
+    for config in worktrees_config:
+        ref_type, ref_value = _get_ref_type_and_value(config) or ("unknown", "unknown")
         entry = WorktreePlanEntry(
-            worktree_path=worktree_path,
+            worktree_path=pathlib.Path(config.get("dir", "unknown")),
             ref_type=ref_type,
             ref_value=ref_value,
-            action=WorktreeAction.CREATE,
-            exists=exists,
+            action=WorktreeAction.ERROR,
         )
-
-        # Check if ref exists
-        if not _ref_exists(repo_path, ref_value, ref_type):
-            ref_exc = exc.WorktreeRefNotFoundError(ref_value, ref_type, str(repo_path))
-            entry_checks.append(
-                WorktreeCheck(
-                    name="ref_exists",
-                    passed=False,
-                    detail=str(ref_exc),
-                    exception=ref_exc,
-                )
-            )
-            entry.action = WorktreeAction.ERROR
-            entry.error = str(ref_exc)
-            entry.checks = entry_checks
-            entries.append(entry)
-            continue
-
-        entry_checks.append(
-            WorktreeCheck(
-                name="ref_exists",
-                passed=True,
-                detail=f"{ref_type.capitalize()} '{ref_value}' found",
-            )
-        )
-
-        entry_checks.append(
-            WorktreeCheck(
-                name="worktree_exists",
-                passed=True,
-                detail=f"worktree {'exists' if exists else 'not found'}"
-                f" at {worktree_path}",
-            )
-        )
-
-        if not exists:
-            # Worktree doesn't exist, create it
-            entry.action = WorktreeAction.CREATE
-            entry.detail = f"will create {ref_type} worktree"
-        else:
-            # Worktree exists
-            entry.current_ref = _get_worktree_head(worktree_path)
-            entry.is_dirty = _is_worktree_dirty(worktree_path)
-
-            if entry.is_dirty:
-                dirty_exc = exc.WorktreeDirtyError(str(worktree_path))
-                entry_checks.append(
-                    WorktreeCheck(
-                        name="is_dirty",
-                        passed=False,
-                        detail=str(dirty_exc),
-                        exception=dirty_exc,
-                    )
-                )
-                entry.action = WorktreeAction.BLOCKED
-                entry.detail = str(dirty_exc)
-            else:
-                entry_checks.append(
-                    WorktreeCheck(
-                        name="is_dirty",
-                        passed=True,
-                        detail="worktree is clean",
-                    )
-                )
-                if ref_type == "branch":
-                    entry.action = WorktreeAction.UPDATE
-                    entry.detail = "branch worktree may be updated"
-                else:
-                    # Tags and commits are immutable
-                    entry.action = WorktreeAction.UNCHANGED
-                    entry.detail = f"{ref_type} worktree already exists"
-
-        entry.checks = entry_checks
         entries.append(entry)
-
+        try:
+            validate_worktree_config(config)
+            target, policy = checkout_settings(config, worktree=True)
+            entry.checks.append(WorktreeCheck("validate_config", True, "config valid"))
+            entry.worktree_path = _resolve_worktree_path(config, workspace_root)
+            entry.exists = _worktree_exists(repo_path, entry.worktree_path)
+            if entry.worktree_path.exists() and not entry.exists:
+                message = "destination is not a registered worktree"
+                raise exc.WorktreeConfigError(message)
+            project = _worktree_project(
+                repo_path,
+                entry.worktree_path if entry.exists else repo_path,
+                repo_config,
+            )
+            try:
+                entry.target_position = project.resolve_target(target)
+            except (vcs_exc.LibVCSException, OSError, ValueError) as error:
+                ref_error = exc.WorktreeRefNotFoundError(
+                    ref_value, ref_type, str(repo_path)
+                )
+                entry.checks.append(
+                    WorktreeCheck("ref_exists", False, str(error), ref_error)
+                )
+                raise ref_error from error
+            entry.checks.append(
+                WorktreeCheck("ref_exists", True, "target resolved locally")
+            )
+            entry.checks.append(
+                WorktreeCheck(
+                    "worktree_exists",
+                    True,
+                    f"worktree {'exists' if entry.exists else 'not found'}"
+                    f" at {entry.worktree_path}",
+                )
+            )
+            if not entry.exists:
+                entry.action = WorktreeAction.CREATE
+                entry.detail = "will create configured worktree"
+                continue
+            entry.position = project.get_position()
+            entry.current_ref = entry.position.revision
+            entry.is_dirty = project.is_dirty()
+            entry.drifted = entry.position.revision != entry.target_position.revision
+            dirty_error = (
+                exc.WorktreeDirtyError(str(entry.worktree_path))
+                if entry.is_dirty
+                else None
+            )
+            blocked = (
+                entry.is_dirty and policy.dirty == "abort" and policy.drift == "follow"
+            )
+            entry.checks.append(
+                WorktreeCheck(
+                    "is_dirty",
+                    not blocked,
+                    str(dirty_error) if entry.is_dirty else "worktree is clean",
+                    dirty_error if blocked else None,
+                )
+            )
+            if policy.drift != "follow":
+                entry.action = WorktreeAction.UNCHANGED
+                entry.detail = "checkout kept by drift policy"
+            elif blocked:
+                entry.action = WorktreeAction.BLOCKED
+                entry.detail = str(dirty_error)
+            else:
+                attach = entry.target_position.follows and not config.get(
+                    "detach", False
+                )
+                attachment_changed = (
+                    attach
+                    and (
+                        not entry.position.follows
+                        or entry.position.ref_name != entry.target_position.ref_name
+                    )
+                ) or (not attach and entry.position.follows)
+                entry.action = (
+                    WorktreeAction.UPDATE
+                    if entry.drifted or attachment_changed
+                    else WorktreeAction.UNCHANGED
+                )
+                entry.detail = (
+                    "configured target differs"
+                    if entry.action == WorktreeAction.UPDATE
+                    else "already at configured target"
+                )
+        except (
+            exc.VCSPullException,
+            vcs_exc.LibVCSException,
+            OSError,
+            ValueError,
+        ) as error:
+            entry.action = WorktreeAction.ERROR
+            entry.error = str(error)
+            if not entry.checks:
+                entry.checks.append(
+                    WorktreeCheck(
+                        "validate_config",
+                        False,
+                        str(error),
+                        t.cast(exc.WorktreeError, error),
+                    )
+                )
     return entries
 
 
@@ -622,199 +783,117 @@ def sync_worktree(
     workspace_root: pathlib.Path,
     *,
     dry_run: bool = False,
+    allow_discard: bool = False,
+    repo_config: Mapping[str, t.Any] | None = None,
 ) -> WorktreePlanEntry:
-    """Synchronize a single worktree.
+    """Synchronize a linked checkout and retain its complete native outcome.
 
-    Parameters
-    ----------
-    repo_path : pathlib.Path
-        Path to the main repository.
-    wt_config : WorktreeConfigDict
-        Worktree configuration.
-    workspace_root : pathlib.Path
-        The workspace root directory.
-    dry_run : bool
-        If True, only plan without executing.
+    Discard requires explicit caller authorization, including clean and missing
+    worktrees. Missing paths use native worktree-add; they are never cloned.
 
-    Returns
-    -------
-    WorktreePlanEntry
-        Result of the sync operation.
-
-    Examples
-    --------
-    >>> import pathlib
     >>> entry = sync_worktree(
     ...     pathlib.Path("/nonexistent/repo"),
     ...     {"dir": "../wt", "tag": "v1.0.0"},
-    ...     pathlib.Path("/nonexistent"),
-    ...     dry_run=True,
+    ...     pathlib.Path("/nonexistent"), dry_run=True,
     ... )
     >>> entry.action == WorktreeAction.ERROR
     True
     """
-    # Plan the operation
-    entries = plan_worktree_sync(repo_path, [wt_config], workspace_root)
+    if not dry_run:
+        require_worktree_authorization([wt_config], allow_discard=allow_discard)
+    entries = plan_worktree_sync(
+        repo_path, [wt_config], workspace_root, repo_config=repo_config
+    )
     if not entries:
-        log.warning("plan_worktree_sync returned empty list for %s", wt_config)
         return WorktreePlanEntry(
-            worktree_path=_resolve_worktree_path(wt_config, workspace_root),
-            ref_type="unknown",
-            ref_value="unknown",
-            action=WorktreeAction.ERROR,
+            _resolve_worktree_path(wt_config, workspace_root),
+            "unknown",
+            "unknown",
+            WorktreeAction.ERROR,
             error="internal: planning produced no entries",
         )
     entry = entries[0]
-
-    if dry_run or entry.action in (WorktreeAction.ERROR, WorktreeAction.BLOCKED):
+    if dry_run:
         return entry
-
-    ref_info = _get_ref_type_and_value(wt_config)
-    if ref_info is None:
-        return entry
-    ref_type, ref_value = ref_info
-
-    worktree_path = entry.worktree_path
-
     try:
-        if entry.action == WorktreeAction.CREATE:
-            _create_worktree(
-                repo_path,
-                worktree_path,
-                ref_type,
-                ref_value,
-                wt_config,
+        validate_worktree_config(wt_config)
+        target, policy = checkout_settings(wt_config, worktree=True)
+        assert target is not None
+        path = _resolve_worktree_path(wt_config, workspace_root)
+        exists = _worktree_exists(repo_path, path)
+        if path.exists() and not exists:
+            message = "destination is not a registered worktree"
+            raise exc.WorktreeConfigError(message)
+        project = _worktree_project(
+            repo_path, path if exists else repo_path, repo_config
+        )
+        if not exists:
+            entry.result = project.create_worktree(
+                path,
+                target=target,
+                detach=wt_config.get("detach", False),
+                lock=wt_config.get("lock", False),
+                lock_reason=wt_config.get("lock_reason"),
+                set_remotes=repo_config is not None,
             )
-            entry.detail = f"created {ref_type} worktree"
-
-        elif entry.action == WorktreeAction.UPDATE:
-            _update_worktree(worktree_path, ref_value)
-            entry.detail = "branch worktree updated"
-
-        elif entry.action == WorktreeAction.UNCHANGED:
-            entry.detail = f"{ref_type} worktree already exists"
-
-    except subprocess.CalledProcessError as e:
+        else:
+            entry.result = project.update_repo(
+                set_remotes=repo_config is not None,
+                target=target,
+                policy=policy,
+                detach=wt_config.get("detach", False),
+            )
+        result = entry.result
+        if not result.ok:
+            entry.action = (
+                WorktreeAction.BLOCKED
+                if any(error.step == "dirty" for error in result.errors)
+                else WorktreeAction.ERROR
+            )
+            entry.error = "; ".join(
+                f"{error.step}: {error.message}" for error in result.errors
+            )
+            entry.detail = entry.error
+        else:
+            entry.target_position = (
+                project.resolve_target(target)
+                if exists
+                else _worktree_project(repo_path, path, repo_config).get_position()
+            )
+            if entry.position is not None:
+                entry.drifted = (
+                    entry.position.revision != entry.target_position.revision
+                )
+            entry.error = None
+            entry.action = (
+                WorktreeAction.CREATE
+                if not exists
+                else WorktreeAction.UPDATE
+                if result.update_state == "completed"
+                else WorktreeAction.UNCHANGED
+            )
+            entry.detail = {
+                WorktreeAction.CREATE: "created configured worktree",
+                WorktreeAction.UPDATE: "worktree updated",
+                WorktreeAction.UNCHANGED: "checkout kept or target already matched",
+            }[entry.action]
+    except (
+        exc.VCSPullException,
+        vcs_exc.LibVCSException,
+        OSError,
+        ValueError,
+        subprocess.CalledProcessError,
+    ) as error:
         entry.action = WorktreeAction.ERROR
-        entry.error = e.stderr.strip() if e.stderr else str(e)
-    except OSError as e:
-        entry.action = WorktreeAction.ERROR
-        entry.error = str(e)
-
+        entry.error = str(error)
+        if entry.result is None:
+            entry.result = SyncResult()
+        entry.result.add_error("worktree", str(error), error)
     return entry
 
 
-def _create_worktree(
-    repo_path: pathlib.Path,
-    worktree_path: pathlib.Path,
-    ref_type: str,
-    ref_value: str,
-    wt_config: WorktreeConfigDict,
-) -> None:
-    """Create a new worktree.
-
-    Parameters
-    ----------
-    repo_path : pathlib.Path
-        Path to the main repository.
-    worktree_path : pathlib.Path
-        Path for the new worktree.
-    ref_type : str
-        Type of reference: 'tag', 'branch', or 'commit'.
-    ref_value : str
-        The reference value.
-    wt_config : WorktreeConfigDict
-        Full worktree configuration.
-
-    Raises
-    ------
-    subprocess.CalledProcessError
-        If the git command fails (e.g., ref not found).
-    FileNotFoundError
-        If the repository path does not exist.
-
-    Examples
-    --------
-    This function requires a valid git repository. When called with an invalid
-    path, it raises FileNotFoundError:
-
-    >>> import pathlib
-    >>> _create_worktree(
-    ...     pathlib.Path("/nonexistent"),
-    ...     pathlib.Path("/tmp/wt"),
-    ...     "tag",
-    ...     "v1.0.0",
-    ...     {"dir": "../wt", "tag": "v1.0.0"},
-    ... )  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    FileNotFoundError: ...
-    """
-    cmd = ["git", "worktree", "add"]
-
-    # Determine if we should detach
-    detach = wt_config.get("detach")
-    if detach is None:
-        # Default: detach for tags and commits, not for branches
-        detach = ref_type in ("tag", "commit")
-
-    if detach:
-        cmd.append("--detach")
-
-    # Handle locking
-    # git worktree add --lock does NOT support --reason, so when lock_reason
-    # is specified, we skip --lock here and use "git worktree lock --reason" after
-    lock_reason = wt_config.get("lock_reason")
-    should_lock = wt_config.get("lock")
-    if should_lock and not lock_reason:
-        # Lock without reason - can use --lock flag directly
-        cmd.append("--lock")
-
-    cmd.append(str(worktree_path))
-    cmd.append(ref_value)
-
-    subprocess.run(
-        cmd,
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-
-    # Apply lock with reason via separate command
-    # This handles both cases:
-    # 1. lock=True with lock_reason - lock with reason
-    # 2. lock_reason without explicit lock=True - also locks with reason
-    if lock_reason:
-        lock_cmd = [
-            "git",
-            "worktree",
-            "lock",
-            "--reason",
-            lock_reason,
-            str(worktree_path),
-        ]
-        try:
-            subprocess.run(
-                lock_cmd,
-                cwd=repo_path,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-        except subprocess.CalledProcessError as e:
-            log.warning(
-                "Worktree created at %s but lock failed: %s",
-                worktree_path,
-                e.stderr.strip() if e.stderr else str(e),
-            )
-
-
 def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
-    """Update a branch worktree by pulling latest changes.
-
-    Verifies the worktree is on the expected branch before pulling.
-    If the worktree is on a different branch, checks out the expected branch first.
+    """Follow a branch with native fast-forward and dirty-abort safeguards.
 
     Parameters
     ----------
@@ -825,8 +904,8 @@ def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
 
     Raises
     ------
-    subprocess.CalledProcessError
-        If the git command fails.
+    WorktreeError
+        If native synchronization fails.
     FileNotFoundError
         If the worktree path does not exist.
 
@@ -841,56 +920,12 @@ def _update_worktree(worktree_path: pathlib.Path, branch: str) -> None:
         ...
     FileNotFoundError: ...
     """
-    # Get current branch name
-    result = subprocess.run(
-        ["git", "symbolic-ref", "--short", "HEAD"],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    current_branch = result.stdout.strip() if result.returncode == 0 else None
-
-    # Checkout expected branch if detached or on a different branch
-    if current_branch is None or current_branch != branch:
-        log.debug(
-            "Worktree %s is on branch %s, checking out %s",
-            worktree_path,
-            current_branch,
-            branch,
-        )
-        subprocess.run(
-            ["git", "checkout", branch],
-            cwd=worktree_path,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-
-    # Check if the branch has an upstream tracking ref before pulling
-    upstream_check = subprocess.run(
-        ["git", "config", f"branch.{branch}.remote"],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if upstream_check.returncode != 0 or not upstream_check.stdout.strip():
-        log.debug(
-            "Worktree %s branch %s has no upstream tracking, skipping pull",
-            worktree_path,
-            branch,
-        )
-        return
-
-    subprocess.run(
-        ["git", "pull", "--ff-only"],
-        cwd=worktree_path,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    if not worktree_path.exists():
+        raise FileNotFoundError(str(worktree_path))
+    project = _worktree_project(worktree_path, worktree_path, None)
+    result = project.update_repo(target=SyncTarget(branch=branch), policy=SyncPolicy())
+    if not result.ok:
+        raise exc.WorktreeError("; ".join(error.message for error in result.errors))
 
 
 def sync_all_worktrees(
@@ -899,6 +934,9 @@ def sync_all_worktrees(
     workspace_root: pathlib.Path,
     *,
     dry_run: bool = False,
+    allow_discard: bool = False,
+    repo_config: Mapping[str, t.Any] | None = None,
+    timeout: float | None = None,
 ) -> WorktreeSyncResult:
     """Synchronize all worktrees for a repository.
 
@@ -932,15 +970,29 @@ def sync_all_worktrees(
     >>> len(result.entries)
     1
     """
+    if not dry_run:
+        require_worktree_authorization(worktrees_config, allow_discard=allow_discard)
     result = WorktreeSyncResult()
 
     for wt_config in worktrees_config:
-        entry = sync_worktree(
-            repo_path,
-            wt_config,
-            workspace_root,
-            dry_run=dry_run,
-        )
+        if timeout is not None and not dry_run:
+            entry = _sync_worktree_process(
+                repo_path,
+                wt_config,
+                workspace_root,
+                allow_discard=allow_discard,
+                repo_config=repo_config,
+                timeout=timeout,
+            )
+        else:
+            entry = sync_worktree(
+                repo_path,
+                wt_config,
+                workspace_root,
+                dry_run=dry_run,
+                allow_discard=allow_discard,
+                repo_config=repo_config,
+            )
         result.entries.append(entry)
 
         if entry.action == WorktreeAction.CREATE:
@@ -953,6 +1005,10 @@ def sync_all_worktrees(
             result.blocked += 1
         elif entry.action == WorktreeAction.ERROR:
             result.errors += 1
+        if entry.status == "interrupted":
+            raise WorktreeInterrupted(result)
+        if entry.status == "timed_out":
+            break
 
     return result
 

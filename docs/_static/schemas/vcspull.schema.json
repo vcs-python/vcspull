@@ -1,0 +1,2681 @@
+{
+  "$defs": {
+    "GitOptionsDict": {
+      "description": "Git clone and transport options, matching ``libvcs.GitOptions``.",
+      "properties": {
+        "depth": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filter": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "const": "auto"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "auto"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/$defs/FilterDepth0"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth0"
+              }
+            }
+          ]
+        },
+        "tls_verify": {
+          "title": "Tls Verify",
+          "type": "boolean"
+        }
+      },
+      "title": "GitOptionsDict",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "HgOptionsDict": {
+      "description": "Mercurial clone and transport options, matching ``libvcs.HgOptions``.",
+      "properties": {
+        "ssh": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[^\\u0000]*(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "remote_cmd": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[^\\u0000]*(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pull": {
+          "title": "Pull",
+          "type": "boolean"
+        },
+        "stream": {
+          "title": "Stream",
+          "type": "boolean"
+        },
+        "tls_verify": {
+          "title": "Tls Verify",
+          "type": "boolean"
+        }
+      },
+      "title": "HgOptionsDict",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "RemoteURLsDict": {
+      "description": "Separate fetch and push addresses for a configured remote.",
+      "properties": {
+        "fetch_url": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000\\r\\n]+(?![\\s\\S])"
+        },
+        "push_url": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000\\r\\n]+(?![\\s\\S])"
+        }
+      },
+      "required": [
+        "fetch_url",
+        "push_url"
+      ],
+      "title": "RemoteURLsDict",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "RepoEntryDict": {
+      "description": "Serialized repository entry; either ``repo`` or ``url`` is required.\n\n``url`` takes precedence when both are present. Backend blocks match the\ninferred or declared VCS. Legacy keys remain available for migration.",
+      "properties": {
+        "repo": {
+          "type": "string",
+          "pattern": "^[^\\u0000]*(?![\\s\\S])",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^[^\\u0000]*(?![\\s\\S])",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "description": "Override the default checkout path computed from the workspace and name.",
+          "title": "Path",
+          "type": "string"
+        },
+        "workspace_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "vcs": {
+          "anyOf": [
+            {
+              "enum": [
+                "git",
+                "hg",
+                "svn"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Declare a backend when the repository URL is ambiguous.",
+          "title": "Vcs"
+        },
+        "working_copy": {
+          "$ref": "#/$defs/WorkingCopyConfigDict",
+          "description": "Target and drift/dirty policy for the main checkout."
+        },
+        "worktrees": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WorktreeConfigDict"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Additional Git checkouts with their own target and sync policy.",
+          "title": "Worktrees"
+        },
+        "remotes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0000\\r\\n]+(?![\\s\\S])"
+              },
+              {
+                "$ref": "#/$defs/RemoteURLsDict"
+              }
+            ]
+          },
+          "description": "Named fetch and push URLs, separate from checkout targets.",
+          "title": "Remotes",
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000\\r\\n]+(?![\\s\\S])"
+          }
+        },
+        "shell_command_after": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Commands to run after synchronization; null disables the hook.",
+          "title": "Shell Command After"
+        },
+        "git": {
+          "$ref": "#/$defs/GitOptionsDict",
+          "description": "Git clone and transport options."
+        },
+        "hg": {
+          "$ref": "#/$defs/HgOptionsDict",
+          "description": "Mercurial clone and transport options."
+        },
+        "svn": {
+          "$ref": "#/$defs/SvnOptionsDict",
+          "description": "Subversion checkout and transport options."
+        },
+        "pin": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/RepoPinDict"
+            }
+          ],
+          "description": "Prevent every config rewrite, or only the named operations.",
+          "title": "Pin"
+        },
+        "pin_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Explanation displayed when a pinned entry is skipped.",
+          "title": "Pin Reason"
+        },
+        "allow_overwrite": {
+          "description": "Set false to protect the entry from import URL replacement.",
+          "title": "Allow Overwrite",
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          }
+        },
+        "rev": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shallow": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Legacy shallow clone request; migrate true to git.depth: 1.",
+          "title": "Shallow"
+        },
+        "depth": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "options": {
+          "$ref": "#/$defs/RepoOptionsDict",
+          "description": "Legacy mixed tuning and entry policy; run vcspull migrate."
+        },
+        "git_options": {
+          "$ref": "#/$defs/GitOptionsDict",
+          "description": "Legacy alias for git; canonical git values take precedence."
+        },
+        "hg_options": {
+          "$ref": "#/$defs/HgOptionsDict",
+          "description": "Legacy alias for hg; canonical hg values take precedence."
+        },
+        "svn_options": {
+          "$ref": "#/$defs/SvnOptionsDict",
+          "description": "Legacy alias for svn; canonical svn values take precedence."
+        }
+      },
+      "title": "RepoEntryDict",
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "repo"
+          ]
+        },
+        {
+          "required": [
+            "url"
+          ]
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "if": {
+              "required": [
+                "url"
+              ]
+            },
+            "then": {
+              "properties": {
+                "url": {
+                  "$ref": "#/$defs/UniqueGitURL"
+                }
+              }
+            },
+            "else": {
+              "required": [
+                "repo"
+              ],
+              "properties": {
+                "repo": {
+                  "$ref": "#/$defs/UniqueGitURL"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "vcs": {
+                "enum": [
+                  "git",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "git"
+                ]
+              },
+              {
+                "required": [
+                  "git_options"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "vcs"
+                ],
+                "properties": {
+                  "vcs": {
+                    "const": "git"
+                  }
+                }
+              },
+              {
+                "allOf": [
+                  {
+                    "properties": {
+                      "vcs": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": [
+                        "url"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "url": {
+                          "$ref": "#/$defs/UniqueGitURL"
+                        }
+                      }
+                    },
+                    "else": {
+                      "required": [
+                        "repo"
+                      ],
+                      "properties": {
+                        "repo": {
+                          "$ref": "#/$defs/UniqueGitURL"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "if": {
+              "required": [
+                "url"
+              ]
+            },
+            "then": {
+              "properties": {
+                "url": {
+                  "$ref": "#/$defs/UniqueHgURL"
+                }
+              }
+            },
+            "else": {
+              "required": [
+                "repo"
+              ],
+              "properties": {
+                "repo": {
+                  "$ref": "#/$defs/UniqueHgURL"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "vcs": {
+                "enum": [
+                  "hg",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "hg"
+                ]
+              },
+              {
+                "required": [
+                  "hg_options"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "vcs"
+                ],
+                "properties": {
+                  "vcs": {
+                    "const": "hg"
+                  }
+                }
+              },
+              {
+                "allOf": [
+                  {
+                    "properties": {
+                      "vcs": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": [
+                        "url"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "url": {
+                          "$ref": "#/$defs/UniqueHgURL"
+                        }
+                      }
+                    },
+                    "else": {
+                      "required": [
+                        "repo"
+                      ],
+                      "properties": {
+                        "repo": {
+                          "$ref": "#/$defs/UniqueHgURL"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "if": {
+              "required": [
+                "url"
+              ]
+            },
+            "then": {
+              "properties": {
+                "url": {
+                  "$ref": "#/$defs/UniqueSvnURL"
+                }
+              }
+            },
+            "else": {
+              "required": [
+                "repo"
+              ],
+              "properties": {
+                "repo": {
+                  "$ref": "#/$defs/UniqueSvnURL"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "vcs": {
+                "enum": [
+                  "svn",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "svn"
+                ]
+              },
+              {
+                "required": [
+                  "svn_options"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "vcs"
+                ],
+                "properties": {
+                  "vcs": {
+                    "const": "svn"
+                  }
+                }
+              },
+              {
+                "allOf": [
+                  {
+                    "properties": {
+                      "vcs": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": [
+                        "url"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "url": {
+                          "$ref": "#/$defs/UniqueSvnURL"
+                        }
+                      }
+                    },
+                    "else": {
+                      "required": [
+                        "repo"
+                      ],
+                      "properties": {
+                        "repo": {
+                          "$ref": "#/$defs/UniqueSvnURL"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "required": [
+                      "depth"
+                    ],
+                    "properties": {
+                      "depth": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  {
+                    "required": [
+                      "shallow"
+                    ],
+                    "properties": {
+                      "shallow": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "depth"
+                        ],
+                        "properties": {
+                          "depth": {
+                            "type": "integer"
+                          }
+                        }
+                      },
+                      {
+                        "required": [
+                          "shallow"
+                        ],
+                        "properties": {
+                          "shallow": {
+                            "const": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "vcs"
+                ],
+                "properties": {
+                  "vcs": {
+                    "const": "git"
+                  }
+                }
+              },
+              {
+                "allOf": [
+                  {
+                    "properties": {
+                      "vcs": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": [
+                        "url"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "url": {
+                          "$ref": "#/$defs/UniqueGitURL"
+                        }
+                      }
+                    },
+                    "else": {
+                      "required": [
+                        "repo"
+                      ],
+                      "properties": {
+                        "repo": {
+                          "$ref": "#/$defs/UniqueGitURL"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "working_copy"
+            ],
+            "properties": {
+              "working_copy": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "branch"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "tag"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "commit"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "rev"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "then": {
+            "if": {
+              "required": [
+                "options"
+              ],
+              "properties": {
+                "options": {
+                  "required": [
+                    "rev"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "options": {
+                  "properties": {
+                    "rev": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "else": {
+              "required": [
+                "rev"
+              ],
+              "properties": {
+                "rev": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RepoOptionsDict": {
+      "description": "Legacy tuning and entry policy accepted by the migration reader.\n\nUse ``working_copy``, the backend block, and entry-level pin fields in\nnew configurations. ``vcspull migrate`` rewrites these legacy keys.",
+      "properties": {
+        "rev": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shallow": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "If ``True``, clone with ``--depth 1`` on sync (``git.depth: 1``).\n\nSugar for ``depth: 1``; ``depth`` wins when both are set.",
+          "title": "Shallow"
+        },
+        "depth": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pin": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/RepoPinDict"
+            }
+          ],
+          "description": "``True`` pins all ops; a mapping pins specific ops only.\n\nUnspecified keys in the mapping default to ``False`` (not pinned).",
+          "title": "Pin"
+        },
+        "allow_overwrite": {
+          "description": "If ``False``, shorthand for ``pin: {import: true}``.\n\nPins only the import operation.",
+          "title": "Allow Overwrite",
+          "type": "boolean"
+        },
+        "pin_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Human-readable reason shown in log output when an op is skipped due to pin.",
+          "title": "Pin Reason"
+        }
+      },
+      "title": "RepoOptionsDict",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "RepoPinDict": {
+      "properties": {
+        "add": {
+          "title": "Add",
+          "type": "boolean"
+        },
+        "discover": {
+          "title": "Discover",
+          "type": "boolean"
+        },
+        "fmt": {
+          "title": "Fmt",
+          "type": "boolean"
+        },
+        "import": {
+          "title": "Import",
+          "type": "boolean"
+        },
+        "merge": {
+          "title": "Merge",
+          "type": "boolean"
+        }
+      },
+      "title": "RepoPinDict",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "SvnOptionsDict": {
+      "description": "Subversion checkout and transport options, matching ``libvcs.SvnOptions``.",
+      "properties": {
+        "username": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[^\\u0000]*(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[^\\u0000]*(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "depth": {
+          "anyOf": [
+            {
+              "enum": [
+                "empty",
+                "files",
+                "immediates",
+                "infinity"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Depth"
+        },
+        "trust_server_cert": {
+          "title": "Trust Server Cert",
+          "type": "boolean"
+        },
+        "ignore_externals": {
+          "title": "Ignore Externals",
+          "type": "boolean"
+        }
+      },
+      "title": "SvnOptionsDict",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "SyncPolicyDict": {
+      "description": "Policy for configured-target drift and uncommitted changes.",
+      "properties": {
+        "drift": {
+          "description": "Keep the current ref, follow the configured target, or report drift.",
+          "enum": [
+            "follow",
+            "keep",
+            "warn"
+          ],
+          "title": "Drift",
+          "type": "string"
+        },
+        "dirty": {
+          "description": "Abort on local changes, preserve them, or discard with confirmation.",
+          "enum": [
+            "abort",
+            "discard",
+            "preserve"
+          ],
+          "title": "Dirty",
+          "type": "string"
+        }
+      },
+      "title": "SyncPolicyDict",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "WorkingCopyConfigDict": {
+      "description": "Exactly one native target, with an optional fetch remote and sync policy.",
+      "properties": {
+        "branch": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+        },
+        "commit": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+        },
+        "rev": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          ]
+        },
+        "remote": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+        },
+        "sync": {
+          "$ref": "#/$defs/SyncPolicyDict",
+          "description": "Drift and dirty-state policy for this checkout."
+        }
+      },
+      "title": "WorkingCopyConfigDict",
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "branch"
+          ]
+        },
+        {
+          "required": [
+            "tag"
+          ]
+        },
+        {
+          "required": [
+            "commit"
+          ]
+        },
+        {
+          "required": [
+            "rev"
+          ]
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "branch"
+                ]
+              },
+              {
+                "required": [
+                  "tag"
+                ]
+              },
+              {
+                "required": [
+                  "commit"
+                ]
+              },
+              {
+                "required": [
+                  "rev"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "WorktreeConfigDict": {
+      "description": "Configuration for a single git worktree.",
+      "properties": {
+        "dir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+        },
+        "commit": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+        },
+        "rev": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          ]
+        },
+        "remote": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!-)[^\\u0000]+(?![\\s\\S])"
+        },
+        "sync": {
+          "$ref": "#/$defs/SyncPolicyDict"
+        },
+        "detach": {
+          "title": "Detach",
+          "type": "boolean"
+        },
+        "lock": {
+          "title": "Lock",
+          "type": "boolean"
+        },
+        "lock_reason": {
+          "title": "Lock Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dir"
+      ],
+      "title": "WorktreeConfigDict",
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "branch"
+          ]
+        },
+        {
+          "required": [
+            "tag"
+          ]
+        },
+        {
+          "required": [
+            "commit"
+          ]
+        },
+        {
+          "required": [
+            "rev"
+          ]
+        }
+      ]
+    },
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": [
+            "null",
+            "boolean",
+            "string",
+            "number"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          }
+        }
+      ]
+    },
+    "AtomicFilter": {
+      "type": "string",
+      "pattern": "^(?:blob:none|object:type=(?:blob|tree|commit|tag)|sparse:oid=[^\\u0000\\r\\n]+|(?:tree:|blob:limit=)[\\t\\u000B\\f ]*\\+?(?:(?:(?:0|[123456789]|[123456789][0123456789]{1}|[123456789][0123456789]{2}|[123456789][0123456789]{3}|[123456789][0123456789]{4}|[123456789][0123456789]{5}|[123456789][0123456789]{6}|[123456789][0123456789]{7}|[123456789][0123456789]{8}|[123456789][0123456789]{9}|[123456789][0123456789]{10}|[123456789][0123456789]{11}|[123456789][0123456789]{12}|[123456789][0123456789]{13}|[123456789][0123456789]{14}|[123456789][0123456789]{15}|[123456789][0123456789]{16}|[123456789][0123456789]{17}|[123456789][0123456789]{18}|1[01234567][0123456789]{18}|18[0123][0123456789]{17}|184[0123][0123456789]{16}|1844[012345][0123456789]{15}|18446[0123456][0123456789]{14}|184467[0123][0123456789]{13}|1844674[0123][0123456789]{12}|184467440[0123456][0123456789]{10}|1844674407[012][0123456789]{9}|18446744073[0123456][0123456789]{8}|1844674407370[012345678][0123456789]{6}|18446744073709[01234][0123456789]{5}|184467440737095[01234][0123456789]{4}|18446744073709550[0123456789]{3}|18446744073709551[012345][0123456789]{2}|1844674407370955160[0123456789]{1}|1844674407370955161[01234]|18446744073709551615)|0[xX]0*(?:0|[123456789aAbBcCdDeEfF]|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{1}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{2}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{3}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{4}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{5}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{6}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{7}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{8}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{9}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{10}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{11}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{12}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{13}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{14}|[123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{15}|[fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{14}|[fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{13}|[fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{12}|[fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{11}|[fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{10}|[fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{9}|[fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{8}|[fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{7}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{6}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{5}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{4}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{3}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{2}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{1}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE]|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF])|0+(?:0|[1234567]|[1234567][01234567]{1}|[1234567][01234567]{2}|[1234567][01234567]{3}|[1234567][01234567]{4}|[1234567][01234567]{5}|[1234567][01234567]{6}|[1234567][01234567]{7}|[1234567][01234567]{8}|[1234567][01234567]{9}|[1234567][01234567]{10}|[1234567][01234567]{11}|[1234567][01234567]{12}|[1234567][01234567]{13}|[1234567][01234567]{14}|[1234567][01234567]{15}|[1234567][01234567]{16}|[1234567][01234567]{17}|[1234567][01234567]{18}|[1234567][01234567]{19}|[1234567][01234567]{20}|1[0123456][01234567]{20}|17[0123456][01234567]{19}|177[0123456][01234567]{18}|1777[0123456][01234567]{17}|17777[0123456][01234567]{16}|177777[0123456][01234567]{15}|1777777[0123456][01234567]{14}|17777777[0123456][01234567]{13}|177777777[0123456][01234567]{12}|1777777777[0123456][01234567]{11}|17777777777[0123456][01234567]{10}|177777777777[0123456][01234567]{9}|1777777777777[0123456][01234567]{8}|17777777777777[0123456][01234567]{7}|177777777777777[0123456][01234567]{6}|1777777777777777[0123456][01234567]{5}|17777777777777777[0123456][01234567]{4}|177777777777777777[0123456][01234567]{3}|1777777777777777777[0123456][01234567]{2}|17777777777777777777[0123456][01234567]{1}|177777777777777777777[0123456]|1777777777777777777777))|(?:(?:0|[123456789]|[123456789][0123456789]{1}|[123456789][0123456789]{2}|[123456789][0123456789]{3}|[123456789][0123456789]{4}|[123456789][0123456789]{5}|[123456789][0123456789]{6}|[123456789][0123456789]{7}|[123456789][0123456789]{8}|[123456789][0123456789]{9}|[123456789][0123456789]{10}|[123456789][0123456789]{11}|[123456789][0123456789]{12}|[123456789][0123456789]{13}|[123456789][0123456789]{14}|[123456789][0123456789]{15}|1[01234567][0123456789]{15}|1800[0123456789]{13}|1801[0123][0123456789]{12}|18014[012][0123456789]{11}|180143[012345678][0123456789]{10}|1801439[01234567][0123456789]{9}|18014398[01234][0123456789]{8}|1801439850[012345678][0123456789]{6}|18014398509[0123][0123456789]{5}|180143985094[01234567][0123456789]{4}|18014398509480[0123456789]{3}|18014398509481[012345678][0123456789]{2}|180143985094819[01234567][0123456789]{1}|1801439850948198[012]|18014398509481983)|0[xX]0*(?:0|[123456789aAbBcCdDeEfF]|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{1}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{2}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{3}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{4}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{5}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{6}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{7}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{8}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{9}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{10}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{11}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{12}|[12][0123456789aAbBcCdDeEfF]{13}|3[0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{12}|3[fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{11}|3[fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{10}|3[fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{9}|3[fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{8}|3[fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{7}|3[fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{6}|3[fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{5}|3[fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{4}|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{3}|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{2}|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{1}|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE]|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF])|0+(?:0|[1234567]|[1234567][01234567]{1}|[1234567][01234567]{2}|[1234567][01234567]{3}|[1234567][01234567]{4}|[1234567][01234567]{5}|[1234567][01234567]{6}|[1234567][01234567]{7}|[1234567][01234567]{8}|[1234567][01234567]{9}|[1234567][01234567]{10}|[1234567][01234567]{11}|[1234567][01234567]{12}|[1234567][01234567]{13}|[1234567][01234567]{14}|[1234567][01234567]{15}|[1234567][01234567]{16}|[123456][01234567]{17}|7[0123456][01234567]{16}|77[0123456][01234567]{15}|777[0123456][01234567]{14}|7777[0123456][01234567]{13}|77777[0123456][01234567]{12}|777777[0123456][01234567]{11}|7777777[0123456][01234567]{10}|77777777[0123456][01234567]{9}|777777777[0123456][01234567]{8}|7777777777[0123456][01234567]{7}|77777777777[0123456][01234567]{6}|777777777777[0123456][01234567]{5}|7777777777777[0123456][01234567]{4}|77777777777777[0123456][01234567]{3}|777777777777777[0123456][01234567]{2}|7777777777777777[0123456][01234567]{1}|77777777777777777[0123456]|777777777777777777))[kK]|(?:(?:0|[123456789]|[123456789][0123456789]{1}|[123456789][0123456789]{2}|[123456789][0123456789]{3}|[123456789][0123456789]{4}|[123456789][0123456789]{5}|[123456789][0123456789]{6}|[123456789][0123456789]{7}|[123456789][0123456789]{8}|[123456789][0123456789]{9}|[123456789][0123456789]{10}|[123456789][0123456789]{11}|[123456789][0123456789]{12}|1[0123456][0123456789]{12}|17[01234][0123456789]{11}|175[012345678][0123456789]{10}|1759[01][0123456789]{9}|175920[0123456789]{8}|175921[01234567][0123456789]{7}|1759218[012345][0123456789]{6}|175921860[0123][0123456789]{4}|1759218604[0123][0123456789]{3}|17592186044[0123][0123456789]{2}|1759218604440[0123456789]{1}|1759218604441[01234]|17592186044415)|0[xX]0*(?:0|[123456789aAbBcCdDeEfF]|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{1}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{2}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{3}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{4}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{5}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{6}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{7}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{8}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{9}|[123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{10}|[fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{9}|[fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{8}|[fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{7}|[fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{6}|[fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{5}|[fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{4}|[fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{3}|[fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{2}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{1}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE]|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF])|0+(?:0|[1234567]|[1234567][01234567]{1}|[1234567][01234567]{2}|[1234567][01234567]{3}|[1234567][01234567]{4}|[1234567][01234567]{5}|[1234567][01234567]{6}|[1234567][01234567]{7}|[1234567][01234567]{8}|[1234567][01234567]{9}|[1234567][01234567]{10}|[1234567][01234567]{11}|[1234567][01234567]{12}|[1234567][01234567]{13}|[12][01234567]{14}|3[0123456][01234567]{13}|37[0123456][01234567]{12}|377[0123456][01234567]{11}|3777[0123456][01234567]{10}|37777[0123456][01234567]{9}|377777[0123456][01234567]{8}|3777777[0123456][01234567]{7}|37777777[0123456][01234567]{6}|377777777[0123456][01234567]{5}|3777777777[0123456][01234567]{4}|37777777777[0123456][01234567]{3}|377777777777[0123456][01234567]{2}|3777777777777[0123456][01234567]{1}|37777777777777[0123456]|377777777777777))[mM]|(?:(?:0|[123456789]|[123456789][0123456789]{1}|[123456789][0123456789]{2}|[123456789][0123456789]{3}|[123456789][0123456789]{4}|[123456789][0123456789]{5}|[123456789][0123456789]{6}|[123456789][0123456789]{7}|[123456789][0123456789]{8}|[123456789][0123456789]{9}|1[0123456][0123456789]{9}|170[0123456789]{8}|171[0123456][0123456789]{7}|1717[012345678][0123456789]{6}|17179[01234567][0123456789]{5}|171798[012345][0123456789]{4}|1717986[012345678][0123456789]{3}|171798690[0123456789]{2}|171798691[01234567][0123456789]{1}|1717986918[012]|17179869183)|0[xX]0*(?:0|[123456789aAbBcCdDeEfF]|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{1}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{2}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{3}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{4}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{5}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{6}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{7}|[12][0123456789aAbBcCdDeEfF]{8}|3[0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{7}|3[fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{6}|3[fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{5}|3[fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{4}|3[fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{3}|3[fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{2}|3[fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{1}|3[fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE]|3[fF][fF][fF][fF][fF][fF][fF][fF])|0+(?:0|[1234567]|[1234567][01234567]{1}|[1234567][01234567]{2}|[1234567][01234567]{3}|[1234567][01234567]{4}|[1234567][01234567]{5}|[1234567][01234567]{6}|[1234567][01234567]{7}|[1234567][01234567]{8}|[1234567][01234567]{9}|[1234567][01234567]{10}|1[0123456][01234567]{10}|17[0123456][01234567]{9}|177[0123456][01234567]{8}|1777[0123456][01234567]{7}|17777[0123456][01234567]{6}|177777[0123456][01234567]{5}|1777777[0123456][01234567]{4}|17777777[0123456][01234567]{3}|177777777[0123456][01234567]{2}|1777777777[0123456][01234567]{1}|17777777777[0123456]|177777777777))[gG]))(?![\\s\\S])"
+    },
+    "AtomicFilterMapping": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "blob:none"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "blob:limit"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[\\t\\u000B\\f ]*\\+?(?:(?:(?:0|[123456789]|[123456789][0123456789]{1}|[123456789][0123456789]{2}|[123456789][0123456789]{3}|[123456789][0123456789]{4}|[123456789][0123456789]{5}|[123456789][0123456789]{6}|[123456789][0123456789]{7}|[123456789][0123456789]{8}|[123456789][0123456789]{9}|[123456789][0123456789]{10}|[123456789][0123456789]{11}|[123456789][0123456789]{12}|[123456789][0123456789]{13}|[123456789][0123456789]{14}|[123456789][0123456789]{15}|[123456789][0123456789]{16}|[123456789][0123456789]{17}|[123456789][0123456789]{18}|1[01234567][0123456789]{18}|18[0123][0123456789]{17}|184[0123][0123456789]{16}|1844[012345][0123456789]{15}|18446[0123456][0123456789]{14}|184467[0123][0123456789]{13}|1844674[0123][0123456789]{12}|184467440[0123456][0123456789]{10}|1844674407[012][0123456789]{9}|18446744073[0123456][0123456789]{8}|1844674407370[012345678][0123456789]{6}|18446744073709[01234][0123456789]{5}|184467440737095[01234][0123456789]{4}|18446744073709550[0123456789]{3}|18446744073709551[012345][0123456789]{2}|1844674407370955160[0123456789]{1}|1844674407370955161[01234]|18446744073709551615)|0[xX]0*(?:0|[123456789aAbBcCdDeEfF]|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{1}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{2}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{3}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{4}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{5}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{6}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{7}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{8}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{9}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{10}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{11}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{12}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{13}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{14}|[123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{15}|[fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{14}|[fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{13}|[fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{12}|[fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{11}|[fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{10}|[fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{9}|[fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{8}|[fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{7}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{6}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{5}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{4}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{3}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{2}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{1}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE]|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF])|0+(?:0|[1234567]|[1234567][01234567]{1}|[1234567][01234567]{2}|[1234567][01234567]{3}|[1234567][01234567]{4}|[1234567][01234567]{5}|[1234567][01234567]{6}|[1234567][01234567]{7}|[1234567][01234567]{8}|[1234567][01234567]{9}|[1234567][01234567]{10}|[1234567][01234567]{11}|[1234567][01234567]{12}|[1234567][01234567]{13}|[1234567][01234567]{14}|[1234567][01234567]{15}|[1234567][01234567]{16}|[1234567][01234567]{17}|[1234567][01234567]{18}|[1234567][01234567]{19}|[1234567][01234567]{20}|1[0123456][01234567]{20}|17[0123456][01234567]{19}|177[0123456][01234567]{18}|1777[0123456][01234567]{17}|17777[0123456][01234567]{16}|177777[0123456][01234567]{15}|1777777[0123456][01234567]{14}|17777777[0123456][01234567]{13}|177777777[0123456][01234567]{12}|1777777777[0123456][01234567]{11}|17777777777[0123456][01234567]{10}|177777777777[0123456][01234567]{9}|1777777777777[0123456][01234567]{8}|17777777777777[0123456][01234567]{7}|177777777777777[0123456][01234567]{6}|1777777777777777[0123456][01234567]{5}|17777777777777777[0123456][01234567]{4}|177777777777777777[0123456][01234567]{3}|1777777777777777777[0123456][01234567]{2}|17777777777777777777[0123456][01234567]{1}|177777777777777777777[0123456]|1777777777777777777777))|(?:(?:0|[123456789]|[123456789][0123456789]{1}|[123456789][0123456789]{2}|[123456789][0123456789]{3}|[123456789][0123456789]{4}|[123456789][0123456789]{5}|[123456789][0123456789]{6}|[123456789][0123456789]{7}|[123456789][0123456789]{8}|[123456789][0123456789]{9}|[123456789][0123456789]{10}|[123456789][0123456789]{11}|[123456789][0123456789]{12}|[123456789][0123456789]{13}|[123456789][0123456789]{14}|[123456789][0123456789]{15}|1[01234567][0123456789]{15}|1800[0123456789]{13}|1801[0123][0123456789]{12}|18014[012][0123456789]{11}|180143[012345678][0123456789]{10}|1801439[01234567][0123456789]{9}|18014398[01234][0123456789]{8}|1801439850[012345678][0123456789]{6}|18014398509[0123][0123456789]{5}|180143985094[01234567][0123456789]{4}|18014398509480[0123456789]{3}|18014398509481[012345678][0123456789]{2}|180143985094819[01234567][0123456789]{1}|1801439850948198[012]|18014398509481983)|0[xX]0*(?:0|[123456789aAbBcCdDeEfF]|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{1}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{2}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{3}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{4}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{5}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{6}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{7}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{8}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{9}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{10}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{11}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{12}|[12][0123456789aAbBcCdDeEfF]{13}|3[0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{12}|3[fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{11}|3[fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{10}|3[fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{9}|3[fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{8}|3[fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{7}|3[fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{6}|3[fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{5}|3[fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{4}|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{3}|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{2}|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{1}|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE]|3[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF])|0+(?:0|[1234567]|[1234567][01234567]{1}|[1234567][01234567]{2}|[1234567][01234567]{3}|[1234567][01234567]{4}|[1234567][01234567]{5}|[1234567][01234567]{6}|[1234567][01234567]{7}|[1234567][01234567]{8}|[1234567][01234567]{9}|[1234567][01234567]{10}|[1234567][01234567]{11}|[1234567][01234567]{12}|[1234567][01234567]{13}|[1234567][01234567]{14}|[1234567][01234567]{15}|[1234567][01234567]{16}|[123456][01234567]{17}|7[0123456][01234567]{16}|77[0123456][01234567]{15}|777[0123456][01234567]{14}|7777[0123456][01234567]{13}|77777[0123456][01234567]{12}|777777[0123456][01234567]{11}|7777777[0123456][01234567]{10}|77777777[0123456][01234567]{9}|777777777[0123456][01234567]{8}|7777777777[0123456][01234567]{7}|77777777777[0123456][01234567]{6}|777777777777[0123456][01234567]{5}|7777777777777[0123456][01234567]{4}|77777777777777[0123456][01234567]{3}|777777777777777[0123456][01234567]{2}|7777777777777777[0123456][01234567]{1}|77777777777777777[0123456]|777777777777777777))[kK]|(?:(?:0|[123456789]|[123456789][0123456789]{1}|[123456789][0123456789]{2}|[123456789][0123456789]{3}|[123456789][0123456789]{4}|[123456789][0123456789]{5}|[123456789][0123456789]{6}|[123456789][0123456789]{7}|[123456789][0123456789]{8}|[123456789][0123456789]{9}|[123456789][0123456789]{10}|[123456789][0123456789]{11}|[123456789][0123456789]{12}|1[0123456][0123456789]{12}|17[01234][0123456789]{11}|175[012345678][0123456789]{10}|1759[01][0123456789]{9}|175920[0123456789]{8}|175921[01234567][0123456789]{7}|1759218[012345][0123456789]{6}|175921860[0123][0123456789]{4}|1759218604[0123][0123456789]{3}|17592186044[0123][0123456789]{2}|1759218604440[0123456789]{1}|1759218604441[01234]|17592186044415)|0[xX]0*(?:0|[123456789aAbBcCdDeEfF]|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{1}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{2}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{3}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{4}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{5}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{6}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{7}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{8}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{9}|[123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{10}|[fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{9}|[fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{8}|[fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{7}|[fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{6}|[fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{5}|[fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{4}|[fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{3}|[fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{2}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{1}|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE]|[fF][fF][fF][fF][fF][fF][fF][fF][fF][fF][fF])|0+(?:0|[1234567]|[1234567][01234567]{1}|[1234567][01234567]{2}|[1234567][01234567]{3}|[1234567][01234567]{4}|[1234567][01234567]{5}|[1234567][01234567]{6}|[1234567][01234567]{7}|[1234567][01234567]{8}|[1234567][01234567]{9}|[1234567][01234567]{10}|[1234567][01234567]{11}|[1234567][01234567]{12}|[1234567][01234567]{13}|[12][01234567]{14}|3[0123456][01234567]{13}|37[0123456][01234567]{12}|377[0123456][01234567]{11}|3777[0123456][01234567]{10}|37777[0123456][01234567]{9}|377777[0123456][01234567]{8}|3777777[0123456][01234567]{7}|37777777[0123456][01234567]{6}|377777777[0123456][01234567]{5}|3777777777[0123456][01234567]{4}|37777777777[0123456][01234567]{3}|377777777777[0123456][01234567]{2}|3777777777777[0123456][01234567]{1}|37777777777777[0123456]|377777777777777))[mM]|(?:(?:0|[123456789]|[123456789][0123456789]{1}|[123456789][0123456789]{2}|[123456789][0123456789]{3}|[123456789][0123456789]{4}|[123456789][0123456789]{5}|[123456789][0123456789]{6}|[123456789][0123456789]{7}|[123456789][0123456789]{8}|[123456789][0123456789]{9}|1[0123456][0123456789]{9}|170[0123456789]{8}|171[0123456][0123456789]{7}|1717[012345678][0123456789]{6}|17179[01234567][0123456789]{5}|171798[012345][0123456789]{4}|1717986[012345678][0123456789]{3}|171798690[0123456789]{2}|171798691[01234567][0123456789]{1}|1717986918[012]|17179869183)|0[xX]0*(?:0|[123456789aAbBcCdDeEfF]|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{1}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{2}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{3}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{4}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{5}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{6}|[123456789aAbBcCdDeEfF][0123456789aAbBcCdDeEfF]{7}|[12][0123456789aAbBcCdDeEfF]{8}|3[0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{7}|3[fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{6}|3[fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{5}|3[fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{4}|3[fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{3}|3[fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{2}|3[fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE][0123456789aAbBcCdDeEfF]{1}|3[fF][fF][fF][fF][fF][fF][fF][0123456789aAbBcCdDeE]|3[fF][fF][fF][fF][fF][fF][fF][fF])|0+(?:0|[1234567]|[1234567][01234567]{1}|[1234567][01234567]{2}|[1234567][01234567]{3}|[1234567][01234567]{4}|[1234567][01234567]{5}|[1234567][01234567]{6}|[1234567][01234567]{7}|[1234567][01234567]{8}|[1234567][01234567]{9}|[1234567][01234567]{10}|1[0123456][01234567]{10}|17[0123456][01234567]{9}|177[0123456][01234567]{8}|1777[0123456][01234567]{7}|17777[0123456][01234567]{6}|177777[0123456][01234567]{5}|1777777[0123456][01234567]{4}|17777777[0123456][01234567]{3}|177777777[0123456][01234567]{2}|1777777777[0123456][01234567]{1}|17777777777[0123456]|177777777777))[gG])(?![\\s\\S])"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "limit"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "tree"
+            },
+            "depth": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "kind",
+            "depth"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "object:type"
+            },
+            "type": {
+              "enum": [
+                "blob",
+                "commit",
+                "tag",
+                "tree"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "sparse:oid"
+            },
+            "oid": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0000\\r\\n]+(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "kind",
+            "oid"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth0": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth1"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth1"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth1": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth2"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth2"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth2": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth3"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth3"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth3": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth4"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth4"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth4": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth5"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth5"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth5": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth6"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth6"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth6": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth7"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth7"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth7": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth8"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth8"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth8": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth9"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth9"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth9": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth10"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth10"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth10": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth11"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth11"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth11": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth12"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth12"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth12": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth13"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth13"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth13": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth14"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth14"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth14": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth15"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth15"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth15": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth16"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth16"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth16": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth17"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth17"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth17": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth18"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth18"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth18": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth19"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth19"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth19": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth20"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth20"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth20": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth21"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth21"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth21": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth22"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth22"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth22": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth23"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth23"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth23": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth24"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth24"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth24": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth25"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth25"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth25": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth26"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth26"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth26": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth27"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth27"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth27": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth28"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth28"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth28": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth29"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth29"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth29": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth30"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth30"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth30": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth31"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth31"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth31": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FilterDepth32"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "filters"
+          ],
+          "properties": {
+            "kind": {
+              "const": "combine"
+            },
+            "filters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/FilterDepth32"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FilterDepth32": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AtomicFilter"
+        },
+        {
+          "$ref": "#/$defs/AtomicFilterMapping"
+        }
+      ]
+    },
+    "GitURL": {
+      "type": "string",
+      "anyOf": [
+        {
+          "pattern": "^(?:(http|https))://((?:[^/:@]+)@)?(?:([^/:@]+))(:(?:[0-9]{1,5}))?(?:[:,/])?(?:([A-Za-z0-9_][^:.@]*))?(?:\\.git)?"
+        },
+        {
+          "pattern": "^(?:ssh)?((?:[^/:@]+)@)?(?:([^/:]+))(?::)(?:([A-Za-z0-9_][^:.]+))(?:\\.git)?"
+        },
+        {
+          "pattern": "(?:(git\\+ssh|git\\+https|git\\+http|git\\+file))://((?:[^/:@]+)@)?(?:([^/:@]+))(:(?:[0-9]{1,5}))?(?:[:,/])?(?:([A-Za-z0-9_][^:.@]*))?(?:\\.git)?(@(?:.*))?"
+        },
+        {
+          "pattern": "(?:(git\\+ssh|git\\+file))((?:[^/:@]+)@)?(?:([^/:]+))(?::)(?:([A-Za-z0-9_][^:.]+))?(?:\\.git)?(@(?:.*))?"
+        },
+        {
+          "pattern": "(?:git\\+file)://(?:[^@]*)(@(?:.*))?"
+        },
+        {
+          "pattern": "https://git-codecommit\\.((?:[^/]+)\\.)(?:([^/:]+))(?::)?(?:([A-Za-z0-9_][^:.]+))?(@(?:.*))?"
+        },
+        {
+          "pattern": "ssh://git-codecommit\\.((?:[^/]+)\\.)(?:([^/:]+))(?::)?(?:([A-Za-z0-9_][^:.]+))?(@(?:.*))?"
+        },
+        {
+          "pattern": "codecommit://(?:([^/:@]+))(:(?:[0-9]{1,5}))?(?:[:,/])?(?:([A-Za-z0-9_][^:.@]*))?(@(?:.*))?"
+        },
+        {
+          "pattern": "codecommit::(?:[^/]+)://(?:([^/:@]+))(:(?:[0-9]{1,5}))?(?:[:,/])?(?:([A-Za-z0-9_][^:.@]*))?(@(?:.*))?"
+        }
+      ]
+    },
+    "UniqueGitURL": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/GitURL"
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/HgURL"
+              },
+              {
+                "$ref": "#/$defs/SvnURL"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "HgURL": {
+      "type": "string",
+      "anyOf": [
+        {
+          "pattern": "^(?:(hg\\+ssh|hg\\+https|hg\\+http|hg\\+file))://((?:[^/:@]+)@)?(?:([^/:]+))(:(?:[0-9]{1,5}))?(?:[:,/])?(?:/?([A-Za-z0-9_][^:.@]*))?(?:\\.git)?(@(?:.*))?"
+        },
+        {
+          "pattern": "(?:hg\\+file)://(?:.*)"
+        }
+      ]
+    },
+    "UniqueHgURL": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/HgURL"
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GitURL"
+              },
+              {
+                "$ref": "#/$defs/SvnURL"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "SvnURL": {
+      "type": "string",
+      "anyOf": [
+        {
+          "pattern": "^(?:(svn\\+ssh|svn\\+https|svn\\+http))://((?:[^/:@]+)@)?(?:([^/:@]+))(:(?:[0-9]{1,5}))?(?:[:,/])?(?:([A-Za-z0-9_][^:.@]*))?(@(?:.*))?"
+        },
+        {
+          "pattern": "(?:svn\\+file)://(?:.*)"
+        }
+      ]
+    },
+    "UniqueSvnURL": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/SvnURL"
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GitURL"
+              },
+              {
+                "$ref": "#/$defs/HgURL"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "additionalProperties": {
+    "additionalProperties": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[^\\u0000]*(?![\\s\\S])",
+          "minLength": 1
+        },
+        {
+          "$ref": "#/$defs/RepoEntryDict"
+        }
+      ]
+    },
+    "type": "object"
+  },
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vcspull.git-pull.com/_static/schemas/vcspull.schema.json",
+  "title": "vcspull workspace configuration"
+}

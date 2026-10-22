@@ -18,6 +18,27 @@ synchronized with remote repositories.
     :path: sync
 ```
 
+## Timeouts and interruption
+
+`--timeout` bounds each main checkout and each included worktree separately.
+On timeout or Ctrl-C, vcspull stops
+its worker and native process group before continuing or exiting. Progress
+and output are streamed to the parent process, which owns the terminal and
+JSON output. CLI synchronization requires POSIX process groups.
+An included worktree timeout skips the remaining worktrees for that repository.
+
+A stopped update can leave partially changed files. Its result remains
+unknown unless the worker returned a complete native result. Retained
+preservation material is inspected separately with a one-second deadline;
+inspection errors remain visible. JSON and NDJSON include
+`retained_recoveries` with exact tokens and native outcomes. These records
+can include earlier runs. Recovery material remains until explicitly released
+through libvcs; retrying does not resume an interrupted preservation operation.
+
+Termination covers descendants that remain in the owned process group.
+Detached hook daemons and uninterruptible kernel I/O are outside that scope.
+If the worker cannot be stopped, the batch stops with an error.
+
 ## Filtering repos
 
 Running `vcspull sync` with no patterns syncs nothing and prints the generated
@@ -150,6 +171,39 @@ Use `--dry-run` or `-n` to:
 - Check which repositories would be updated
 - Test pattern filters
 - Preview operations in CI/CD
+
+## Checkout policy
+
+Configure the main checkout independently of clone options:
+
+```yaml
+~/code/:
+  project:
+    repo: git+https://example.com/project.git
+    working_copy:
+      branch: main
+      sync:
+        drift: follow
+        dirty: preserve
+```
+
+`follow` resolves the configured target; `keep` and `warn` leave an existing
+checkout in place. The default dirty policy is `abort`. Git preservation
+retains staged, unstaged, and untracked changes in an owned stash and restores
+them after updating. Conflicts retain a recovery token instead of discarding
+local state. Keep other editors and VCS writers out of the checkout during sync.
+
+A configured `dirty: discard` requires explicit authorization on each call:
+
+```console
+$ vcspull sync project --yes
+```
+
+`--yes` authorizes an existing discard policy; it does not enable discard for
+other entries. Successful preservation and failures print the retained recovery
+location. JSON and NDJSON events include `update_state`, `preservation_state`,
+`recovery`, `conflicts`, and ordered `errors`. A recovery token stays available
+until explicitly released through libvcs; a failed operation never deletes it.
 
 ## JSON output
 

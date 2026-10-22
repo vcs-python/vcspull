@@ -79,7 +79,7 @@ entry is written under.
 ### Pinning a revision from the URL
 
 A [pip-style][pip vcs url] revision on a `git+` URL is recorded as
-`options.rev` rather than kept in the URL:
+`working_copy.rev` rather than kept in the URL:
 
 ```console
 $ vcspull add git+https://github.com/pallets/flask.git@v1.0
@@ -153,14 +153,14 @@ By default an entry tracks its remote's default branch and clones with full
 history. Three flags change that, and each one costs you something in exchange.
 
 Pin the entry to a fixed commit, tag, or branch with `--pin`, which records
-{ref}`options.rev <config-pin>`. The repository stops following its branch until
+{ref}`working_copy.rev <config-pin>`. The repository stops following its branch until
 you change the pin:
 
 ```console
 $ vcspull add ~/study/python/flask --pin v3.0.0
 ```
 
-`--shallow` records `options.shallow: true`, so {ref}`vcspull sync <cli-sync>`
+`--shallow` records `git.depth: 1`, so {ref}`vcspull sync <cli-sync>`
 clones with `--depth 1`. That trades git history for disk and time — useful
 across many repositories, awkward if you later need `git log` or `git bisect`.
 An already-shallow checkout is detected without the flag; this forces it on:

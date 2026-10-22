@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import importlib
+import json
 import signal
+import socket
 import sys
+import textwrap
 import time
+import types
 import typing as t
 
 import pytest
 
+from vcspull._internal import sync_process
 from vcspull.cli._colors import ColorMode, Colors
 from vcspull.cli._output import OutputFormatter, OutputMode
 from vcspull.cli.sync import (
@@ -27,6 +32,9 @@ sync_module = importlib.import_module("vcspull.cli.sync")
 
 if t.TYPE_CHECKING:
     import pathlib
+
+    from libvcs.sync.git import GitSync
+    from libvcs.sync.svn import SvnSync
 
 
 def _noop_progress(output: str, timestamp: t.Any) -> None:
@@ -70,84 +78,437 @@ def test_resolve_repo_timeout_ignores_bogus_env_value(
     assert _resolve_repo_timeout(None) == _DEFAULT_REPO_TIMEOUT_SECONDS
 
 
+@pytest.fixture
+def worker_command(monkeypatch: pytest.MonkeyPatch) -> t.Any:
+    """Inject deterministic fresh-interpreter workers at the launch boundary."""
+
+    def install(body: str) -> None:
+        prefix = """import datetime, json, os, pathlib, signal, subprocess, sys
+fd = int(sys.argv[1])
+os.set_inheritable(fd, False)
+protocol = os.fdopen(fd, 'w')
+def send(frame):
+    protocol.write(json.dumps(frame) + '\\n')
+    protocol.flush()
+request = json.load(sys.stdin)
+if request['operation'] == 'inspect':
+    send({'event': 'result', 'ok': True,
+          'recoveries': request['repo'].get('retained', [])})
+else:
+"""
+        source = prefix + textwrap.indent(textwrap.dedent(body), "    ")
+        monkeypatch.setattr(
+            sync_process,
+            "_worker_command",
+            lambda fd: [sys.executable, "-u", "-c", source, str(fd)],
+        )
+
+    return install
+
+
+@pytest.mark.parametrize("human", [False, True])
 def test_watchdog_returns_synced_outcome_on_success(
-    monkeypatch: pytest.MonkeyPatch,
+    git_repo: GitSync, human: bool
 ) -> None:
-    """A fast ``update_repo`` returns ``status='synced'`` with no error."""
-    # Replace update_repo with a stub so we can exercise the watchdog without
-    # touching libvcs. The stub is fast, so the timeout branch never fires.
-    calls: list[dict[str, t.Any]] = []
-
-    def _stub_update_repo(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
-        calls.append(repo)
-
-    monkeypatch.setattr(sync_module, "update_repo", _stub_update_repo)
-
+    """A native worker returns its result without replacing parent streams."""
+    stdout, stderr = sys.stdout, sys.stderr
     outcome = _sync_repo_with_watchdog(
-        t.cast("t.Any", {"name": "ok"}),
+        t.cast(
+            "t.Any",
+            {"name": "ok", "vcs": "git", "path": git_repo.path, "url": git_repo.url},
+        ),
         progress_callback=_noop_progress,
         timeout=5,
-        is_human=True,
+        is_human=human,
     )
-
-    assert outcome.status == "synced"
-    assert outcome.error is None
-    assert calls == [{"name": "ok"}]
+    assert outcome.status == "synced", (outcome.error, outcome.captured_output)
+    assert outcome.result is not None and outcome.result.ok
+    assert sys.stdout is stdout and sys.stderr is stderr
 
 
 def test_watchdog_returns_timed_out_on_slow_update(
+    tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
+    worker_command: t.Any,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A slow ``update_repo`` is abandoned with ``status='timed_out'``."""
-
-    def _slow_update_repo(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
-        # Far longer than the 0.2 s timeout below -- the watchdog must fire.
-        time.sleep(10)
-
-    monkeypatch.setattr(sync_module, "update_repo", _slow_update_repo)
-
-    started = time.monotonic()
-    outcome = _sync_repo_with_watchdog(
-        t.cast("t.Any", {"name": "slow"}),
-        progress_callback=_noop_progress,
-        timeout=1,
-        is_human=True,
+    """Sequential timeouts stop a TERM-resistant descendant and retain stdout."""
+    child = """import os, pathlib, signal, socket, sys
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+root = pathlib.Path(sys.argv[1])
+server = socket.socket(socket.AF_UNIX)
+server.bind(str(root / 'late.sock'))
+server.listen()
+print('ready', flush=True)
+connection, _ = server.accept()
+(root / 'late-write').write_text('too late')
+"""
+    worker_command(f"""
+root = pathlib.Path(request['repo']['path'])
+child = subprocess.Popen(
+    [sys.executable, '-u', '-c', {child!r}, str(root)], stdout=subprocess.PIPE
+)
+assert child.stdout.readline().strip() == b'ready'
+send({{'event': 'progress', 'text': 'ready',
+      'time': datetime.datetime.now().isoformat()}})
+signal.pause()
+""")
+    offset = 0.0
+    clock = time.monotonic
+    monkeypatch.setattr(
+        sync_process, "time", types.SimpleNamespace(monotonic=lambda: clock() + offset)
     )
-    elapsed = time.monotonic() - started
 
-    assert outcome.status == "timed_out"
-    # The watchdog should fire near the timeout -- give generous slack so CI
-    # scheduling jitter doesn't flake the test.
-    assert elapsed < 5.0
-    assert outcome.duration >= 0.5
+    def ready(*args: t.Any) -> None:
+        nonlocal offset
+        offset += 100
+
+    stdout, stderr = sys.stdout, sys.stderr
+    for index in range(2):
+        directory = tmp_path / str(index)
+        directory.mkdir()
+        outcome = _sync_repo_with_watchdog(
+            t.cast("t.Any", {"name": "blocked", "path": directory}),
+            progress_callback=ready,
+            timeout=5,
+            is_human=False,
+        )
+        assert outcome.status == "timed_out"
+        assert outcome.result is not None
+        assert outcome.result.update_state == "unknown"
+        assert sys.stdout is stdout and sys.stderr is stderr
+        with socket.socket(socket.AF_UNIX) as probe:
+            probe.settimeout(0.2)
+            with pytest.raises(ConnectionRefusedError):
+                probe.connect(str(directory / "late.sock"))
+        assert not (directory / "late-write").exists()
+        print(json.dumps({"event": "timeout", "index": index}))
+    assert len([json.loads(line) for line in capsys.readouterr().out.splitlines()]) == 2
 
 
-def test_watchdog_preserves_failed_outcome(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Synchronous exceptions from ``update_repo`` surface as ``failed``."""
-
-    class _Boom(RuntimeError):
-        """Sentinel used to trace exception propagation."""
-
-    def _raising_update_repo(
-        repo: dict[str, t.Any], *, progress_callback: t.Any
-    ) -> None:
-        msg = "remote exploded"
-        raise _Boom(msg)
-
-    monkeypatch.setattr(sync_module, "update_repo", _raising_update_repo)
-
+def test_watchdog_preserves_failed_outcome(tmp_path: pathlib.Path) -> None:
+    """Native failure messages and ordered result errors cross the worker boundary."""
     outcome = _sync_repo_with_watchdog(
-        t.cast("t.Any", {"name": "boom"}),
+        t.cast(
+            "t.Any",
+            {
+                "name": "missing",
+                "vcs": "git",
+                "path": tmp_path / "checkout",
+                "url": str(tmp_path / "missing"),
+            },
+        ),
         progress_callback=_noop_progress,
         timeout=5,
-        is_human=True,
+        is_human=False,
+    )
+    assert outcome.status == "failed"
+    assert "does not exist" in str(outcome.error)
+    assert outcome.result is not None and not outcome.result.ok
+    assert outcome.result.errors[0].step == "obtain"
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_watchdog_drains_output_and_retains_split_result(
+    worker_command: t.Any, failed: bool, tmp_path: pathlib.Path
+) -> None:
+    """Pipe-sized output cannot hide a split UTF-8 result or its recovery token."""
+    from libvcs import RecoveryToken, SyncConflict, SyncResult
+
+    expected = SyncResult(
+        recovery=RecoveryToken("owned-é", "git", str(tmp_path / "retained")),
+        update_state="completed",
+        preservation_state="restored",
+    )
+    if failed:
+        expected.preservation_state = "conflicted"
+        expected.conflicts = (SyncConflict("résumé.txt", "text"),)
+        expected.add_error("update", "first error")
+        expected.add_error("restore", "second error")
+    data = sync_process._result_data(expected)
+    worker_command(f"""
+data = {data!r}
+frame = json.dumps(
+    {{'event': 'result', 'ok': {not failed!r},
+      'error': {"conflict" if failed else None!r}, 'result': data}},
+    ensure_ascii=False,
+).encode() + b'\\n'
+split = frame.index('é'.encode()) + 1
+os.write(fd, frame[:split])
+sys.stdout.write('O' * 131072)
+sys.stdout.flush()
+sys.stderr.write('E' * 131072)
+sys.stderr.flush()
+os.write(fd, frame[split:])
+""")
+    outcome = _sync_repo_with_watchdog(
+        t.cast("t.Any", {"name": "streamed"}),
+        progress_callback=_noop_progress,
+        timeout=5,
+        is_human=False,
+    )
+    assert outcome.status == ("failed" if failed else "synced")
+    assert outcome.result == expected
+    assert outcome.captured_output is not None
+    assert outcome.captured_output.count("O") == 131072
+    assert outcome.captured_output.count("E") == 131072
+
+
+@pytest.mark.parametrize("fault", ["exit", "no-result", "partial-timeout"])
+def test_watchdog_faults_retain_inspection(
+    worker_command: t.Any, fault: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exit/protocol failures retain complete tokens and still inspect owned records."""
+    from libvcs import RecoveryToken, SyncResult
+
+    expected = SyncResult(recovery=RecoveryToken("retained", "svn", "/retained/token"))
+    data = sync_process._result_data(expected)
+    if fault == "exit":
+        body = (
+            f"send({{'event': 'result', 'ok': True, 'result': {data!r}}})\nos._exit(17)"
+        )
+    elif fault == "no-result":
+        body = "send({'event': 'result', 'ok': True})"
+    else:
+        body = """
+frame = json.dumps({'event': 'progress', 'text': 'ready',
+                   'time': datetime.datetime.now().isoformat()}).encode()
+os.write(fd, frame + b'\\n' + b'{"event":')
+signal.pause()
+"""
+    worker_command(body)
+    offset = 0.0
+    clock = time.monotonic
+    monkeypatch.setattr(
+        sync_process, "time", types.SimpleNamespace(monotonic=lambda: clock() + offset)
     )
 
+    def ready(*args: t.Any) -> None:
+        nonlocal offset
+        offset += 100
+
+    outcome = _sync_repo_with_watchdog(
+        t.cast("t.Any", {"name": "fault", "retained": [data]}),
+        progress_callback=ready,
+        timeout=5,
+        is_human=False,
+    )
+    assert outcome.status == ("timed_out" if fault == "partial-timeout" else "failed")
+    assert outcome.retained_recoveries == (expected,)
+    assert outcome.result is not None
+    if fault == "exit":
+        assert outcome.result.recovery == expected.recovery
+    else:
+        assert outcome.result.update_state == "unknown"
+    if fault == "partial-timeout":
+        assert any("incomplete" in error.message for error in outcome.result.errors)
+
+
+def test_watchdog_missing_result_stays_unknown(worker_command: t.Any) -> None:
+    """Worker death cannot fabricate successful or restored state."""
+    worker_command("os._exit(7)")
+    outcome = _sync_repo_with_watchdog(
+        t.cast("t.Any", {"name": "died"}),
+        progress_callback=_noop_progress,
+        timeout=5,
+        is_human=False,
+    )
     assert outcome.status == "failed"
-    assert isinstance(outcome.error, _Boom)
-    assert "remote exploded" in str(outcome.error)
+    assert outcome.result is not None
+    assert outcome.result.update_state == "unknown"
+    assert outcome.result.preservation_state == "unknown"
+
+
+@pytest.mark.parametrize("worker_event", [False, True])
+def test_watchdog_propagates_interrupt_during_inspection(
+    monkeypatch: pytest.MonkeyPatch, worker_event: bool
+) -> None:
+    """Inspection cannot swallow either a parent or worker interrupt."""
+    exchanges = iter(
+        [
+            sync_process._Exchange(None, "", True, -signal.SIGTERM, False, None),
+            sync_process._Exchange(
+                {"event": "interrupted"} if worker_event else None,
+                "",
+                False,
+                0,
+                not worker_event,
+                None,
+            ),
+        ]
+    )
+    # The native signal test covers termination; isolate the two-exchange decision.
+    monkeypatch.setattr(sync_process, "_exchange", lambda *a, **kw: next(exchanges))
+    with pytest.raises(sync_process.SyncInterrupted) as caught:
+        _sync_repo_with_watchdog(
+            t.cast("t.Any", {"name": "interrupted-inspection"}),
+            progress_callback=_noop_progress,
+            timeout=5,
+            is_human=False,
+        )
+    assert caught.value.outcome.result is not None
+    assert caught.value.outcome.result.update_state == "unknown"
+    assert any(
+        error.step == "recovery-inspection"
+        for error in caught.value.outcome.result.errors
+    )
+
+
+def test_worktree_timeout_retains_token_and_stops_same_repository(
+    worker_command: t.Any, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+) -> None:
+    """A stopped worktree retains inspection results and prevents sibling writes."""
+    from libvcs import RecoveryToken, SyncResult
+
+    from vcspull._internal.worktree_sync import sync_all_worktrees
+
+    retained = SyncResult(
+        recovery=RecoveryToken("worktree-token", "git", str(tmp_path / "retained"))
+    )
+    worker_command("""
+send({'event': 'progress', 'text': 'ready',
+      'time': datetime.datetime.now().isoformat()})
+signal.pause()
+""")
+    clock = time.monotonic
+    offset = 0.0
+    monkeypatch.setattr(
+        sync_process, "time", types.SimpleNamespace(monotonic=lambda: clock() + offset)
+    )
+
+    def ready(*args: t.Any) -> None:
+        nonlocal offset
+        offset += 100
+
+    exchange = sync_process._exchange
+
+    def with_ready(request: dict[str, t.Any], **kwargs: t.Any) -> t.Any:
+        if request["operation"] == "worktree":
+            kwargs["progress_callback"] = ready
+        return exchange(request, **kwargs)
+
+    # Advance the deadline only after the fresh worker reports its readiness.
+    monkeypatch.setattr(sync_process, "_exchange", with_ready)
+    result = sync_all_worktrees(
+        tmp_path,
+        [{"dir": "one", "commit": "HEAD"}, {"dir": "two", "commit": "HEAD"}],
+        tmp_path,
+        repo_config={"retained": [sync_process._result_data(retained)]},
+        timeout=5,
+    )
+    assert result.errors == 1
+    assert len(result.entries) == 1
+    entry = result.entries[0]
+    assert entry.status == "timed_out"
+    assert entry.result is not None and entry.result.update_state == "unknown"
+    assert entry.retained_recoveries == (retained,)
+
+
+@pytest.mark.parametrize(
+    "invalid", ["exists", "ref_value", "path", "position", "check", "selector"]
+)
+def test_worktree_rejects_malformed_metadata_with_known_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path, invalid: str
+) -> None:
+    """Malformed worker metadata cannot count a checkout as successfully created."""
+    from libvcs import RecoveryToken, SyncResult
+
+    from vcspull._internal.worktree_sync import (
+        WorktreeAction,
+        WorktreePlanEntry,
+        sync_all_worktrees,
+        worktree_entry_data,
+    )
+
+    token = RecoveryToken("known-token", "git", str(tmp_path / "retained"))
+    native = SyncResult(recovery=token, update_state="completed")
+    data = worktree_entry_data(
+        WorktreePlanEntry(tmp_path / "linked", "commit", "HEAD", WorktreeAction.CREATE)
+    )
+    if invalid == "exists":
+        data["exists"] = "not-a-bool"
+    elif invalid == "ref_value":
+        data["ref_value"] = {"not": "scalar"}
+    elif invalid == "path":
+        data["worktree_path"] = str(tmp_path / "different")
+    elif invalid == "selector":
+        data["ref_type"] = "tag"
+        data["ref_value"] = "wrong-target"
+    elif invalid == "position":
+        data["position"] = {
+            "revision": "abc",
+            "ref_name": "main",
+            "ref_kind": "branch",
+            "follows": "false",
+            "mixed": False,
+            "switched": False,
+        }
+    else:
+        data["checks"] = [{"name": "native", "passed": "yes", "detail": "done"}]
+    # Framing is tested separately; inject the decoded worker's scalar payload.
+    monkeypatch.setattr(
+        sync_process,
+        "run_sync_process",
+        lambda *args, **kwargs: sync_process.SyncOutcome(
+            "synced", result=native, worktree=data
+        ),
+    )
+    result = sync_all_worktrees(
+        tmp_path, [{"dir": "linked", "commit": "HEAD"}], tmp_path, timeout=1
+    )
+    assert result.created == 0 and result.errors == 1
+    entry = result.entries[0]
+    assert entry.error is not None and "invalid worktree result" in entry.error
+    assert entry.result is not None and entry.result.recovery == token
+
+
+def test_worktree_timeout_option_preserves_unconfigured_remotes(
+    git_repo: GitSync, tmp_path: pathlib.Path
+) -> None:
+    """Adding process supervision cannot manufacture authoritative remote settings."""
+    from vcspull._internal.worktree_sync import sync_all_worktrees
+
+    path = tmp_path / "linked"
+    git_repo.run(["worktree", "add", "--detach", str(path), "HEAD"])
+    original_url = git_repo.run(["remote", "get-url", "origin"])
+    result = sync_all_worktrees(
+        git_repo.path,
+        [{"dir": str(path), "commit": git_repo.get_revision()}],
+        tmp_path,
+        timeout=5,
+    )
+    assert result.errors == 0, result.entries
+    assert git_repo.run(["remote", "get-url", "origin"]) == original_url
+
+
+def test_recovery_inspection_finds_svn_after_source_loss(svn_repo: SvnSync) -> None:
+    """The subprocess inspector retains SVN's source-independent recovery scope."""
+    import shutil
+
+    from libvcs import SyncPolicy, SyncTarget
+
+    (svn_repo.path / "local").write_text("retained\n")
+    result = svn_repo.update_repo(
+        target=SyncTarget(rev=svn_repo.get_position().revision),
+        policy=SyncPolicy(dirty="preserve"),
+    )
+    assert result.ok, result.errors
+    assert result.recovery is not None
+    shutil.rmtree(svn_repo.path)
+    exchange = sync_process._exchange(
+        {
+            "operation": "inspect",
+            "repo": {"vcs": "svn", "path": str(svn_repo.path), "url": svn_repo.url},
+        },
+        timeout=1,
+        progress_callback=_noop_progress,
+        is_human=False,
+    )
+    assert not exchange.timed_out
+    assert exchange.returncode == 0
+    assert exchange.terminal is not None
+    assert exchange.terminal["recoveries"][0]["recovery"]["id"] == result.recovery.id
+    assert not svn_repo.path.exists()
 
 
 def test_rerun_recipe_emits_one_line_per_workspace(
@@ -259,27 +620,13 @@ def test_rerun_recipe_scales_timeout_suggestion(
 
 
 def test_watchdog_propagates_keyboard_interrupt_from_worker(
-    monkeypatch: pytest.MonkeyPatch,
+    worker_command: t.Any,
 ) -> None:
-    """A ``KeyboardInterrupt`` in the worker bubbles out of the watchdog.
-
-    ``_sync_repo_with_watchdog`` runs the libvcs call on a daemon thread. If
-    the main thread receives Ctrl-C (normal case) it never reaches this code
-    path, but a worker-side ``KeyboardInterrupt`` (rare, via
-    ``PyThreadState_SetAsyncExc``) must NOT be laundered into a per-repo
-    "failed" outcome -- it has to propagate so the outer loop can tear the
-    batch down cleanly. This locks down the narrowed catch (``Exception``,
-    not ``BaseException``).
-    """
-
-    def _raising(repo: dict[str, t.Any], *, progress_callback: t.Any) -> None:
-        raise KeyboardInterrupt
-
-    monkeypatch.setattr(sync_module, "update_repo", _raising)
-
+    """An interrupted worker stops the batch after process cleanup."""
+    worker_command("send({'event': 'interrupted'})")
     with pytest.raises(KeyboardInterrupt):
         _sync_repo_with_watchdog(
-            t.cast("t.Any", {"name": "kb"}),
+            t.cast("t.Any", {"name": "interrupted"}),
             progress_callback=_noop_progress,
             timeout=5,
             is_human=True,

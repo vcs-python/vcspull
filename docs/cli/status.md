@@ -3,9 +3,9 @@
 # vcspull status
 
 The `vcspull status` command checks the health of configured repositories,
-showing which repositories exist on disk, which are missing, and their
-[Git](https://git-scm.com/) status. This introspection command helps verify
-your local workspace matches your {ref}`configuration <configuration>`.
+showing which repositories exist on disk, which are missing, and their native
+checkout state. It compares local metadata with your
+{ref}`configuration <configuration>` without fetching or changing a checkout.
 
 ## Command
 
@@ -32,9 +32,29 @@ Summary: 4 repositories, 2 exist, 2 missing
 ```
 
 The command shows:
+
 - Repository name
 - Whether the checkout exists on disk (`missing`)
-- The working-tree state for git checkouts (`up to date`, `dirty`)
+- The native working-copy state (`up to date`, `dirty`, or unavailable)
+- Whether the configured target resolves to the checked-out revision
+
+## Configured target drift
+
+Status uses each backend's native position and target resolution. Different
+branch or tag names at the same Git object ID match. A missing local target
+stays unknown; status does not fetch to resolve it. Subversion reports URL,
+mixed-revision, and switched-subtree facts as well as the root revision.
+
+JSON and NDJSON include `position`, `target_position`, `policy`, `drifted`, and
+ordered inspection `errors`. `drifted` is `true`, `false`, or `null` when
+available metadata cannot establish a match. A failed dirty-state inspection
+also leaves `clean` as `null`. A checkout whose VCS differs from its configured
+backend reports a configuration error.
+
+`sync.drift: warn` leaves the checkout untouched; status reports its drift.
+Sync previews apply the same keep/warn policy and retain the observed and
+target revisions. Previewing `dirty: discard` describes the required `--yes`
+authorization without discarding anything.
 
 ## Filtering repositories
 

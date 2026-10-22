@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import logging
 import pathlib
 import typing as t
@@ -721,52 +722,37 @@ def test_setup_file_logger_does_not_open_stream_floodgate(
         log_mod.teardown_file_logger(handler)
 
 
-def test_indicator_log_diverter_silences_libvcs_at_default_verbosity() -> None:
-    """``_install_indicator_log_diverter`` blocks libvcs from the terminal.
-
-    Reporter saw libvcs's ``|git| (rye) Failed to determine current
-    branch`` warning leak in alongside vcspull's own ``✗ Failed
-    syncing rye: Command failed with code 128: git symbolic-ref HEAD
-    --short`` line -- two messages saying the same thing, breaking
-    the ``✓ Synced X / ✗ Failed X / - Timed out X`` rhythm. The
-    diverter raises the libvcs StreamHandler level above
-    ``CRITICAL`` so libvcs records can't reach the terminal during
-    indicator-active sync. The file handler (debug log) keeps
-    DEBUG so post-mortems still have context.
-    """
-    from vcspull.cli._progress import build_indicator
+def test_indicator_preserves_target_drift_warnings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default verbosity retains policy warnings and suppresses duplicate failures."""
+    from vcspull.cli._progress import SyncStatusIndicator
     from vcspull.cli.sync import _install_indicator_log_diverter
 
-    setup_logger(level="INFO", verbosity=0)
-    libvcs_logger = logging.getLogger("libvcs")
-    handlers = [
-        h
-        for h in libvcs_logger.handlers
-        if isinstance(h, logging.StreamHandler)
-        and not isinstance(h, logging.FileHandler)
-    ]
-    assert handlers, "libvcs logger should have a StreamHandler after setup"
-    levels_before = [h.level for h in handlers]
-    assert all(level == logging.WARNING for level in levels_before)
-
-    indicator = build_indicator(human=True, color="always", tty=True)
+    original = io.StringIO()
+    terminal = io.StringIO()
+    handler = logging.StreamHandler(original)
+    handler.setLevel(logging.WARNING)
+    logger = logging.getLogger("libvcs")
+    # Isolate handler state from application logging configured by other tests.
+    monkeypatch.setattr(logger, "handlers", [handler])
+    monkeypatch.setattr(logger, "propagate", False)
+    previous_level = logger.level
+    logger.setLevel(logging.WARNING)
+    indicator = SyncStatusIndicator(enabled=True, stream=terminal, tty=True)
+    restore = _install_indicator_log_diverter(indicator)
     try:
-        restore = _install_indicator_log_diverter(indicator)
-        try:
-            levels_during = [h.level for h in handlers]
-            assert all(level == logging.CRITICAL + 1 for level in levels_during), (
-                f"libvcs StreamHandler must be silenced during sync; "
-                f"got {levels_during}"
-            )
-        finally:
-            restore()
-        levels_after = [h.level for h in handlers]
-        assert levels_after == levels_before, (
-            f"diverter must restore the original level; "
-            f"before={levels_before} after={levels_after}"
-        )
+        logger.warning("target changed", extra={"vcs_event": "target_drift"})
+        logger.error("duplicate failure")
     finally:
+        restore()
         indicator.close()
+        logger.setLevel(previous_level)
+    assert "target changed" in terminal.getvalue()
+    assert "duplicate failure" not in terminal.getvalue()
+    assert handler.stream is original
+    assert handler.level == logging.WARNING
+    assert not handler.filters
 
 
 def test_indicator_log_diverter_respects_verbose_user() -> None:
@@ -775,7 +761,7 @@ def test_indicator_log_diverter_respects_verbose_user() -> None:
     Users who explicitly asked for libvcs INFO (``-v``) or DEBUG
     (``-vv``) want to see what libvcs is doing; silencing them
     defeats the purpose of the verbosity flag. Only the default
-    (WARNING) gets bumped.
+    (WARNING) gets filtered.
     """
     from vcspull.cli._progress import build_indicator
     from vcspull.cli.sync import _install_indicator_log_diverter

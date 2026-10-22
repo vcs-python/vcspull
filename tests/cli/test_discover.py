@@ -522,17 +522,16 @@ def test_discover_repos(
         ]
         if pin is not None:
             assert all(
-                entry.get("options", {}).get("rev") == pin
+                entry.get("working_copy", {}).get("rev") == pin
                 for entry in persisted_entries
             )
         if shallow:
             assert all(
-                entry.get("options", {}).get("shallow") is True
-                for entry in persisted_entries
+                entry.get("git", {}).get("depth") == 1 for entry in persisted_entries
             )
         if depth is not None:
             assert all(
-                entry.get("options", {}).get("depth") == depth
+                entry.get("git", {}).get("depth") == depth
                 for entry in persisted_entries
             )
 
@@ -541,7 +540,7 @@ def test_discover_detects_shallow_clone(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Discover records ``shallow: true`` only for shallow checkouts."""
+    """Discover records ``git.depth: 1`` only for shallow checkouts."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
 
@@ -600,15 +599,15 @@ def test_discover_detects_shallow_clone(
         for name, entry in repos.items()
         if isinstance(entry, dict)
     }
-    assert "options" not in entries["fullrepo"]
-    assert entries["shallowrepo"]["options"]["shallow"] is True
+    assert "git" not in entries["fullrepo"]
+    assert entries["shallowrepo"]["git"]["depth"] == 1
 
 
 def test_discover_detects_numeric_depth(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Discover records ``options.depth: N`` for a depth>1 checkout."""
+    """Discover records ``git.depth: N`` for a depth>1 checkout."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
 
@@ -659,7 +658,7 @@ def test_discover_detects_numeric_depth(
         for name, entry in repos.items()
         if isinstance(entry, dict)
     }
-    assert entries["windowrepo"]["options"]["depth"] == 3
+    assert entries["windowrepo"]["git"]["depth"] == 3
 
 
 @pytest.mark.parametrize(

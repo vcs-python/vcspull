@@ -62,6 +62,25 @@ the one edit that silently deletes a doctest, are in
 Before claiming a test or a gate works, show it failing. A gate that has
 never been red is an assumption.
 
+### Configuration schema
+
+Regenerate the published editor schema after changing configuration types or
+validation, using the first Python version in `.tool-versions`:
+
+```console
+$ uv run python scripts/generate_schema.py
+```
+
+Check the committed artifact without writing:
+
+```console
+$ uv run python scripts/generate_schema.py --check
+```
+
+The agreement tests validate original documents with standard JSON Schema
+and the config loader. Schema dependencies belong in the development group;
+keep them out of runtime imports.
+
 ### Imports and typing
 
 - `from __future__ import annotations` at the top of every file — `ruff`'s
@@ -128,16 +147,18 @@ the dev/test extras by importing every `vcspull` module and exercising each
 CLI subcommand with `--help` in an isolated environment:
 
 ```console
-$ uvx \
+$ uv run \
     --isolated \
     --no-cache \
-    --from . \
+    --no-dev \
+    --no-editable \
+    --frozen \
     python scripts/runtime_dep_smoketest.py
 ```
 
 The same check has a pytest wrapper behind a dedicated marker, and both are
-network-dependent because `uvx` builds the package in an isolated
-environment:
+network-dependent because `uv` builds the wheel in an isolated environment
+with the runtime dependencies from `uv.lock`:
 
 ```console
 $ uv run pytest \

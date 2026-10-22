@@ -18,21 +18,23 @@ pytestmark = pytest.mark.scripts__runtime_dep_smoketest
 
 
 def test_runtime_smoke_test_script() -> None:
-    """Run ``scripts/runtime_dep_smoketest.py`` in a clean uvx environment."""
-    uvx = shutil.which("uvx")
-    if uvx is None:
-        pytest.skip("uvx is required to run the runtime dependency smoke test")
+    """Run the installed wheel with only its locked runtime dependencies."""
+    uv = shutil.which("uv")
+    if uv is None:
+        pytest.skip("uv is required to run the runtime dependency smoke test")
 
     repo_root = pathlib.Path(__file__).resolve().parents[1]
     script_path = repo_root / "scripts" / "runtime_dep_smoketest.py"
 
     result = subprocess.run(
         [
-            uvx,
+            uv,
+            "run",
             "--isolated",
             "--no-cache",
-            "--from",
-            str(repo_root),
+            "--no-dev",
+            "--no-editable",
+            "--frozen",
             "python",
             str(script_path),
         ],

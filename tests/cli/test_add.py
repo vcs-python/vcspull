@@ -178,7 +178,7 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
             "~/": {
                 "pinnedproject": {
                     "repo": "git+https://github.com/user/pinnedproject.git",
-                    "options": {"rev": "v1.2.3"},
+                    "working_copy": {"rev": "v1.2.3"},
                 },
             },
         },
@@ -198,7 +198,7 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
             "~/": {
                 "shallowproject": {
                     "repo": "git+https://github.com/user/shallowproject.git",
-                    "options": {"shallow": True},
+                    "git": {"depth": 1},
                 },
             },
         },
@@ -218,7 +218,7 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
             "~/": {
                 "depthproject": {
                     "repo": "git+https://github.com/user/depthproject.git",
-                    "options": {"depth": 50},
+                    "git": {"depth": 50},
                 },
             },
         },
@@ -238,7 +238,7 @@ ADD_REPO_FIXTURES: list[AddRepoFixture] = [
             "~/": {
                 "bothproject": {
                     "repo": "git+https://github.com/user/bothproject.git",
-                    "options": {"depth": 5},
+                    "git": {"depth": 5},
                 },
             },
         },
@@ -2213,7 +2213,7 @@ def test_handle_add_command_url_rev_becomes_option(
     tmp_path: pathlib.Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """A pip-style ``@rev`` is recorded as ``options.rev``, not in the URL."""
+    """A pip-style ``@rev`` is recorded as ``working_copy.rev``, not in the URL."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
 
@@ -2239,7 +2239,7 @@ def test_handle_add_command_url_rev_becomes_option(
 
     assert config_data["~/code/"]["flask"] == {
         "repo": "git+https://github.com/pallets/flask.git",
-        "options": {"rev": "v1.0"},
+        "working_copy": {"rev": "v1.0"},
     }
 
 
