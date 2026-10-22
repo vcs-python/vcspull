@@ -21,6 +21,16 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
+      - name: Test runtime dependencies
+        run: |
+          uv run --no-dev -p python${{ matrix.python-version }} -- python -c '
+          from vcspull import _internal, cli, config, exc, log, types, util, validator, __version__
+          from vcspull._internal import config_reader
+          from vcspull.cli import sync
+          print("vcspull version:", __version__)
+          print("libvcs version:", __libvcs_version__)
+          '
+
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
