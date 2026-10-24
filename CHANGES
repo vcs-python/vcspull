@@ -38,6 +38,14 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### What's new
+
+#### Python 3.15 support (#581)
+
+vcspull now lists Python 3.15 as supported on PyPI and tests every change on
+Python 3.15. vcspull 1.67.0 already works on Python 3.15, so upgrading is
+optional for Python 3.15 users.
+
 ## vcspull v1.67.0 (2026-08-30)
 
 vcspull v1.67.0 raises the libvcs floor to 0.46.0, which rejects an argument a VCS binary would parse as an option in the positions an end-of-options `--` cannot guard. vcspull syncs through libvcs's high-level helpers, so the hardening applies with no configuration or CLI changes. The release also documents what every field holds in the API reference and moves the CI actions to their current majors.
