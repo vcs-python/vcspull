@@ -85,9 +85,10 @@ OPTIONS_FLAG_ONLY = {
 class _HelpTheme(t.Protocol):
     """Protocol describing the argparse color theme.
 
-    Python 3.14+ sets ``self._theme`` on ``HelpFormatter`` instances via
-    ``_colorize.get_theme().argparse``.  This protocol documents the
-    attributes consumed by :meth:`VcspullHelpFormatter._fill_text` and
+    Python 3.14+ exposes ``_colorize.get_theme().argparse`` as ``_theme`` on
+    ``HelpFormatter`` instances (an attribute on 3.14, a read-only property on
+    3.15).  This protocol documents the attributes consumed by
+    :meth:`VcspullHelpFormatter._fill_text` and
     :meth:`VcspullHelpFormatter._colorize_example_line`.
     """
 
@@ -105,17 +106,30 @@ class VcspullHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
     Python 3.14+ natively colorizes usage and option groups via
     ``_set_color()`` / ``_colorize.get_theme().argparse``.  This
-    formatter hooks into the same ``_theme`` attribute to additionally
-    colorize the "examples:" blocks in description text, applying
-    distinct colors to program names, subcommands, long/short options,
-    and option values.
+    formatter reads the same theme to additionally colorize the
+    "examples:" blocks in description text, applying distinct colors to
+    program names, subcommands, long/short options, and option values.
+    It only reads ``_theme``: argparse owns that name.
 
-    When ``_theme`` is ``None`` (older Python or ``NO_COLOR`` set),
-    ``_fill_text`` falls through to the base class unchanged.
+    Below Python 3.14 there is no theme, and ``_fill_text`` falls through
+    to the base class unchanged.  With ``NO_COLOR`` set, argparse's theme
+    holds empty strings, so examples come out plain.
     """
 
+    def _example_theme(self) -> _HelpTheme | None:
+        """Return argparse's help theme, or None below Python 3.14.
+
+        Examples
+        --------
+        >>> import sys
+        >>> theme = VcspullHelpFormatter("vcspull")._example_theme()
+        >>> (theme is None) == (sys.version_info < (3, 14))
+        True
+        """
+        return t.cast("_HelpTheme | None", getattr(self, "_theme", None))
+
     def _fill_text(self, text: str, width: int, indent: str) -> str:
-        theme = t.cast("_HelpTheme | None", getattr(self, "_theme", None))
+        theme = self._example_theme()
         if not text or theme is None:
             return super()._fill_text(text, width, indent)
 

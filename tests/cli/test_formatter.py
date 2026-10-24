@@ -9,6 +9,9 @@ import pytest
 
 from vcspull.cli._formatter import VcspullHelpFormatter
 
+if t.TYPE_CHECKING:
+    from vcspull.cli._formatter import _HelpTheme
+
 
 def _make_theme() -> types.SimpleNamespace:
     """Build a mock theme with short marker strings for easy assertions."""
@@ -25,13 +28,19 @@ def _make_theme() -> types.SimpleNamespace:
 
 def _make_formatter(
     *,
-    theme: types.SimpleNamespace | None = None,
+    theme: types.SimpleNamespace | None,
 ) -> VcspullHelpFormatter:
-    """Create a formatter, optionally injecting a mock _theme."""
-    fmt = VcspullHelpFormatter(prog="vcspull")
-    if theme is not None:
-        fmt._theme = theme  # type: ignore[attr-defined]
-    return fmt
+    """Create a formatter whose examples use ``theme`` on every Python.
+
+    ``_theme`` belongs to argparse (a read-only property on 3.15), so the
+    mock is supplied through :meth:`VcspullHelpFormatter._example_theme`.
+    """
+
+    class _PinnedFormatter(VcspullHelpFormatter):
+        def _example_theme(self) -> _HelpTheme | None:
+            return t.cast("_HelpTheme | None", theme)
+
+    return _PinnedFormatter(prog="vcspull")
 
 
 # ------------------------------------------------------------------
@@ -40,11 +49,10 @@ def _make_formatter(
 
 
 def test_fill_text_no_theme() -> None:
-    """Without _theme, _fill_text delegates to super() unmodified."""
-    fmt = _make_formatter()
-    # On Python 3.14+ _theme is always set (with empty strings when NO_COLOR).
-    # Force None to test the pre-3.14 / explicit-None path.
-    fmt._theme = None  # type: ignore[attr-defined]
+    """Without a theme, _fill_text delegates to super() unmodified."""
+    # On Python 3.14+ argparse always supplies a theme (with empty strings
+    # when NO_COLOR is set); None exercises the pre-3.14 path.
+    fmt = _make_formatter(theme=None)
 
     text = "examples:\n  vcspull sync --dry-run\n"
     result = fmt._fill_text(text, width=80, indent="")
@@ -55,7 +63,7 @@ def test_fill_text_no_theme() -> None:
 
 
 def test_fill_text_with_theme() -> None:
-    """With _theme, example sections are colorized."""
+    """With a theme, example sections are colorized."""
     theme = _make_theme()
     fmt = _make_formatter(theme=theme)
 
