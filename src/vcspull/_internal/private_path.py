@@ -5,7 +5,7 @@ import pathlib
 import typing as t
 
 if t.TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
     PrivatePathBase = pathlib.Path
 else:

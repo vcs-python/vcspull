@@ -439,7 +439,7 @@ class HTTPClient:
                     body = response.read().decode("utf-8")
                     response_headers = {k.lower(): v for k, v in response.getheaders()}
                     return json.loads(body), response_headers
-            except urllib.error.HTTPError as exc:  # noqa: PERF203
+            except urllib.error.HTTPError as exc:
                 if exc.code == 429 and attempt < self.max_retries:
                     delay = self._calculate_retry_delay(exc, attempt)
                     log.warning(
