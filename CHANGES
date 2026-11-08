@@ -38,6 +38,13 @@ $ uvx --from 'vcspull' --prerelease allow vcspull
 _Notes on upcoming releases will be added here_
 <!-- END PLACEHOLDER - ADD NEW CHANGELOG ENTRIES BELOW THIS LINE -->
 
+### Breaking changes
+
+#### Python 3.11 is now the minimum (#583)
+
+Python 3.10 reached end-of-life in October 2026. vcspull now requires Python
+3.11 or newer.
+
 ## vcspull v1.68.0 (2026-10-24)
 
 vcspull v1.68.0 adds Python 3.15 support. PyPI lists Python 3.15 among the
