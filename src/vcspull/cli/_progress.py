@@ -26,8 +26,7 @@ from ._colors import ColorMode, Colors, get_color_mode
 
 if t.TYPE_CHECKING:
     import types
-
-    from typing_extensions import Self
+    from typing import Self
 
 log = logging.getLogger(__name__)
 

@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import os
 import typing as t
-
-from typing_extensions import Self
+from typing import Self
 
 from vcspull._internal.config_reader import ConfigReader
 

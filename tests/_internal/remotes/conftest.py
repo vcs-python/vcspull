@@ -9,7 +9,7 @@ import urllib.error
 import pytest
 
 if t.TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 
 class MockHTTPResponse:
